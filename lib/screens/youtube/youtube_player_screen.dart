@@ -360,7 +360,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   // ---- Rating ----
 
-  Future<void> _rate(String rating) async {
+  Future<void> _rateVideo(String rating) async {
     if (!_settings.canWrite) {
       _snack(YtStrings.needWriteAccess);
       return;
@@ -642,8 +642,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             likes: likes,
             rating: _rating,
             accent: accent,
-            onLike: () => unawaited(_rate('like')),
-            onDislike: () => unawaited(_rate('dislike')),
+            onLike: () => unawaited(_rateVideo('like')),
+            onDislike: () => unawaited(_rateVideo('dislike')),
           ),
           const SizedBox(width: 8),
           _PlayerButton(
