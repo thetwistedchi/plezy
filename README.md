@@ -3,11 +3,14 @@
   Plezy Retrowave
 </h1>
 
-A Windows-focused fork of [Plezy](https://github.com/edde746/plezy) with a retrowave look, a Ratings & links row on every movie and show, and a restyled player. Everything Plezy does still works; this fork only adds to it.
+A Windows-focused fork of [Plezy](https://github.com/edde746/plezy) with a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
+
+Current version: **0.5.0**.
 
 <p>
   <a href="#download">Download</a> ·
   <a href="#what-this-fork-adds">What this fork adds</a> ·
+  <a href="#youtube">YouTube</a> ·
   <a href="https://github.com/edde746/plezy">Upstream Plezy</a> ·
   <a href="LICENSE">License</a>
 </p>
@@ -39,6 +42,7 @@ Plezy Retrowave and upstream Plezy share the same settings and sign-ins on one P
   - **Trakt**: community rating and votes, linking straight to the title
   - **IMDb**, **Rotten Tomatoes** (critics and audience) and **TMDB**
 - Scores from your Plex server or connected trackers (Trakt, MDBList) are used first. Missing Letterboxd and Trakt scores are fetched directly and cached for 24 hours.
+- The **Rate** sheet gets a **Rate on Letterboxd** row that opens the film's page (Letterboxd's API is by request only).
 - **Studio, Producer and Director** shown under the overview.
 
 ### Player
@@ -59,12 +63,56 @@ In every theme:
 - The in-player session pill shows **HOST** for the host. A guest in a host-only room sees a lock and the host's name.
 - Hovering the dimmed play button tells guests that the host controls playback.
 
+## YouTube
+
+A **YouTube** tab in the sidebar with the newest videos from the channels you follow, played in the app with the retrowave controls. **How it works** (the **?** in the YouTube tab) explains every setup step in the app.
+
+### Two ways to use it
+
+| | Without an account | With Google sign-in (optional) |
+| --- | --- | --- |
+| Channels | Add by link or @handle, or import Google Takeout's `subscriptions.csv` | Your subscriptions are imported automatically (and combined with the ones you add) |
+| Videos | From YouTube's public RSS feeds, no quota | Same, plus video lengths and premiere detection |
+| Player, SponsorBlock, DeArrow, chapters, watchlist | ✓ | ✓ |
+| YouTube Premium (no ads) | ✓ via the player sign-in | ✓ |
+| Comments, like / dislike | – | ✓ (read and write) |
+| Channel pages | Newest 15 videos | All uploads |
+
+Google sign-in needs a free Google Cloud project with your own OAuth client (Desktop app); the in-app guide walks through it. The sign-in is stored encrypted with Windows (DPAPI).
+
+### Subscriptions view
+
+- Sort by **Newest** or **Most relevant** (channels you watch, videos doing unusually well, freshness)
+- Filter **All / Unwatched / Continue**; Shorts and premieres hidden by default
+- **+** on a thumbnail adds it to the **watchlist**, **⋮** (or right-click) to open the channel, mark it as favourite, hide the video or hide the whole channel
+- Progress bars on thumbnails, DeArrow titles and thumbnails instead of clickbait
+- Windows notifications for new videos from favourite channels
+
+### Player
+
+- Embedded YouTube player (WebView2) with YouTube's own controls hidden and the retrowave controls on top
+- Gradient timeline with chapter gaps, chapter names and storyboard previews on hover
+- Quality with YouTube's names (1080p60, 2160p60 HDR), speed from 0.25× to 2× including 1.1× and 1.2× (remembered)
+- Captions: creator and auto-generated tracks, auto-translate, preferred language in settings
+- Audio language: switch between audio tracks; the original audio is preferred over AI dubs
+- **SponsorBlock**: auto-skip with undo, or a neon skip button, per category; segments and the highlight on the timeline
+- Resumes where you stopped; the watchlist plays in order and drops finished videos
+- Side panels: watchlist (reorder, add from your feed), comments, more from the channel; channel pages
+- Like / dislike with **Return YouTube Dislike** counts, share link (with timestamp), sleep timer, fullscreen
+- Shortcuts: Space/K, J/L or arrows, ↑/↓, M, F, C, N, 0–9, `<` `>`, `,` `.`
+- Discord status, using Plezy's existing Discord setting
+- Every button can be hidden in Settings › Player buttons
+
 ### Known limitations
 
 - Only Windows builds are made and tested for this fork.
 - Letterboxd has no public API; its score is read from the film page and may stop working if Letterboxd changes it. The card then still links to the film.
 - Trakt scores use Plezy's Trakt app credentials.
 - Guest pause requests and chat in Watch Together are not built; they need changes to the Open Watch Party relay.
+- YouTube quality, in-between speeds, captions and audio tracks use YouTube's internal player functions and may break if YouTube changes its player. Premium bitrate can't be picked manually.
+- Clicks don't reach the embedded video, so YouTube's "Skip ad" button can't be clicked; with Premium there are no ads.
+- Videos whose creators disabled embedding open on youtube.com instead.
+- SponsorBlock and DeArrow data: [sponsor.ajay.app](https://sponsor.ajay.app) (CC BY-NC-SA 4.0). Dislike estimates: [Return YouTube Dislike](https://returnyoutubedislike.com).
 
 ---
 
