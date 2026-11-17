@@ -836,9 +836,13 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                         onPressed: _canControl ? widget.onPlayPause : null,
                         semanticLabel: isPlaying ? t.videoControls.pauseButton : t.videoControls.playButton,
                       );
-                      if (fill == null) return button;
+                      // A Watch Together guest in a host-only room can't
+                      // pause; say why on hover.
+                      Widget explain(Widget child) =>
+                          _canControl ? child : Tooltip(message: t.watchTogether.hostControlsPlayback, child: child);
+                      if (fill == null) return explain(button);
                       // Themed: a filled, glowing disc behind the icon.
-                      return DecoratedBox(
+                      return explain(DecoratedBox(
                         decoration: BoxDecoration(
                           color: fill,
                           shape: BoxShape.circle,
@@ -847,7 +851,7 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                           ],
                         ),
                         child: Padding(padding: const EdgeInsets.all(4), child: button),
-                      );
+                      ));
                     },
                   ),
                 ),

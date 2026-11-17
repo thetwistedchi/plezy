@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../focus/focus_theme.dart';
 import '../../focus/focusable_wrapper.dart';
 import '../../i18n/strings.g.dart';
+import '../../theme/player_style.dart';
 import '../../utils/platform_detector.dart';
 import '../../widgets/app_icon.dart';
 import '../../widgets/overlay_sheet.dart';
@@ -31,6 +32,13 @@ class WatchTogetherSessionIndicator extends StatelessWidget {
     final (count, connected, reconnecting, isHost) = context.select<WatchTogetherProvider, (int, bool, bool, bool)>(
       (provider) => (provider.participantCount, provider.isConnected, provider.isReconnecting, provider.isHost),
     );
+    // Who drives playback: "HOST" for the host; for a guest in a host-only
+    // room, a lock and the host's name, so a dimmed play button explains
+    // itself.
+    final (hostOnly, hostName) = context.select<WatchTogetherProvider, (bool, String?)>(
+      (provider) => (!provider.canControl, provider.host?.name),
+    );
+    final highlight = playerActiveColor(context);
     final status = reconnecting
         ? t.watchTogether.reconnecting
         : connected
@@ -69,12 +77,27 @@ class WatchTogetherSessionIndicator extends StatelessWidget {
                         : const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 else
-                  AppIcon(Symbols.group_rounded, size: 18, fill: 1, color: isHost ? Colors.amber : Colors.white),
+                  AppIcon(Symbols.group_rounded, size: 18, fill: 1, color: isHost ? highlight : Colors.white),
                 const SizedBox(width: 6),
                 Text(
                   '$count',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                 ),
+                if (connected && isHost) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    t.watchTogether.hostBadge,
+                    style: TextStyle(color: highlight, fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 0.8),
+                  ),
+                ] else if (connected && hostOnly && hostName != null) ...[
+                  const SizedBox(width: 8),
+                  const AppIcon(Symbols.lock_rounded, size: 14, fill: 1, color: Colors.white70),
+                  const SizedBox(width: 4),
+                  Text(
+                    t.watchTogether.hostedBy(name: hostName),
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
                 if (reconnecting) ...[
                   const SizedBox(width: 6),
                   Text(t.watchTogether.reconnecting, style: const TextStyle(color: Colors.white, fontSize: 12)),
