@@ -7,6 +7,7 @@ import '../../../focus/focusable_wrapper.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../media/media_source_info.dart';
 import '../../../theme/mono_tokens.dart';
+import '../../../theme/player_style.dart';
 import '../../app_icon.dart';
 
 class SkipMarkerButton extends StatelessWidget {
@@ -59,6 +60,7 @@ class SkipMarkerButton extends StatelessWidget {
         ? '$baseButtonText ($remainingSeconds)'
         : baseButtonText;
     final buttonIcon = showNextEpisode ? Symbols.skip_next_rounded : Symbols.fast_forward_rounded;
+    final neon = PlayerStyle.of(context).skipButtonBorder;
 
     return FocusableWrapper(
       focusNode: focusNode,
@@ -83,22 +85,34 @@ class SkipMarkerButton extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(tokens(context).radiusSm),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2)),
-                  ],
-                ),
+                decoration: neon == null
+                    ? BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(tokens(context).radiusSm),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2)),
+                        ],
+                      )
+                    : BoxDecoration(
+                        color: const Color(0xCC0B0618),
+                        borderRadius: BorderRadius.circular(tokens(context).radiusSm),
+                        border: Border.all(color: neon, width: 2),
+                        boxShadow: [BoxShadow(color: neon.withValues(alpha: 0.5), blurRadius: 16)],
+                      ),
                 child: Row(
                   mainAxisSize: .min,
                   children: [
                     Text(
-                      buttonText,
-                      style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: .w600),
+                      neon == null ? buttonText : buttonText.toUpperCase(),
+                      style: TextStyle(
+                        color: neon == null ? Colors.black : Colors.white,
+                        fontSize: 16,
+                        fontWeight: .w600,
+                        letterSpacing: neon == null ? null : 1.2,
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    AppIcon(buttonIcon, fill: 1, color: Colors.black, size: 20),
+                    AppIcon(buttonIcon, fill: 1, color: neon == null ? Colors.black : Colors.white, size: 20),
                   ],
                 ),
               ),

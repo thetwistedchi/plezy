@@ -18,6 +18,7 @@ import '../../utils/desktop_window_padding.dart';
 import '../../utils/platform_detector.dart';
 import '../../utils/formatters.dart';
 import '../../i18n/strings.g.dart';
+import '../../theme/player_style.dart';
 import '../../models/livetv_capture_buffer.dart';
 import 'models/track_controls_state.dart';
 import 'player_chrome_controller.dart';
@@ -816,13 +817,28 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                   child: PlayPauseStreamBuilder(
                     player: widget.player,
                     builder: (context, isPlaying) {
-                      return _buildFocusableButton(
+                      final style = PlayerStyle.of(context);
+                      final fill = style.playButtonFill;
+                      final button = _buildFocusableButton(
                         focusNode: _playPauseFocusNode,
                         index: 3,
                         icon: isPlaying ? Symbols.pause_rounded : Symbols.play_arrow_rounded,
                         iconSize: 32,
+                        color: fill == null ? Colors.white : (style.playButtonIcon ?? Colors.black),
                         onPressed: _canControl ? widget.onPlayPause : null,
                         semanticLabel: isPlaying ? t.videoControls.pauseButton : t.videoControls.playButton,
+                      );
+                      if (fill == null) return button;
+                      // Themed: a filled, glowing disc behind the icon.
+                      return DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: fill,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: (style.progressGlow ?? fill).withValues(alpha: 0.55), blurRadius: 18),
+                          ],
+                        ),
+                        child: Padding(padding: const EdgeInsets.all(4), child: button),
                       );
                     },
                   ),

@@ -7,6 +7,7 @@ import '../../../focus/focusable_wrapper.dart';
 import '../../../focus/input_mode_tracker.dart';
 import '../../../services/scrub_preview_source.dart';
 import '../../../utils/formatters.dart';
+import '../../../theme/player_style.dart';
 import '../helpers/eager_horizontal_drag_recognizer.dart';
 import '../helpers/render_geometry.dart';
 import '../painters/buffer_range_painter.dart';
@@ -385,7 +386,7 @@ class _TimelineSliderState extends State<TimelineSlider> {
                       min: 0.0,
                       max: max,
                       onChanged: _noopSliderChanged,
-                      activeColor: Colors.white,
+                      activeColor: PlayerStyle.of(context).progress ?? Colors.white,
                       inactiveColor: Colors.transparent,
                     ),
                   ),

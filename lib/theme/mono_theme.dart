@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'gapped_track_shape.dart';
 import 'mono_tokens.dart';
+import 'player_style.dart';
 
 /// One of the six colours a [MonoPalette] holds. [id] is the key the custom
 /// theme persists the colour under.
@@ -413,6 +414,7 @@ ThemeData _buildMonoTheme(MonoPalette c, {required TargetPlatform platform}) {
         textMuted: c.textMuted,
         accent: c.accent,
       ),
+      if (c == MonoPalette.retrowave) PlayerStyle.retrowave,
     ],
   );
 }
