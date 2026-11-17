@@ -1045,6 +1045,14 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     );
   }
 
+  Future<void> _copyLink({required bool withTime}) async {
+    final seconds = _position.floor();
+    final url = Uri.https('youtu.be', '/${_video.id}', withTime && seconds > 0 ? {'t': '$seconds'} : null);
+    await Clipboard.setData(ClipboardData(text: url.toString()));
+    _snack(YtStrings.linkCopied);
+    _focusNode.requestFocus();
+  }
+
   Future<void> _openOnYouTube() async {
     final url = Uri.https('www.youtube.com', '/watch', {
       'v': _video.id,
@@ -1112,6 +1120,20 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             icon: Symbols.account_box_rounded,
             tooltip: YtStrings.openChannel,
             onPressed: () => unawaited(_openChannel()),
+          ),
+          PopupMenuButton<bool>(
+            tooltip: YtStrings.share,
+            onSelected: (withTime) => unawaited(_copyLink(withTime: withTime)),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: false, child: Text(YtStrings.copyLink)),
+              if (_position >= 1)
+                PopupMenuItem(value: true, child: Text(YtStrings.copyLinkAt(_formatTime(_position)))),
+            ],
+            child: const SizedBox(
+              width: 48,
+              height: 48,
+              child: Center(child: AppIcon(Symbols.share_rounded, fill: 1, color: Colors.white)),
+            ),
           ),
           _PlayerButton(
             icon: Symbols.open_in_new_rounded,
@@ -1736,7 +1758,9 @@ class _TimelineState extends State<_Timeline> {
               if (f != null) widget.onSeek(f * duration);
             },
             child: SizedBox(
-              height: 64,
+              // Low, so the like pill sits right above the bar; the hover
+              // label draws outside it.
+              height: 34,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [

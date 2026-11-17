@@ -166,6 +166,10 @@ class YtStrings {
     'Videos mit mehreren Tonspuren (oft KI-Synchronisationen) starten mit dieser',
   );
   static String get audioOriginal => _t('Original (no dubbing)', 'Original (keine Synchronisation)');
+  static String get share => _t('Share', 'Teilen');
+  static String get copyLink => _t('Copy link', 'Link kopieren');
+  static String copyLinkAt(String time) => _t('Copy link at $time', 'Link bei $time kopieren');
+  static String get linkCopied => _t('Link copied.', 'Link kopiert.');
   static String get normalSpeed => _t('Normal', 'Normal');
 
   // SponsorBlock
