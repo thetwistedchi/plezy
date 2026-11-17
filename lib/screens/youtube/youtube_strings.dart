@@ -137,6 +137,14 @@ class YtStrings {
   static String get defaultSpeedSub =>
       _t('Also changes when you pick a speed in the player', 'Ändert sich auch, wenn du im Player eine wählst');
   static String speedLabel(double s) => s == 1 ? normalSpeed : '${s == s.roundToDouble() ? s.toStringAsFixed(0) : s}×';
+  static String get queue => _t('Playing order', 'Reihenfolge');
+  static String get addVideos => _t('Add videos', 'Videos hinzufügen');
+  static String get addFromSubscriptions =>
+      _t('Newest from your subscriptions', 'Neueste aus deinen Abos');
+  static String get addToQueue => _t('Add to watchlist and queue', 'Zur Merkliste und Warteschlange');
+  static String get inQueue => _t('In the queue', 'In der Warteschlange');
+  static String get removeFromQueue => _t('Remove from queue', 'Aus der Warteschlange entfernen');
+  static String get noFeedVideos => _t('No new videos in your subscriptions.', 'Keine neuen Videos in deinen Abos.');
   static String get normalSpeed => _t('Normal', 'Normal');
 
   // SponsorBlock

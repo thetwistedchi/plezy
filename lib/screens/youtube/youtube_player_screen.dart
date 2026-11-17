@@ -22,6 +22,7 @@ import '../../widgets/app_icon.dart';
 import 'youtube_channel_panel.dart';
 import 'youtube_channel_screen.dart';
 import 'youtube_comments_panel.dart';
+import 'youtube_queue_panel.dart';
 import 'youtube_strings.dart';
 
 /// Plays YouTube videos inside the app: the embedded YouTube player in a
@@ -61,7 +62,7 @@ class YouTubePlayerScreen extends StatefulWidget {
   State<YouTubePlayerScreen> createState() => _YouTubePlayerScreenState();
 }
 
-enum _SidePanel { none, comments, channel }
+enum _SidePanel { none, comments, channel, queue }
 
 class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   static const _speeds = YouTubeSettings.speedChoices;
@@ -441,6 +442,35 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     _playIndex(_index + 1);
   }
 
+  void _removeFromQueue(int i) {
+    if (i == _index || i < 0 || i >= _queue.length) return;
+    final removed = _queue[i];
+    setState(() {
+      _queue.removeAt(i);
+      if (i < _index) _index -= 1;
+    });
+    if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(removed.id));
+  }
+
+  void _reorderQueue(int oldIndex, int newIndex) {
+    if (newIndex > oldIndex) newIndex -= 1;
+    if (oldIndex == newIndex) return;
+    final currentId = _video.id;
+    setState(() {
+      final item = _queue.removeAt(oldIndex);
+      _queue.insert(newIndex, item);
+      _index = _queue.indexWhere((v) => v.id == currentId);
+    });
+    unawaited(YouTubeWatchlist.instance.setOrder([for (final v in _queue) v.id]));
+  }
+
+  /// Adds [video] to the end of the queue and to the watchlist.
+  void _addToQueue(YouTubeVideo video) {
+    if (_queue.any((v) => v.id == video.id)) return;
+    setState(() => _queue.add(video));
+    unawaited(YouTubeWatchlist.instance.add(video));
+  }
+
   Future<void> _openChannel() async {
     _send({'cmd': 'pause'});
     final picked = await Navigator.of(context).push<YouTubeVideo>(
@@ -689,6 +719,19 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   onClose: () => setState(() => _panel = _SidePanel.none),
                 ),
               ),
+            if (_panel == _SidePanel.queue)
+              SizedBox(
+                width: 440,
+                child: YouTubeQueuePanel(
+                  queue: _queue,
+                  currentIndex: _index,
+                  onJump: _playIndex,
+                  onRemove: _removeFromQueue,
+                  onReorder: _reorderQueue,
+                  onAdd: _addToQueue,
+                  onClose: () => setState(() => _panel = _SidePanel.none),
+                ),
+              ),
             if (_panel == _SidePanel.channel)
               SizedBox(
                 width: 440,
@@ -873,6 +916,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             ),
           ),
           const SizedBox(width: 12),
+          _PlayerButton(
+            icon: Symbols.playlist_play_rounded,
+            tooltip: YtStrings.watchlist,
+            active: _panel == _SidePanel.queue,
+            onPressed: () => _togglePanel(_SidePanel.queue),
+          ),
           _PlayerButton(
             icon: Symbols.comment_rounded,
             tooltip: YtStrings.comments,

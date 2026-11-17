@@ -69,6 +69,23 @@ class YouTubeWatchlist extends ChangeNotifier {
     await _save();
   }
 
+  Future<void> add(YouTubeVideo video) async {
+    await load();
+    if (contains(video.id)) return;
+    _items.add(video);
+    await _save();
+  }
+
+  /// Puts the entries whose IDs are in [ids] in that order, the rest after.
+  Future<void> setOrder(List<String> ids) async {
+    await load();
+    final rank = {for (var i = 0; i < ids.length; i++) ids[i]: i};
+    final ordered = [..._items]
+      ..sort((a, b) => (rank[a.id] ?? ids.length).compareTo(rank[b.id] ?? ids.length));
+    _items = ordered;
+    await _save();
+  }
+
   /// Moves the entry at [oldIndex] to [newIndex] (ReorderableList indices).
   Future<void> reorder(int oldIndex, int newIndex) async {
     await load();
