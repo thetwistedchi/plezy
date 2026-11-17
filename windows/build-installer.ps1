@@ -57,6 +57,8 @@ OutputBaseFilename=plezy-retrowave-installer
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=windows\runner\resources\app_icon.ico
+UninstallDisplayIcon={app}\{#ExeName}
 PrivilegesRequired=lowest
 ; Needed for /ALLUSERS to take effect, which is how the elevated instance
 ; started by InitializeSetup below reaches an existing machine-wide install.
