@@ -170,6 +170,38 @@ class YtStrings {
   static String get copyLink => _t('Copy link', 'Link kopieren');
   static String copyLinkAt(String time) => _t('Copy link at $time', 'Link bei $time kopieren');
   static String get linkCopied => _t('Link copied.', 'Link kopiert.');
+  static String get continueWatching => _t('Continue', 'Weiterschauen');
+  static String get notInterested => _t('Not interested (hide video)', 'Kein Interesse (Video ausblenden)');
+  static String muteChannel(String c) => _t('Hide all videos from $c', 'Alle Videos von $c ausblenden');
+  static String get favoriteChannelAction =>
+      _t('Favourite channel (notify on new videos)', 'Lieblingskanal (bei neuen Videos benachrichtigen)');
+  static String get unfavoriteChannel => _t('Remove from favourites', 'Aus Lieblingskanälen entfernen');
+  static String get hiddenAndMuted => _t('Hidden and favourites', 'Ausgeblendet und Favoriten');
+  static String hiddenVideos(int n) => _t('$n hidden videos', '$n ausgeblendete Videos');
+  static String get showHiddenAgain => _t('Show again', 'Wieder zeigen');
+  static String get mutedChannels => _t('Hidden channels', 'Ausgeblendete Kanäle');
+  static String get favoriteChannels => _t('Favourite channels', 'Lieblingskanäle');
+  static String get notifyFavorites => _t('Notify about new videos', 'Bei neuen Videos benachrichtigen');
+  static String get notifyFavoritesSub => _t(
+    'Windows notification when a favourite channel uploads (while the app is running)',
+    'Windows-Benachrichtigung, wenn ein Lieblingskanal hochlädt (solange die App läuft)',
+  );
+  static String get noneYet => _t('None yet. Right-click a video to add.', 'Noch keine. Rechtsklick auf ein Video.');
+  static String get communityFeatures => _t('Community features', 'Community-Funktionen');
+  static String get deArrowTitles => _t('DeArrow: better titles', 'DeArrow: bessere Titel');
+  static String get deArrowThumbs => _t('DeArrow: better thumbnails', 'DeArrow: bessere Vorschaubilder');
+  static String get deArrowSub =>
+      _t('Community replacements for clickbait (dearrow.ajay.app)', 'Community-Ersatz für Clickbait (dearrow.ajay.app)');
+  static String get returnDislikes => _t('Return YouTube Dislike', 'Return YouTube Dislike');
+  static String get returnDislikesSub =>
+      _t('Estimated dislike counts (returnyoutubedislike.com)', 'Geschätzte Dislikes (returnyoutubedislike.com)');
+  static String get sleepTimer => _t('Sleep timer', 'Sleep-Timer');
+  static String get sleepOff => _t('Off', 'Aus');
+  static String sleepMinutes(int m) => _t('$m minutes', '$m Minuten');
+  static String get sleepEndOfVideo => _t('End of this video', 'Ende dieses Videos');
+  static String sleepActive(String left) => _t('Pauses in $left', 'Pausiert in $left');
+  static String get sleepActiveEnd => _t('Stops after this video', 'Stoppt nach diesem Video');
+  static String get sleepDone => _t('Sleep timer: paused.', 'Sleep-Timer: pausiert.');
   static String get normalSpeed => _t('Normal', 'Normal');
 
   // SponsorBlock

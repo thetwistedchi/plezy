@@ -55,6 +55,13 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kCcAuto = 'youtube_captions_allow_auto';
   static const _kCcTranslate = 'youtube_captions_translate';
   static const _kAudioLanguage = 'youtube_audio_language';
+  static const _kHiddenVideos = 'youtube_hidden_videos';
+  static const _kMutedChannels = 'youtube_muted_channels';
+  static const _kFavoriteChannels = 'youtube_favorite_channels';
+  static const _kNotify = 'youtube_notify_favorites';
+  static const _kDeArrowTitles = 'youtube_dearrow_titles';
+  static const _kDeArrowThumbs = 'youtube_dearrow_thumbnails';
+  static const _kRyd = 'youtube_return_dislikes';
 
   static const List<double> speedChoices = [0.25, 0.5, 0.75, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0];
   static const int _maxProgress = 2000;
@@ -74,6 +81,12 @@ class YouTubeSettings extends ChangeNotifier {
   Set<String>? _watched;
   Map<String, int>? _channelOpens;
   Map<String, SegmentMode> _sbModes = Map.of(sponsorBlockDefaults);
+
+  Set<String> _hiddenVideos = {};
+
+  /// channelId → title, for the settings list.
+  Map<String, String> _mutedChannels = {};
+  Map<String, String> _favoriteChannels = {};
 
   /// videoId → [position, duration] in seconds, most recent last.
   Map<String, List<double>> _progress = {};
@@ -113,6 +126,10 @@ class YouTubeSettings extends ChangeNotifier {
       _progress = {};
     }
 
+    _hiddenVideos = (prefs.getStringList(_kHiddenVideos) ?? const <String>[]).toSet();
+    _mutedChannels = _readMap(prefs.getString(_kMutedChannels));
+    _favoriteChannels = _readMap(prefs.getString(_kFavoriteChannels));
+
     // Move a refresh token from the old unencrypted preference.
     final legacy = prefs.getString(_kLegacyRefreshToken);
     if (legacy != null && legacy.isNotEmpty) {
@@ -125,6 +142,69 @@ class YouTubeSettings extends ChangeNotifier {
       _refreshToken = await _tokenStore.read() ?? '';
     }
     _prefs = prefs;
+    notifyListeners();
+  }
+
+  static Map<String, String> _readMap(String? raw) {
+    try {
+      final decoded = raw == null ? const <String, dynamic>{} : jsonDecode(raw) as Map<String, dynamic>;
+      return {for (final e in decoded.entries) e.key: e.value.toString()};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  bool get deArrowTitles => _prefs?.getBool(_kDeArrowTitles) ?? true;
+  bool get deArrowThumbnails => _prefs?.getBool(_kDeArrowThumbs) ?? true;
+  bool get returnDislikes => _prefs?.getBool(_kRyd) ?? true;
+  bool get notifyFavorites => _prefs?.getBool(_kNotify) ?? true;
+
+  Future<void> setDeArrowTitles(bool v) => _setBool(_kDeArrowTitles, v);
+  Future<void> setDeArrowThumbnails(bool v) => _setBool(_kDeArrowThumbs, v);
+  Future<void> setReturnDislikes(bool v) => _setBool(_kRyd, v);
+  Future<void> setNotifyFavorites(bool v) => _setBool(_kNotify, v);
+
+  bool isHidden(String videoId) => _hiddenVideos.contains(videoId);
+  bool isMuted(String channelId) => _mutedChannels.containsKey(channelId);
+  bool isFavorite(String channelId) => _favoriteChannels.containsKey(channelId);
+  Map<String, String> get mutedChannels => Map.unmodifiable(_mutedChannels);
+  Map<String, String> get favoriteChannels => Map.unmodifiable(_favoriteChannels);
+  int get hiddenVideoCount => _hiddenVideos.length;
+
+  Future<void> hideVideo(String videoId) async {
+    await load();
+    _hiddenVideos.add(videoId);
+    if (_hiddenVideos.length > 5000) _hiddenVideos = _hiddenVideos.skip(_hiddenVideos.length - 5000).toSet();
+    await _prefs!.setStringList(_kHiddenVideos, _hiddenVideos.toList());
+    notifyListeners();
+  }
+
+  Future<void> unhideAllVideos() async {
+    await load();
+    _hiddenVideos.clear();
+    await _prefs!.setStringList(_kHiddenVideos, const []);
+    notifyListeners();
+  }
+
+  Future<void> setMuted(String channelId, String title, bool muted) async {
+    await load();
+    if (muted) {
+      _mutedChannels[channelId] = title;
+    } else {
+      _mutedChannels.remove(channelId);
+    }
+    await _prefs!.setString(_kMutedChannels, jsonEncode(_mutedChannels));
+    notifyListeners();
+  }
+
+  Future<void> setFavorite(String channelId, String title, bool favorite) async {
+    await load();
+    if (favorite) {
+      _favoriteChannels[channelId] = title;
+    } else {
+      _favoriteChannels.remove(channelId);
+    }
+    await _prefs!.setString(_kFavoriteChannels, jsonEncode(_favoriteChannels));
     notifyListeners();
   }
 

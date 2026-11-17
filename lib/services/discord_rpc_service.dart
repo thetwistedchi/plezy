@@ -202,6 +202,50 @@ class DiscordRPCService {
     }
   }
 
+  /// Presence for the fork's YouTube player. The thumbnail is a public
+  /// i.ytimg.com URL, so nothing is uploaded.
+  Future<void> setYouTubePresence({
+    required String title,
+    required String channel,
+    required String thumbnailUrl,
+    required Duration position,
+    required Duration? duration,
+    required bool playing,
+    double speed = 1.0,
+  }) async {
+    _playbackRevision++;
+    _currentMetadata = null;
+    if (_rpc == null || !_isEnabled || !_isConnected) return;
+    if (!playing) {
+      await clearPresence();
+      return;
+    }
+    DiscordTimestamps? timestamps;
+    final now = DateTime.now();
+    if (duration != null && duration > Duration.zero) {
+      final remaining = Duration(microseconds: ((duration - position).inMicroseconds / speed).round());
+      final total = Duration(microseconds: (duration.inMicroseconds / speed).round());
+      final end = now.add(remaining);
+      timestamps = DiscordTimestamps.range(end.subtract(total), end);
+    } else {
+      timestamps = DiscordTimestamps.started(now.subtract(position));
+    }
+    try {
+      await _rpc!.setPresence(
+        DiscordPresence(
+          type: DiscordActivityType.watching,
+          details: title,
+          state: channel,
+          timestamps: timestamps,
+          statusDisplayType: DiscordStatusDisplayType.details,
+          largeAsset: DiscordAsset(url: thumbnailUrl, text: 'YouTube'),
+        ),
+      );
+    } catch (e) {
+      appLogger.d('Failed to update Discord presence for YouTube', error: e);
+    }
+  }
+
   Future<void> stopPlayback() async {
     _playbackRevision++;
     _currentMetadata = null;

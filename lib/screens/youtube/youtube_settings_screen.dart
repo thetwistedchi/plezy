@@ -304,6 +304,80 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      _SectionTitle(YtStrings.communityFeatures),
+                      _Card(
+                        children: [
+                          SwitchListTile(
+                            title: Text(YtStrings.deArrowTitles),
+                            subtitle: Text(YtStrings.deArrowSub),
+                            value: _settings.deArrowTitles,
+                            onChanged: (v) => unawaited(_settings.setDeArrowTitles(v)),
+                          ),
+                          SwitchListTile(
+                            title: Text(YtStrings.deArrowThumbs),
+                            subtitle: Text(YtStrings.deArrowSub),
+                            value: _settings.deArrowThumbnails,
+                            onChanged: (v) => unawaited(_settings.setDeArrowThumbnails(v)),
+                          ),
+                          SwitchListTile(
+                            title: Text(YtStrings.returnDislikes),
+                            subtitle: Text(YtStrings.returnDislikesSub),
+                            value: _settings.returnDislikes,
+                            onChanged: (v) => unawaited(_settings.setReturnDislikes(v)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _SectionTitle(YtStrings.hiddenAndMuted),
+                      _Card(
+                        children: [
+                          SwitchListTile(
+                            title: Text(YtStrings.notifyFavorites),
+                            subtitle: Text(YtStrings.notifyFavoritesSub),
+                            value: _settings.notifyFavorites,
+                            onChanged: (v) => unawaited(_settings.setNotifyFavorites(v)),
+                          ),
+                          ListTile(
+                            title: Text(YtStrings.favoriteChannels),
+                            subtitle: _settings.favoriteChannels.isEmpty ? Text(YtStrings.noneYet) : null,
+                          ),
+                          for (final e in _settings.favoriteChannels.entries)
+                            ListTile(
+                              dense: true,
+                              leading: AppIcon(Symbols.star_rounded, fill: 1, color: accent),
+                              title: Text(e.value),
+                              trailing: IconButton(
+                                tooltip: YtStrings.unfavoriteChannel,
+                                onPressed: () => unawaited(_settings.setFavorite(e.key, e.value, false)),
+                                icon: const AppIcon(Symbols.close_rounded),
+                              ),
+                            ),
+                          ListTile(
+                            title: Text(YtStrings.mutedChannels),
+                            subtitle: _settings.mutedChannels.isEmpty ? Text(YtStrings.noneYet) : null,
+                          ),
+                          for (final e in _settings.mutedChannels.entries)
+                            ListTile(
+                              dense: true,
+                              leading: AppIcon(Symbols.visibility_off_rounded, color: mono.textMuted),
+                              title: Text(e.value),
+                              trailing: TextButton(
+                                onPressed: () => unawaited(_settings.setMuted(e.key, e.value, false)),
+                                child: Text(YtStrings.showHiddenAgain),
+                              ),
+                            ),
+                          ListTile(
+                            title: Text(YtStrings.hiddenVideos(_settings.hiddenVideoCount)),
+                            trailing: _settings.hiddenVideoCount == 0
+                                ? null
+                                : TextButton(
+                                    onPressed: () => unawaited(_settings.unhideAllVideos()),
+                                    child: Text(YtStrings.showHiddenAgain),
+                                  ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                       _SectionTitle(YtStrings.captionsAndAudio),
                       _Card(
                         children: [

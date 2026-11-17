@@ -11,6 +11,7 @@ import 'package:xml/xml.dart';
 import '../../utils/app_logger.dart';
 import 'youtube_auth.dart';
 import 'youtube_channels.dart';
+import 'youtube_extras.dart';
 import 'youtube_settings.dart';
 
 class YouTubeApiException implements Exception {
@@ -106,6 +107,8 @@ class YouTubeVideo {
 }
 
 enum YouTubeSort { newest, relevant }
+
+enum YouTubeFilter { all, unwatched, continueWatching }
 
 /// Why a video ranks high in the "Most relevant" sort.
 enum YouTubeRelevanceReason { trending, favoriteChannel }
@@ -217,6 +220,8 @@ class YouTubeService extends ChangeNotifier {
       _byId.removeWhere((_, v) => !allChannels.contains(v.channelId));
       _totalChannels = allChannels.length;
 
+      final previousUpdate = _lastUpdated;
+      final knownIds = _byId.keys.toSet();
       final queue = [...allChannels];
       var lastPublish = DateTime.now();
       Future<void> worker() async {
@@ -246,6 +251,18 @@ class YouTubeService extends ChangeNotifier {
 
       await Future.wait(List.generate(_parallelFeeds, (_) => worker()));
       _publish();
+      if (previousUpdate != null) {
+        final settings = YouTubeSettings.instance;
+        final fresh = [
+          for (final v in _videos)
+            if (!knownIds.contains(v.id) &&
+                settings.isFavorite(v.channelId) &&
+                v.publishedAt.isAfter(previousUpdate.subtract(const Duration(hours: 1))) &&
+                (settings.showShorts || !v.isShort))
+              v,
+        ];
+        unawaited(YouTubeNotifier.notifyNew(fresh));
+      }
       if (signedIn) await _fetchDetails();
       _lastUpdated = DateTime.now();
       _publish();
@@ -274,15 +291,24 @@ class YouTubeService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Videos to show, after the Shorts / premiere filters and the sort.
-  List<YouTubeVideo> visibleVideos({required YouTubeSort sort, required bool unwatchedOnly}) {
+  /// Videos to show, after the Shorts / premiere / hidden filters and the sort.
+  List<YouTubeVideo> visibleVideos({required YouTubeSort sort, YouTubeFilter filter = YouTubeFilter.all}) {
     final settings = YouTubeSettings.instance;
     final list = _videos.where((v) {
       if (!settings.showShorts && v.isShort) return false;
       if (!settings.showPremieres && (v.isUpcoming || v.isLive)) return false;
-      if (unwatchedOnly && settings.isWatched(v.id)) return false;
-      return true;
+      if (settings.isHidden(v.id) || settings.isMuted(v.channelId)) return false;
+      switch (filter) {
+        case YouTubeFilter.all:
+          return true;
+        case YouTubeFilter.unwatched:
+          return !settings.isWatched(v.id);
+        case YouTubeFilter.continueWatching:
+          final p = settings.progressFraction(v.id);
+          return p != null && p > 0 && p < 0.95;
+      }
     }).toList();
+    if (filter == YouTubeFilter.continueWatching) return list;
     if (sort == YouTubeSort.relevant) {
       final now = DateTime.now();
       final scores = {for (final v in list) v.id: _relevance(v, now)};

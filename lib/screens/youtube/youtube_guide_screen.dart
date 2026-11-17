@@ -137,6 +137,24 @@ class YouTubeGuideScreen extends StatelessWidget {
         ],
       ),
       _Section(
+        icon: Symbols.star_rounded,
+        title: _t('Favourites, hiding and notifications', 'Favoriten, Ausblenden und Benachrichtigungen'),
+        steps: [
+          _t(
+            'Right-click a video: add it to the watchlist, open the channel, mark the channel as favourite, '
+                'hide the video ("Not interested") or hide the whole channel.',
+            'Rechtsklick auf ein Video: zur Merkliste, Kanal öffnen, Kanal als Favorit markieren, Video '
+                'ausblenden („Kein Interesse“) oder den ganzen Kanal ausblenden.',
+          ),
+          _t(
+            'New videos from favourite channels show a Windows notification while the app is running.',
+            'Neue Videos von Lieblingskanälen zeigen eine Windows-Benachrichtigung, solange die App läuft.',
+          ),
+          _t('Undo hiding in YouTube settings › Hidden and favourites.',
+              'Ausblenden rückgängig machen unter YouTube-Einstellungen › Ausgeblendet und Favoriten.'),
+        ],
+      ),
+      _Section(
         icon: Symbols.keyboard_rounded,
         title: _t('Player shortcuts', 'Player-Tastenkürzel'),
         steps: [
@@ -147,6 +165,8 @@ class YouTubeGuideScreen extends StatelessWidget {
           _t('F or double-click: fullscreen · Esc: leave fullscreen / player',
               'F oder Doppelklick: Vollbild · Esc: Vollbild / Player verlassen'),
           _t('C: comments · N / Shift+N: next / previous video', 'C: Kommentare · N / Umschalt+N: nächstes / vorheriges Video'),
+          _t('0–9: jump to 0–90 % · < / >: slower / faster', '0–9: zu 0–90 % springen · < / >: langsamer / schneller'),
+          _t(', / . while paused: one frame back / forward', ', / . bei Pause: ein Bild zurück / vor'),
         ],
       ),
     ];

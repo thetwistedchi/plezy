@@ -12,7 +12,9 @@ import 'package:webview_windows/webview_windows.dart';
 
 import '../../i18n/strings.g.dart';
 import '../../services/fullscreen_state_manager.dart';
+import '../../services/discord_rpc_service.dart';
 import '../../services/youtube/sponsorblock.dart';
+import '../../services/youtube/youtube_extras.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../services/youtube/youtube_watchlist.dart';
@@ -98,6 +100,14 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   bool _ccApplied = false;
   bool _audioApplied = false;
   String _trackSignature = '';
+  ({int likes, int dislikes})? _votes;
+
+  /// Storyboard spec of the current video, for the timeline preview.
+  _Storyboard? _storyboard;
+
+  Timer? _sleepTimer;
+  DateTime? _sleepAt;
+  bool _sleepAfterVideo = false;
   List<String> _qualities = const [];
   String _quality = 'auto';
 
@@ -146,6 +156,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   @override
   void dispose() {
     _saveProgress();
+    _sleepTimer?.cancel();
+    if (DiscordRPCService.isAvailable) unawaited(DiscordRPCService.instance.stopPlayback());
     _hideTimer?.cancel();
     _toastTimer?.cancel();
     unawaited(_messages?.cancel());
@@ -200,6 +212,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     });
     final service = YouTubeService.instance;
     final channelId = _video.channelId;
+    _votes = null;
+    _storyboard = null;
+    unawaited(
+      ReturnDislike.votes(videoId).then((v) {
+        if (mounted && generation == _metaGeneration) setState(() => _votes = v);
+      }),
+    );
     unawaited(
       service
           .channelFeed(channelId)
@@ -287,6 +306,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       case 'state':
         final state = (message['s'] as num?)?.toInt() ?? -1;
         setState(() => _state = state);
+        _updateDiscord();
         if (state == 0) {
           _onEnded();
         } else if (state == 1) {
@@ -327,6 +347,11 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
           });
         }
         _onTracks(message['cc'], message['audio']);
+        final spec = message['sb'];
+        if (_storyboard == null && spec is String && spec.isNotEmpty) {
+          final board = _Storyboard.parse(spec);
+          if (board != null) setState(() => _storyboard = board);
+        }
         if (!_qualityApplied && levels.isNotEmpty) {
           _qualityApplied = true;
           if (_wantedQuality != 'auto') _applyQuality(_pickQuality(levels, _wantedQuality));
@@ -344,6 +369,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     final target = _duration > 0 ? seconds.clamp(0, _duration).toDouble() : math.max(0.0, seconds);
     _send({'cmd': 'seek', 't': target});
     setState(() => _position = target);
+    _updateDiscord();
     _showControls();
   }
 
@@ -692,7 +718,55 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     _showControls();
   }
 
+  void _updateDiscord() {
+    if (!DiscordRPCService.isAvailable) return;
+    unawaited(
+      DiscordRPCService.instance.setYouTubePresence(
+        title: DeArrow.instance.titleFor(_video),
+        channel: _video.channelTitle,
+        thumbnailUrl: 'https://i.ytimg.com/vi/${_video.id}/hqdefault.jpg',
+        position: Duration(milliseconds: (_position * 1000).round()),
+        duration: _duration > 0 ? Duration(milliseconds: (_duration * 1000).round()) : null,
+        playing: _state == 1,
+        speed: _rate,
+      ),
+    );
+  }
+
+  // ---- Sleep timer ----
+
+  void _setSleep(int minutes) {
+    _sleepTimer?.cancel();
+    setState(() {
+      _sleepAfterVideo = minutes == -1;
+      _sleepAt = minutes > 0 ? DateTime.now().add(Duration(minutes: minutes)) : null;
+    });
+    if (minutes > 0) {
+      _sleepTimer = Timer(Duration(minutes: minutes), () {
+        if (!mounted) return;
+        _send({'cmd': 'pause'});
+        setState(() => _sleepAt = null);
+        _snack(YtStrings.sleepDone);
+      });
+    }
+  }
+
+  String? get _sleepLabel {
+    if (_sleepAfterVideo) return YtStrings.sleepActiveEnd;
+    final at = _sleepAt;
+    if (at == null) return null;
+    final left = at.difference(DateTime.now());
+    return YtStrings.sleepActive(_formatTime(left.inSeconds.toDouble().clamp(0, 86400)));
+  }
+
   void _onEnded() {
+    if (_sleepAfterVideo) {
+      if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(_video.id));
+      setState(() => _sleepAfterVideo = false);
+      _showControls(autoHide: false);
+      _snack(YtStrings.sleepDone);
+      return;
+    }
     if (_duration > 0) unawaited(_settings.saveProgress(_video.id, _duration, _duration));
     if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(_video.id));
     if (_index < _queue.length - 1) {
@@ -780,7 +854,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   int? get _likeCount {
-    final base = _info?.likeCount;
+    final base = _info?.likeCount ?? _votes?.likes;
     if (base == null) return null;
     final was = _initialRating == 'like' ? 1 : 0;
     final now = _rating == 'like' ? 1 : 0;
@@ -815,8 +889,11 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+    final character = event.character;
     final handled = _handleKey(
-      event.logicalKey.keyLabel.length == 1 ? event.logicalKey.keyLabel.toLowerCase() : _keyName(event.logicalKey),
+      character != null && character.length == 1 && character.trim().isNotEmpty
+          ? character
+          : (event.logicalKey.keyLabel.length == 1 ? event.logicalKey.keyLabel.toLowerCase() : _keyName(event.logicalKey)),
       shift: HardwareKeyboard.instance.isShiftPressed,
     );
     return handled ? KeyEventResult.handled : KeyEventResult.ignored;
@@ -833,6 +910,26 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   bool _handleKey(String key, {bool shift = false}) {
+    // Digits jump to 0–90 %.
+    final digit = int.tryParse(key);
+    if (key.length == 1 && digit != null) {
+      if (_duration > 0) _seek(_duration * digit / 10);
+      _showControls();
+      return true;
+    }
+    if (key == '<' || key == '>') {
+      final speeds = YouTubeSettings.speedChoices;
+      final i = speeds.indexWhere((s) => s >= _rate - 0.001);
+      final next = key == '>' ? math.min(speeds.length - 1, i + 1) : math.max(0, i - 1);
+      _setRate(speeds[next]);
+      _snack('${_trim(speeds[next])}×');
+      return true;
+    }
+    if ((key == ',' || key == '.') && !_playing) {
+      // One frame (assumes 30 fps) while paused.
+      _seekBy(key == '.' ? 1 / 30 : -1 / 30);
+      return true;
+    }
     switch (key.length == 1 ? key.toLowerCase() : key) {
       case ' ' || 'k':
         _togglePlay();
@@ -1080,7 +1177,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _info?.title ?? _video.title,
+                  _settings.deArrowTitles ? DeArrow.instance.titleFor(_video) : (_info?.title ?? _video.title),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
@@ -1159,11 +1256,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_settings.isSignedIn)
-            Align(
+          Align(
             alignment: Alignment.centerRight,
             child: _RatingPill(
               likes: _likeCount,
+              dislikes: _votes?.dislikes,
+              enabled: _settings.canWrite,
               rating: _rating,
               accent: accent,
               onLike: () => unawaited(_rateVideo('like')),
@@ -1178,6 +1276,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             segments: visibleSegments,
             gradient: style.progressGradient ?? [accent, accent],
             thumbGlow: style.progressGlow ?? accent,
+            storyboard: _storyboard,
             onSeek: _seek,
             onHoverChanged: (hovering) => _pointerOnControls = hovering,
           ),
@@ -1338,6 +1437,31 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                       Symbols.closed_caption_rounded,
                       fill: 1,
                       color: _ccTracks.isEmpty ? Colors.white30 : (_ccCurrent != null ? accent : Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+              PopupMenuButton<int>(
+                tooltip: _sleepLabel ?? YtStrings.sleepTimer,
+                onSelected: _setSleep,
+                itemBuilder: (_) => [
+                  CheckedPopupMenuItem(
+                    value: 0,
+                    checked: _sleepAt == null && !_sleepAfterVideo,
+                    child: Text(YtStrings.sleepOff),
+                  ),
+                  for (final m in const [15, 30, 45, 60, 90])
+                    PopupMenuItem(value: m, child: Text(YtStrings.sleepMinutes(m))),
+                  CheckedPopupMenuItem(value: -1, checked: _sleepAfterVideo, child: Text(YtStrings.sleepEndOfVideo)),
+                ],
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Center(
+                    child: AppIcon(
+                      Symbols.bedtime_rounded,
+                      fill: 1,
+                      color: _sleepAt != null || _sleepAfterVideo ? accent : Colors.white,
                     ),
                   ),
                 ),
@@ -1504,6 +1628,8 @@ class _PlayButton extends StatelessWidget {
 class _RatingPill extends StatelessWidget {
   const _RatingPill({
     required this.likes,
+    required this.dislikes,
+    required this.enabled,
     required this.rating,
     required this.accent,
     required this.onLike,
@@ -1511,6 +1637,8 @@ class _RatingPill extends StatelessWidget {
   });
 
   final int? likes;
+  final int? dislikes;
+  final bool enabled;
   final String rating;
   final Color accent;
   final VoidCallback onLike;
@@ -1533,7 +1661,7 @@ class _RatingPill extends StatelessWidget {
           Tooltip(
             message: YtStrings.like,
             child: InkWell(
-              onTap: onLike,
+              onTap: enabled ? onLike : null,
               borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -1556,15 +1684,26 @@ class _RatingPill extends StatelessWidget {
           Tooltip(
             message: YtStrings.dislike,
             child: InkWell(
-              onTap: onDislike,
+              onTap: enabled ? onDislike : null,
               borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: AppIcon(
-                  Symbols.thumb_down_rounded,
-                  fill: disliked ? 1 : 0,
-                  size: 20,
-                  color: disliked ? accent : Colors.white,
+                child: Row(
+                  children: [
+                    AppIcon(
+                      Symbols.thumb_down_rounded,
+                      fill: disliked ? 1 : 0,
+                      size: 20,
+                      color: disliked ? accent : Colors.white,
+                    ),
+                    if (dislikes != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        _compact(dislikes!),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -1696,6 +1835,7 @@ class _Timeline extends StatefulWidget {
     required this.segments,
     required this.gradient,
     required this.thumbGlow,
+    required this.storyboard,
     required this.onSeek,
     required this.onHoverChanged,
   });
@@ -1707,6 +1847,7 @@ class _Timeline extends StatefulWidget {
   final List<SponsorSegment> segments;
   final List<Color> gradient;
   final Color thumbGlow;
+  final _Storyboard? storyboard;
   final ValueChanged<double> onSeek;
   final ValueChanged<bool> onHoverChanged;
 
@@ -1715,6 +1856,7 @@ class _Timeline extends StatefulWidget {
 }
 
 class _TimelineState extends State<_Timeline> {
+  double get _previewHalf => widget.storyboard == null ? 60 : 100;
   double? _hoverX;
   double? _dragFraction;
 
@@ -1780,37 +1922,54 @@ class _TimelineState extends State<_Timeline> {
                   ),
                   if (hoverTime != null && duration > 0)
                     Positioned(
-                      left: (_hoverX!.clamp(60.0, math.max(60.0, width - 60))) - 60,
+                      left: (_hoverX!.clamp(_previewHalf, math.max(_previewHalf, width - _previewHalf))) - _previewHalf,
                       bottom: 30,
-                      width: 120,
+                      width: _previewHalf * 2,
                       child: IgnorePointer(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xE60B0618),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.white24),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (hoverChapter != null)
-                                Text(
-                                  hoverChapter,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (widget.storyboard?.frameAt(hoverTime, duration) case final frame?)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 6),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: widget.thumbGlow, width: 2),
                                 ),
-                              Text(
-                                _formatTime(hoverTime),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: _StoryboardFrame(frame: frame, width: _previewHalf * 2 - 4),
                                 ),
                               ),
-                            ],
-                          ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xE60B0618),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.white24),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (hoverChapter != null)
+                                    Text(
+                                      hoverChapter,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                    ),
+                                  Text(
+                                    _formatTime(hoverTime),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -2028,6 +2187,118 @@ class _ChannelStrip extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// YouTube's storyboard: sprite sheets of small frames for seek previews.
+class _Storyboard {
+  _Storyboard({
+    required this.urlTemplate,
+    required this.level,
+    required this.width,
+    required this.height,
+    required this.count,
+    required this.cols,
+    required this.rows,
+    required this.intervalMs,
+    required this.name,
+    required this.sigh,
+  });
+
+  final String urlTemplate;
+  final int level;
+  final int width;
+  final int height;
+  final int count;
+  final int cols;
+  final int rows;
+  final int intervalMs;
+  final String name;
+  final String sigh;
+
+  /// Parses "url|w#h#count#cols#rows#interval#name#sigh|…" and keeps the
+  /// largest level.
+  static _Storyboard? parse(String spec) {
+    final parts = spec.split('|');
+    if (parts.length < 2) return null;
+    for (var i = parts.length - 1; i >= 1; i--) {
+      final f = parts[i].split('#');
+      if (f.length < 8) continue;
+      final w = int.tryParse(f[0]);
+      final h = int.tryParse(f[1]);
+      final count = int.tryParse(f[2]);
+      final cols = int.tryParse(f[3]);
+      final rows = int.tryParse(f[4]);
+      final interval = int.tryParse(f[5]);
+      if (w == null || h == null || count == null || cols == null || rows == null || interval == null) continue;
+      if (count <= 0 || cols <= 0 || rows <= 0) continue;
+      return _Storyboard(
+        urlTemplate: parts.first,
+        level: i - 1,
+        width: w,
+        height: h,
+        count: count,
+        cols: cols,
+        rows: rows,
+        intervalMs: interval,
+        name: f[6],
+        sigh: f.sublist(7).join('#'),
+      );
+    }
+    return null;
+  }
+
+  ({String url, int col, int row, int cols, int width, int height})? frameAt(double seconds, double duration) {
+    if (duration <= 0) return null;
+    final index = (intervalMs > 0 ? (seconds * 1000 / intervalMs) : (seconds / duration * count)).floor().clamp(
+      0,
+      count - 1,
+    );
+    final perSheet = cols * rows;
+    final sheet = index ~/ perSheet;
+    final within = index % perSheet;
+    final n = name.contains(r'$M') ? name.replaceAll(r'$M', '$sheet') : name;
+    var url = urlTemplate.replaceAll(r'$L', '$level').replaceAll(r'$N', n);
+    if (sigh.isNotEmpty) url += '${url.contains('?') ? '&' : '?'}sigh=${Uri.encodeQueryComponent(sigh)}';
+    return (url: url, col: within % cols, row: within ~/ cols, cols: cols, width: width, height: height);
+  }
+}
+
+class _StoryboardFrame extends StatelessWidget {
+  const _StoryboardFrame({required this.frame, required this.width});
+
+  final ({String url, int col, int row, int cols, int width, int height}) frame;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = width / frame.width;
+    final height = frame.height * scale;
+    return SizedBox(
+      width: width,
+      height: height,
+      child: ClipRect(
+        child: OverflowBox(
+          alignment: Alignment.topLeft,
+          minWidth: 0,
+          minHeight: 0,
+          maxWidth: double.infinity,
+          maxHeight: double.infinity,
+          child: Transform.translate(
+            offset: Offset(-frame.col * width, -frame.row * height),
+            child: CachedNetworkImage(
+              imageUrl: frame.url,
+              width: frame.cols * width,
+              fit: BoxFit.fitWidth,
+              alignment: Alignment.topLeft,
+              fadeInDuration: Duration.zero,
+              placeholder: (_, _) => const ColoredBox(color: Color(0xFF1B1240)),
+              errorWidget: (_, _, _) => const ColoredBox(color: Color(0xFF1B1240)),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

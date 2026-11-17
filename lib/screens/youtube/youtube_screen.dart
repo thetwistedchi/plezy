@@ -6,12 +6,14 @@ import 'package:material_symbols_icons/symbols.dart';
 
 import '../../services/youtube/youtube_auth.dart';
 import '../../services/youtube/youtube_channels.dart';
+import '../../services/youtube/youtube_extras.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../services/youtube/youtube_watchlist.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
+import 'youtube_channel_screen.dart';
 import 'youtube_channels_screen.dart';
 import 'youtube_guide_screen.dart';
 import 'youtube_player_screen.dart';
@@ -34,7 +36,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   final _watchlist = YouTubeWatchlist.instance;
   _YtView _view = _YtView.subscriptions;
   YouTubeSort _sort = YouTubeSort.newest;
-  bool _unwatchedOnly = false;
+  YouTubeFilter _filter = YouTubeFilter.all;
   bool _wasSignedIn = false;
 
   @override
@@ -46,6 +48,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       Future.wait([_settings.load(), YouTubeChannels.instance.load()]).then((_) => _onSettingsChanged()),
     );
     unawaited(_watchlist.load());
+    YouTubeNotifier.onOpen = (video) {
+      if (mounted) unawaited(YouTubePlayerScreen.open(context, [video]));
+    };
   }
 
   @override
@@ -114,7 +119,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: ListenableBuilder(
-        listenable: Listenable.merge([_settings, _service, _watchlist, YouTubeChannels.instance]),
+        listenable: Listenable.merge([_settings, _service, _watchlist, YouTubeChannels.instance, DeArrow.instance]),
         builder: (context, _) {
           if (!_settings.isLoaded || !YouTubeChannels.instance.isLoaded) {
             return const Center(child: CircularProgressIndicator());
@@ -131,7 +136,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   Widget _buildFeed(BuildContext context) {
     final theme = Theme.of(context);
     final mono = tokens(context);
-    final videos = _service.visibleVideos(sort: _sort, unwatchedOnly: _unwatchedOnly);
+    final videos = _service.visibleVideos(sort: _sort, filter: _filter);
     final error = _service.error;
     final updated = _service.lastUpdated;
     final subtitle = _sort == YouTubeSort.relevant ? YtStrings.relevantSubtitle : YtStrings.newestSubtitle;
@@ -193,15 +198,16 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                         selected: {_sort},
                         onSelectionChanged: (s) => setState(() => _sort = s.first),
                       ),
-                      SegmentedButton<bool>(
+                      SegmentedButton<YouTubeFilter>(
                         style: _segmentStyle(context),
                         showSelectedIcon: false,
                         segments: [
-                          ButtonSegment(value: false, label: Text(YtStrings.all)),
-                          ButtonSegment(value: true, label: Text(YtStrings.unwatched)),
+                          ButtonSegment(value: YouTubeFilter.all, label: Text(YtStrings.all)),
+                          ButtonSegment(value: YouTubeFilter.unwatched, label: Text(YtStrings.unwatched)),
+                          ButtonSegment(value: YouTubeFilter.continueWatching, label: Text(YtStrings.continueWatching)),
                         ],
-                        selected: {_unwatchedOnly},
-                        onSelectionChanged: (s) => setState(() => _unwatchedOnly = s.first),
+                        selected: {_filter},
+                        onSelectionChanged: (s) => setState(() => _filter = s.first),
                       ),
                       IconButton(
                         tooltip: YtStrings.refresh,
@@ -318,6 +324,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                     onTap: () => unawaited(_open(videos[i])),
                     inWatchlist: _watchlist.contains(videos[i].id),
                     onToggleWatchlist: () => unawaited(_watchlist.toggle(videos[i])),
+                    onMenu: (position) => unawaited(_showVideoMenu(videos[i], position)),
                   ),
                   childCount: videos.length,
                 ),
@@ -326,6 +333,46 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showVideoMenu(YouTubeVideo video, Offset position) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final favorite = _settings.isFavorite(video.channelId);
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
+      items: [
+        PopupMenuItem(
+          value: 'watchlist',
+          child: Text(_watchlist.contains(video.id) ? YtStrings.removeFromWatchlist : YtStrings.addToWatchlist),
+        ),
+        PopupMenuItem(value: 'channel', child: Text(YtStrings.openChannel)),
+        PopupMenuItem(
+          value: 'favorite',
+          child: Text(favorite ? YtStrings.unfavoriteChannel : YtStrings.favoriteChannelAction),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(value: 'hide', child: Text(YtStrings.notInterested)),
+        PopupMenuItem(value: 'mute', child: Text(YtStrings.muteChannel(video.channelTitle))),
+      ],
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'watchlist':
+        await _watchlist.toggle(video);
+      case 'channel':
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => YouTubeChannelScreen(channelId: video.channelId, channelTitle: video.channelTitle),
+          ),
+        );
+      case 'favorite':
+        await _settings.setFavorite(video.channelId, video.channelTitle, !favorite);
+      case 'hide':
+        await _settings.hideVideo(video.id);
+      case 'mute':
+        await _settings.setMuted(video.channelId, video.channelTitle, true);
+    }
   }
 
   Widget _viewSwitch(BuildContext context) {
@@ -429,8 +476,10 @@ class _VideoCard extends StatefulWidget {
     required this.onTap,
     required this.inWatchlist,
     required this.onToggleWatchlist,
+    required this.onMenu,
   });
 
+  final ValueChanged<Offset> onMenu;
   final YouTubeVideo video;
   final bool watched;
 
@@ -479,7 +528,10 @@ class _VideoCardState extends State<_VideoCard> {
       button: true,
       label: '${video.title}, ${video.channelTitle}',
       excludeSemantics: true,
-      child: InkWell(
+      child: GestureDetector(
+        onSecondaryTapUp: (d) => widget.onMenu(d.globalPosition),
+        onLongPressStart: (d) => widget.onMenu(d.globalPosition),
+        child: InkWell(
         onTap: widget.onTap,
         onHover: (h) => setState(() => _highlighted = h),
         onFocusChange: (f) => setState(() => _highlighted = f),
@@ -503,11 +555,13 @@ class _VideoCardState extends State<_VideoCard> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (video.thumbnailUrl != null)
+                      if (DeArrow.instance.thumbnailFor(video) case final thumb?)
                         CachedNetworkImage(
-                          imageUrl: video.thumbnailUrl!,
+                          imageUrl: thumb,
                           fit: BoxFit.cover,
-                          errorWidget: (_, _, _) => const SizedBox.shrink(),
+                          errorWidget: (_, _, _) => video.thumbnailUrl == null || video.thumbnailUrl == thumb
+                              ? const SizedBox.shrink()
+                              : CachedNetworkImage(imageUrl: video.thumbnailUrl!, fit: BoxFit.cover),
                         ),
                       if (widget.watched)
                         Positioned(left: 8, top: 8, child: _Chip(text: YtStrings.watched)),
@@ -540,14 +594,14 @@ class _VideoCardState extends State<_VideoCard> {
               ),
               const SizedBox(height: 10),
               Text(
-                video.title,
+                DeArrow.instance.titleFor(video),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, height: 1.3),
               ),
               const SizedBox(height: 4),
               Text(
-                '${video.channelTitle} · ${YtStrings.age(video.publishedAt)}',
+                '${YouTubeSettings.instance.isFavorite(video.channelId) ? '★ ' : ''}${video.channelTitle} · ${YtStrings.age(video.publishedAt)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted),
@@ -564,6 +618,7 @@ class _VideoCardState extends State<_VideoCard> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
