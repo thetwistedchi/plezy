@@ -272,6 +272,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                   (context, i) => _VideoCard(
                     video: videos[i],
                     watched: _settings.isWatched(videos[i].id),
+                    progress: _settings.progressFraction(videos[i].id),
                     reason: _sort == YouTubeSort.relevant ? _service.relevanceReason(videos[i]) : null,
                     trendFactor: _service.trendFactor(videos[i]),
                     onTap: () => unawaited(_open(videos[i])),
@@ -382,6 +383,7 @@ class _VideoCard extends StatefulWidget {
   const _VideoCard({
     required this.video,
     required this.watched,
+    required this.progress,
     required this.reason,
     required this.trendFactor,
     required this.onTap,
@@ -391,6 +393,9 @@ class _VideoCard extends StatefulWidget {
 
   final YouTubeVideo video;
   final bool watched;
+
+  /// Fraction watched, from the saved resume position.
+  final double? progress;
   final YouTubeRelevanceReason? reason;
   final double trendFactor;
   final VoidCallback onTap;
@@ -472,17 +477,21 @@ class _VideoCardState extends State<_VideoCard> {
                         top: 6,
                         child: _WatchlistButton(active: widget.inWatchlist, onPressed: widget.onToggleWatchlist),
                       ),
-                      if (widget.watched)
+                      if (widget.watched || (widget.progress ?? 0) > 0)
                         Positioned(
                           left: 0,
-                          right: 0,
                           bottom: 0,
                           height: 4,
-                          child: DecoratedBox(
+                          right: 0,
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: (widget.progress ?? 1.0).clamp(0.02, 1.0),
+                            child: DecoratedBox(
                             decoration: BoxDecoration(
                               gradient: gradient != null && gradient.length >= 2 ? LinearGradient(colors: gradient) : null,
                               color: gradient == null || gradient.length < 2 ? accent : null,
                             ),
+                          ),
                           ),
                         ),
                     ],

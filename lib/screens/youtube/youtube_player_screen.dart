@@ -102,6 +102,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   bool _fullscreen = false;
   bool _enteredFullscreen = false;
   int _metaGeneration = 0;
+  DateTime _lastProgressSave = DateTime.fromMillisecondsSinceEpoch(0);
 
   bool get _playing => _state == 1 || _state == 3;
 
@@ -115,6 +116,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   @override
   void dispose() {
+    _saveProgress();
     _hideTimer?.cancel();
     _toastTimer?.cancel();
     unawaited(_messages?.cancel());
@@ -136,7 +138,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       await _controller.setPopupWindowPolicy(WebviewPopupWindowPolicy.deny);
       await _controller.addVirtualHostNameMapping(YouTubeWebView.host, folder, WebviewHostResourceAccessKind.allow);
       _messages = _controller.webMessage.listen(_onMessage);
-      await _controller.loadUrl(YouTubeWebView.playerUrl(_video.id).toString());
+      await _controller.loadUrl(
+        YouTubeWebView.playerUrl(_video.id, start: _settings.resumePosition(_video.id) ?? 0).toString(),
+      );
       if (mounted) setState(() => _webReady = true);
       _scheduleHide();
     } catch (e, st) {
@@ -207,6 +211,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
           _muted = message['muted'] as bool? ?? _muted;
         });
         _checkSegments();
+        if (_playing && DateTime.now().difference(_lastProgressSave) > const Duration(seconds: 5)) {
+          _saveProgress();
+        }
       case 'state':
         final state = (message['s'] as num?)?.toInt() ?? -1;
         setState(() => _state = state);
@@ -275,8 +282,16 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     });
   }
 
+  /// Remembers where the current video is, so it resumes there next time.
+  void _saveProgress() {
+    if (_duration <= 0 || _position <= 0) return;
+    _lastProgressSave = DateTime.now();
+    unawaited(_settings.saveProgress(_video.id, _position, _duration));
+  }
+
   void _playIndex(int index) {
     if (index < 0 || index >= _queue.length) return;
+    _saveProgress();
     setState(() {
       _index = index;
       _position = 0;
@@ -286,12 +301,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _toastSegment = null;
     });
     unawaited(YouTubeSettings.instance.markOpened(_video.id, _video.channelId));
-    _send({'cmd': 'load', 'id': _video.id});
+    _send({'cmd': 'load', 'id': _video.id, 't': _settings.resumePosition(_video.id) ?? 0});
     unawaited(_loadMeta());
     _showControls();
   }
 
   void _onEnded() {
+    if (_duration > 0) unawaited(_settings.saveProgress(_video.id, _duration, _duration));
     if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(_video.id));
     if (_index < _queue.length - 1) {
       _playIndex(_index + 1);

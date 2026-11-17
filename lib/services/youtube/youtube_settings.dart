@@ -47,6 +47,8 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kSbShowSegments = 'youtube_sponsorblock_show_segments';
   static const _kVolume = 'youtube_player_volume';
   static const _kCacheLimitMb = 'youtube_player_cache_mb';
+  static const _kProgress = 'youtube_progress';
+  static const int _maxProgress = 2000;
 
   static const int defaultCacheLimitMb = 300;
   static const int minCacheLimitMb = 50;
@@ -63,6 +65,9 @@ class YouTubeSettings extends ChangeNotifier {
   Set<String>? _watched;
   Map<String, int>? _channelOpens;
   Map<String, SegmentMode> _sbModes = Map.of(sponsorBlockDefaults);
+
+  /// videoId → [position, duration] in seconds, most recent last.
+  Map<String, List<double>> _progress = {};
 
   bool get isLoaded => _prefs != null;
 
@@ -86,6 +91,18 @@ class YouTubeSettings extends ChangeNotifier {
         if (mode != null && sponsorBlockDefaults.containsKey(e.key)) _sbModes[e.key] = mode;
       }
     } catch (_) {}
+
+    try {
+      final raw = prefs.getString(_kProgress);
+      final decoded = raw == null ? const <String, dynamic>{} : jsonDecode(raw) as Map<String, dynamic>;
+      _progress = {
+        for (final e in decoded.entries)
+          if (e.value is List && (e.value as List).length == 2)
+            e.key: [((e.value as List)[0] as num).toDouble(), ((e.value as List)[1] as num).toDouble()],
+      };
+    } catch (_) {
+      _progress = {};
+    }
 
     // Move a refresh token from the old unencrypted preference.
     final legacy = prefs.getString(_kLegacyRefreshToken);
@@ -181,6 +198,40 @@ class YouTubeSettings extends ChangeNotifier {
   Future<void> setRefreshMinutes(int value) async {
     await load();
     await _prefs!.setInt(_kRefreshMinutes, value);
+    notifyListeners();
+  }
+
+  /// Where playback of [videoId] stopped, if it is worth resuming: more than
+  /// 10 seconds in and not within the last 30 seconds.
+  double? resumePosition(String videoId) {
+    final p = _progress[videoId];
+    if (p == null) return null;
+    final position = p[0];
+    final duration = p[1];
+    if (position < 10) return null;
+    if (duration > 0 && position > duration - 30) return null;
+    return position;
+  }
+
+  /// Fraction of [videoId] watched, for the progress bar on its thumbnail.
+  double? progressFraction(String videoId) {
+    final p = _progress[videoId];
+    if (p == null || p[1] <= 0) return null;
+    return (p[0] / p[1]).clamp(0.0, 1.0);
+  }
+
+  Future<void> saveProgress(String videoId, double position, double duration) async {
+    await load();
+    _progress.remove(videoId);
+    if (duration > 0 && position >= duration * 0.95) {
+      _progress[videoId] = [duration, duration];
+    } else {
+      _progress[videoId] = [position, duration];
+    }
+    while (_progress.length > _maxProgress) {
+      _progress.remove(_progress.keys.first);
+    }
+    await _prefs!.setString(_kProgress, jsonEncode(_progress));
     notifyListeners();
   }
 
