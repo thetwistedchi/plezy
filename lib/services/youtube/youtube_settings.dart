@@ -46,6 +46,11 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kSbModes = 'youtube_sponsorblock_modes';
   static const _kSbShowSegments = 'youtube_sponsorblock_show_segments';
   static const _kVolume = 'youtube_player_volume';
+  static const _kCacheLimitMb = 'youtube_player_cache_mb';
+
+  static const int defaultCacheLimitMb = 300;
+  static const int minCacheLimitMb = 50;
+  static const int maxCacheLimitMb = 20000;
 
   static const int _maxWatched = 3000;
   static const List<int> refreshChoices = [15, 30, 60];
@@ -109,6 +114,7 @@ class YouTubeSettings extends ChangeNotifier {
   bool get hiddenBannerDismissed => _prefs?.getBool(_kBannerDismissed) ?? false;
   bool get sponsorBlockEnabled => _prefs?.getBool(_kSbEnabled) ?? true;
   bool get showSegmentsOnTimeline => _prefs?.getBool(_kSbShowSegments) ?? true;
+  int get playerCacheLimitMb => _prefs?.getInt(_kCacheLimitMb) ?? defaultCacheLimitMb;
   int get playerVolume => _prefs?.getInt(_kVolume) ?? 100;
 
   SegmentMode segmentMode(String category) => _sbModes[category] ?? SegmentMode.off;
@@ -158,6 +164,12 @@ class YouTubeSettings extends ChangeNotifier {
     await load();
     _sbModes[category] = mode;
     await _prefs!.setString(_kSbModes, jsonEncode({for (final e in _sbModes.entries) e.key: e.value.name}));
+    notifyListeners();
+  }
+
+  Future<void> setPlayerCacheLimitMb(int value) async {
+    await load();
+    await _prefs!.setInt(_kCacheLimitMb, value.clamp(minCacheLimitMb, maxCacheLimitMb));
     notifyListeners();
   }
 

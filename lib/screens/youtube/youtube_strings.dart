@@ -152,7 +152,12 @@ class YtStrings {
   static String get signOutPlayer => _t('Sign out of the player', 'Vom Player abmelden');
   static String get playerCache => _t('Player cache', 'Player-Cache');
   static String playerCacheSub(String size) =>
-      _t('$size used · limited to 300 MB · you stay signed in', '$size belegt · begrenzt auf 300 MB · du bleibst angemeldet');
+      _t('$size used · clearing keeps you signed in', '$size belegt · Leeren hält dich angemeldet');
+  static String get cacheLimit => _t('Cache limit', 'Cache-Limit');
+  static String get cacheLimitSub => _t(
+    'Takes effect after restarting the app',
+    'Gilt nach einem Neustart der App',
+  );
   static String get clearPlayerCache => _t('Clear player cache', 'Player-Cache leeren');
   static String get cacheCleared => _t('Player cache cleared.', 'Player-Cache geleert.');
   static String fileSize(int bytes) {

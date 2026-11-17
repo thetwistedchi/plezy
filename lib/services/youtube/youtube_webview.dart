@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:webview_windows/webview_windows.dart';
 
 import '../../utils/app_logger.dart';
+import 'youtube_settings.dart';
 
 /// Shared WebView2 setup for the YouTube player and the YouTube web sign-in.
 ///
@@ -18,8 +19,9 @@ class YouTubeWebView {
 
   static const String host = 'plezy-yt.local';
 
-  /// Upper bound for the player's browser cache.
-  static const int cacheLimitBytes = 300 * 1024 * 1024;
+  /// The cache limit the running browser was started with, in MB. Changing
+  /// the setting takes effect at the next app start.
+  static int? activeCacheLimitMb;
 
   static const _cacheFolders = {'Cache', 'Code Cache', 'GPUCache', 'Service Worker', 'DawnCache', 'ShaderCache'};
   static Future<String>? _ready;
@@ -38,10 +40,13 @@ class YouTubeWebView {
     await profile.create(recursive: true);
     await pageDir.create(recursive: true);
     await File('${pageDir.path}${sep}player.html').writeAsString(playerHtml, flush: true);
+    await YouTubeSettings.instance.load();
+    final limitMb = YouTubeSettings.instance.playerCacheLimitMb;
+    activeCacheLimitMb = limitMb;
     try {
       await WebviewController.initializeEnvironment(
         userDataPath: profile.path,
-        additionalArguments: '--autoplay-policy=no-user-gesture-required --disk-cache-size=$cacheLimitBytes',
+        additionalArguments: '--autoplay-policy=no-user-gesture-required --disk-cache-size=${limitMb * 1024 * 1024}',
       );
     } on PlatformException catch (e) {
       // Already initialized in this process.

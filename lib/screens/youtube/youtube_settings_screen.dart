@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -27,6 +28,7 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
   final _settings = YouTubeSettings.instance;
   final _clientId = TextEditingController();
   final _clientSecret = TextEditingController();
+  final _cacheLimit = TextEditingController();
   bool _busy = false;
   String? _message;
   int? _cacheBytes;
@@ -36,6 +38,16 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
     if (!YouTubeWebView.isSupported) return;
     final size = await YouTubeWebView.cacheSize();
     if (mounted) setState(() => _cacheBytes = size);
+  }
+
+  Future<void> _saveCacheLimit() async {
+    final value = int.tryParse(_cacheLimit.text.trim());
+    if (value == null) {
+      _cacheLimit.text = '${_settings.playerCacheLimitMb}';
+      return;
+    }
+    await _settings.setPlayerCacheLimitMb(value);
+    _cacheLimit.text = '${_settings.playerCacheLimitMb}';
   }
 
   Future<void> _clearCache() async {
@@ -60,6 +72,7 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
         if (!mounted) return;
         _clientId.text = _settings.clientId;
         _clientSecret.text = _settings.clientSecret;
+        _cacheLimit.text = '${_settings.playerCacheLimitMb}';
         setState(() {});
       }),
     );
@@ -69,6 +82,7 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
   void dispose() {
     _clientId.dispose();
     _clientSecret.dispose();
+    _cacheLimit.dispose();
     super.dispose();
   }
 
@@ -281,6 +295,27 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                                     child: Text(YtStrings.signOutPlayer),
                                   ),
                                 ],
+                              ),
+                            ),
+                            ListTile(
+                              leading: AppIcon(Symbols.storage_rounded, color: mono.textMuted),
+                              title: Text(YtStrings.cacheLimit),
+                              subtitle: Text(YtStrings.cacheLimitSub),
+                              trailing: SizedBox(
+                                width: 140,
+                                child: Focus(
+                                  onFocusChange: (focused) {
+                                    if (!focused) unawaited(_saveCacheLimit());
+                                  },
+                                  child: TextField(
+                                    controller: _cacheLimit,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                    textAlign: TextAlign.end,
+                                    decoration: const InputDecoration(isDense: true, suffixText: 'MB'),
+                                    onSubmitted: (_) => unawaited(_saveCacheLimit()),
+                                  ),
+                                ),
                               ),
                             ),
                             ListTile(
