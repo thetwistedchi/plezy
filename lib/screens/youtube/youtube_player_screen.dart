@@ -1426,7 +1426,10 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                         child: Text(q == 'auto' ? YtStrings.qualityAuto : _qualityNames[q] ?? YtStrings.qualityLabel(q)),
                       ),
                   ],
-                  child: Padding(
+                  child: SizedBox(
+                    height: 48,
+                    child: Center(
+                      child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Container(
                       height: 22,
@@ -1441,6 +1444,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                         _badgeLabel(),
                         style: TextStyle(color: style.badge ?? accent, fontWeight: FontWeight.w700, fontSize: 12),
                       ),
+                    ),
+                  ),
                     ),
                   ),
                 ),
@@ -1775,8 +1780,8 @@ class _RatingPill extends StatelessWidget {
   }
 
   static String _compact(int n) {
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n >= 10000000 ? 0 : 1)} M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)} K';
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n >= 10000000 ? 0 : 1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)}k';
     return '$n';
   }
 }

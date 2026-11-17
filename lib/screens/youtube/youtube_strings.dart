@@ -128,9 +128,9 @@ class YtStrings {
   static String views(int n) => _t('${compact(n)} views', '${compact(n)} Aufrufe');
   static String get nowPlaying => _t('Now playing', 'Läuft gerade');
   static String compact(int n) {
-    if (n >= 1000000000) return '${(n / 1000000000).toStringAsFixed(1)} B';
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n >= 10000000 ? 0 : 1)} M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)} K';
+    if (n >= 1000000000) return '${(n / 1000000000).toStringAsFixed(1)}B';
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n >= 10000000 ? 0 : 1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)}k';
     return '$n';
   }
   static String get defaultSpeed => _t('Playback speed', 'Wiedergabegeschwindigkeit');
