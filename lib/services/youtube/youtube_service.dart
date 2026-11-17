@@ -359,6 +359,24 @@ class YouTubeService extends ChangeNotifier {
     return videos;
   }
 
+  /// The latest uploads of one channel from its feed (no quota), with the
+  /// cached details where known.
+  Future<List<YouTubeVideo>> channelFeed(String channelId) async {
+    final videos = await _feed(channelId);
+    for (final v in videos) {
+      final known = _byId[v.id];
+      if (known != null && known.hasDetails) {
+        v
+          ..duration = known.duration
+          ..isUpcoming = known.isUpcoming
+          ..isLive = known.isLive
+          ..hasDetails = true;
+      }
+    }
+    videos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+    return videos;
+  }
+
   // ---- API ----
 
   Future<Map<String, dynamic>> _get(String path, Map<String, String> query) => _request('GET', path, query);
@@ -466,6 +484,84 @@ class YouTubeService extends ChangeNotifier {
       description: snippet['description'] as String? ?? '',
       likeCount: int.tryParse(stats['likeCount']?.toString() ?? ''),
       commentCount: int.tryParse(stats['commentCount']?.toString() ?? ''),
+    );
+  }
+
+  /// Name, avatar, banner and counts of a channel (1 unit).
+  Future<YtChannelInfo?> channelInfo(String channelId) async {
+    final json = await _get('channels', {'part': 'snippet,statistics,brandingSettings', 'id': channelId});
+    final items = json['items'] as List? ?? const [];
+    if (items.isEmpty) return null;
+    final item = items.first as Map<String, dynamic>;
+    final snippet = item['snippet'] as Map<String, dynamic>? ?? const {};
+    final stats = item['statistics'] as Map<String, dynamic>? ?? const {};
+    final thumbs = snippet['thumbnails'] as Map<String, dynamic>? ?? const {};
+    final avatar = (thumbs['high'] ?? thumbs['medium'] ?? thumbs['default']) as Map?;
+    final banner = item['brandingSettings']?['image']?['bannerExternalUrl'] as String?;
+    return YtChannelInfo(
+      id: channelId,
+      title: snippet['title'] as String? ?? '',
+      handle: snippet['customUrl'] as String?,
+      description: snippet['description'] as String? ?? '',
+      avatarUrl: avatar?['url'] as String?,
+      bannerUrl: banner == null ? null : '$banner=w1920',
+      subscriberCount: stats['hiddenSubscriberCount'] == true
+          ? null
+          : int.tryParse(stats['subscriberCount']?.toString() ?? ''),
+      videoCount: int.tryParse(stats['videoCount']?.toString() ?? ''),
+    );
+  }
+
+  /// One page (50) of a channel's uploads, newest first, with details
+  /// (2 units).
+  Future<({List<YouTubeVideo> items, String? nextPageToken})> channelUploads(
+    String channelId, {
+    String? pageToken,
+  }) async {
+    if (!channelId.startsWith('UC')) return (items: const <YouTubeVideo>[], nextPageToken: null);
+    final page = await _get('playlistItems', {
+      'part': 'contentDetails',
+      'playlistId': 'UU${channelId.substring(2)}',
+      'maxResults': '50',
+      'pageToken': ?pageToken,
+    });
+    final ids = [
+      for (final item in (page['items'] as List? ?? const []))
+        if ((item as Map)['contentDetails']?['videoId'] case final String id) id,
+    ];
+    if (ids.isEmpty) return (items: const <YouTubeVideo>[], nextPageToken: null);
+    final json = await _get('videos', {
+      'part': 'snippet,contentDetails,statistics,liveStreamingDetails',
+      'id': ids.join(','),
+      'maxResults': '50',
+    });
+    final byId = <String, YouTubeVideo>{};
+    for (final raw in (json['items'] as List? ?? const [])) {
+      final item = raw as Map<String, dynamic>;
+      final id = item['id'] as String?;
+      final snippet = item['snippet'] as Map<String, dynamic>?;
+      if (id == null || snippet == null) continue;
+      final broadcast = snippet['liveBroadcastContent'] as String? ?? 'none';
+      final duration = parseIsoDuration(item['contentDetails']?['duration'] as String? ?? '');
+      final known = _byId[id];
+      byId[id] = YouTubeVideo(
+        id: id,
+        title: snippet['title'] as String? ?? '',
+        channelId: channelId,
+        channelTitle: snippet['channelTitle'] as String? ?? '',
+        thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
+        publishedAt: DateTime.tryParse(snippet['publishedAt'] as String? ?? '') ?? DateTime.now(),
+        viewCount: int.tryParse(item['statistics']?['viewCount']?.toString() ?? '') ?? 0,
+        isShort: known?.isShort ?? (duration > Duration.zero && duration <= const Duration(seconds: 60)),
+        duration: duration,
+        isUpcoming: broadcast == 'upcoming',
+        isLive: broadcast == 'live',
+        hasDetails: true,
+      );
+    }
+    return (
+      items: [for (final id in ids) ?byId[id]],
+      nextPageToken: page['nextPageToken'] as String?,
     );
   }
 
@@ -707,4 +803,28 @@ class YtComment {
   bool edited;
   int replyCount;
   final bool canReply;
+}
+
+class YtChannelInfo {
+  YtChannelInfo({
+    required this.id,
+    required this.title,
+    required this.handle,
+    required this.description,
+    required this.avatarUrl,
+    required this.bannerUrl,
+    required this.subscriberCount,
+    required this.videoCount,
+  });
+
+  final String id;
+  final String title;
+  final String? handle;
+  final String description;
+  final String? avatarUrl;
+  final String? bannerUrl;
+  final int? subscriberCount;
+  final int? videoCount;
+
+  Uri get url => Uri.https('www.youtube.com', '/channel/$id');
 }

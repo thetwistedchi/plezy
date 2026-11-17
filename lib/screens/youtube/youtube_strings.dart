@@ -119,6 +119,20 @@ class YtStrings {
     'tiny' => '144p',
     _ => '',
   };
+  static String get moreFromChannel => _t('More from this channel', 'Mehr von diesem Kanal');
+  static String moreFrom(String channel) => _t('More from $channel', 'Mehr von $channel');
+  static String get openChannel => _t('Open channel', 'Kanal öffnen');
+  static String get channelEmpty => _t('No videos found.', 'Keine Videos gefunden.');
+  static String subscribers(int n) => _t('${compact(n)} subscribers', '${compact(n)} Abonnenten');
+  static String videoCount(int n) => _t('$n videos', '$n Videos');
+  static String views(int n) => _t('${compact(n)} views', '${compact(n)} Aufrufe');
+  static String get nowPlaying => _t('Now playing', 'Läuft gerade');
+  static String compact(int n) {
+    if (n >= 1000000000) return '${(n / 1000000000).toStringAsFixed(1)} B';
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(n >= 10000000 ? 0 : 1)} M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)} K';
+    return '$n';
+  }
   static String get normalSpeed => _t('Normal', 'Normal');
 
   // SponsorBlock

@@ -8,8 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_windows/webview_windows.dart';
-import 'package:window_manager/window_manager.dart';
 
+import '../../services/fullscreen_state_manager.dart';
 import '../../services/youtube/sponsorblock.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
@@ -18,6 +18,8 @@ import '../../services/youtube/youtube_webview.dart';
 import '../../theme/player_style.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/app_icon.dart';
+import 'youtube_channel_panel.dart';
+import 'youtube_channel_screen.dart';
 import 'youtube_comments_panel.dart';
 import 'youtube_strings.dart';
 
@@ -57,6 +59,8 @@ class YouTubePlayerScreen extends StatefulWidget {
   @override
   State<YouTubePlayerScreen> createState() => _YouTubePlayerScreenState();
 }
+
+enum _SidePanel { none, comments, channel }
 
 class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   static const _speeds = [0.25, 0.5, 0.75, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0];
@@ -110,7 +114,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   bool _controlsVisible = true;
   bool _pointerOnControls = false;
   Timer? _hideTimer;
-  bool _comments = false;
+  _SidePanel _panel = _SidePanel.none;
   bool _fullscreen = false;
   bool _enteredFullscreen = false;
   int _metaGeneration = 0;
@@ -122,6 +126,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   void initState() {
     super.initState();
     _volume = _settings.playerVolume;
+    _fullscreen = FullscreenStateManager().isFullscreen;
     unawaited(_init());
     unawaited(_loadMeta());
   }
@@ -134,7 +139,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     unawaited(_messages?.cancel());
     unawaited(_controller.dispose());
     _focusNode.dispose();
-    if (_enteredFullscreen) unawaited(windowManager.setFullScreen(false));
+    if (_enteredFullscreen) unawaited(FullscreenStateManager().exitFullscreen());
     super.dispose();
   }
 
@@ -366,13 +371,52 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   Future<void> _toggleFullscreen() async {
-    final next = !_fullscreen;
-    await windowManager.setFullScreen(next);
+    final manager = FullscreenStateManager();
+    final next = !manager.isFullscreen;
+    if (next) {
+      await manager.enterFullscreen();
+    } else {
+      await manager.exitFullscreen();
+    }
     if (!mounted) return;
     setState(() {
       _fullscreen = next;
       _enteredFullscreen = next;
     });
+  }
+
+  void _togglePanel(_SidePanel panel) => setState(() => _panel = _panel == panel ? _SidePanel.none : panel);
+
+  /// Plays [video] right after the current one in the queue.
+  void _playNow(YouTubeVideo video) {
+    final existing = _queue.indexWhere((v) => v.id == video.id);
+    if (existing == _index) return;
+    if (existing >= 0) {
+      _playIndex(existing);
+      return;
+    }
+    _queue.insert(_index + 1, video);
+    _playIndex(_index + 1);
+  }
+
+  Future<void> _openChannel() async {
+    _send({'cmd': 'pause'});
+    final picked = await Navigator.of(context).push<YouTubeVideo>(
+      MaterialPageRoute(
+        builder: (_) => YouTubeChannelScreen(
+          channelId: _video.channelId,
+          channelTitle: _video.channelTitle,
+          returnPickedVideo: true,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _focusNode.requestFocus();
+    if (picked != null) {
+      _playNow(picked);
+    } else {
+      _send({'cmd': 'play'});
+    }
   }
 
   /// Remembers where the current video is, so it resumes there next time.
@@ -560,7 +604,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       case 'f':
         unawaited(_toggleFullscreen());
       case 'c':
-        setState(() => _comments = !_comments);
+        _togglePanel(_SidePanel.comments);
       case 'n':
         if (shift) {
           _playIndex(_index - 1);
@@ -593,14 +637,27 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
         child: Row(
           children: [
             Expanded(child: _buildVideoArea(context)),
-            if (_comments)
+            if (_panel == _SidePanel.comments)
               SizedBox(
                 width: 440,
                 child: YouTubeCommentsPanel(
-                  key: ValueKey(_video.id),
+                  key: ValueKey('comments-${_video.id}'),
                   videoId: _video.id,
                   commentCount: _info?.commentCount,
-                  onClose: () => setState(() => _comments = false),
+                  onClose: () => setState(() => _panel = _SidePanel.none),
+                ),
+              ),
+            if (_panel == _SidePanel.channel)
+              SizedBox(
+                width: 440,
+                child: YouTubeChannelPanel(
+                  key: ValueKey('channel-${_video.channelId}'),
+                  channelId: _video.channelId,
+                  channelTitle: _video.channelTitle,
+                  currentVideoId: _video.id,
+                  onPlay: _playNow,
+                  onOpenChannel: () => unawaited(_openChannel()),
+                  onClose: () => setState(() => _panel = _SidePanel.none),
                 ),
               ),
           ],
@@ -762,8 +819,19 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
           _PlayerButton(
             icon: Symbols.comment_rounded,
             tooltip: YtStrings.comments,
-            active: _comments,
-            onPressed: () => setState(() => _comments = !_comments),
+            active: _panel == _SidePanel.comments,
+            onPressed: () => _togglePanel(_SidePanel.comments),
+          ),
+          _PlayerButton(
+            icon: Symbols.video_library_rounded,
+            tooltip: YtStrings.moreFromChannel,
+            active: _panel == _SidePanel.channel,
+            onPressed: () => _togglePanel(_SidePanel.channel),
+          ),
+          _PlayerButton(
+            icon: Symbols.account_box_rounded,
+            tooltip: YtStrings.openChannel,
+            onPressed: () => unawaited(_openChannel()),
           ),
           _PlayerButton(
             icon: Symbols.open_in_new_rounded,
