@@ -105,6 +105,20 @@ class YouTubeWebView {
   static const String frameScript = r'''(function(){
   if (location.hostname.indexOf('youtube.com') < 0 || location.pathname.indexOf('/embed/') !== 0) return;
   var desiredRate = null;
+  // Hide YouTube's own overlays: the "More videos" shelf, end screen cards
+  // and the title bar. The player shows its own channel videos instead. The
+  // YouTube logo stays.
+  var css = '.ytp-pause-overlay,.ytp-pause-overlay-container,.ytp-endscreen-content,.ytp-ce-element,' +
+    '.ytp-chrome-top,.ytp-gradient-top,.ytp-show-cards-title,.ytp-cards-teaser,.ytp-cards-button,' +
+    '.ytp-suggested-action,.ytp-paid-content-overlay{display:none!important}';
+  function addStyle(){
+    if (document.getElementById('plezy-style')) return;
+    var s = document.createElement('style');
+    s.id = 'plezy-style';
+    s.textContent = css;
+    (document.head || document.documentElement).appendChild(s);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addStyle); else addStyle();
   function player(){ return document.getElementById('movie_player'); }
   function video(){ return document.querySelector('video'); }
   function applyRate(){ var v = video(); if (v && desiredRate !== null && Math.abs(v.playbackRate - desiredRate) > 0.001) v.playbackRate = desiredRate; }

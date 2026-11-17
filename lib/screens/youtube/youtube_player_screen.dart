@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -103,6 +104,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   YtVideoInfo? _info;
   List<YtChapter> _chapters = const [];
   List<SponsorSegment> _segments = const [];
+  List<YouTubeVideo> _channelVideos = const [];
   String _rating = 'none';
   String _initialRating = 'none';
 
@@ -176,12 +178,33 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _info = null;
       _chapters = const [];
       _segments = const [];
+      _channelVideos = const [];
       _rating = 'none';
       _initialRating = 'none';
       _handled.clear();
       _buttonSegment = null;
     });
     final service = YouTubeService.instance;
+    final channelId = _video.channelId;
+    unawaited(
+      service
+          .channelFeed(channelId)
+          .then((videos) {
+            if (!mounted || generation != _metaGeneration) return;
+            final s = _settings;
+            setState(
+              () => _channelVideos = videos
+                  .where(
+                    (v) =>
+                        v.id != videoId &&
+                        (s.showShorts || !v.isShort) &&
+                        (s.showPremieres || !(v.isUpcoming || v.isLive)),
+                  )
+                  .toList(),
+            );
+          })
+          .catchError((Object _) {}),
+    );
     unawaited(
       SponsorBlock.segments(videoId).then((segments) {
         if (mounted && generation == _metaGeneration) setState(() => _segments = segments);
@@ -698,8 +721,17 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
               _CenterMessage(text: _initError!, onOpen: _openOnYouTube)
             else if (!_webReady)
               Center(child: CircularProgressIndicator(color: accent))
-            else
+            else ...[
               Webview(_controller),
+              // Takes clicks and hovers away from the embed, so YouTube's own
+              // hover UI never shows: click plays/pauses, double-click
+              // toggles fullscreen.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _togglePlay,
+                onDoubleTap: () => unawaited(_toggleFullscreen()),
+              ),
+            ],
             if (_errorCode != null)
               _CenterMessage(
                 text: _errorCode == 101 || _errorCode == 150 || _errorCode == 152 || _errorCode == 153
@@ -734,6 +766,22 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                     accent: accent,
                     onUndo: _undoSkip,
                   ),
+                ),
+              ),
+            if ((_state == 2 || _state == 0) &&
+                _controlsVisible &&
+                _channelVideos.isNotEmpty &&
+                _panel != _SidePanel.channel)
+              Positioned(
+                left: 28,
+                right: 28,
+                bottom: 150,
+                child: _ChannelStrip(
+                  title: YtStrings.moreFrom(_video.channelTitle),
+                  videos: _channelVideos,
+                  accent: accent,
+                  onPlay: _playNow,
+                  onOpenChannel: () => unawaited(_openChannel()),
                 ),
               ),
             if (_buttonSegment != null)
@@ -957,12 +1005,6 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   ),
                 ),
               ),
-              _PlayerButton(
-                icon: Symbols.closed_caption_rounded,
-                tooltip: YtStrings.captions,
-                active: _captions,
-                onPressed: _toggleCaptions,
-              ),
               if (_qualities.isNotEmpty)
                 PopupMenuButton<String>(
                   tooltip: YtStrings.quality,
@@ -993,6 +1035,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                     ),
                   ),
                 ),
+              _PlayerButton(
+                icon: Symbols.closed_caption_rounded,
+                tooltip: YtStrings.captions,
+                active: _captions,
+                onPressed: _toggleCaptions,
+              ),
               PopupMenuButton<double>(
                 tooltip: YtStrings.speed,
                 initialValue: _rate,
@@ -1570,4 +1618,113 @@ class _TimelinePainter extends CustomPainter {
       old.segments != segments ||
       old.hovering != hovering ||
       old.gradient != gradient;
+}
+
+/// YouTube-style "More videos" row, in the player's look, from the channel
+/// feed. Shown while paused and at the end.
+class _ChannelStrip extends StatelessWidget {
+  const _ChannelStrip({
+    required this.title,
+    required this.videos,
+    required this.accent,
+    required this.onPlay,
+    required this.onOpenChannel,
+  });
+
+  final String title;
+  final List<YouTubeVideo> videos;
+  final Color accent;
+  final ValueChanged<YouTubeVideo> onPlay;
+  final VoidCallback onOpenChannel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+            const SizedBox(width: 12),
+            TextButton(
+              onPressed: onOpenChannel,
+              style: TextButton.styleFrom(foregroundColor: accent),
+              child: Text(YtStrings.openChannel),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 168,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: videos.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
+            itemBuilder: (context, i) {
+              final video = videos[i];
+              return SizedBox(
+                width: 210,
+                child: InkWell(
+                  onTap: () => onPlay(video),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          width: 210,
+                          height: 118,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              const ColoredBox(color: Color(0xFF1B1240)),
+                              if (video.thumbnailUrl != null)
+                                CachedNetworkImage(
+                                  imageUrl: video.thumbnailUrl!,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, _, _) => const SizedBox.shrink(),
+                                ),
+                              if (video.duration > Duration.zero)
+                                Positioned(
+                                  right: 6,
+                                  bottom: 6,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.75),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      YtStrings.duration(video.duration),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        video.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 }
