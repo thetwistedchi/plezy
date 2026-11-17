@@ -4920,7 +4920,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
 
         // The compact hero moves the scores onto a row of their own (#2569);
         // a hero too short for it keeps them in the strip's pill instead.
-        final ratings = _titleRatings(metadata);
+        // The Ratings & links row below already shows every score, so the
+        // hero only keeps them when that row has nothing to show.
+        final ratings = _titleLinksFor(metadata).isNotEmpty ? const <MediaRatingSource>[] : _titleRatings(metadata);
         final scoresRow = centered && ratings.isNotEmpty && chipsFit && roomForRow(chipHeight);
         // Fitted to a single run each: chips shed by usefulness instead of
         // wrapping onto a second run the height clip below would hide.
