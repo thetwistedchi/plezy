@@ -131,13 +131,14 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
         actions: [
           IconButton(
             tooltip: _settings.isFavorite(widget.channelId) ? YtStrings.unfavoriteChannel : YtStrings.favoriteChannelAction,
-            onPressed: () => unawaited(
-              _settings.setFavorite(
+            onPressed: () async {
+              await _settings.setFavorite(
                 widget.channelId,
                 info?.title ?? widget.channelTitle,
                 !_settings.isFavorite(widget.channelId),
-              ),
-            ),
+              );
+              if (mounted) setState(() {});
+            },
             icon: AppIcon(
               Symbols.star_rounded,
               fill: _settings.isFavorite(widget.channelId) ? 1 : 0,
