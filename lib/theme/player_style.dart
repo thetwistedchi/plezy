@@ -46,14 +46,14 @@ class PlayerStyle extends ThemeExtension<PlayerStyle> {
 
   static const PlayerStyle stock = PlayerStyle();
 
-  /// Purple play button, magenta timeline and neon skip button.
+  /// Purple play button, cyan-to-magenta timeline and neon skip button.
   static const PlayerStyle retrowave = PlayerStyle(
     playButtonFill: Color(0xFF9D7BFF),
     playButtonIcon: Color(0xFF14041F),
     progress: Color(0xFFE0479A),
     progressGlow: Color(0xFFE0479A),
     skipButtonBorder: Color(0xFFE0479A),
-    progressGradient: [Color(0xFF9D7BFF), Color(0xFFE0479A)],
+    progressGradient: [Color(0xFF2DE2E6), Color(0xFFE0479A)],
     active: Color(0xFFE0479A),
     badge: Color(0xFFE0479A),
   );
