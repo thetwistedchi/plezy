@@ -49,6 +49,134 @@ class YtStrings {
       _t('Plays in this order. Drag to reorder.', 'Wird in dieser Reihenfolge abgespielt. Zum Sortieren ziehen.');
   static String get dismiss => _t('Dismiss', 'Ausblenden');
   static String get dragToReorder => _t('Drag to reorder', 'Zum Sortieren ziehen');
+  // Player
+  static String get back => _t('Back', 'Zurück');
+  static String get play => _t('Play', 'Abspielen');
+  static String get pause => _t('Pause', 'Pause');
+  static String get back10 => _t('Back 10 seconds', '10 Sekunden zurück');
+  static String get forward10 => _t('Forward 10 seconds', '10 Sekunden vor');
+  static String get previous => _t('Previous video', 'Vorheriges Video');
+  static String get next => _t('Next video', 'Nächstes Video');
+  static String get jumpToHighlight => _t('Jump to highlight', 'Zum Highlight springen');
+  static String get mute => _t('Mute', 'Stumm');
+  static String get unmute => _t('Unmute', 'Ton an');
+  static String get captions => _t('Captions', 'Untertitel');
+  static String get speed => _t('Playback speed', 'Geschwindigkeit');
+  static String get chapters => _t('Chapters', 'Kapitel');
+  static String get comments => _t('Comments', 'Kommentare');
+  static String get fullscreen => _t('Fullscreen', 'Vollbild');
+  static String get exitFullscreen => _t('Exit fullscreen', 'Vollbild beenden');
+  static String get openOnYouTube => _t('Open on YouTube', 'Auf YouTube öffnen');
+  static String get like => _t('Like', 'Mag ich');
+  static String get dislike => _t('Dislike', 'Mag ich nicht');
+  static String get needWriteAccess => _t(
+    'Sign in again in the YouTube settings to allow rating and comments.',
+    'Melde dich in den YouTube-Einstellungen neu an, um Bewertungen und Kommentare zu erlauben.',
+  );
+  static String get ratingFailed => _t('Could not save the rating.', 'Bewertung konnte nicht gespeichert werden.');
+  static String queuePosition(int i, int n) => '$i / $n';
+  static String upNext(String title) => _t('Up next: $title', 'Als Nächstes: $title');
+  static String get playerLoading => _t('Loading player…', 'Player wird geladen…');
+  static String get playerFailed => _t('The player could not start.', 'Der Player konnte nicht starten.');
+  static String get webviewMissing => _t(
+    'The Microsoft Edge WebView2 runtime is needed for the in-app player.',
+    'Für den Player in der App wird die Microsoft Edge WebView2-Laufzeit benötigt.',
+  );
+  static String get embedBlocked => _t(
+    'The creator doesn\'t allow this video to be played outside YouTube.',
+    'Der Ersteller erlaubt dieses Video nicht außerhalb von YouTube.',
+  );
+  static String get videoUnavailable => _t('This video is unavailable.', 'Dieses Video ist nicht verfügbar.');
+  static String skipCategory(String c) => _t('SKIP ${sbLabelEn(c).toUpperCase()} ›', '${sbLabelDe(c).toUpperCase()} ÜBERSPRINGEN ›');
+  static String skipped(String c) => _t('Skipped ${sbLabelEn(c).toLowerCase()}', '${sbLabelDe(c)} übersprungen');
+  static String get undo => _t('Undo', 'Rückgängig');
+  static String get normalSpeed => _t('Normal', 'Normal');
+
+  // SponsorBlock
+  static String get sponsorBlock => 'SponsorBlock';
+  static String get useSponsorBlock => _t('Use SponsorBlock', 'SponsorBlock verwenden');
+  static String get useSponsorBlockSub =>
+      _t('Community-marked segments in creator videos', 'Von der Community markierte Abschnitte');
+  static String get showSegments => _t('Show segments on the timeline', 'Abschnitte auf der Zeitleiste zeigen');
+  static String get showSegmentsSub =>
+      _t('Plus a star button that jumps to the highlight', 'Dazu ein Stern-Button, der zum Highlight springt');
+  static String get modeAuto => _t('Auto-skip', 'Auto');
+  static String get modeButton => _t('Button', 'Button');
+  static String get modeOff => _t('Off', 'Aus');
+  static String get sbCredit => _t(
+    'Segment data from SponsorBlock (sponsor.ajay.app), used under CC BY-NC-SA 4.0.',
+    'Segmentdaten von SponsorBlock (sponsor.ajay.app), genutzt unter CC BY-NC-SA 4.0.',
+  );
+  static String sbLabel(String c) => _t(sbLabelEn(c), sbLabelDe(c));
+  static String sbLabelEn(String c) => switch (c) {
+    'sponsor' => 'Sponsor',
+    'selfpromo' => 'Self-promotion',
+    'interaction' => 'Interaction reminder',
+    'intro' => 'Intro',
+    'outro' => 'Outro',
+    'preview' => 'Recap',
+    'filler' => 'Filler',
+    'music_offtopic' => 'Non-music part',
+    _ => c,
+  };
+  static String sbLabelDe(String c) => switch (c) {
+    'sponsor' => 'Sponsor',
+    'selfpromo' => 'Eigenwerbung',
+    'interaction' => 'Interaktions-Erinnerung',
+    'intro' => 'Intro',
+    'outro' => 'Outro',
+    'preview' => 'Rückblick',
+    'filler' => 'Füller',
+    'music_offtopic' => 'Nicht-Musik-Teil',
+    _ => c,
+  };
+  static String sbDescription(String c) => switch (c) {
+    'sponsor' => _t('Paid promotion or product placement', 'Bezahlte Werbung oder Produktplatzierung'),
+    'selfpromo' => _t('Merch, Patreon, the creator\'s own products', 'Merch, Patreon, eigene Produkte'),
+    'interaction' => _t('"Like and subscribe" reminders', '„Liken und abonnieren“-Erinnerungen'),
+    'intro' => _t('Intro animation or recurring opener', 'Intro-Animation oder wiederkehrender Einstieg'),
+    'outro' => _t('End cards and credits', 'Endkarten und Abspann'),
+    'preview' => _t('Recap or preview of other episodes', 'Rückblick oder Vorschau'),
+    'filler' => _t('Tangents and jokes off the topic', 'Abschweifungen und Witze abseits des Themas'),
+    'music_offtopic' => _t('Talking in music videos', 'Gerede in Musikvideos'),
+    _ => '',
+  };
+
+  // Premium / web sign-in
+  static String get playerAccount => _t('Player sign-in (YouTube Premium)', 'Player-Anmeldung (YouTube Premium)');
+  static String get playerAccountSub => _t(
+    'Sign in to YouTube inside the app so the player uses your Premium (no ads).',
+    'Melde dich in der App bei YouTube an, damit der Player dein Premium nutzt (ohne Werbung).',
+  );
+  static String get signInPlayer => _t('Sign in to YouTube', 'Bei YouTube anmelden');
+  static String get signOutPlayer => _t('Sign out of the player', 'Vom Player abmelden');
+  static String get done => _t('Done', 'Fertig');
+  static String get writeAccessMissing => _t(
+    'This sign-in can only read. Sign out and in again to allow rating and comments.',
+    'Diese Anmeldung kann nur lesen. Melde dich ab und neu an, um Bewertungen und Kommentare zu erlauben.',
+  );
+
+  // Comments
+  static String commentsCount(int? n) => n == null ? comments : '$comments  $n';
+  static String get sortTop => _t('Top comments', 'Top-Kommentare');
+  static String get sortNewest => _t('Newest first', 'Neueste zuerst');
+  static String get close => _t('Close', 'Schließen');
+  static String replies(int n) => n == 1 ? _t('1 reply', '1 Antwort') : _t('$n replies', '$n Antworten');
+  static String get hideReplies => _t('Hide replies', 'Antworten ausblenden');
+  static String get reply => _t('Reply', 'Antworten');
+  static String get addComment => _t('Add a comment…', 'Kommentar hinzufügen…');
+  static String get addReply => _t('Add a reply…', 'Antwort hinzufügen…');
+  static String get send => _t('Send', 'Senden');
+  static String get cancel => _t('Cancel', 'Abbrechen');
+  static String get edit => _t('Edit', 'Bearbeiten');
+  static String get delete => _t('Delete', 'Löschen');
+  static String get edited => _t('(edited)', '(bearbeitet)');
+  static String get commentsDisabled =>
+      _t('Comments are turned off for this video.', 'Kommentare sind für dieses Video deaktiviert.');
+  static String get noComments => _t('No comments yet.', 'Noch keine Kommentare.');
+  static String get commentFailed => _t('Could not post the comment.', 'Kommentar konnte nicht gesendet werden.');
+  static String get loadMore => _t('Load more', 'Mehr laden');
+
   static String get empty => _t('No videos to show.', 'Keine Videos zum Anzeigen.');
   static String loadingChannels(int done, int total) =>
       _t('Loading channels $done / $total…', 'Kanäle werden geladen: $done / $total…');

@@ -30,7 +30,10 @@ class YouTubeAuth {
 
   static final YouTubeAuth instance = YouTubeAuth._();
 
-  static const scope = 'https://www.googleapis.com/auth/youtube.readonly';
+  /// Read access for the subscriptions plus force-ssl for rating videos and
+  /// writing comments.
+  static const scope =
+      'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl';
   static final Uri _tokenUrl = Uri.parse('https://oauth2.googleapis.com/token');
 
   final http.Client _client = http.Client();
@@ -118,6 +121,7 @@ class YouTubeAuth {
         throw YouTubeAuthException('Google returned no refresh token.');
       }
       await settings.setRefreshToken(refreshToken);
+      await settings.setGrantedScopes(json['scope'] as String? ?? scope);
     } finally {
       await subscription.cancel();
       await server.close(force: true);
@@ -131,6 +135,8 @@ class YouTubeAuth {
     invalidateAccessToken();
     await settings.setRefreshToken('');
     await settings.setAccountName('');
+    await settings.setAccountChannelId('');
+    await settings.setGrantedScopes('');
     if (token.isNotEmpty) {
       try {
         await _client.post(Uri.https('oauth2.googleapis.com', '/revoke', {'token': token}));

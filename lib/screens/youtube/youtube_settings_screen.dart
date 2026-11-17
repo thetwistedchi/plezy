@@ -7,11 +7,13 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/youtube/youtube_auth.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
+import '../../services/youtube/youtube_webview.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/app_icon.dart';
 import 'youtube_strings.dart';
+import 'youtube_web_sign_in_screen.dart';
 
 /// Sign-in and library options for the YouTube tab.
 class YouTubeSettingsScreen extends StatefulWidget {
@@ -66,8 +68,9 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
     try {
       await YouTubeAuth.instance.signIn();
       try {
-        final name = await YouTubeService.instance.fetchAccountName();
-        if (name != null) await _settings.setAccountName(name);
+        final account = await YouTubeService.instance.fetchAccount();
+        if (account.name != null) await _settings.setAccountName(account.name!);
+        if (account.channelId != null) await _settings.setAccountChannelId(account.channelId!);
       } catch (e) {
         appLogger.w('YouTube: could not read the channel name', error: e);
       }
@@ -126,6 +129,14 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                                 ? OutlinedButton(onPressed: _busy ? null : _signOut, child: Text(YtStrings.signOut))
                                 : FilledButton(onPressed: _busy ? null : _signIn, child: Text(YtStrings.signIn)),
                           ),
+                          if (signedIn && !_settings.canWrite)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Text(
+                                YtStrings.writeAccessMissing,
+                                style: theme.textTheme.bodySmall?.copyWith(color: accent),
+                              ),
+                            ),
                           if (_message != null)
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -221,6 +232,84 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                           ),
                         ],
                       ),
+                      if (YouTubeWebView.isSupported) ...[
+                        const SizedBox(height: 24),
+                        _SectionTitle(YtStrings.playerAccount),
+                        _Card(
+                          children: [
+                            ListTile(
+                              leading: AppIcon(Symbols.workspace_premium_rounded, color: accent),
+                              title: Text(YtStrings.playerAccount),
+                              subtitle: Text(YtStrings.playerAccountSub),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              child: Wrap(
+                                spacing: 12,
+                                runSpacing: 8,
+                                children: [
+                                  FilledButton(
+                                    onPressed: () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(builder: (_) => const YouTubeWebSignInScreen()),
+                                    ),
+                                    child: Text(YtStrings.signInPlayer),
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: () => unawaited(YouTubeWebSignInScreen.signOut()),
+                                    child: Text(YtStrings.signOutPlayer),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      _SectionTitle(YtStrings.sponsorBlock),
+                      _Card(
+                        children: [
+                          SwitchListTile(
+                            title: Text(YtStrings.useSponsorBlock),
+                            subtitle: Text(YtStrings.useSponsorBlockSub),
+                            value: _settings.sponsorBlockEnabled,
+                            onChanged: (v) => unawaited(_settings.setSponsorBlockEnabled(v)),
+                          ),
+                          for (final category in sponsorBlockDefaults.keys)
+                            ListTile(
+                              enabled: _settings.sponsorBlockEnabled,
+                              title: Text(YtStrings.sbLabel(category)),
+                              subtitle: Text(YtStrings.sbDescription(category)),
+                              trailing: SegmentedButton<SegmentMode>(
+                                showSelectedIcon: false,
+                                style: _segmentStyle(context),
+                                segments: [
+                                  ButtonSegment(value: SegmentMode.auto, label: Text(YtStrings.modeAuto)),
+                                  ButtonSegment(value: SegmentMode.button, label: Text(YtStrings.modeButton)),
+                                  ButtonSegment(value: SegmentMode.off, label: Text(YtStrings.modeOff)),
+                                ],
+                                selected: {_settings.segmentMode(category)},
+                                onSelectionChanged: _settings.sponsorBlockEnabled
+                                    ? (s) => unawaited(_settings.setSegmentMode(category, s.first))
+                                    : null,
+                              ),
+                            ),
+                          SwitchListTile(
+                            title: Text(YtStrings.showSegments),
+                            subtitle: Text(YtStrings.showSegmentsSub),
+                            value: _settings.showSegmentsOnTimeline,
+                            onChanged: _settings.sponsorBlockEnabled
+                                ? (v) => unawaited(_settings.setShowSegmentsOnTimeline(v))
+                                : null,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+                            child: Text(
+                              YtStrings.sbCredit,
+                              style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -272,4 +361,21 @@ class _Card extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
     );
   }
+}
+
+ButtonStyle _segmentStyle(BuildContext context) {
+  final mono = tokens(context);
+  final accent = playerActiveColor(context);
+  final selectedBg = Color.lerp(accent, Colors.black, 0.55)!;
+  final idleBg = Color.lerp(mono.surface, Colors.white, 0.07)!;
+  return ButtonStyle(
+    backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? selectedBg : idleBg),
+    foregroundColor: WidgetStateProperty.resolveWith(
+      (s) => s.contains(WidgetState.selected) ? Colors.white : mono.textMuted,
+    ),
+    side: WidgetStateProperty.resolveWith(
+      (s) => BorderSide(color: s.contains(WidgetState.selected) ? accent : mono.outline),
+    ),
+    visualDensity: VisualDensity.compact,
+  );
 }

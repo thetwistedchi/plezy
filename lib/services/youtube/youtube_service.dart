@@ -13,10 +13,13 @@ import 'youtube_auth.dart';
 import 'youtube_settings.dart';
 
 class YouTubeApiException implements Exception {
-  YouTubeApiException(this.statusCode, this.message);
+  YouTubeApiException(this.statusCode, this.message, {this.reason});
 
   final int statusCode;
   final String message;
+
+  /// Google's machine-readable reason, e.g. commentsDisabled.
+  final String? reason;
 
   @override
   String toString() => 'YouTube API $statusCode: $message';
@@ -358,19 +361,33 @@ class YouTubeService extends ChangeNotifier {
 
   // ---- API ----
 
-  Future<Map<String, dynamic>> _get(String path, Map<String, String> query, {bool retried = false}) async {
+  Future<Map<String, dynamic>> _get(String path, Map<String, String> query) => _request('GET', path, query);
+
+  Future<Map<String, dynamic>> _request(
+    String method,
+    String path,
+    Map<String, String> query, {
+    Object? body,
+    bool retried = false,
+  }) async {
     final token = await YouTubeAuth.instance.accessToken();
-    final response = await _client.get(
-      Uri.https('www.googleapis.com', '/youtube/v3/$path', query),
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-    );
+    final request = http.Request(method, Uri.https('www.googleapis.com', '/youtube/v3/$path', query))
+      ..headers['Authorization'] = 'Bearer $token'
+      ..headers['Accept'] = 'application/json';
+    if (body != null) {
+      request.headers['Content-Type'] = 'application/json';
+      request.body = jsonEncode(body);
+    }
+    final response = await http.Response.fromStream(await _client.send(request));
     if (response.statusCode == 401 && !retried) {
       YouTubeAuth.instance.invalidateAccessToken();
-      return _get(path, query, retried: true);
+      return _request(method, path, query, body: body, retried: true);
     }
-    if (response.statusCode != 200) {
-      throw YouTubeApiException(response.statusCode, _apiError(response.body));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final (message, reason) = _apiError(response.body);
+      throw YouTubeApiException(response.statusCode, message, reason: reason);
     }
+    if (response.body.isEmpty) return const {};
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
@@ -425,20 +442,146 @@ class YouTubeService extends ChangeNotifier {
     }
   }
 
-  /// Display name of the signed-in channel, for the settings screen.
-  Future<String?> fetchAccountName() async {
+  /// Name and channel ID of the signed-in account, for the settings screen
+  /// and for recognising the user's own comments.
+  Future<({String? name, String? channelId})> fetchAccount() async {
     final json = await _get('channels', {'part': 'snippet', 'mine': 'true'});
     final items = json['items'] as List? ?? const [];
-    if (items.isEmpty) return null;
-    return (items.first as Map)['snippet']?['title'] as String?;
+    if (items.isEmpty) return (name: null, channelId: null);
+    final item = items.first as Map;
+    return (name: item['snippet']?['title'] as String?, channelId: item['id'] as String?);
   }
 
-  static String _apiError(String body) {
+  /// Title, description and counts of one video.
+  Future<YtVideoInfo?> videoInfo(String videoId) async {
+    final json = await _get('videos', {'part': 'snippet,statistics', 'id': videoId});
+    final items = json['items'] as List? ?? const [];
+    if (items.isEmpty) return null;
+    final item = items.first as Map<String, dynamic>;
+    final snippet = item['snippet'] as Map<String, dynamic>? ?? const {};
+    final stats = item['statistics'] as Map<String, dynamic>? ?? const {};
+    return YtVideoInfo(
+      title: snippet['title'] as String? ?? '',
+      channelTitle: snippet['channelTitle'] as String? ?? '',
+      description: snippet['description'] as String? ?? '',
+      likeCount: int.tryParse(stats['likeCount']?.toString() ?? ''),
+      commentCount: int.tryParse(stats['commentCount']?.toString() ?? ''),
+    );
+  }
+
+  /// 'like', 'dislike' or 'none'.
+  Future<String> myRating(String videoId) async {
+    final json = await _get('videos/getRating', {'id': videoId});
+    final items = json['items'] as List? ?? const [];
+    if (items.isEmpty) return 'none';
+    return (items.first as Map)['rating'] as String? ?? 'none';
+  }
+
+  Future<void> rate(String videoId, String rating) => _request('POST', 'videos/rate', {'id': videoId, 'rating': rating});
+
+  Future<({List<YtComment> items, String? nextPageToken})> commentThreads(
+    String videoId, {
+    required bool newest,
+    String? pageToken,
+  }) async {
+    final json = await _get('commentThreads', {
+      'part': 'snippet',
+      'videoId': videoId,
+      'order': newest ? 'time' : 'relevance',
+      'maxResults': '20',
+      'textFormat': 'plainText',
+      'pageToken': ?pageToken,
+    });
+    final items = <YtComment>[];
+    for (final raw in (json['items'] as List? ?? const [])) {
+      final thread = raw as Map<String, dynamic>;
+      final snippet = thread['snippet'] as Map<String, dynamic>? ?? const {};
+      final top = snippet['topLevelComment'] as Map<String, dynamic>?;
+      if (top == null) continue;
+      items.add(
+        YtComment.fromJson(
+          top,
+          replyCount: (snippet['totalReplyCount'] as num?)?.toInt() ?? 0,
+          canReply: snippet['canReply'] as bool? ?? false,
+        ),
+      );
+    }
+    return (items: items, nextPageToken: json['nextPageToken'] as String?);
+  }
+
+  Future<List<YtComment>> replies(String parentId) async {
+    final result = <YtComment>[];
+    String? pageToken;
+    do {
+      final json = await _get('comments', {
+        'part': 'snippet',
+        'parentId': parentId,
+        'maxResults': '100',
+        'textFormat': 'plainText',
+        'pageToken': ?pageToken,
+      });
+      for (final raw in (json['items'] as List? ?? const [])) {
+        result.add(YtComment.fromJson(raw as Map<String, dynamic>));
+      }
+      pageToken = json['nextPageToken'] as String?;
+    } while (pageToken != null && result.length < 500);
+    return result;
+  }
+
+  Future<YtComment> addComment(String videoId, String text) async {
+    final json = await _request(
+      'POST',
+      'commentThreads',
+      {'part': 'snippet'},
+      body: {
+        'snippet': {
+          'videoId': videoId,
+          'topLevelComment': {
+            'snippet': {'textOriginal': text},
+          },
+        },
+      },
+    );
+    final top = json['snippet']?['topLevelComment'] as Map<String, dynamic>;
+    return YtComment.fromJson(top, canReply: true);
+  }
+
+  Future<YtComment> addReply(String parentId, String text) async {
+    final json = await _request(
+      'POST',
+      'comments',
+      {'part': 'snippet'},
+      body: {
+        'snippet': {'parentId': parentId, 'textOriginal': text},
+      },
+    );
+    return YtComment.fromJson(json);
+  }
+
+  Future<YtComment> editComment(String commentId, String text) async {
+    final json = await _request(
+      'PUT',
+      'comments',
+      {'part': 'snippet'},
+      body: {
+        'id': commentId,
+        'snippet': {'textOriginal': text},
+      },
+    );
+    return YtComment.fromJson(json);
+  }
+
+  Future<void> deleteComment(String commentId) => _request('DELETE', 'comments', {'id': commentId});
+
+  static (String, String?) _apiError(String body) {
     try {
       final json = jsonDecode(body) as Map<String, dynamic>;
-      return (json['error']?['message'] ?? body).toString();
+      final error = json['error'] as Map<String, dynamic>?;
+      final errors = error?['errors'] as List?;
+      final reason = errors == null || errors.isEmpty ? null : (errors.first as Map)['reason'] as String?;
+      return ((error?['message'] ?? body).toString(), reason);
     } catch (_) {
-      return body;
+      return (body, null);
     }
   }
 
@@ -500,4 +643,68 @@ Duration parseIsoDuration(String value) {
   if (match == null) return Duration.zero;
   int part(int i) => int.tryParse(match.group(i) ?? '') ?? 0;
   return Duration(days: part(1), hours: part(2), minutes: part(3), seconds: part(4));
+}
+
+class YtVideoInfo {
+  YtVideoInfo({
+    required this.title,
+    required this.channelTitle,
+    required this.description,
+    required this.likeCount,
+    required this.commentCount,
+  });
+
+  final String title;
+  final String channelTitle;
+  final String description;
+
+  /// Null when the creator hides the count.
+  final int? likeCount;
+
+  /// Null when comments are turned off.
+  final int? commentCount;
+}
+
+class YtComment {
+  YtComment({
+    required this.id,
+    required this.author,
+    required this.authorChannelId,
+    required this.avatarUrl,
+    required this.text,
+    required this.likeCount,
+    required this.publishedAt,
+    required this.edited,
+    this.replyCount = 0,
+    this.canReply = false,
+  });
+
+  factory YtComment.fromJson(Map<String, dynamic> json, {int replyCount = 0, bool canReply = false}) {
+    final s = json['snippet'] as Map<String, dynamic>? ?? const {};
+    final published = DateTime.tryParse(s['publishedAt'] as String? ?? '') ?? DateTime.now();
+    final updated = DateTime.tryParse(s['updatedAt'] as String? ?? '');
+    return YtComment(
+      id: json['id'] as String? ?? '',
+      author: s['authorDisplayName'] as String? ?? '',
+      authorChannelId: s['authorChannelId']?['value'] as String? ?? '',
+      avatarUrl: s['authorProfileImageUrl'] as String?,
+      text: (s['textOriginal'] ?? s['textDisplay'] ?? '') as String,
+      likeCount: (s['likeCount'] as num?)?.toInt() ?? 0,
+      publishedAt: published,
+      edited: updated != null && updated.difference(published).inSeconds.abs() > 5,
+      replyCount: replyCount,
+      canReply: canReply,
+    );
+  }
+
+  final String id;
+  final String author;
+  final String authorChannelId;
+  final String? avatarUrl;
+  String text;
+  final int likeCount;
+  final DateTime publishedAt;
+  bool edited;
+  int replyCount;
+  final bool canReply;
 }

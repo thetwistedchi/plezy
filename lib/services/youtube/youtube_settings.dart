@@ -3,10 +3,28 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'secure_token_store.dart';
+
+/// What happens when playback reaches a SponsorBlock segment.
+enum SegmentMode { auto, button, off }
+
+/// SponsorBlock categories offered in the settings, with their defaults.
+const Map<String, SegmentMode> sponsorBlockDefaults = {
+  'sponsor': SegmentMode.auto,
+  'selfpromo': SegmentMode.button,
+  'interaction': SegmentMode.button,
+  'intro': SegmentMode.button,
+  'outro': SegmentMode.button,
+  'preview': SegmentMode.button,
+  'filler': SegmentMode.off,
+  'music_offtopic': SegmentMode.off,
+};
+
 /// Persisted YouTube settings and the small amount of local watch history the
 /// subscriptions screen uses (which videos were opened, how often each channel
 /// was opened). Kept apart from [SettingsService] so the fork's YouTube
-/// feature stays self-contained.
+/// feature stays self-contained. The Google refresh token is kept encrypted
+/// in [SecureTokenStore], not in the preferences.
 class YouTubeSettings extends ChangeNotifier {
   YouTubeSettings._();
 
@@ -14,50 +32,92 @@ class YouTubeSettings extends ChangeNotifier {
 
   static const _kClientId = 'youtube_client_id';
   static const _kClientSecret = 'youtube_client_secret';
-  static const _kRefreshToken = 'youtube_refresh_token';
+  static const _kLegacyRefreshToken = 'youtube_refresh_token';
   static const _kAccountName = 'youtube_account_name';
+  static const _kAccountChannelId = 'youtube_account_channel_id';
+  static const _kGrantedScopes = 'youtube_granted_scopes';
   static const _kShowShorts = 'youtube_show_shorts';
   static const _kShowPremieres = 'youtube_show_premieres';
   static const _kRefreshMinutes = 'youtube_refresh_minutes';
   static const _kWatched = 'youtube_watched_ids';
   static const _kChannelOpens = 'youtube_channel_opens';
   static const _kBannerDismissed = 'youtube_hidden_banner_dismissed';
+  static const _kSbEnabled = 'youtube_sponsorblock_enabled';
+  static const _kSbModes = 'youtube_sponsorblock_modes';
+  static const _kSbShowSegments = 'youtube_sponsorblock_show_segments';
+  static const _kVolume = 'youtube_player_volume';
 
   static const int _maxWatched = 3000;
   static const List<int> refreshChoices = [15, 30, 60];
 
+  final SecureTokenStore _tokenStore = SecureTokenStore('youtube_refresh_token');
+
   SharedPreferences? _prefs;
+  Future<void>? _loading;
+  String _refreshToken = '';
   Set<String>? _watched;
   Map<String, int>? _channelOpens;
+  Map<String, SegmentMode> _sbModes = Map.of(sponsorBlockDefaults);
 
   bool get isLoaded => _prefs != null;
 
-  Future<void> load() async {
-    if (_prefs != null) return;
-    _prefs = await SharedPreferences.getInstance();
-    _watched = (_prefs!.getStringList(_kWatched) ?? const <String>[]).toSet();
+  Future<void> load() => _loading ??= _load();
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    _watched = (prefs.getStringList(_kWatched) ?? const <String>[]).toSet();
     try {
-      final raw = _prefs!.getString(_kChannelOpens);
+      final raw = prefs.getString(_kChannelOpens);
       final decoded = raw == null ? const <String, dynamic>{} : jsonDecode(raw) as Map<String, dynamic>;
       _channelOpens = {for (final e in decoded.entries) e.key: (e.value as num).toInt()};
     } catch (_) {
       _channelOpens = {};
     }
+    try {
+      final raw = prefs.getString(_kSbModes);
+      final decoded = raw == null ? const <String, dynamic>{} : jsonDecode(raw) as Map<String, dynamic>;
+      for (final e in decoded.entries) {
+        final mode = SegmentMode.values.where((m) => m.name == e.value).firstOrNull;
+        if (mode != null && sponsorBlockDefaults.containsKey(e.key)) _sbModes[e.key] = mode;
+      }
+    } catch (_) {}
+
+    // Move a refresh token from the old unencrypted preference.
+    final legacy = prefs.getString(_kLegacyRefreshToken);
+    if (legacy != null && legacy.isNotEmpty) {
+      try {
+        await _tokenStore.write(legacy);
+        await prefs.remove(_kLegacyRefreshToken);
+      } catch (_) {}
+      _refreshToken = legacy;
+    } else {
+      _refreshToken = await _tokenStore.read() ?? '';
+    }
+    _prefs = prefs;
     notifyListeners();
   }
 
   String get clientId => _prefs?.getString(_kClientId) ?? '';
   String get clientSecret => _prefs?.getString(_kClientSecret) ?? '';
-  String get refreshToken => _prefs?.getString(_kRefreshToken) ?? '';
+  String get refreshToken => _refreshToken;
   String get accountName => _prefs?.getString(_kAccountName) ?? '';
+  String get accountChannelId => _prefs?.getString(_kAccountChannelId) ?? '';
+  String get grantedScopes => _prefs?.getString(_kGrantedScopes) ?? '';
   bool get showShorts => _prefs?.getBool(_kShowShorts) ?? false;
   bool get showPremieres => _prefs?.getBool(_kShowPremieres) ?? false;
   int get refreshMinutes => _prefs?.getInt(_kRefreshMinutes) ?? 30;
-
   bool get hiddenBannerDismissed => _prefs?.getBool(_kBannerDismissed) ?? false;
+  bool get sponsorBlockEnabled => _prefs?.getBool(_kSbEnabled) ?? true;
+  bool get showSegmentsOnTimeline => _prefs?.getBool(_kSbShowSegments) ?? true;
+  int get playerVolume => _prefs?.getInt(_kVolume) ?? 100;
+
+  SegmentMode segmentMode(String category) => _sbModes[category] ?? SegmentMode.off;
 
   bool get hasCredentials => clientId.isNotEmpty;
-  bool get isSignedIn => refreshToken.isNotEmpty;
+  bool get isSignedIn => _refreshToken.isNotEmpty;
+
+  /// Whether the sign-in includes write access (rating, comments).
+  bool get canWrite => grantedScopes.contains('youtube.force-ssl');
 
   Future<void> _setString(String key, String value) async {
     await load();
@@ -69,27 +129,41 @@ class YouTubeSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _setBool(String key, bool value) async {
+    await load();
+    await _prefs!.setBool(key, value);
+    notifyListeners();
+  }
+
   Future<void> setClientId(String value) => _setString(_kClientId, value.trim());
   Future<void> setClientSecret(String value) => _setString(_kClientSecret, value.trim());
-  Future<void> setRefreshToken(String value) => _setString(_kRefreshToken, value);
   Future<void> setAccountName(String value) => _setString(_kAccountName, value);
+  Future<void> setAccountChannelId(String value) => _setString(_kAccountChannelId, value);
+  Future<void> setGrantedScopes(String value) => _setString(_kGrantedScopes, value);
 
-  Future<void> setShowShorts(bool value) async {
+  Future<void> setRefreshToken(String value) async {
     await load();
-    await _prefs!.setBool(_kShowShorts, value);
+    await _tokenStore.write(value);
+    _refreshToken = value;
     notifyListeners();
   }
 
-  Future<void> setShowPremieres(bool value) async {
+  Future<void> setShowShorts(bool value) => _setBool(_kShowShorts, value);
+  Future<void> setShowPremieres(bool value) => _setBool(_kShowPremieres, value);
+  Future<void> dismissHiddenBanner() => _setBool(_kBannerDismissed, true);
+  Future<void> setSponsorBlockEnabled(bool value) => _setBool(_kSbEnabled, value);
+  Future<void> setShowSegmentsOnTimeline(bool value) => _setBool(_kSbShowSegments, value);
+
+  Future<void> setSegmentMode(String category, SegmentMode mode) async {
     await load();
-    await _prefs!.setBool(_kShowPremieres, value);
+    _sbModes[category] = mode;
+    await _prefs!.setString(_kSbModes, jsonEncode({for (final e in _sbModes.entries) e.key: e.value.name}));
     notifyListeners();
   }
 
-  Future<void> dismissHiddenBanner() async {
+  Future<void> setPlayerVolume(int value) async {
     await load();
-    await _prefs!.setBool(_kBannerDismissed, true);
-    notifyListeners();
+    await _prefs!.setInt(_kVolume, value.clamp(0, 100));
   }
 
   Future<void> setRefreshMinutes(int value) async {

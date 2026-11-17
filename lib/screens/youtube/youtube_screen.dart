@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/youtube/youtube_auth.dart';
 import '../../services/youtube/youtube_service.dart';
@@ -12,6 +11,7 @@ import '../../services/youtube/youtube_watchlist.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
+import 'youtube_player_screen.dart';
 import 'youtube_settings_screen.dart';
 import 'youtube_strings.dart';
 
@@ -59,18 +59,10 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeSettingsScreen()));
   }
 
-  Future<void> _open(YouTubeVideo video) async {
-    unawaited(_settings.markOpened(video.id, video.channelId));
-    await launchUrl(video.watchUrl, mode: LaunchMode.externalApplication);
-  }
+  Future<void> _open(YouTubeVideo video) => YouTubePlayerScreen.open(context, [video]);
 
-  Future<void> _playAll() async {
-    final url = _watchlist.browserQueueUrl();
-    if (url == null) return;
-    final first = _watchlist.items.first;
-    unawaited(_settings.markOpened(first.id, first.channelId));
-    await launchUrl(url, mode: LaunchMode.externalApplication);
-  }
+  Future<void> _playWatchlist({int startIndex = 0}) =>
+      YouTubePlayerScreen.open(context, _watchlist.items, startIndex: startIndex, fromWatchlist: true);
 
   /// Segmented buttons in the theme's highlight: the selected segment is a
   /// darker shade of it with light text, unselected ones stay light and muted.
@@ -342,7 +334,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                   children: [
                     _viewSwitch(context),
                     FilledButton.icon(
-                      onPressed: items.isEmpty ? null : () => unawaited(_playAll()),
+                      onPressed: items.isEmpty ? null : () => unawaited(_playWatchlist()),
                       icon: const AppIcon(Symbols.play_arrow_rounded, fill: 1),
                       label: Text(YtStrings.playAll),
                     ),
@@ -376,7 +368,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                 key: ValueKey(items[i].id),
                 index: i,
                 video: items[i],
-                onTap: () => unawaited(_open(items[i])),
+                onTap: () => unawaited(_playWatchlist(startIndex: i)),
                 onRemove: () => unawaited(_watchlist.remove(items[i].id)),
               ),
             ),
