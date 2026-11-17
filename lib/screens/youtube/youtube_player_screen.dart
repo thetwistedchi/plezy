@@ -19,6 +19,7 @@ import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../services/youtube/youtube_watchlist.dart';
 import '../../services/youtube/youtube_webview.dart';
+import '../../theme/gapped_track_shape.dart';
 import '../../theme/player_style.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/app_icon.dart';
@@ -1401,7 +1402,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 3,
-                    activeTrackColor: accent,
+                    trackShape: GappedTrackShape(activeGradient: style.progressGradient),
+                    activeTrackColor: style.progressGradient?.last ?? accent,
                     inactiveTrackColor: Colors.white24,
                     thumbColor: Colors.white,
                     overlayShape: SliderComponentShape.noOverlay,
@@ -1430,7 +1432,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                     height: 48,
                     child: Center(
                       child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: Container(
                       height: 22,
                       padding: const EdgeInsets.symmetric(horizontal: 7),
