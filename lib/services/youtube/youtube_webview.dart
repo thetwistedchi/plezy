@@ -124,7 +124,12 @@ class YouTubeWebView {
     var p = player();
     if (!p || !p.getAvailableQualityLevels) return;
     try {
-      window.parent.postMessage({plezyFrame: 'quality', levels: p.getAvailableQualityLevels(), current: p.getPlaybackQuality()}, '*');
+      var data = [];
+      if (p.getAvailableQualityData) {
+        data = p.getAvailableQualityData().map(function(d){ return {q: d.quality, label: d.qualityLabel || ''}; });
+      }
+      window.parent.postMessage({plezyFrame: 'quality', levels: p.getAvailableQualityLevels(), current: p.getPlaybackQuality(),
+        currentLabel: p.getPlaybackQualityLabel ? p.getPlaybackQualityLabel() : '', data: data}, '*');
     } catch (err) {}
   }, 1000);
 })();''';
@@ -182,7 +187,8 @@ window.chrome.webview.addEventListener('message', function(e){
   }
 });
 window.addEventListener('message', function(e){
-  if (e.data && e.data.plezyFrame === 'quality') post({t: 'quality', levels: e.data.levels, current: e.data.current});
+  if (e.data && e.data.plezyFrame === 'quality') post({t: 'quality', levels: e.data.levels, current: e.data.current,
+    currentLabel: e.data.currentLabel, data: e.data.data});
 });
 document.addEventListener('keydown', function(e){
   post({t: 'key', k: e.key, shift: e.shiftKey});

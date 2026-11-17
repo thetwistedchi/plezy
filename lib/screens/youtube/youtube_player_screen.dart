@@ -87,6 +87,11 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   List<String> _qualities = const [];
   String _quality = 'auto';
 
+  /// YouTube's own names per level, e.g. hd1080 → 1080p60, without the
+  /// Premium-bitrate variants.
+  Map<String, String> _qualityNames = const {};
+  String _currentQualityLabel = '';
+
   /// The quality the user picked in this session, or the saved preference.
   late String _wantedQuality = _settings.preferredQuality;
   bool _qualityApplied = false;
@@ -244,10 +249,24 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             if (l is String && l != 'auto') l,
         ];
         final current = message['current'] as String? ?? 'auto';
-        if (!_listEquals(levels, _qualities) || current != _quality) {
+        final currentLabel = message['currentLabel'] as String? ?? '';
+        final names = <String, String>{};
+        for (final d in (message['data'] as List? ?? const [])) {
+          if (d is! Map) continue;
+          final q = d['q'] as String?;
+          final label = (d['label'] as String? ?? '').trim();
+          if (q == null || label.isEmpty || label.toLowerCase().contains('premium')) continue;
+          names.putIfAbsent(q, () => label);
+        }
+        if (!_listEquals(levels, _qualities) ||
+            current != _quality ||
+            currentLabel != _currentQualityLabel ||
+            names.length != _qualityNames.length) {
           setState(() {
             _qualities = levels;
             _quality = current;
+            _currentQualityLabel = currentLabel;
+            _qualityNames = names;
           });
         }
         if (!_qualityApplied && levels.isNotEmpty) {
@@ -322,6 +341,17 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     return levels.last;
   }
 
+  /// Badge text: YouTube's label of what is playing (1080p60, 2160p60 HDR,
+  /// 1080p Premium), else the plain resolution.
+  String _badgeLabel() {
+    final label = _currentQualityLabel.trim();
+    if (label.isNotEmpty) return label;
+    final name = _qualityNames[_quality];
+    if (name != null) return name;
+    final short = YtStrings.qualityShort(_quality);
+    return short.isEmpty ? YtStrings.qualityAuto : short;
+  }
+
   static bool _listEquals(List<String> a, List<String> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
@@ -363,6 +393,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _errorCode = null;
       _toastSegment = null;
       _qualities = const [];
+      _qualityNames = const {};
+      _currentQualityLabel = '';
       _qualityApplied = false;
     });
     unawaited(YouTubeSettings.instance.markOpened(_video.id, _video.channelId));
@@ -860,7 +892,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                       CheckedPopupMenuItem(
                         value: q,
                         checked: q == _wantedQuality,
-                        child: Text(YtStrings.qualityLabel(q)),
+                        child: Text(q == 'auto' ? YtStrings.qualityAuto : _qualityNames[q] ?? YtStrings.qualityLabel(q)),
                       ),
                   ],
                   child: Padding(
@@ -875,7 +907,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                         border: Border.all(color: style.badge ?? accent, width: 1.5),
                       ),
                       child: Text(
-                        YtStrings.qualityShort(_quality).isEmpty ? YtStrings.qualityAuto : YtStrings.qualityShort(_quality),
+                        _badgeLabel(),
                         style: TextStyle(color: style.badge ?? accent, fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ),
