@@ -2512,7 +2512,7 @@ class _SetupScreenState extends State<SetupScreen> with MountedSetStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    const coralColor = Color(0xFFE5A00D);
+    const coralColor = Color(0xFFE0479A);
     final height = MediaQuery.sizeOf(context).height;
     // The stacked layout below hangs its two rows off fixed ±170/180 offsets from the middle, which
     // needs roughly 700 logical pixels of height. A car at a large interface scale — and a phone in

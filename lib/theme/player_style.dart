@@ -41,7 +41,8 @@ class PlayerStyle extends ThemeExtension<PlayerStyle> {
   /// Icons of toggled-on controls (stock: amber).
   final Color? active;
 
-  /// Outline and text of the 4K / HDR badge (stock: white).
+  /// Fill of the 4K / HDR badge, with [playButtonIcon] text; null keeps the
+  /// stock white outline.
   final Color? badge;
 
   static const PlayerStyle stock = PlayerStyle();
@@ -55,7 +56,7 @@ class PlayerStyle extends ThemeExtension<PlayerStyle> {
     skipButtonBorder: Color(0xFFE0479A),
     progressGradient: [Color(0xFF2DE2E6), Color(0xFFE0479A)],
     active: Color(0xFFE0479A),
-    badge: Color(0xFFE0479A),
+    badge: Color(0xFF9D7BFF),
   );
 
   static PlayerStyle of(BuildContext context) => Theme.of(context).extension<PlayerStyle>() ?? stock;

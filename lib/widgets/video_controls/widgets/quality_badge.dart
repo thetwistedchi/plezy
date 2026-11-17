@@ -47,17 +47,26 @@ class QualityBadge extends StatelessWidget {
     if (isTranscoding) return const SizedBox.shrink();
     final labels = labelsFor(criteria);
     if (labels.isEmpty) return const SizedBox.shrink();
-    final color = PlayerStyle.of(context).badge ?? Colors.white;
+    final style = PlayerStyle.of(context);
+    final fill = style.badge;
+    final textColor = fill == null ? Colors.white : (style.playButtonIcon ?? Colors.black);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      height: 22,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
-        border: Border.all(color: color, width: 1.2),
+        // Themed: filled like the play button, without its glow.
+        color: fill ?? Colors.black.withValues(alpha: 0.35),
+        border: fill == null ? Border.all(color: Colors.white, width: 1.2) : null,
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
         labels.join(' · '),
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6, height: 1.1),
+        textHeightBehavior: const TextHeightBehavior(
+          applyHeightToFirstAscent: false,
+          applyHeightToLastDescent: false,
+        ),
+        style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6, height: 1.0),
       ),
     );
   }
