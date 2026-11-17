@@ -842,7 +842,9 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                           _canControl ? child : Tooltip(message: t.watchTogether.hostControlsPlayback, child: child);
                       if (fill == null) return explain(button);
                       // Themed: a filled, glowing disc behind the icon.
-                      return explain(DecoratedBox(
+                      // Own layer: the blurred glow is painted once, not on
+                      // every timeline tick.
+                      return explain(RepaintBoundary(child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: fill,
                           shape: BoxShape.circle,
@@ -851,7 +853,7 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                           ],
                         ),
                         child: Padding(padding: const EdgeInsets.all(4), child: button),
-                      ));
+                      )));
                     },
                   ),
                 ),

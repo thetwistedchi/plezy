@@ -2,8 +2,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// [GappedSliderTrackShape] without the hardcoded stop indicator dot.
+///
+/// With [activeGradient], the active part fades through those colours from
+/// the track's start to the thumb, painted directly with a shader (no
+/// offscreen layer, so it stays cheap on a timeline that repaints every
+/// frame during playback).
 class GappedTrackShape extends SliderTrackShape with BaseSliderTrackShape {
-  const GappedTrackShape();
+  const GappedTrackShape({this.activeGradient});
+
+  final List<Color>? activeGradient;
 
   @override
   void paint(
@@ -74,6 +81,18 @@ class GappedTrackShape extends SliderTrackShape with BaseSliderTrackShape {
       topLeft: innerRadius,
       bottomLeft: innerRadius,
     );
+
+    final gradient = activeGradient;
+    if (gradient != null && gradient.length >= 2) {
+      final active = textDirection == TextDirection.ltr ? leftRRect.outerRect : rightRRect.outerRect;
+      if (active.width > 0) {
+        (textDirection == TextDirection.ltr ? leftPaint : rightPaint).shader = LinearGradient(
+          colors: gradient,
+          begin: textDirection == TextDirection.ltr ? Alignment.centerLeft : Alignment.centerRight,
+          end: textDirection == TextDirection.ltr ? Alignment.centerRight : Alignment.centerLeft,
+        ).createShader(active);
+      }
+    }
 
     final canvas = context.canvas
       ..save()

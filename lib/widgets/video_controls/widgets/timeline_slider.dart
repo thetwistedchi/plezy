@@ -7,6 +7,7 @@ import '../../../focus/focusable_wrapper.dart';
 import '../../../focus/input_mode_tracker.dart';
 import '../../../services/scrub_preview_source.dart';
 import '../../../utils/formatters.dart';
+import '../../../theme/gapped_track_shape.dart';
 import '../../../theme/player_style.dart';
 import '../helpers/eager_horizontal_drag_recognizer.dart';
 import '../helpers/render_geometry.dart';
@@ -90,22 +91,6 @@ class _TimelineSliderState extends State<TimelineSlider> {
   static const _sliderPadding = 0.0;
 
   static const _thumbWidth = 160.0;
-
-  /// With a themed [PlayerStyle.progressGradient], paints the played track
-  /// as a fade from the timeline's start to the playhead. The unplayed track
-  /// is transparent, so the mask only tints the played part and the handle.
-  Widget _themedProgress(BuildContext context, {required double playedFraction, required Widget child}) {
-    final colors = PlayerStyle.of(context).progressGradient;
-    if (colors == null || colors.length < 2) return child;
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) {
-        final playedWidth = (bounds.width * playedFraction).clamp(1.0, bounds.width);
-        return LinearGradient(colors: colors).createShader(Rect.fromLTWH(0, 0, playedWidth, bounds.height));
-      },
-      child: child,
-    );
-  }
 
   @override
   void dispose() {
@@ -389,6 +374,7 @@ class _TimelineSliderState extends State<TimelineSlider> {
                       padding: .zero,
                       overlayShape: const RoundSliderOverlayShape(overlayRadius: 0),
                       tickMarkShape: SliderTickMarkShape.noTickMark,
+                      trackShape: GappedTrackShape(activeGradient: PlayerStyle.of(context).progressGradient),
                       // D-pad focus swaps the 4x20 handle for a shadowed knob
                       // (#2383); in pointer mode the handle always shows, and
                       // an unfocused timeline in D-pad mode shows none.
@@ -397,17 +383,16 @@ class _TimelineSliderState extends State<TimelineSlider> {
                         (!isKeyboardMode || _isFocused) ? const Size(4, 20) : Size.zero,
                       ),
                     ),
-                    child: _themedProgress(
-                      context,
-                      playedFraction: max > 0 ? (displayValue / max).clamp(0.0, 1.0) : 0.0,
-                      child: Slider(
-                        value: displayValue,
-                        min: 0.0,
-                        max: max,
-                        onChanged: _noopSliderChanged,
-                        activeColor: PlayerStyle.of(context).progress ?? Colors.white,
-                        inactiveColor: Colors.transparent,
-                      ),
+                    child: Slider(
+                      value: displayValue,
+                      min: 0.0,
+                      max: max,
+                      onChanged: _noopSliderChanged,
+                      activeColor:
+                          PlayerStyle.of(context).progressGradient?.last ??
+                          PlayerStyle.of(context).progress ??
+                          Colors.white,
+                      inactiveColor: Colors.transparent,
                     ),
                   ),
                 ),
