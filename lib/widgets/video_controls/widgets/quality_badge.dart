@@ -48,16 +48,14 @@ class QualityBadge extends StatelessWidget {
     final labels = labelsFor(criteria);
     if (labels.isEmpty) return const SizedBox.shrink();
     final style = PlayerStyle.of(context);
-    final fill = style.badge;
-    final textColor = fill == null ? Colors.white : (style.playButtonIcon ?? Colors.black);
+    final color = style.badge ?? Colors.white;
     return Container(
       height: 22,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        // Themed: filled like the play button, without its glow.
-        color: fill ?? Colors.black.withValues(alpha: 0.35),
-        border: fill == null ? Border.all(color: Colors.white, width: 1.2) : null,
+        color: Colors.black.withValues(alpha: 0.35),
+        border: Border.all(color: color, width: 1.2),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
@@ -66,7 +64,7 @@ class QualityBadge extends StatelessWidget {
           applyHeightToFirstAscent: false,
           applyHeightToLastDescent: false,
         ),
-        style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6, height: 1.0),
+        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6, height: 1.0),
       ),
     );
   }

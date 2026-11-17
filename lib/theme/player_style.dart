@@ -41,8 +41,7 @@ class PlayerStyle extends ThemeExtension<PlayerStyle> {
   /// Icons of toggled-on controls (stock: amber).
   final Color? active;
 
-  /// Fill of the 4K / HDR badge, with [playButtonIcon] text; null keeps the
-  /// stock white outline.
+  /// Outline and text of the 4K / HDR badge (stock: white).
   final Color? badge;
 
   static const PlayerStyle stock = PlayerStyle();
