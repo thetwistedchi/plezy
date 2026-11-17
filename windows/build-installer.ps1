@@ -333,23 +333,38 @@ New-InnoSetupScript -Version $Version -HasX64 ([bool]$HasX64) -HasArm64 ([bool]$
 Write-Host "Created: $SetupScript" -ForegroundColor Green
 
 Write-Host "`nChecking for Inno Setup..." -ForegroundColor Cyan
-$InnoSetupPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+function Find-InnoSetup {
+    $candidates = @(
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+    )
+    foreach ($path in $candidates) {
+        if ($path -and (Test-Path $path)) { return $path }
+    }
+    $onPath = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    if ($onPath) { return $onPath.Source }
+    return $null
+}
 
-if (-not (Test-Path $InnoSetupPath)) {
-    Write-Host "Inno Setup not found. Installing via Chocolatey..." -ForegroundColor Yellow
-
-    if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
-        Write-Error "Chocolatey is not installed. Please install it from https://chocolatey.org/install"
+$InnoSetupPath = Find-InnoSetup
+if (-not $InnoSetupPath) {
+    Write-Host "Inno Setup not found. Installing it..." -ForegroundColor Yellow
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        winget install --id JRSoftware.InnoSetup -e --accept-source-agreements --accept-package-agreements
+    } elseif (Get-Command choco -ErrorAction SilentlyContinue) {
+        choco install innosetup -y
+    } else {
+        Write-Error "Inno Setup is not installed. Install it from https://jrsoftware.org/isdl.php"
         exit 1
     }
-
-    choco install innosetup -y
-
-    if (-not (Test-Path $InnoSetupPath)) {
+    $InnoSetupPath = Find-InnoSetup
+    if (-not $InnoSetupPath) {
         Write-Error "Failed to install Inno Setup"
         exit 1
     }
 }
+Write-Host "Using $InnoSetupPath"
 
 Write-Host "`nBuilding installer with Inno Setup..." -ForegroundColor Cyan
 & $InnoSetupPath $SetupScript
