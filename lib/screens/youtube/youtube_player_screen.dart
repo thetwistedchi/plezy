@@ -371,6 +371,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   Future<void> _toggleFullscreen() async {
+    // Changing the window style briefly hides the WebView, and YouTube
+    // pauses on that; resume when it was playing.
+    final wasPlaying = _playing;
     final manager = FullscreenStateManager();
     final next = !manager.isFullscreen;
     if (next) {
@@ -383,6 +386,15 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _fullscreen = next;
       _enteredFullscreen = next;
     });
+    if (wasPlaying) {
+      for (final delay in const [Duration(milliseconds: 350), Duration(milliseconds: 1200)]) {
+        unawaited(
+          Future<void>.delayed(delay, () {
+            if (mounted && !_playing) _send({'cmd': 'play'});
+          }),
+        );
+      }
+    }
   }
 
   void _togglePanel(_SidePanel panel) => setState(() => _panel = _panel == panel ? _SidePanel.none : panel);
@@ -773,8 +785,6 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   Widget _buildTopBar(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = playerActiveColor(context);
-    final likes = _likeCount;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Row(
@@ -808,14 +818,6 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          _RatingPill(
-            likes: likes,
-            rating: _rating,
-            accent: accent,
-            onLike: () => unawaited(_rateVideo('like')),
-            onDislike: () => unawaited(_rateVideo('dislike')),
-          ),
-          const SizedBox(width: 8),
           _PlayerButton(
             icon: Symbols.comment_rounded,
             tooltip: YtStrings.comments,
@@ -857,6 +859,16 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: _RatingPill(
+              likes: _likeCount,
+              rating: _rating,
+              accent: accent,
+              onLike: () => unawaited(_rateVideo('like')),
+              onDislike: () => unawaited(_rateVideo('dislike')),
+            ),
+          ),
           _Timeline(
             position: _position,
             duration: _duration,
