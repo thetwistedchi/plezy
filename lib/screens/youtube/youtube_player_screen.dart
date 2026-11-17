@@ -212,15 +212,29 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
         if (mounted && generation == _metaGeneration) setState(() => _segments = segments);
       }),
     );
-    try {
-      final info = await service.videoInfo(videoId);
-      if (!mounted || generation != _metaGeneration) return;
-      setState(() {
-        _info = info;
-        _chapters = info == null ? const [] : parseChapters(info.description);
-      });
-    } catch (e) {
-      appLogger.d('YouTube video info failed: $e');
+    if (_settings.isSignedIn) {
+      try {
+        final info = await service.videoInfo(videoId);
+        if (!mounted || generation != _metaGeneration) return;
+        setState(() {
+          _info = info;
+          _chapters = info == null ? const [] : parseChapters(info.description);
+        });
+      } catch (e) {
+        appLogger.d('YouTube video info failed: $e');
+      }
+    } else {
+      // Without the API the description comes from the channel's RSS feed.
+      var description = _video.description;
+      if (description == null) {
+        try {
+          final feed = await service.channelFeed(channelId);
+          description = feed.where((v) => v.id == videoId).firstOrNull?.description;
+        } catch (_) {}
+      }
+      if (mounted && generation == _metaGeneration && description != null) {
+        setState(() => _chapters = parseChapters(description!));
+      }
     }
     if (_settings.canWrite) {
       try {
@@ -676,7 +690,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       case 'f':
         unawaited(_toggleFullscreen());
       case 'c':
-        _togglePanel(_SidePanel.comments);
+        if (_settings.isSignedIn) _togglePanel(_SidePanel.comments);
       case 'n':
         if (shift) {
           _playIndex(_index - 1);
@@ -922,12 +936,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             active: _panel == _SidePanel.queue,
             onPressed: () => _togglePanel(_SidePanel.queue),
           ),
-          _PlayerButton(
-            icon: Symbols.comment_rounded,
-            tooltip: YtStrings.comments,
-            active: _panel == _SidePanel.comments,
-            onPressed: () => _togglePanel(_SidePanel.comments),
-          ),
+          if (_settings.isSignedIn)
+            _PlayerButton(
+              icon: Symbols.comment_rounded,
+              tooltip: YtStrings.comments,
+              active: _panel == _SidePanel.comments,
+              onPressed: () => _togglePanel(_SidePanel.comments),
+            ),
           _PlayerButton(
             icon: Symbols.video_library_rounded,
             tooltip: YtStrings.moreFromChannel,
@@ -963,7 +978,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Align(
+          if (_settings.isSignedIn)
+            Align(
             alignment: Alignment.centerRight,
             child: _RatingPill(
               likes: _likeCount,

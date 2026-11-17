@@ -13,6 +13,8 @@ import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/app_icon.dart';
+import 'youtube_channels_screen.dart';
+import 'youtube_guide_screen.dart';
 import 'youtube_strings.dart';
 import 'youtube_web_sign_in_screen.dart';
 
@@ -133,7 +135,23 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
     final accent = playerActiveColor(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(YtStrings.tab)),
+      appBar: AppBar(
+        title: Text(YtStrings.tab),
+        actions: [
+          IconButton(
+            tooltip: YtStrings.channels,
+            onPressed: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeChannelsScreen())),
+            icon: const AppIcon(Symbols.subscriptions_rounded),
+          ),
+          IconButton(
+            tooltip: YtStrings.guide,
+            onPressed: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeGuideScreen())),
+            icon: const AppIcon(Symbols.help_rounded),
+          ),
+        ],
+      ),
       body: ListenableBuilder(
         listenable: _settings,
         builder: (context, _) {

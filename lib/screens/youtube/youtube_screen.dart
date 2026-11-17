@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../../services/youtube/youtube_auth.dart';
+import '../../services/youtube/youtube_channels.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../services/youtube/youtube_watchlist.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
+import 'youtube_channels_screen.dart';
+import 'youtube_guide_screen.dart';
 import 'youtube_player_screen.dart';
 import 'youtube_settings_screen.dart';
 import 'youtube_strings.dart';
@@ -38,21 +41,44 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   void initState() {
     super.initState();
     _settings.addListener(_onSettingsChanged);
-    unawaited(_settings.load().then((_) => _onSettingsChanged()));
+    YouTubeChannels.instance.addListener(_onSettingsChanged);
+    unawaited(
+      Future.wait([_settings.load(), YouTubeChannels.instance.load()]).then((_) => _onSettingsChanged()),
+    );
     unawaited(_watchlist.load());
   }
 
   @override
   void dispose() {
     _settings.removeListener(_onSettingsChanged);
+    YouTubeChannels.instance.removeListener(_onSettingsChanged);
     super.dispose();
   }
 
+  int _channelCount = 0;
+
   void _onSettingsChanged() {
+    if (!_settings.isLoaded || !YouTubeChannels.instance.isLoaded) return;
     final signedIn = _settings.isSignedIn;
-    if (signedIn && !_wasSignedIn) _service.ensureStarted();
-    if (!signedIn && _wasSignedIn) _service.clear();
+    final channels = YouTubeChannels.instance.channels.length;
+    final available = YouTubeService.isAvailable;
+    if (available && (signedIn != _wasSignedIn || channels != _channelCount)) {
+      _service.ensureStarted();
+      if ((channels != _channelCount && _channelCount > 0) || (signedIn && !_wasSignedIn)) {
+        unawaited(_service.refresh(reloadSubscriptions: true));
+      }
+    }
+    if (!available) _service.clear();
     _wasSignedIn = signedIn;
+    _channelCount = channels;
+  }
+
+  void _openChannels() {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeChannelsScreen()));
+  }
+
+  void _openGuide() {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeGuideScreen()));
   }
 
   void _openSettings() {
@@ -88,10 +114,14 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: ListenableBuilder(
-        listenable: Listenable.merge([_settings, _service, _watchlist]),
+        listenable: Listenable.merge([_settings, _service, _watchlist, YouTubeChannels.instance]),
         builder: (context, _) {
-          if (!_settings.isLoaded) return const Center(child: CircularProgressIndicator());
-          if (!_settings.isSignedIn) return _ConnectPrompt(onSetUp: _openSettings);
+          if (!_settings.isLoaded || !YouTubeChannels.instance.isLoaded) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!YouTubeService.isAvailable) {
+            return _ConnectPrompt(onAddChannels: _openChannels, onSignIn: _openSettings, onGuide: _openGuide);
+          }
           return _view == _YtView.watchlist ? _buildWatchlist(context) : _buildFeed(context);
         },
       ),
@@ -179,6 +209,16 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                         icon: _service.isLoading
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                             : const AppIcon(Symbols.refresh_rounded),
+                      ),
+                      IconButton(
+                        tooltip: YtStrings.channels,
+                        onPressed: _openChannels,
+                        icon: const AppIcon(Symbols.subscriptions_rounded),
+                      ),
+                      IconButton(
+                        tooltip: YtStrings.guide,
+                        onPressed: _openGuide,
+                        icon: const AppIcon(Symbols.help_rounded),
                       ),
                       IconButton(
                         tooltip: YtStrings.settings,
@@ -587,9 +627,11 @@ class _ErrorCard extends StatelessWidget {
 }
 
 class _ConnectPrompt extends StatelessWidget {
-  const _ConnectPrompt({required this.onSetUp});
+  const _ConnectPrompt({required this.onAddChannels, required this.onSignIn, required this.onGuide});
 
-  final VoidCallback onSetUp;
+  final VoidCallback onAddChannels;
+  final VoidCallback onSignIn;
+  final VoidCallback onGuide;
 
   @override
   Widget build(BuildContext context) {
@@ -597,7 +639,7 @@ class _ConnectPrompt extends StatelessWidget {
     final mono = tokens(context);
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 440),
+        constraints: const BoxConstraints(maxWidth: 520),
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -613,7 +655,29 @@ class _ConnectPrompt extends StatelessWidget {
                 style: theme.textTheme.bodyMedium?.copyWith(color: mono.textMuted),
               ),
               const SizedBox(height: 24),
-              FilledButton(onPressed: onSetUp, child: Text(YtStrings.openSettings)),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: [
+                  FilledButton.icon(
+                    onPressed: onAddChannels,
+                    icon: const AppIcon(Symbols.subscriptions_rounded, size: 18),
+                    label: Text(YtStrings.addChannelsNoAccount),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onSignIn,
+                    icon: const AppIcon(Symbols.account_circle_rounded, size: 18),
+                    label: Text(YtStrings.signInOptional),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: onGuide,
+                icon: const AppIcon(Symbols.help_rounded, size: 18),
+                label: Text(YtStrings.guide),
+              ),
             ],
           ),
         ),

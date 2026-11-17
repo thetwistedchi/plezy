@@ -64,6 +64,7 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
   }
 
   Future<void> _loadInfo() async {
+    if (!_settings.isSignedIn) return;
     try {
       final info = await _service.channelInfo(widget.channelId);
       if (mounted) setState(() => _info = info);
@@ -77,6 +78,16 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
       _error = null;
     });
     try {
+      if (!_settings.isSignedIn) {
+        // Without the API only the feed's newest 15 videos are available.
+        final feed = await _service.channelFeed(widget.channelId);
+        if (!mounted) return;
+        setState(() {
+          _videos.addAll(feed);
+          _done = true;
+        });
+        return;
+      }
       final page = await _service.channelUploads(widget.channelId, pageToken: _nextPage);
       if (!mounted) return;
       setState(() {

@@ -257,8 +257,43 @@ class YtStrings {
 
   static String get connectTitle => _t('Connect YouTube', 'YouTube verbinden');
   static String get connectBody => _t(
-    'Sign in with your Google account to see the newest videos of your subscriptions here.',
-    'Melde dich mit deinem Google-Konto an, um hier die neuesten Videos deiner Abos zu sehen.',
+    'Follow channels right here, no account needed: add them by link or @handle, or import your subscriptions '
+        'from Google Takeout. Signing in with Google is optional and adds automatic import, likes and comments.',
+    'Folge Kanälen direkt hier, ganz ohne Konto: per Link oder @Handle hinzufügen oder deine Abos aus Google '
+        'Takeout importieren. Die Google-Anmeldung ist optional und bringt automatischen Import, Likes und Kommentare.',
+  );
+  static String get addChannelsNoAccount => _t('Add channels', 'Kanäle hinzufügen');
+  static String get signInOptional => _t('Sign in with Google (optional)', 'Mit Google anmelden (optional)');
+  static String get channels => _t('Channels', 'Kanäle');
+  static String get guide => _t('How it works', 'So funktioniert es');
+  static String get channelsTitle => _t('Followed channels', 'Gefolgte Kanäle');
+  static String get channelsSubtitle => _t(
+    'Channels followed in the app, no Google account needed. Their newest videos come from YouTube\'s public feeds.',
+    'In der App gefolgte Kanäle, ohne Google-Konto. Ihre neuesten Videos kommen aus YouTubes öffentlichen Feeds.',
+  );
+  static String get addChannelHint =>
+      _t('Channel link, video link or @handle', 'Kanal-Link, Video-Link oder @Handle');
+  static String get add => _t('Add', 'Hinzufügen');
+  static String get importTakeout => _t('Import from Google Takeout', 'Aus Google Takeout importieren');
+  static String get importTakeoutHelp => _t(
+    'Pick the subscriptions.csv from your Takeout download (see "How it works").',
+    'Wähle die subscriptions.csv aus deinem Takeout-Download (siehe „So funktioniert es“).',
+  );
+  static String imported(int n) => _t('$n channels imported.', '$n Kanäle importiert.');
+  static String added(String title) => _t('Added $title.', '$title hinzugefügt.');
+  static String get alreadyFollowed => _t('You already follow this channel.', 'Du folgst diesem Kanal bereits.');
+  static String get channelNotFound => _t('Channel not found. Check the link or handle.',
+      'Kanal nicht gefunden. Prüfe den Link oder das Handle.');
+  static String get removeChannel => _t('Remove', 'Entfernen');
+  static String get removeAllChannels => _t('Remove all', 'Alle entfernen');
+  static String get noChannels => _t('No channels yet.', 'Noch keine Kanäle.');
+  static String googleChannels(int n) => _t(
+    '+ $n subscriptions from your Google account',
+    '+ $n Abos aus deinem Google-Konto',
+  );
+  static String get signInForComments => _t(
+    'Sign in with Google in the YouTube settings to see comments.',
+    'Melde dich in den YouTube-Einstellungen mit Google an, um Kommentare zu sehen.',
   );
   static String get openSettings => _t('Set up YouTube', 'YouTube einrichten');
 

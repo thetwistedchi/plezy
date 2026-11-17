@@ -10,6 +10,7 @@ import 'package:xml/xml.dart';
 
 import '../../utils/app_logger.dart';
 import 'youtube_auth.dart';
+import 'youtube_channels.dart';
 import 'youtube_settings.dart';
 
 class YouTubeApiException implements Exception {
@@ -39,6 +40,7 @@ class YouTubeVideo {
     this.isUpcoming = false,
     this.isLive = false,
     this.hasDetails = false,
+    this.description,
   });
 
   final String id;
@@ -61,6 +63,9 @@ class YouTubeVideo {
 
   /// Whether [duration], [isUpcoming] and [isLive] came from the API.
   bool hasDetails;
+
+  /// From the RSS feed; kept in memory only (for chapters without the API).
+  String? description;
 
   Uri get watchUrl => Uri.https('www.youtube.com', '/watch', {'v': id});
 
@@ -133,6 +138,7 @@ class YouTubeService extends ChangeNotifier {
   bool _cacheLoaded = false;
   bool _loading = false;
   int _channelsDone = 0;
+  int _totalChannels = 0;
   Object? _error;
   DateTime? _lastUpdated;
   Timer? _timer;
@@ -144,16 +150,20 @@ class YouTubeService extends ChangeNotifier {
   DateTime? get lastUpdated => _lastUpdated;
 
   /// Feed progress while loading, 0..1, or null when not loading.
-  double? get progress => _loading && _channelIds.isNotEmpty ? _channelsDone / _channelIds.length : null;
+  double? get progress => _loading && _totalChannels > 0 ? _channelsDone / _totalChannels : null;
   int get channelsDone => _channelsDone;
-  int get channelCount => _channelIds.length;
+  int get channelCount => _totalChannels;
+
+  /// Whether there is anything to load: a Google sign-in or channels added
+  /// in the app.
+  static bool get isAvailable => YouTubeSettings.instance.isSignedIn || !YouTubeChannels.instance.isEmpty;
 
   /// Shows the cached feed, starts the periodic refresh and refreshes once
   /// when the cache is stale.
   void ensureStarted() {
     final settings = YouTubeSettings.instance;
     _timer?.cancel();
-    if (!settings.isSignedIn) return;
+    if (!isAvailable) return;
     _timer = Timer.periodic(Duration(minutes: settings.refreshMinutes), (_) => unawaited(refresh()));
     unawaited(() async {
       await _loadCache();
@@ -190,17 +200,24 @@ class YouTubeService extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final subsAge = _subscriptionsFetchedAt == null
-          ? null
-          : DateTime.now().difference(_subscriptionsFetchedAt!);
-      if (reloadSubscriptions || _channelIds.isEmpty || subsAge == null || subsAge > _subscriptionsMaxAge) {
-        _channelIds = await _subscriptions();
-        _subscriptionsFetchedAt = DateTime.now();
-        final subscribed = _channelIds.toSet();
-        _byId.removeWhere((_, v) => !subscribed.contains(v.channelId));
+      final signedIn = YouTubeSettings.instance.isSignedIn;
+      await YouTubeChannels.instance.load();
+      if (signedIn) {
+        final subsAge = _subscriptionsFetchedAt == null
+            ? null
+            : DateTime.now().difference(_subscriptionsFetchedAt!);
+        if (reloadSubscriptions || _channelIds.isEmpty || subsAge == null || subsAge > _subscriptionsMaxAge) {
+          _channelIds = await _subscriptions();
+          _subscriptionsFetchedAt = DateTime.now();
+        }
+      } else {
+        _channelIds = const [];
       }
+      final allChannels = {..._channelIds, ...YouTubeChannels.instance.ids};
+      _byId.removeWhere((_, v) => !allChannels.contains(v.channelId));
+      _totalChannels = allChannels.length;
 
-      final queue = [..._channelIds];
+      final queue = [...allChannels];
       var lastPublish = DateTime.now();
       Future<void> worker() async {
         while (queue.isNotEmpty) {
@@ -215,7 +232,8 @@ class YouTubeService extends ChangeNotifier {
                 ..channelTitle = video.channelTitle
                 ..thumbnailUrl = video.thumbnailUrl ?? known.thumbnailUrl
                 ..viewCount = video.viewCount
-                ..isShort = video.isShort;
+                ..isShort = video.isShort
+                ..description = video.description;
             }
           }
           _channelsDone++;
@@ -228,7 +246,7 @@ class YouTubeService extends ChangeNotifier {
 
       await Future.wait(List.generate(_parallelFeeds, (_) => worker()));
       _publish();
-      await _fetchDetails();
+      if (signedIn) await _fetchDetails();
       _lastUpdated = DateTime.now();
       _publish();
       unawaited(_saveCache());
@@ -353,6 +371,7 @@ class YouTubeService extends ChangeNotifier {
           publishedAt: published,
           viewCount: int.tryParse(views ?? '') ?? 0,
           isShort: link.contains('/shorts/'),
+          description: group?.getElement('media:description')?.innerText,
         ),
       );
     }
