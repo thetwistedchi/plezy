@@ -1410,7 +1410,7 @@ class _TimelinePainter extends CustomPainter {
       final colors = gradient.length >= 2 ? gradient : [gradient.first, gradient.first];
       canvas.drawRRect(
         RRect.fromRectAndRadius(played, radius),
-        Paint()..shader = LinearGradient(colors: colors).createShader(Rect.fromLTWH(0, 0, size.width, 1)),
+        Paint()..shader = LinearGradient(colors: colors).createShader(played),
       );
     }
 
