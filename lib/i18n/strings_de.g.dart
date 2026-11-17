@@ -867,6 +867,7 @@ class _Translations$rateSheet$de extends Translations$rateSheet$en {
 	@override String get saved => 'Gespeichert';
 	@override String get notAvailable => 'Keine Übereinstimmung gefunden';
 	@override String get noConnectedServices => 'Verbinde einen Dienst in den Einstellungen, um dort zu bewerten.';
+	@override String rateOnSite({required Object site}) => 'Auf ${site} bewerten';
 }
 
 // Path: accessibility
@@ -4129,6 +4130,7 @@ extension on TranslationsDe {
 			'rateSheet.saved' => 'Gespeichert',
 			'rateSheet.notAvailable' => 'Keine Übereinstimmung gefunden',
 			'rateSheet.noConnectedServices' => 'Verbinde einen Dienst in den Einstellungen, um dort zu bewerten.',
+			'rateSheet.rateOnSite' => ({required Object site}) => 'Auf ${site} bewerten',
 			'accessibility.mediaCardMovie' => ({required Object title}) => '${title}, Film',
 			'accessibility.mediaCardShow' => ({required Object title}) => '${title}, Serie',
 			'accessibility.mediaCardEpisode' => ({required Object title, required Object episodeInfo}) => '${title}, ${episodeInfo}',

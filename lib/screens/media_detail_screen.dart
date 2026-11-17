@@ -1597,6 +1597,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       builder: (context) => RatingBottomSheet(
         item: metadata,
         serverClient: _getMediaClientForMetadata(this.context),
+        letterboxdUrl: widget.isOffline
+            ? null
+            : _titleLinksFor(metadata).where((link) => link.source == 'letterboxd').firstOrNull?.url,
         onServerRatingChanged: (rating) {
           setStateIfMounted(() {
             _fullMetadata = _metadata.copyWith(userRating: rating);

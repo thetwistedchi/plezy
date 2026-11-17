@@ -2140,6 +2140,9 @@ class Translations$rateSheet$en {
 
 	/// en: 'Connect a service in Settings to rate there.'
 	String get noConnectedServices => 'Connect a service in Settings to rate there.';
+
+	/// en: 'Rate on ${site}'
+	String rateOnSite({required Object site}) => 'Rate on ${site}';
 }
 
 // Path: accessibility
@@ -8860,6 +8863,7 @@ extension on Translations {
 			'rateSheet.saved' => 'Saved',
 			'rateSheet.notAvailable' => 'No match found',
 			'rateSheet.noConnectedServices' => 'Connect a service in Settings to rate there.',
+			'rateSheet.rateOnSite' => ({required Object site}) => 'Rate on ${site}',
 			'accessibility.mediaCardMovie' => ({required Object title}) => '${title}, movie',
 			'accessibility.mediaCardShow' => ({required Object title}) => '${title}, TV show',
 			'accessibility.mediaCardEpisode' => ({required Object title, required Object episodeInfo}) => '${title}, ${episodeInfo}',

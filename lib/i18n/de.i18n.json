@@ -772,7 +772,8 @@
     "favorited": "Favorisiert",
     "saved": "Gespeichert",
     "notAvailable": "Keine Übereinstimmung gefunden",
-    "noConnectedServices": "Verbinde einen Dienst in den Einstellungen, um dort zu bewerten."
+    "noConnectedServices": "Verbinde einen Dienst in den Einstellungen, um dort zu bewerten.",
+    "rateOnSite": "Auf ${site} bewerten"
   },
   "accessibility": {
     "mediaCardMovie": "${title}, Film",

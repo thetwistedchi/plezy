@@ -772,7 +772,8 @@
     "favorited": "Favorited",
     "saved": "Saved",
     "notAvailable": "No match found",
-    "noConnectedServices": "Connect a service in Settings to rate there."
+    "noConnectedServices": "Connect a service in Settings to rate there.",
+    "rateOnSite": "Rate on ${site}"
   },
   "accessibility": {
     "mediaCardMovie": "${title}, movie",

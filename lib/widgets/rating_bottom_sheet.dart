@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../focus/dpad_navigator.dart';
 import '../focus/focusable_wrapper.dart';
@@ -18,6 +20,7 @@ import '../services/trackers/tracker.dart';
 import '../services/trackers/tracker_constants.dart';
 import '../services/trackers/tracker_id_resolver.dart';
 import '../utils/app_logger.dart';
+import '../utils/rating_utils.dart';
 import '../utils/snackbar_helper.dart';
 import 'app_icon.dart';
 import 'backend_badge.dart';
@@ -31,12 +34,17 @@ class RatingBottomSheet extends StatefulWidget {
   final ValueChanged<double>? onServerRatingChanged;
   final ValueChanged<bool>? onServerFavoriteChanged;
 
+  /// Letterboxd has no public API for rating, so the sheet offers a row that
+  /// opens the film's Letterboxd page instead. Null hides the row.
+  final Uri? letterboxdUrl;
+
   const RatingBottomSheet({
     super.key,
     required this.item,
     required this.serverClient,
     this.onServerRatingChanged,
     this.onServerFavoriteChanged,
+    this.letterboxdUrl,
   });
 
   @override
@@ -50,6 +58,7 @@ class _RatingBottomSheetState extends State<RatingBottomSheet> {
   late double _serverRating;
   late bool _serverFavorite;
   late final FocusNode _serverFocusNode;
+  late final FocusNode _letterboxdFocusNode;
 
   final Map<TrackerService, int> _trackerScores = {};
   final Map<TrackerService, FocusNode> _trackerFocusNodes = {};
@@ -66,6 +75,7 @@ class _RatingBottomSheetState extends State<RatingBottomSheet> {
   void initState() {
     super.initState();
     _serverFocusNode = FocusNode(debugLabel: 'rating_server');
+    _letterboxdFocusNode = FocusNode(debugLabel: 'rating_letterboxd');
     final rawServerRating = widget.item.userRating;
     _serverRating = rawServerRating != null && rawServerRating > 0 ? rawServerRating : 0.0;
     _serverStars = _serverRating > 0 ? _serverRating / 2.0 : 0.0;
@@ -76,6 +86,7 @@ class _RatingBottomSheetState extends State<RatingBottomSheet> {
   void dispose() {
     _flushPendingAutoSavesOnDispose();
     _serverFocusNode.dispose();
+    _letterboxdFocusNode.dispose();
     for (final node in _trackerFocusNodes.values) {
       node.dispose();
     }
@@ -98,6 +109,7 @@ class _RatingBottomSheetState extends State<RatingBottomSheet> {
         final focusNodes = <FocusNode>[
           if (showServerRow) _serverFocusNode,
           for (final source in trackerSources) _trackerFocusNode(source.service),
+          if (widget.letterboxdUrl != null) _letterboxdFocusNode,
         ];
         var focusIndex = 0;
 
@@ -128,7 +140,16 @@ class _RatingBottomSheetState extends State<RatingBottomSheet> {
                   onNavigateUp: _navTo(focusNodes, focusIndex - 1),
                   onNavigateDown: _navTo(focusNodes, focusIndex++ + 1),
                 ),
-              if (trackerSources.isEmpty)
+              if (widget.letterboxdUrl case final url?)
+                _ExternalRateRow(
+                  focusNode: _letterboxdFocusNode,
+                  autofocus: focusIndex == 0,
+                  url: url,
+                  source: 'letterboxd',
+                  onNavigateUp: _navTo(focusNodes, focusIndex - 1),
+                  onNavigateDown: _navTo(focusNodes, focusIndex++ + 1),
+                ),
+              if (trackerSources.isEmpty && widget.letterboxdUrl == null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
                   child: Text(
@@ -823,6 +844,94 @@ class _FavoriteControl extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A row that opens a site to rate there, for services Plezy can't rate on
+/// directly.
+class _ExternalRateRow extends StatelessWidget {
+  final FocusNode focusNode;
+  final bool autofocus;
+  final Uri url;
+  final String source;
+  final VoidCallback? onNavigateUp;
+  final VoidCallback? onNavigateDown;
+
+  const _ExternalRateRow({
+    required this.focusNode,
+    required this.autofocus,
+    required this.url,
+    required this.source,
+    required this.onNavigateUp,
+    required this.onNavigateDown,
+  });
+
+  Future<void> _open() async {
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (error, stackTrace) {
+      appLogger.w('Could not open $url', error: error, stackTrace: stackTrace);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final info = ratingInfoForSource(source, 10);
+    final muted = theme.colorScheme.onSurfaceVariant;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: FocusableWrapper(
+        focusNode: focusNode,
+        autofocus: autofocus && InputModeTracker.isKeyboardMode(context),
+        borderRadius: 12,
+        autoScroll: true,
+        disableScale: true,
+        useBackgroundFocus: true,
+        onSelect: _open,
+        onNavigateUp: onNavigateUp,
+        onNavigateDown: onNavigateDown,
+        child: ClickableCursor(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _open,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Center(
+                      child: info == null
+                          ? AppIcon(Symbols.star_rounded, size: 20, color: muted)
+                          : SvgPicture.asset(info.assetPath, width: 24, height: 24 / info.iconAspect),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: .min,
+                      crossAxisAlignment: .start,
+                      children: [
+                        Text(ratingSourceLabel(source) ?? url.host, style: theme.textTheme.titleSmall?.copyWith(fontWeight: .w700)),
+                        Text(
+                          t.rateSheet.rateOnSite(site: url.host),
+                          style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AppIcon(Symbols.open_in_new_rounded, size: 18, color: muted),
+                ],
+              ),
+            ),
           ),
         ),
       ),
