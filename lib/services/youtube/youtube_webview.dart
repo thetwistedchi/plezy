@@ -92,10 +92,12 @@ class YouTubeWebView {
     }
   }
 
-  static Uri playerUrl(String videoId, {double start = 0}) => Uri.https(host, '/player.html', {
-    'v': videoId,
-    if (start > 0) 't': start.floor().toString(),
-  });
+  static Uri playerUrl(String videoId, {double start = 0, String language = 'en'}) =>
+      Uri.https(host, '/player.html', {
+        'v': videoId,
+        'hl': language,
+        if (start > 0) 't': start.floor().toString(),
+      });
 
   /// Injected into every document of the player's WebView, including the
   /// YouTube embed frame, where it reaches the real <video> element and the
@@ -129,21 +131,82 @@ class YouTubeWebView {
     if (!m || !m.plezy) return;
     var p = player();
     if (m.plezy === 'rate') { desiredRate = m.r; applyRate(); }
+    if (m.plezy === 'cc' && p) {
+      try { p.loadModule('captions'); } catch (err) {}
+      if (m.off) {
+        try { p.setOption('captions', 'track', {}); } catch (err) {}
+      } else {
+        try {
+          var list = p.getOption('captions', 'tracklist') || [];
+          var t = list[m.index];
+          if (t) {
+            var track = Object.assign({}, t);
+            if (m.tr) track.translationLanguage = {languageCode: m.tr};
+            p.setOption('captions', 'track', track);
+          }
+        } catch (err) {}
+      }
+    }
+    if (m.plezy === 'audio' && p) {
+      try {
+        var tracks = p.getAvailableAudioTracks() || [];
+        if (tracks[m.index]) p.setAudioTrack(tracks[m.index]);
+      } catch (err) {}
+    }
     if (m.plezy === 'quality' && p) {
       try { if (p.setPlaybackQualityRange) p.setPlaybackQualityRange(m.q, m.q); } catch (err) {}
       try { if (p.setPlaybackQuality) p.setPlaybackQuality(m.q); } catch (err) {}
     }
   });
+  var ccLoaded = false;
+  function captionInfo(p){
+    var list = [], cur = null, trans = [];
+    try { list = p.getOption('captions', 'tracklist') || []; } catch (err) {}
+    try { cur = p.getOption('captions', 'track') || null; } catch (err) {}
+    try { trans = p.getOption('captions', 'translationLanguages') || []; } catch (err) {}
+    return {
+      tracks: list.map(function(t){ return {code: t.languageCode || '', name: t.displayName || t.languageName || t.languageCode || '', kind: t.kind || ''}; }),
+      current: cur && cur.languageCode ? {code: cur.languageCode, kind: cur.kind || '',
+        tr: cur.translationLanguage ? cur.translationLanguage.languageCode : null} : null,
+      translations: trans.map(function(l){ return {code: l.languageCode, name: l.languageName}; })
+    };
+  }
+  function audioInfo(p){
+    var out = [], current = -1;
+    try {
+      var tracks = p.getAvailableAudioTracks ? (p.getAvailableAudioTracks() || []) : [];
+      var active = p.getAudioTrack ? p.getAudioTrack() : null;
+      var activeId = null;
+      try { activeId = active && active.getLanguageInfo ? active.getLanguageInfo().getId() : null; } catch (err) {}
+      tracks.forEach(function(t, i){
+        var info = null, name = '', id = '';
+        try { info = t.getLanguageInfo ? t.getLanguageInfo() : null; } catch (err) {}
+        try { name = info && info.getName ? info.getName() : (t.name || ''); } catch (err) {}
+        try { id = info && info.getId ? info.getId() : (t.id || ''); } catch (err) {}
+        out.push({name: String(name || id || ('Track ' + (i + 1))), id: String(id || '')});
+        if (active === t || (activeId !== null && activeId === id)) current = i;
+      });
+    } catch (err) {}
+    return {tracks: out, current: current};
+  }
   setInterval(function(){
     var p = player();
     if (!p || !p.getAvailableQualityLevels) return;
+    if (!ccLoaded) {
+      // The track list only exists once the captions module is loaded;
+      // load it, then switch captions off until Flutter picks a track.
+      ccLoaded = true;
+      try { p.loadModule('captions'); } catch (err) {}
+      setTimeout(function(){ try { p.setOption('captions', 'track', {}); } catch (err) {} }, 300);
+    }
     try {
       var data = [];
       if (p.getAvailableQualityData) {
         data = p.getAvailableQualityData().map(function(d){ return {q: d.quality, label: d.qualityLabel || ''}; });
       }
       window.parent.postMessage({plezyFrame: 'quality', levels: p.getAvailableQualityLevels(), current: p.getPlaybackQuality(),
-        currentLabel: p.getPlaybackQualityLabel ? p.getPlaybackQualityLabel() : '', data: data}, '*');
+        currentLabel: p.getPlaybackQualityLabel ? p.getPlaybackQualityLabel() : '', data: data,
+        cc: captionInfo(p), audio: audioInfo(p)}, '*');
     } catch (err) {}
   }, 1000);
 })();''';
@@ -166,7 +229,7 @@ function onYouTubeIframeAPIReady(){
   player = new YT.Player('p', {
     width: '100%', height: '100%', videoId: q.get('v'),
     playerVars: { controls: 0, autoplay: 1, rel: 0, playsinline: 1, iv_load_policy: 3, disablekb: 1, fs: 0,
-      start: Math.floor(+(q.get('t') || 0)), origin: location.origin, enablejsapi: 1 },
+      start: Math.floor(+(q.get('t') || 0)), origin: location.origin, enablejsapi: 1, hl: q.get('hl') || 'en' },
     events: {
       onReady: function(){ ready = true; post({t: 'ready'}); player.playVideo(); },
       onStateChange: function(e){ post({t: 'state', s: e.data}); },
@@ -193,7 +256,6 @@ window.chrome.webview.addEventListener('message', function(e){
     case 'mute': if (m.on) player.mute(); else player.unMute(); break;
     case 'rate': player.setPlaybackRate(m.r); break;
     case 'load': player.loadVideoById({videoId: m.id, startSeconds: m.t || 0}); break;
-    case 'cc': if (m.on) player.loadModule('captions'); else player.unloadModule('captions'); break;
     case 'frame':
       var f = document.getElementById('p');
       if (f && f.contentWindow) f.contentWindow.postMessage(m.msg, '*');
@@ -202,7 +264,7 @@ window.chrome.webview.addEventListener('message', function(e){
 });
 window.addEventListener('message', function(e){
   if (e.data && e.data.plezyFrame === 'quality') post({t: 'quality', levels: e.data.levels, current: e.data.current,
-    currentLabel: e.data.currentLabel, data: e.data.data});
+    currentLabel: e.data.currentLabel, data: e.data.data, cc: e.data.cc, audio: e.data.audio});
 });
 document.addEventListener('keydown', function(e){
   post({t: 'key', k: e.key, shift: e.shiftKey});

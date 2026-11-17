@@ -303,6 +303,65 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 24),
+                      _SectionTitle(YtStrings.captionsAndAudio),
+                      _Card(
+                        children: [
+                          SwitchListTile(
+                            title: Text(YtStrings.showCaptions),
+                            subtitle: Text(YtStrings.showCaptionsSub),
+                            value: _settings.captionsEnabled,
+                            onChanged: (v) => unawaited(_settings.setCaptions(enabled: v)),
+                          ),
+                          ListTile(
+                            title: Text(YtStrings.captionsLanguage),
+                            trailing: DropdownButton<String>(
+                              value: _languageChoices.containsKey(_settings.captionsLanguage)
+                                  ? _settings.captionsLanguage
+                                  : 'en',
+                              underline: const SizedBox.shrink(),
+                              items: [
+                                for (final e in _languageChoices.entries)
+                                  DropdownMenuItem(value: e.key, child: Text(e.value)),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) unawaited(_settings.setCaptions(language: v));
+                              },
+                            ),
+                          ),
+                          SwitchListTile(
+                            title: Text(YtStrings.allowAutoCaptions),
+                            subtitle: Text(YtStrings.allowAutoCaptionsSub),
+                            value: _settings.captionsAllowAuto,
+                            onChanged: (v) => unawaited(_settings.setCaptions(allowAuto: v)),
+                          ),
+                          SwitchListTile(
+                            title: Text(YtStrings.translateCaptions),
+                            subtitle: Text(YtStrings.translateCaptionsSub),
+                            value: _settings.captionsTranslate,
+                            onChanged: (v) => unawaited(_settings.setCaptions(translate: v)),
+                          ),
+                          ListTile(
+                            title: Text(YtStrings.audioPreference),
+                            subtitle: Text(YtStrings.audioPreferenceSub),
+                            trailing: DropdownButton<String>(
+                              value: _settings.audioLanguage == 'original' ||
+                                      _languageChoices.containsKey(_settings.audioLanguage)
+                                  ? _settings.audioLanguage
+                                  : 'original',
+                              underline: const SizedBox.shrink(),
+                              items: [
+                                DropdownMenuItem(value: 'original', child: Text(YtStrings.audioOriginal)),
+                                for (final e in _languageChoices.entries)
+                                  DropdownMenuItem(value: e.key, child: Text(e.value)),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) unawaited(_settings.setAudioLanguage(v));
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                       if (YouTubeWebView.isSupported) ...[
                         const SizedBox(height: 24),
                         _SectionTitle(YtStrings.playerAccount),
@@ -482,3 +541,26 @@ ButtonStyle _segmentStyle(BuildContext context) {
     visualDensity: VisualDensity.compact,
   );
 }
+
+const Map<String, String> _languageChoices = {
+  'en': 'English',
+  'de': 'Deutsch',
+  'fr': 'Français',
+  'es': 'Español',
+  'it': 'Italiano',
+  'nl': 'Nederlands',
+  'pt': 'Português',
+  'pl': 'Polski',
+  'sv': 'Svenska',
+  'da': 'Dansk',
+  'nb': 'Norsk',
+  'fi': 'Suomi',
+  'tr': 'Türkçe',
+  'ru': 'Русский',
+  'uk': 'Українська',
+  'ja': '日本語',
+  'ko': '한국어',
+  'zh': '中文',
+  'hi': 'हिन्दी',
+  'ar': 'العربية',
+};

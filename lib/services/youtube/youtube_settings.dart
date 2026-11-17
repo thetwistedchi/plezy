@@ -50,6 +50,11 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kProgress = 'youtube_progress';
   static const _kQuality = 'youtube_preferred_quality';
   static const _kSpeed = 'youtube_playback_speed';
+  static const _kCcEnabled = 'youtube_captions_enabled';
+  static const _kCcLanguage = 'youtube_captions_language';
+  static const _kCcAuto = 'youtube_captions_allow_auto';
+  static const _kCcTranslate = 'youtube_captions_translate';
+  static const _kAudioLanguage = 'youtube_audio_language';
 
   static const List<double> speedChoices = [0.25, 0.5, 0.75, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0];
   static const int _maxProgress = 2000;
@@ -140,6 +145,20 @@ class YouTubeSettings extends ChangeNotifier {
   String get preferredQuality => _prefs?.getString(_kQuality) ?? 'auto';
   /// Speed new videos start at; the last speed picked in the player.
   double get playbackSpeed => _prefs?.getDouble(_kSpeed) ?? 1.0;
+  bool get captionsEnabled => _prefs?.getBool(_kCcEnabled) ?? false;
+
+  /// Language code of the preferred captions, e.g. de or en.
+  String get captionsLanguage => _prefs?.getString(_kCcLanguage) ?? 'en';
+
+  /// Use auto-generated captions when there are no creator captions.
+  bool get captionsAllowAuto => _prefs?.getBool(_kCcAuto) ?? true;
+
+  /// Auto-translate other captions into [captionsLanguage] as a last resort.
+  bool get captionsTranslate => _prefs?.getBool(_kCcTranslate) ?? false;
+
+  /// 'original' (default: the creator's own audio, no AI dubs) or a language code.
+  String get audioLanguage => _prefs?.getString(_kAudioLanguage) ?? 'original';
+
   int get playerVolume => _prefs?.getInt(_kVolume) ?? 100;
 
   SegmentMode segmentMode(String category) => _sbModes[category] ?? SegmentMode.off;
@@ -206,6 +225,21 @@ class YouTubeSettings extends ChangeNotifier {
   Future<void> setPlaybackSpeed(double value) async {
     await load();
     await _prefs!.setDouble(_kSpeed, value);
+    notifyListeners();
+  }
+
+  Future<void> setCaptions({bool? enabled, String? language, bool? allowAuto, bool? translate}) async {
+    await load();
+    if (enabled != null) await _prefs!.setBool(_kCcEnabled, enabled);
+    if (language != null) await _prefs!.setString(_kCcLanguage, language);
+    if (allowAuto != null) await _prefs!.setBool(_kCcAuto, allowAuto);
+    if (translate != null) await _prefs!.setBool(_kCcTranslate, translate);
+    notifyListeners();
+  }
+
+  Future<void> setAudioLanguage(String value) async {
+    await load();
+    await _prefs!.setString(_kAudioLanguage, value);
     notifyListeners();
   }
 

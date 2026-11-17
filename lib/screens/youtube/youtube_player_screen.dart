@@ -10,6 +10,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_windows/webview_windows.dart';
 
+import '../../i18n/strings.g.dart';
 import '../../services/fullscreen_state_manager.dart';
 import '../../services/youtube/sponsorblock.dart';
 import '../../services/youtube/youtube_service.dart';
@@ -89,7 +90,14 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   int _volume = 100;
   bool _muted = false;
   double _rate = 1;
-  bool _captions = false;
+  List<({String code, String name, String kind})> _ccTracks = const [];
+  ({String code, String kind, String? tr})? _ccCurrent;
+  List<({String code, String name})> _ccTranslations = const [];
+  List<({String name, String id})> _audioTracks = const [];
+  int _audioCurrent = -1;
+  bool _ccApplied = false;
+  bool _audioApplied = false;
+  String _trackSignature = '';
   List<String> _qualities = const [];
   String _quality = 'auto';
 
@@ -161,7 +169,11 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       await _controller.addScriptToExecuteOnDocumentCreated(YouTubeWebView.frameScript);
       _messages = _controller.webMessage.listen(_onMessage);
       await _controller.loadUrl(
-        YouTubeWebView.playerUrl(_video.id, start: _settings.resumePosition(_video.id) ?? 0).toString(),
+        YouTubeWebView.playerUrl(
+          _video.id,
+          start: _settings.resumePosition(_video.id) ?? 0,
+          language: LocaleSettings.currentLocale.languageCode,
+        ).toString(),
       );
       if (mounted) setState(() => _webReady = true);
       _scheduleHide();
@@ -314,6 +326,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             _qualityNames = names;
           });
         }
+        _onTracks(message['cc'], message['audio']);
         if (!_qualityApplied && levels.isNotEmpty) {
           _qualityApplied = true;
           if (_wantedQuality != 'auto') _applyQuality(_pickQuality(levels, _wantedQuality));
@@ -410,9 +423,147 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     return true;
   }
 
-  void _toggleCaptions() {
-    _send({'cmd': 'cc', 'on': !_captions});
-    setState(() => _captions = !_captions);
+  // ---- Captions and audio tracks ----
+
+  void _onTracks(Object? cc, Object? audio) {
+    final signature = jsonEncode([cc, audio]);
+    if (signature == _trackSignature) return;
+    _trackSignature = signature;
+    final ccMap = cc is Map ? cc : const {};
+    final audioMap = audio is Map ? audio : const {};
+    final current = ccMap['current'];
+    setState(() {
+      _ccTracks = [
+        for (final t in (ccMap['tracks'] as List? ?? const []))
+          if (t is Map)
+            (code: t['code'] as String? ?? '', name: t['name'] as String? ?? '', kind: t['kind'] as String? ?? ''),
+      ];
+      _ccCurrent = current is Map
+          ? (code: current['code'] as String? ?? '', kind: current['kind'] as String? ?? '', tr: current['tr'] as String?)
+          : null;
+      _ccTranslations = [
+        for (final l in (ccMap['translations'] as List? ?? const []))
+          if (l is Map) (code: l['code'] as String? ?? '', name: l['name'] as String? ?? ''),
+      ];
+      _audioTracks = [
+        for (final t in (audioMap['tracks'] as List? ?? const []))
+          if (t is Map) (name: t['name'] as String? ?? '', id: t['id'] as String? ?? ''),
+      ];
+      _audioCurrent = (audioMap['current'] as num?)?.toInt() ?? -1;
+    });
+    if (!_audioApplied && _audioTracks.length > 1) {
+      _audioApplied = true;
+      _applyAudioPreference();
+    }
+    if (!_ccApplied && _ccTracks.isNotEmpty) {
+      _ccApplied = true;
+      _applyCaptionPreference();
+    }
+  }
+
+  static bool _sameLanguage(String a, String b) =>
+      a.toLowerCase().split(RegExp('[-_.]')).first == b.toLowerCase().split(RegExp('[-_.]')).first;
+
+  void _sendCaptions({int? index, String? translate}) {
+    _send({
+      'cmd': 'frame',
+      'msg': {'plezy': 'cc', 'off': index == null, 'index': ?index, 'tr': ?translate},
+    });
+  }
+
+  /// Creator captions in the preferred language, else auto-generated ones,
+  /// else (if allowed) a translation, else none.
+  void _applyCaptionPreference() {
+    final s = _settings;
+    if (!s.captionsEnabled) {
+      _sendCaptions();
+      return;
+    }
+    final lang = s.captionsLanguage;
+    var index = _ccTracks.indexWhere((t) => _sameLanguage(t.code, lang) && t.kind != 'asr');
+    if (index < 0 && s.captionsAllowAuto) index = _ccTracks.indexWhere((t) => _sameLanguage(t.code, lang));
+    if (index >= 0) {
+      _sendCaptions(index: index);
+      return;
+    }
+    if (s.captionsTranslate && _ccTranslations.any((l) => _sameLanguage(l.code, lang))) {
+      _sendCaptions(index: _baseTrackForTranslation(), translate: lang);
+      return;
+    }
+    _sendCaptions();
+  }
+
+  int _baseTrackForTranslation() {
+    final creator = _ccTracks.indexWhere((t) => t.kind != 'asr');
+    return creator >= 0 ? creator : 0;
+  }
+
+  void _selectCaptions(int choice) {
+    if (choice == -1) {
+      _sendCaptions();
+      setState(() => _ccCurrent = null);
+      unawaited(_settings.setCaptions(enabled: false));
+    } else if (choice == -2) {
+      unawaited(_pickTranslation());
+    } else if (choice >= 0 && choice < _ccTracks.length) {
+      final track = _ccTracks[choice];
+      _sendCaptions(index: choice);
+      unawaited(_settings.setCaptions(enabled: true, language: track.code.split('-').first));
+    }
+  }
+
+  Future<void> _pickTranslation() async {
+    if (_ccTranslations.isEmpty || _ccTracks.isEmpty) return;
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(YtStrings.autoTranslate),
+        children: [
+          SizedBox(
+            width: 360,
+            height: 420,
+            child: ListView(
+              children: [
+                for (final l in _ccTranslations)
+                  SimpleDialogOption(onPressed: () => Navigator.of(context).pop(l.code), child: Text(l.name)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    _sendCaptions(index: _baseTrackForTranslation(), translate: picked);
+    unawaited(_settings.setCaptions(enabled: true, language: picked, translate: true));
+    _focusNode.requestFocus();
+  }
+
+  /// The creator's original audio by default, not an AI dub.
+  void _applyAudioPreference() {
+    final pref = _settings.audioLanguage;
+    final index = pref == 'original'
+        ? _audioTracks.indexWhere((t) => t.name.toLowerCase().contains('original'))
+        : _audioTracks.indexWhere((t) => _sameLanguage(t.id, pref));
+    if (index >= 0 && index != _audioCurrent) _selectAudio(index, remember: false);
+  }
+
+  void _selectAudio(int index, {bool remember = true}) {
+    if (index < 0 || index >= _audioTracks.length) return;
+    _send({
+      'cmd': 'frame',
+      'msg': {'plezy': 'audio', 'index': index},
+    });
+    setState(() => _audioCurrent = index);
+    if (remember) {
+      final track = _audioTracks[index];
+      final original = track.name.toLowerCase().contains('original');
+      unawaited(_settings.setAudioLanguage(original ? 'original' : track.id.split('.').first));
+    }
+  }
+
+  String _captionLabel(({String code, String name, String kind}) track) {
+    if (track.kind == 'asr' && !track.name.toLowerCase().contains('auto')) return '${track.name} (${YtStrings.autoGenerated})';
+    return track.name;
   }
 
   Future<void> _toggleFullscreen() async {
@@ -523,6 +674,14 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _errorCode = null;
       _toastSegment = null;
       _qualities = const [];
+      _ccTracks = const [];
+      _ccCurrent = null;
+      _ccTranslations = const [];
+      _audioTracks = const [];
+      _audioCurrent = -1;
+      _ccApplied = false;
+      _audioApplied = false;
+      _trackSignature = '';
       _qualityNames = const {};
       _currentQualityLabel = '';
       _qualityApplied = false;
@@ -1107,11 +1266,59 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                     ),
                   ),
                 ),
-              _PlayerButton(
-                icon: Symbols.closed_caption_rounded,
+              if (_audioTracks.length > 1)
+                PopupMenuButton<int>(
+                  tooltip: YtStrings.audioLanguage,
+                  onSelected: _selectAudio,
+                  itemBuilder: (_) => [
+                    for (var i = 0; i < _audioTracks.length; i++)
+                      CheckedPopupMenuItem(value: i, checked: i == _audioCurrent, child: Text(_audioTracks[i].name)),
+                  ],
+                  child: const SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Center(child: AppIcon(Symbols.record_voice_over_rounded, fill: 1, color: Colors.white)),
+                  ),
+                ),
+              PopupMenuButton<int>(
                 tooltip: YtStrings.captions,
-                active: _captions,
-                onPressed: _toggleCaptions,
+                enabled: _ccTracks.isNotEmpty,
+                onSelected: _selectCaptions,
+                itemBuilder: (_) => [
+                  CheckedPopupMenuItem(value: -1, checked: _ccCurrent == null, child: Text(YtStrings.captionsOff)),
+                  for (var i = 0; i < _ccTracks.length; i++)
+                    CheckedPopupMenuItem(
+                      value: i,
+                      checked:
+                          _ccCurrent != null &&
+                          _ccCurrent!.tr == null &&
+                          _ccCurrent!.code == _ccTracks[i].code &&
+                          (_ccCurrent!.kind == 'asr') == (_ccTracks[i].kind == 'asr'),
+                      child: Text(_captionLabel(_ccTracks[i])),
+                    ),
+                  if (_ccTranslations.isNotEmpty) const PopupMenuDivider(),
+                  if (_ccTranslations.isNotEmpty)
+                    CheckedPopupMenuItem(
+                      value: -2,
+                      checked: _ccCurrent?.tr != null,
+                      child: Text(
+                        _ccCurrent?.tr == null
+                            ? '${YtStrings.autoTranslate}…'
+                            : '${YtStrings.autoTranslate}: ${_ccTranslations.where((l) => l.code == _ccCurrent!.tr).firstOrNull?.name ?? _ccCurrent!.tr}',
+                      ),
+                    ),
+                ],
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Center(
+                    child: AppIcon(
+                      Symbols.closed_caption_rounded,
+                      fill: 1,
+                      color: _ccTracks.isEmpty ? Colors.white30 : (_ccCurrent != null ? accent : Colors.white),
+                    ),
+                  ),
+                ),
               ),
               PopupMenuButton<double>(
                 tooltip: YtStrings.speed,
