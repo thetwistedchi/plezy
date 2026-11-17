@@ -60,7 +60,7 @@ class YouTubePlayerScreen extends StatefulWidget {
 
 class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   static const _speeds = [0.25, 0.5, 0.75, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0];
-  static const _apiSpeeds = {0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0};
+  static const _apiSpeeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
   static const _hideDelay = Duration(seconds: 3);
 
   final _controller = WebviewController();
