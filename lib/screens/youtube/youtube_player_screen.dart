@@ -178,6 +178,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     if (_current == this) _current = null;
     _saveProgress();
     _sleepTimer?.cancel();
+    _nudgeTimer?.cancel();
     if (DiscordRPCService.isAvailable) unawaited(DiscordRPCService.instance.stopPlayback());
     _hideTimer?.cancel();
     _toastTimer?.cancel();
