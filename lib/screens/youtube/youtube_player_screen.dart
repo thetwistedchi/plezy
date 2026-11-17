@@ -59,7 +59,8 @@ class YouTubePlayerScreen extends StatefulWidget {
 }
 
 class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
-  static const _speeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+  static const _speeds = [0.25, 0.5, 0.75, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0];
+  static const _apiSpeeds = {0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0};
   static const _hideDelay = Duration(seconds: 3);
 
   final _controller = WebviewController();
@@ -83,6 +84,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   bool _muted = false;
   double _rate = 1;
   bool _captions = false;
+  List<String> _qualities = const [];
+  String _quality = 'auto';
+
+  /// The quality the user picked in this session, or the saved preference.
+  late String _wantedQuality = _settings.preferredQuality;
+  bool _qualityApplied = false;
 
   YtVideoInfo? _info;
   List<YtChapter> _chapters = const [];
@@ -137,6 +144,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       await _controller.setBackgroundColor(Colors.black);
       await _controller.setPopupWindowPolicy(WebviewPopupWindowPolicy.deny);
       await _controller.addVirtualHostNameMapping(YouTubeWebView.host, folder, WebviewHostResourceAccessKind.allow);
+      await _controller.addScriptToExecuteOnDocumentCreated(YouTubeWebView.frameScript);
       _messages = _controller.webMessage.listen(_onMessage);
       await _controller.loadUrl(
         YouTubeWebView.playerUrl(_video.id, start: _settings.resumePosition(_video.id) ?? 0).toString(),
@@ -220,6 +228,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
         if (state == 0) {
           _onEnded();
         } else if (state == 1) {
+          if (_rate != 1) _send({'cmd': 'frame', 'msg': {'plezy': 'rate', 'r': _rate}});
           _scheduleHide();
         } else {
           _showControls(autoHide: false);
@@ -227,7 +236,24 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       case 'error':
         setState(() => _errorCode = (message['code'] as num?)?.toInt());
       case 'rate':
-        setState(() => _rate = (message['r'] as num?)?.toDouble() ?? _rate);
+        // Our own speed is the source of truth; the frame script keeps it.
+        break;
+      case 'quality':
+        final levels = [
+          for (final l in (message['levels'] as List? ?? const []))
+            if (l is String && l != 'auto') l,
+        ];
+        final current = message['current'] as String? ?? 'auto';
+        if (!_listEquals(levels, _qualities) || current != _quality) {
+          setState(() {
+            _qualities = levels;
+            _quality = current;
+          });
+        }
+        if (!_qualityApplied && levels.isNotEmpty) {
+          _qualityApplied = true;
+          if (_wantedQuality != 'auto') _applyQuality(_pickQuality(levels, _wantedQuality));
+        }
       case 'key':
         _handleKey(message['k'] as String? ?? '', shift: message['shift'] as bool? ?? false);
     }
@@ -263,8 +289,45 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   void _setRate(double rate) {
-    _send({'cmd': 'rate', 'r': rate});
+    if (_apiSpeeds.contains(rate)) _send({'cmd': 'rate', 'r': rate});
+    _send({
+      'cmd': 'frame',
+      'msg': {'plezy': 'rate', 'r': rate},
+    });
     setState(() => _rate = rate);
+  }
+
+  void _applyQuality(String quality) {
+    _send({
+      'cmd': 'frame',
+      'msg': {'plezy': 'quality', 'q': quality},
+    });
+    setState(() => _quality = quality);
+  }
+
+  void _selectQuality(String quality) {
+    _wantedQuality = quality;
+    unawaited(_settings.setPreferredQuality(quality));
+    _applyQuality(quality);
+  }
+
+  /// [wanted] if offered, else the best level below it, else the lowest.
+  static String _pickQuality(List<String> levels, String wanted) {
+    if (levels.contains(wanted)) return wanted;
+    const order = ['highres', 'hd2880', 'hd2160', 'hd1440', 'hd1080', 'hd720', 'large', 'medium', 'small', 'tiny'];
+    final wantedRank = order.indexOf(wanted);
+    for (final q in order.skip(wantedRank < 0 ? 0 : wantedRank)) {
+      if (levels.contains(q)) return q;
+    }
+    return levels.last;
+  }
+
+  static bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   void _toggleCaptions() {
@@ -299,6 +362,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _buffered = 0;
       _errorCode = null;
       _toastSegment = null;
+      _qualities = const [];
+      _qualityApplied = false;
     });
     unawaited(YouTubeSettings.instance.markOpened(_video.id, _video.channelId));
     _send({'cmd': 'load', 'id': _video.id, 't': _settings.resumePosition(_video.id) ?? 0});
@@ -786,6 +851,36 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                 active: _captions,
                 onPressed: _toggleCaptions,
               ),
+              if (_qualities.isNotEmpty)
+                PopupMenuButton<String>(
+                  tooltip: YtStrings.quality,
+                  onSelected: _selectQuality,
+                  itemBuilder: (_) => [
+                    for (final q in ['auto', ..._qualities])
+                      CheckedPopupMenuItem(
+                        value: q,
+                        checked: q == _wantedQuality,
+                        child: Text(YtStrings.qualityLabel(q)),
+                      ),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Container(
+                      height: 22,
+                      padding: const EdgeInsets.symmetric(horizontal: 7),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: style.badge ?? accent, width: 1.5),
+                      ),
+                      child: Text(
+                        YtStrings.qualityShort(_quality).isEmpty ? YtStrings.qualityAuto : YtStrings.qualityShort(_quality),
+                        style: TextStyle(color: style.badge ?? accent, fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ),
               PopupMenuButton<double>(
                 tooltip: YtStrings.speed,
                 initialValue: _rate,

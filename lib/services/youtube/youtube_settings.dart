@@ -48,6 +48,7 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kVolume = 'youtube_player_volume';
   static const _kCacheLimitMb = 'youtube_player_cache_mb';
   static const _kProgress = 'youtube_progress';
+  static const _kQuality = 'youtube_preferred_quality';
   static const int _maxProgress = 2000;
 
   static const int defaultCacheLimitMb = 300;
@@ -132,6 +133,8 @@ class YouTubeSettings extends ChangeNotifier {
   bool get sponsorBlockEnabled => _prefs?.getBool(_kSbEnabled) ?? true;
   bool get showSegmentsOnTimeline => _prefs?.getBool(_kSbShowSegments) ?? true;
   int get playerCacheLimitMb => _prefs?.getInt(_kCacheLimitMb) ?? defaultCacheLimitMb;
+  /// YouTube quality id (hd1080, hd720, …) or 'auto'.
+  String get preferredQuality => _prefs?.getString(_kQuality) ?? 'auto';
   int get playerVolume => _prefs?.getInt(_kVolume) ?? 100;
 
   SegmentMode segmentMode(String category) => _sbModes[category] ?? SegmentMode.off;
@@ -188,6 +191,11 @@ class YouTubeSettings extends ChangeNotifier {
     await load();
     await _prefs!.setInt(_kCacheLimitMb, value.clamp(minCacheLimitMb, maxCacheLimitMb));
     notifyListeners();
+  }
+
+  Future<void> setPreferredQuality(String value) async {
+    await load();
+    await _prefs!.setString(_kQuality, value);
   }
 
   Future<void> setPlayerVolume(int value) async {

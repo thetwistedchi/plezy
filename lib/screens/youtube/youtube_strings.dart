@@ -90,6 +90,35 @@ class YtStrings {
   static String skipCategory(String c) => _t('SKIP ${sbLabelEn(c).toUpperCase()} ›', '${sbLabelDe(c).toUpperCase()} ÜBERSPRINGEN ›');
   static String skipped(String c) => _t('Skipped ${sbLabelEn(c).toLowerCase()}', '${sbLabelDe(c)} übersprungen');
   static String get undo => _t('Undo', 'Rückgängig');
+  static String get quality => _t('Quality', 'Qualität');
+  static String get qualityAuto => 'Auto';
+  static String qualityLabel(String q) => switch (q) {
+    'highres' => '4320p (8K)',
+    'hd2880' => '2880p (5K)',
+    'hd2160' => '2160p (4K)',
+    'hd1440' => '1440p',
+    'hd1080' => '1080p',
+    'hd720' => '720p',
+    'large' => '480p',
+    'medium' => '360p',
+    'small' => '240p',
+    'tiny' => '144p',
+    'auto' => qualityAuto,
+    _ => q,
+  };
+  static String qualityShort(String q) => switch (q) {
+    'highres' => '8K',
+    'hd2880' => '5K',
+    'hd2160' => '4K',
+    'hd1440' => '1440p',
+    'hd1080' => '1080p',
+    'hd720' => '720p',
+    'large' => '480p',
+    'medium' => '360p',
+    'small' => '240p',
+    'tiny' => '144p',
+    _ => '',
+  };
   static String get normalSpeed => _t('Normal', 'Normal');
 
   // SponsorBlock

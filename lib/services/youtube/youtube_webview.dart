@@ -97,6 +97,38 @@ class YouTubeWebView {
     if (start > 0) 't': start.floor().toString(),
   });
 
+  /// Injected into every document of the player's WebView, including the
+  /// YouTube embed frame, where it reaches the real <video> element and the
+  /// player's internal API: any playback speed (1.1×, 1.2×) and quality
+  /// selection, which the IFrame API no longer offers. Talks to the host page
+  /// with window.postMessage.
+  static const String frameScript = r'''(function(){
+  if (location.hostname.indexOf('youtube.com') < 0 || location.pathname.indexOf('/embed/') !== 0) return;
+  var desiredRate = null;
+  function player(){ return document.getElementById('movie_player'); }
+  function video(){ return document.querySelector('video'); }
+  function applyRate(){ var v = video(); if (v && desiredRate !== null && Math.abs(v.playbackRate - desiredRate) > 0.001) v.playbackRate = desiredRate; }
+  document.addEventListener('ratechange', applyRate, true);
+  document.addEventListener('loadeddata', applyRate, true);
+  window.addEventListener('message', function(e){
+    var m = e.data;
+    if (!m || !m.plezy) return;
+    var p = player();
+    if (m.plezy === 'rate') { desiredRate = m.r; applyRate(); }
+    if (m.plezy === 'quality' && p) {
+      try { if (p.setPlaybackQualityRange) p.setPlaybackQualityRange(m.q, m.q); } catch (err) {}
+      try { if (p.setPlaybackQuality) p.setPlaybackQuality(m.q); } catch (err) {}
+    }
+  });
+  setInterval(function(){
+    var p = player();
+    if (!p || !p.getAvailableQualityLevels) return;
+    try {
+      window.parent.postMessage({plezyFrame: 'quality', levels: p.getAvailableQualityLevels(), current: p.getPlaybackQuality()}, '*');
+    } catch (err) {}
+  }, 1000);
+})();''';
+
   /// The page hosting the YouTube IFrame player with YouTube's own controls
   /// hidden. It reports state to Flutter with chrome.webview.postMessage and
   /// takes commands from postWebMessage.
@@ -143,7 +175,14 @@ window.chrome.webview.addEventListener('message', function(e){
     case 'rate': player.setPlaybackRate(m.r); break;
     case 'load': player.loadVideoById({videoId: m.id, startSeconds: m.t || 0}); break;
     case 'cc': if (m.on) player.loadModule('captions'); else player.unloadModule('captions'); break;
+    case 'frame':
+      var f = document.getElementById('p');
+      if (f && f.contentWindow) f.contentWindow.postMessage(m.msg, '*');
+      break;
   }
+});
+window.addEventListener('message', function(e){
+  if (e.data && e.data.plezyFrame === 'quality') post({t: 'quality', levels: e.data.levels, current: e.data.current});
 });
 document.addEventListener('keydown', function(e){
   post({t: 'key', k: e.key, shift: e.shiftKey});
