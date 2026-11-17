@@ -21,6 +21,7 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kRefreshMinutes = 'youtube_refresh_minutes';
   static const _kWatched = 'youtube_watched_ids';
   static const _kChannelOpens = 'youtube_channel_opens';
+  static const _kBannerDismissed = 'youtube_hidden_banner_dismissed';
 
   static const int _maxWatched = 3000;
   static const List<int> refreshChoices = [15, 30, 60];
@@ -53,6 +54,8 @@ class YouTubeSettings extends ChangeNotifier {
   bool get showPremieres => _prefs?.getBool(_kShowPremieres) ?? false;
   int get refreshMinutes => _prefs?.getInt(_kRefreshMinutes) ?? 30;
 
+  bool get hiddenBannerDismissed => _prefs?.getBool(_kBannerDismissed) ?? false;
+
   bool get hasCredentials => clientId.isNotEmpty;
   bool get isSignedIn => refreshToken.isNotEmpty;
 
@@ -80,6 +83,12 @@ class YouTubeSettings extends ChangeNotifier {
   Future<void> setShowPremieres(bool value) async {
     await load();
     await _prefs!.setBool(_kShowPremieres, value);
+    notifyListeners();
+  }
+
+  Future<void> dismissHiddenBanner() async {
+    await load();
+    await _prefs!.setBool(_kBannerDismissed, true);
     notifyListeners();
   }
 

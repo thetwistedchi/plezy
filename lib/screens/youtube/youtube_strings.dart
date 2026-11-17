@@ -35,6 +35,20 @@ class YtStrings {
   static String trending(String factor) =>
       _t('Trending · $factor× this channel\'s usual views', 'Im Trend · $factor× so viele Aufrufe wie sonst');
   static String get favoriteChannel => _t('You watch this channel often', 'Diesen Kanal schaust du oft');
+  static String get watchlist => _t('Watchlist', 'Merkliste');
+  static String watchlistCount(int n) => n == 0 ? watchlist : '$watchlist ($n)';
+  static String get addToWatchlist => _t('Add to watchlist', 'Zur Merkliste hinzufügen');
+  static String get removeFromWatchlist => _t('Remove from watchlist', 'Von der Merkliste entfernen');
+  static String get playAll => _t('Play all', 'Alle abspielen');
+  static String get clearWatchlist => _t('Clear', 'Leeren');
+  static String get watchlistEmpty => _t(
+    'Your watchlist is empty. Use the + on a video to add it.',
+    'Deine Merkliste ist leer. Füge Videos mit dem + hinzu.',
+  );
+  static String get watchlistSubtitle =>
+      _t('Plays in this order. Drag to reorder.', 'Wird in dieser Reihenfolge abgespielt. Zum Sortieren ziehen.');
+  static String get dismiss => _t('Dismiss', 'Ausblenden');
+  static String get dragToReorder => _t('Drag to reorder', 'Zum Sortieren ziehen');
   static String get empty => _t('No videos to show.', 'Keine Videos zum Anzeigen.');
   static String loadingChannels(int done, int total) =>
       _t('Loading channels $done / $total…', 'Kanäle werden geladen: $done / $total…');
