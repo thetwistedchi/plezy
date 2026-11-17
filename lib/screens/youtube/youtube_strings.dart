@@ -202,6 +202,32 @@ class YtStrings {
   static String sleepActive(String left) => _t('Pauses in $left', 'Pausiert in $left');
   static String get sleepActiveEnd => _t('Stops after this video', 'Stoppt nach diesem Video');
   static String get sleepDone => _t('Sleep timer: paused.', 'Sleep-Timer: pausiert.');
+  static String get playerButtons => _t('Player buttons', 'Player-Buttons');
+  static String get showChannelStrip =>
+      _t('"More from this channel" row when paused', '„Mehr von diesem Kanal“-Leiste bei Pause');
+  static String get moreOptions => _t('More options', 'Weitere Optionen');
+  static String buttonLabel(String id) => switch (id) {
+    'watchlist' => watchlist,
+    'comments' => comments,
+    'channelVideos' => moreFromChannel,
+    'openChannel' => openChannel,
+    'share' => share,
+    'openOnYouTube' => openOnYouTube,
+    'rating' => '${like} / ${dislike}',
+    'back10' => back10,
+    'forward10' => forward10,
+    'previousNext' => _t('Previous / next video', 'Vorheriges / nächstes Video'),
+    'highlight' => jumpToHighlight,
+    'volume' => _t('Volume', 'Lautstärke'),
+    'quality' => quality,
+    'speed' => speed,
+    'audio' => audioLanguage,
+    'captions' => captions,
+    'sleep' => sleepTimer,
+    'chapters' => chapters,
+    'fullscreen' => fullscreen,
+    _ => id,
+  };
   static String get normalSpeed => _t('Normal', 'Normal');
 
   // SponsorBlock

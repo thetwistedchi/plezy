@@ -304,6 +304,24 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      _SectionTitle(YtStrings.playerButtons),
+                      _Card(
+                        children: [
+                          SwitchListTile(
+                            title: Text(YtStrings.showChannelStrip),
+                            value: _settings.showChannelStrip,
+                            onChanged: (v) => unawaited(_settings.setShowChannelStrip(v)),
+                          ),
+                          for (final id in YouTubeSettings.playerButtons)
+                            SwitchListTile(
+                              dense: true,
+                              title: Text(YtStrings.buttonLabel(id)),
+                              value: _settings.showButton(id),
+                              onChanged: (v) => unawaited(_settings.setShowButton(id, v)),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                       _SectionTitle(YtStrings.communityFeatures),
                       _Card(
                         children: [

@@ -564,12 +564,37 @@ class _VideoCardState extends State<_VideoCard> {
                               : CachedNetworkImage(imageUrl: video.thumbnailUrl!, fit: BoxFit.cover),
                         ),
                       if (widget.watched)
-                        Positioned(left: 8, top: 8, child: _Chip(text: YtStrings.watched)),
+                        Positioned(left: 8, bottom: 10, child: _Chip(text: YtStrings.watched)),
                       if (badge != null) Positioned(right: 8, bottom: 8, child: _Chip(text: badge)),
+                      Positioned(
+                        left: 6,
+                        top: 6,
+                        child: _WatchlistButton(active: widget.inWatchlist, onPressed: widget.onToggleWatchlist),
+                      ),
                       Positioned(
                         right: 6,
                         top: 6,
-                        child: _WatchlistButton(active: widget.inWatchlist, onPressed: widget.onToggleWatchlist),
+                        child: Builder(
+                          builder: (buttonContext) => Tooltip(
+                            message: YtStrings.moreOptions,
+                            child: Material(
+                              color: Colors.black.withValues(alpha: 0.7),
+                              shape: CircleBorder(side: BorderSide(color: Colors.white.withValues(alpha: 0.35))),
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () {
+                                  final box = buttonContext.findRenderObject() as RenderBox;
+                                  widget.onMenu(box.localToGlobal(box.size.bottomLeft(Offset.zero)));
+                                },
+                                child: const SizedBox(
+                                  width: 34,
+                                  height: 34,
+                                  child: Center(child: AppIcon(Symbols.more_vert_rounded, size: 20, color: Colors.white)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                       if (widget.watched || (widget.progress ?? 0) > 0)
                         Positioned(

@@ -62,6 +62,31 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kDeArrowTitles = 'youtube_dearrow_titles';
   static const _kDeArrowThumbs = 'youtube_dearrow_thumbnails';
   static const _kRyd = 'youtube_return_dislikes';
+  static const _kHiddenButtons = 'youtube_hidden_player_buttons';
+  static const _kChannelStrip = 'youtube_show_channel_strip';
+
+  /// Player controls that can be hidden in the settings, in display order.
+  static const List<String> playerButtons = [
+    'watchlist',
+    'comments',
+    'channelVideos',
+    'openChannel',
+    'share',
+    'openOnYouTube',
+    'rating',
+    'back10',
+    'forward10',
+    'previousNext',
+    'highlight',
+    'volume',
+    'quality',
+    'speed',
+    'audio',
+    'captions',
+    'sleep',
+    'chapters',
+    'fullscreen',
+  ];
 
   static const List<double> speedChoices = [0.25, 0.5, 0.75, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0];
   static const int _maxProgress = 2000;
@@ -153,6 +178,24 @@ class YouTubeSettings extends ChangeNotifier {
       return {};
     }
   }
+
+  bool showButton(String id) => !(_prefs?.getStringList(_kHiddenButtons) ?? const <String>[]).contains(id);
+
+  Future<void> setShowButton(String id, bool show) async {
+    await load();
+    final hidden = (_prefs!.getStringList(_kHiddenButtons) ?? const <String>[]).toSet();
+    if (show) {
+      hidden.remove(id);
+    } else {
+      hidden.add(id);
+    }
+    await _prefs!.setStringList(_kHiddenButtons, hidden.toList());
+    notifyListeners();
+  }
+
+  /// The "More from this channel" row while paused and at the end.
+  bool get showChannelStrip => _prefs?.getBool(_kChannelStrip) ?? true;
+  Future<void> setShowChannelStrip(bool v) => _setBool(_kChannelStrip, v);
 
   bool get deArrowTitles => _prefs?.getBool(_kDeArrowTitles) ?? true;
   bool get deArrowThumbnails => _prefs?.getBool(_kDeArrowThumbs) ?? true;

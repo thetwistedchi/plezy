@@ -422,6 +422,94 @@ class YouTubeService extends ChangeNotifier {
     return videos;
   }
 
+  /// Caption tracks, storyboard spec, views and upload date from the public
+  /// watch page (no quota, no account). The embedded player doesn't expose
+  /// these reliably.
+  Future<YtWatchInfo?> watchPageInfo(String videoId) async {
+    try {
+      final response = await _client
+          .get(
+            Uri.https('www.youtube.com', '/watch', {'v': videoId, 'hl': 'en'}),
+            headers: {'Cookie': 'SOCS=CAI; CONSENT=YES+cb', 'Accept-Language': 'en'},
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return null;
+      final json = _extractJsonObject(response.body, 'ytInitialPlayerResponse');
+      if (json == null) return null;
+      final captions = json['captions']?['playerCaptionsTracklistRenderer'] as Map<String, dynamic>?;
+      String text(Object? node) {
+        if (node is Map) {
+          if (node['simpleText'] is String) return node['simpleText'] as String;
+          final runs = node['runs'];
+          if (runs is List) return runs.map((r) => r is Map ? (r['text'] ?? '') : '').join();
+        }
+        return '';
+      }
+
+      final tracks = <({String code, String name, String kind})>[
+        for (final t in (captions?['captionTracks'] as List? ?? const []))
+          if (t is Map)
+            (
+              code: t['languageCode'] as String? ?? '',
+              name: text(t['name']).isEmpty ? (t['languageCode'] as String? ?? '') : text(t['name']),
+              kind: t['kind'] as String? ?? '',
+            ),
+      ];
+      final translations = <({String code, String name})>[
+        for (final l in (captions?['translationLanguages'] as List? ?? const []))
+          if (l is Map) (code: l['languageCode'] as String? ?? '', name: text(l['languageName'])),
+      ];
+      final details = json['videoDetails'] as Map<String, dynamic>? ?? const {};
+      final micro = json['microformat']?['playerMicroformatRenderer'] as Map<String, dynamic>? ?? const {};
+      return YtWatchInfo(
+        captionTracks: tracks,
+        translationLanguages: translations,
+        storyboardSpec: json['storyboards']?['playerStoryboardSpecRenderer']?['spec'] as String?,
+        viewCount: int.tryParse(details['viewCount']?.toString() ?? ''),
+        publishDate: DateTime.tryParse(micro['publishDate'] as String? ?? ''),
+        description: details['shortDescription'] as String?,
+      );
+    } catch (e) {
+      appLogger.d('YouTube watch page failed for $videoId: $e');
+      return null;
+    }
+  }
+
+  /// Finds `name = {...}` in a page and decodes the object by matching braces.
+  static Map<String, dynamic>? _extractJsonObject(String html, String name) {
+    final marker = html.indexOf(name);
+    if (marker < 0) return null;
+    final start = html.indexOf('{', marker);
+    if (start < 0) return null;
+    var depth = 0;
+    var inString = false;
+    var escaped = false;
+    for (var i = start; i < html.length; i++) {
+      final c = html.codeUnitAt(i);
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (c == 0x5C) {
+          escaped = true;
+        } else if (c == 0x22) {
+          inString = false;
+        }
+        continue;
+      }
+      if (c == 0x22) {
+        inString = true;
+      } else if (c == 0x7B) {
+        depth++;
+      } else if (c == 0x7D) {
+        depth--;
+        if (depth == 0) {
+          return jsonDecode(html.substring(start, i + 1)) as Map<String, dynamic>;
+        }
+      }
+    }
+    return null;
+  }
+
   // ---- API ----
 
   Future<Map<String, dynamic>> _get(String path, Map<String, String> query) => _request('GET', path, query);
@@ -872,4 +960,22 @@ class YtChannelInfo {
   final int? videoCount;
 
   Uri get url => Uri.https('www.youtube.com', '/channel/$id');
+}
+
+class YtWatchInfo {
+  YtWatchInfo({
+    required this.captionTracks,
+    required this.translationLanguages,
+    required this.storyboardSpec,
+    required this.viewCount,
+    required this.publishDate,
+    required this.description,
+  });
+
+  final List<({String code, String name, String kind})> captionTracks;
+  final List<({String code, String name})> translationLanguages;
+  final String? storyboardSpec;
+  final int? viewCount;
+  final DateTime? publishDate;
+  final String? description;
 }

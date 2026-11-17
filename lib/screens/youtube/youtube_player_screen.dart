@@ -98,6 +98,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   List<({String name, String id})> _audioTracks = const [];
   int _audioCurrent = -1;
   bool _ccApplied = false;
+  bool _frameReady = false;
+  int? _views;
+  DateTime? _published;
   bool _audioApplied = false;
   String _trackSignature = '';
   ({int likes, int dislikes})? _votes;
@@ -214,6 +217,23 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     final channelId = _video.channelId;
     _votes = null;
     _storyboard = null;
+    _views = _video.viewCount > 0 ? _video.viewCount : null;
+    _published = _video.publishedAt;
+    unawaited(
+      service.watchPageInfo(videoId).then((page) {
+        if (page == null || !mounted || generation != _metaGeneration) return;
+        setState(() {
+          if (_ccTracks.isEmpty) _ccTracks = page.captionTracks;
+          if (_ccTranslations.isEmpty) _ccTranslations = page.translationLanguages;
+          if (page.viewCount != null) _views = page.viewCount;
+          if (page.publishDate != null) _published = page.publishDate;
+          final spec = page.storyboardSpec;
+          if (_storyboard == null && spec != null) _storyboard = _Storyboard.parse(spec);
+          if (_chapters.isEmpty && page.description != null) _chapters = parseChapters(page.description!);
+        });
+        _maybeApplyCaptions();
+      }),
+    );
     unawaited(
       ReturnDislike.votes(videoId).then((v) {
         if (mounted && generation == _metaGeneration) setState(() => _votes = v);
@@ -458,19 +478,24 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     final ccMap = cc is Map ? cc : const {};
     final audioMap = audio is Map ? audio : const {};
     final current = ccMap['current'];
+    _frameReady = true;
+    final frameTracks = [
+      for (final t in (ccMap['tracks'] as List? ?? const []))
+        if (t is Map)
+          (code: t['code'] as String? ?? '', name: t['name'] as String? ?? '', kind: t['kind'] as String? ?? ''),
+    ];
+    final frameTranslations = [
+      for (final l in (ccMap['translations'] as List? ?? const []))
+        if (l is Map) (code: l['code'] as String? ?? '', name: l['name'] as String? ?? ''),
+    ];
     setState(() {
-      _ccTracks = [
-        for (final t in (ccMap['tracks'] as List? ?? const []))
-          if (t is Map)
-            (code: t['code'] as String? ?? '', name: t['name'] as String? ?? '', kind: t['kind'] as String? ?? ''),
-      ];
-      _ccCurrent = current is Map
-          ? (code: current['code'] as String? ?? '', kind: current['kind'] as String? ?? '', tr: current['tr'] as String?)
-          : null;
-      _ccTranslations = [
-        for (final l in (ccMap['translations'] as List? ?? const []))
-          if (l is Map) (code: l['code'] as String? ?? '', name: l['name'] as String? ?? ''),
-      ];
+      if (frameTracks.isNotEmpty) _ccTracks = frameTracks;
+      if (frameTracks.isNotEmpty) {
+        _ccCurrent = current is Map
+            ? (code: current['code'] as String? ?? '', kind: current['kind'] as String? ?? '', tr: current['tr'] as String?)
+            : null;
+      }
+      if (frameTranslations.isNotEmpty) _ccTranslations = frameTranslations;
       _audioTracks = [
         for (final t in (audioMap['tracks'] as List? ?? const []))
           if (t is Map) (name: t['name'] as String? ?? '', id: t['id'] as String? ?? ''),
@@ -481,20 +506,35 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _audioApplied = true;
       _applyAudioPreference();
     }
-    if (!_ccApplied && _ccTracks.isNotEmpty) {
-      _ccApplied = true;
-      _applyCaptionPreference();
-    }
+    _maybeApplyCaptions();
+  }
+
+  void _maybeApplyCaptions() {
+    if (_ccApplied || !_frameReady || _ccTracks.isEmpty) return;
+    _ccApplied = true;
+    _applyCaptionPreference();
   }
 
   static bool _sameLanguage(String a, String b) =>
       a.toLowerCase().split(RegExp('[-_.]')).first == b.toLowerCase().split(RegExp('[-_.]')).first;
 
   void _sendCaptions({int? index, String? translate}) {
+    final track = index != null && index >= 0 && index < _ccTracks.length ? _ccTracks[index] : null;
     _send({
       'cmd': 'frame',
-      'msg': {'plezy': 'cc', 'off': index == null, 'index': ?index, 'tr': ?translate},
+      'msg': {
+        'plezy': 'cc',
+        'off': track == null,
+        if (track != null) 'code': track.code,
+        if (track != null) 'kind': track.kind,
+        'tr': ?translate,
+      },
     });
+    if (track == null) {
+      setState(() => _ccCurrent = null);
+    } else {
+      setState(() => _ccCurrent = (code: track.code, kind: track.kind, tr: translate));
+    }
   }
 
   /// Creator captions in the preferred language, else auto-generated ones,
@@ -619,6 +659,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     }
   }
 
+  bool _show(String id) => _settings.showButton(id);
+
   void _togglePanel(_SidePanel panel) => setState(() => _panel = _panel == panel ? _SidePanel.none : panel);
 
   /// Plays [video] right after the current one in the queue.
@@ -706,6 +748,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _audioTracks = const [];
       _audioCurrent = -1;
       _ccApplied = false;
+      _frameReady = false;
       _audioApplied = false;
       _trackSignature = '';
       _qualityNames = const {};
@@ -1091,6 +1134,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             if ((_state == 2 || _state == 0) &&
                 _controlsVisible &&
                 _channelVideos.isNotEmpty &&
+                _settings.showChannelStrip &&
                 _panel != _SidePanel.channel)
               Positioned(
                 left: 28,
@@ -1183,9 +1227,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  _queue.length > 1
-                      ? '${_video.channelTitle} · ${YtStrings.queuePosition(_index + 1, _queue.length)}'
-                      : _video.channelTitle,
+                  [
+                    _video.channelTitle,
+                    if (_published != null) YtStrings.age(_published!),
+                    if (_views != null) YtStrings.views(_views!),
+                    if (_queue.length > 1) YtStrings.queuePosition(_index + 1, _queue.length),
+                  ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
@@ -1194,31 +1241,35 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          _PlayerButton(
+          if (_show('watchlist'))
+            _PlayerButton(
             icon: Symbols.playlist_play_rounded,
             tooltip: YtStrings.watchlist,
             active: _panel == _SidePanel.queue,
             onPressed: () => _togglePanel(_SidePanel.queue),
           ),
-          if (_settings.isSignedIn)
+          if (_settings.isSignedIn && _show('comments'))
             _PlayerButton(
               icon: Symbols.comment_rounded,
               tooltip: YtStrings.comments,
               active: _panel == _SidePanel.comments,
               onPressed: () => _togglePanel(_SidePanel.comments),
             ),
-          _PlayerButton(
+          if (_show('channelVideos'))
+            _PlayerButton(
             icon: Symbols.video_library_rounded,
             tooltip: YtStrings.moreFromChannel,
             active: _panel == _SidePanel.channel,
             onPressed: () => _togglePanel(_SidePanel.channel),
           ),
-          _PlayerButton(
+          if (_show('openChannel'))
+            _PlayerButton(
             icon: Symbols.account_box_rounded,
             tooltip: YtStrings.openChannel,
             onPressed: () => unawaited(_openChannel()),
           ),
-          PopupMenuButton<bool>(
+          if (_show('share'))
+            PopupMenuButton<bool>(
             tooltip: YtStrings.share,
             onSelected: (withTime) => unawaited(_copyLink(withTime: withTime)),
             itemBuilder: (_) => [
@@ -1232,7 +1283,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
               child: Center(child: AppIcon(Symbols.share_rounded, fill: 1, color: Colors.white)),
             ),
           ),
-          _PlayerButton(
+          if (_show('openOnYouTube'))
+            _PlayerButton(
             icon: Symbols.open_in_new_rounded,
             tooltip: YtStrings.openOnYouTube,
             onPressed: () => unawaited(_openOnYouTube()),
@@ -1256,7 +1308,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Align(
+          if (_show('rating'))
+            Align(
             alignment: Alignment.centerRight,
             child: _RatingPill(
               likes: _likeCount,
@@ -1283,7 +1336,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
           const SizedBox(height: 6),
           Row(
             children: [
-              _PlayerButton(icon: Symbols.replay_10_rounded, tooltip: YtStrings.back10, onPressed: () => _seekBy(-10)),
+              if (_show('back10'))
+                _PlayerButton(icon: Symbols.replay_10_rounded, tooltip: YtStrings.back10, onPressed: () => _seekBy(-10)),
               const SizedBox(width: 4),
               _PlayButton(
                 playing: _playing,
@@ -1293,12 +1347,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                 onPressed: _togglePlay,
               ),
               const SizedBox(width: 4),
-              _PlayerButton(
+              if (_show('forward10'))
+                _PlayerButton(
                 icon: Symbols.forward_10_rounded,
                 tooltip: YtStrings.forward10,
                 onPressed: () => _seekBy(10),
               ),
-              if (_queue.length > 1) ...[
+              if (_queue.length > 1 && _show('previousNext')) ...[
                 _PlayerButton(
                   icon: Symbols.skip_previous_rounded,
                   tooltip: YtStrings.previous,
@@ -1310,7 +1365,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   onPressed: hasNext ? () => _playIndex(_index + 1) : null,
                 ),
               ],
-              if (highlight != null && _settings.showSegmentsOnTimeline)
+              if (highlight != null && _settings.showSegmentsOnTimeline && _show('highlight'))
                 _PlayerButton(
                   icon: Symbols.star_rounded,
                   tooltip: YtStrings.jumpToHighlight,
@@ -1334,12 +1389,14 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
               ] else
                 const Spacer(),
               if (chapter != null) const SizedBox(width: 12),
-              _PlayerButton(
+              if (_show('volume'))
+                _PlayerButton(
                 icon: _muted || _volume == 0 ? Symbols.volume_off_rounded : Symbols.volume_up_rounded,
                 tooltip: _muted ? YtStrings.unmute : YtStrings.mute,
                 onPressed: _toggleMute,
               ),
-              SizedBox(
+              if (_show('volume'))
+                SizedBox(
                 width: 110,
                 child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
@@ -1357,7 +1414,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   ),
                 ),
               ),
-              if (_qualities.isNotEmpty)
+              if (_qualities.isNotEmpty && _show('quality'))
                 PopupMenuButton<String>(
                   tooltip: YtStrings.quality,
                   onSelected: _selectQuality,
@@ -1387,7 +1444,31 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                     ),
                   ),
                 ),
-              if (_audioTracks.length > 1)
+              if (_show('speed'))
+                PopupMenuButton<double>(
+                tooltip: YtStrings.speed,
+                initialValue: _rate,
+                onSelected: _setRate,
+                itemBuilder: (_) => [
+                  for (final s in _speeds)
+                    PopupMenuItem(value: s, child: Text(s == 1 ? YtStrings.normalSpeed : '${_trim(s)}×')),
+                ],
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Center(
+                    child: Text(
+                      '${_trim(_rate)}×',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (_audioTracks.length > 1 && _show('audio'))
                 PopupMenuButton<int>(
                   tooltip: YtStrings.audioLanguage,
                   onSelected: _selectAudio,
@@ -1401,7 +1482,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                     child: Center(child: AppIcon(Symbols.record_voice_over_rounded, fill: 1, color: Colors.white)),
                   ),
                 ),
-              PopupMenuButton<int>(
+              if (_show('captions'))
+                PopupMenuButton<int>(
                 tooltip: YtStrings.captions,
                 enabled: _ccTracks.isNotEmpty,
                 onSelected: _selectCaptions,
@@ -1441,7 +1523,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   ),
                 ),
               ),
-              PopupMenuButton<int>(
+              if (_show('sleep'))
+                PopupMenuButton<int>(
                 tooltip: _sleepLabel ?? YtStrings.sleepTimer,
                 onSelected: _setSleep,
                 itemBuilder: (_) => [
@@ -1466,30 +1549,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   ),
                 ),
               ),
-              PopupMenuButton<double>(
-                tooltip: YtStrings.speed,
-                initialValue: _rate,
-                onSelected: _setRate,
-                itemBuilder: (_) => [
-                  for (final s in _speeds)
-                    PopupMenuItem(value: s, child: Text(s == 1 ? YtStrings.normalSpeed : '${_trim(s)}×')),
-                ],
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Center(
-                    child: Text(
-                      '${_trim(_rate)}×',
-                      style: TextStyle(
-                        color: _rate == 1 ? Colors.white : accent,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (_chapters.isNotEmpty)
+              if (_chapters.isNotEmpty && _show('chapters'))
                 PopupMenuButton<int>(
                   tooltip: YtStrings.chapters,
                   onSelected: (i) => _seek(_chapters[i].start),
@@ -1517,7 +1577,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                     child: Center(child: AppIcon(Symbols.list_rounded, color: Colors.white)),
                   ),
                 ),
-              _PlayerButton(
+              if (_show('fullscreen'))
+                _PlayerButton(
                 icon: _fullscreen ? Symbols.fullscreen_exit_rounded : Symbols.fullscreen_rounded,
                 tooltip: _fullscreen ? YtStrings.exitFullscreen : YtStrings.fullscreen,
                 onPressed: () => unawaited(_toggleFullscreen()),

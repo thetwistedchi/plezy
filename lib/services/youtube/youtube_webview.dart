@@ -137,13 +137,17 @@ class YouTubeWebView {
         try { p.setOption('captions', 'track', {}); } catch (err) {}
       } else {
         try {
-          var list = p.getOption('captions', 'tracklist') || [];
-          var t = list[m.index];
-          if (t) {
-            var track = Object.assign({}, t);
-            if (m.tr) track.translationLanguage = {languageCode: m.tr};
-            p.setOption('captions', 'track', track);
+          var list = [];
+          try { list = p.getOption('captions', 'tracklist', {includeAsr: true}) || []; } catch (err) {}
+          var found = null;
+          for (var i = 0; i < list.length; i++) {
+            var t = list[i];
+            if (t.languageCode === m.code && ((t.kind || '') === (m.kind || ''))) { found = t; break; }
           }
+          var track = found ? Object.assign({}, found) : {languageCode: m.code};
+          if (!found && m.kind) track.kind = m.kind;
+          if (m.tr) track.translationLanguage = {languageCode: m.tr};
+          p.setOption('captions', 'track', track);
         } catch (err) {}
       }
     }
@@ -161,7 +165,8 @@ class YouTubeWebView {
   var ccLoaded = false;
   function captionInfo(p){
     var list = [], cur = null, trans = [];
-    try { list = p.getOption('captions', 'tracklist') || []; } catch (err) {}
+    try { list = p.getOption('captions', 'tracklist', {includeAsr: true}) || []; } catch (err) {}
+    if (!list.length) { try { list = p.getOption('captions', 'tracklist') || []; } catch (err) {} }
     try { cur = p.getOption('captions', 'track') || null; } catch (err) {}
     try { trans = p.getOption('captions', 'translationLanguages') || []; } catch (err) {}
     return {
