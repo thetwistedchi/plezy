@@ -13,6 +13,7 @@ import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
 import 'youtube_player_screen.dart';
 import 'youtube_strings.dart';
+import 'youtube_routes.dart';
 
 /// A channel's page: banner, name and counts, and all uploads newest first,
 /// loaded 50 at a time while scrolling.
@@ -129,6 +130,7 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
       appBar: AppBar(
         title: Text(info?.title ?? widget.channelTitle),
         actions: [
+          const YouTubeHomeButton(),
           IconButton(
             tooltip: _settings.isFavorite(widget.channelId) ? YtStrings.unfavoriteChannel : YtStrings.favoriteChannelAction,
             onPressed: () async {

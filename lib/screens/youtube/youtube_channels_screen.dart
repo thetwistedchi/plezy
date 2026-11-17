@@ -16,6 +16,7 @@ import '../../widgets/app_icon.dart';
 import 'youtube_channel_screen.dart';
 import 'youtube_guide_screen.dart';
 import 'youtube_strings.dart';
+import 'youtube_routes.dart';
 
 /// Manage the channels followed without a Google account.
 class YouTubeChannelsScreen extends StatefulWidget {
@@ -96,10 +97,11 @@ class _YouTubeChannelsScreenState extends State<YouTubeChannelsScreen> {
       appBar: AppBar(
         title: Text(YtStrings.channelsTitle),
         actions: [
+          const YouTubeHomeButton(),
           IconButton(
             tooltip: YtStrings.guide,
             onPressed: () =>
-                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeGuideScreen())),
+                Navigator.of(context).push(ytRoute<void>('guide', (_) => const YouTubeGuideScreen())),
             icon: const AppIcon(Symbols.help_rounded),
           ),
         ],
@@ -215,8 +217,7 @@ class _YouTubeChannelsScreenState extends State<YouTubeChannelsScreen> {
                                   title: Text(channel.title),
                                   subtitle: Text(channel.id, style: TextStyle(color: mono.textMuted, fontSize: 12)),
                                   onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) =>
+                                    ytRoute<void>('channel', (_) =>
                                           YouTubeChannelScreen(channelId: channel.id, channelTitle: channel.title),
                                     ),
                                   ),

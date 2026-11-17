@@ -17,6 +17,7 @@ import 'youtube_channels_screen.dart';
 import 'youtube_guide_screen.dart';
 import 'youtube_strings.dart';
 import 'youtube_web_sign_in_screen.dart';
+import 'youtube_routes.dart';
 
 /// Sign-in and library options for the YouTube tab.
 class YouTubeSettingsScreen extends StatefulWidget {
@@ -138,16 +139,17 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
       appBar: AppBar(
         title: Text(YtStrings.tab),
         actions: [
+          const YouTubeHomeButton(),
           IconButton(
             tooltip: YtStrings.channels,
             onPressed: () =>
-                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeChannelsScreen())),
+                Navigator.of(context).push(ytRoute<void>('channels', (_) => const YouTubeChannelsScreen())),
             icon: const AppIcon(Symbols.subscriptions_rounded),
           ),
           IconButton(
             tooltip: YtStrings.guide,
             onPressed: () =>
-                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeGuideScreen())),
+                Navigator.of(context).push(ytRoute<void>('guide', (_) => const YouTubeGuideScreen())),
             icon: const AppIcon(Symbols.help_rounded),
           ),
         ],
@@ -472,7 +474,7 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                                 children: [
                                   FilledButton(
                                     onPressed: () => Navigator.of(context).push(
-                                      MaterialPageRoute<void>(builder: (_) => const YouTubeWebSignInScreen()),
+                                      ytRoute<void>('signin', (_) => const YouTubeWebSignInScreen()),
                                     ),
                                     child: Text(YtStrings.signInPlayer),
                                   ),

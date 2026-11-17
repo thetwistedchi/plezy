@@ -6,6 +6,7 @@ import 'package:webview_windows/webview_windows.dart';
 import '../../services/youtube/youtube_webview.dart';
 import '../../utils/app_logger.dart';
 import 'youtube_strings.dart';
+import 'youtube_routes.dart';
 
 /// Signs in to youtube.com inside the player's browser profile, so embedded
 /// playback uses the account's YouTube Premium.
@@ -74,6 +75,7 @@ class _YouTubeWebSignInScreenState extends State<YouTubeWebSignInScreen> {
       appBar: AppBar(
         title: Text(YtStrings.signInPlayer),
         actions: [
+          const YouTubeHomeButton(),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(YtStrings.done)),

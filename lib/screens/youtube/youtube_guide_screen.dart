@@ -9,6 +9,7 @@ import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
 import 'youtube_strings.dart';
+import 'youtube_routes.dart';
 
 /// In-app how-to for the YouTube tab: what works without an account, how to
 /// import subscriptions, Premium, the optional Google sign-in, SponsorBlock
@@ -172,7 +173,7 @@ class YouTubeGuideScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: Text(YtStrings.guide)),
+      appBar: AppBar(title: Text(YtStrings.guide), actions: const [YouTubeHomeButton()]),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
         children: [

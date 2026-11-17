@@ -20,6 +20,7 @@ import '../youtube/youtube_settings_screen.dart';
 import 'seerr_connect_screen.dart';
 import 'seerr_settings_screen.dart';
 import 'tracker_service_info.dart';
+import '../youtube/youtube_routes.dart';
 
 /// Unified hub for all connected services: the watch-progress trackers
 /// (Trakt, MyAnimeList, AniList, Simkl) and the Seerr request server. Each
@@ -74,7 +75,7 @@ class ServicesSettingsScreen extends StatelessWidget {
         leading: const AppIcon(Symbols.smart_display_rounded, size: 24),
         title: 'YouTube',
         username: settings.isSignedIn ? (settings.accountName.isEmpty ? 'Google' : settings.accountName) : null,
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const YouTubeSettingsScreen())),
+        onTap: () => Navigator.push(context, ytRoute('settings', (_) => const YouTubeSettingsScreen())),
       );
     },
   );
@@ -87,8 +88,7 @@ class ServicesSettingsScreen extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => account.isConnected ? const SeerrSettingsScreen() : const SeerrConnectScreen(),
+          MaterialPageRoute(builder: (_) => account.isConnected ? const SeerrSettingsScreen() : const SeerrConnectScreen(),
           ),
         );
       },

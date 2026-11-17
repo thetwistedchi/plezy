@@ -19,6 +19,7 @@ import 'youtube_guide_screen.dart';
 import 'youtube_player_screen.dart';
 import 'youtube_settings_screen.dart';
 import 'youtube_strings.dart';
+import 'youtube_routes.dart';
 
 /// The YouTube tab: newest uploads of the signed-in user's subscriptions.
 class YouTubeScreen extends StatefulWidget {
@@ -79,15 +80,15 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   }
 
   void _openChannels() {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeChannelsScreen()));
+    Navigator.of(context).push(ytRoute<void>('channels', (_) => const YouTubeChannelsScreen()));
   }
 
   void _openGuide() {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeGuideScreen()));
+    Navigator.of(context).push(ytRoute<void>('settings', (_) => const YouTubeGuideScreen()));
   }
 
   void _openSettings() {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const YouTubeSettingsScreen()));
+    Navigator.of(context).push(ytRoute<void>('settings', (_) => const YouTubeSettingsScreen()));
   }
 
   Future<void> _open(YouTubeVideo video) => YouTubePlayerScreen.open(context, [video]);
@@ -362,8 +363,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
         await _watchlist.toggle(video);
       case 'channel':
         await Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => YouTubeChannelScreen(channelId: video.channelId, channelTitle: video.channelTitle),
+          ytRoute<void>('channel', (_) => YouTubeChannelScreen(channelId: video.channelId, channelTitle: video.channelTitle),
           ),
         );
       case 'favorite':
@@ -403,6 +403,15 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               crossAxisAlignment: WrapCrossAlignment.end,
               alignment: WrapAlignment.spaceBetween,
               children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: YtStrings.back,
+                      onPressed: () => setState(() => _view = _YtView.subscriptions),
+                      icon: const AppIcon(Symbols.arrow_back_rounded),
+                    ),
+                    const SizedBox(width: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -413,6 +422,8 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(YtStrings.watchlistSubtitle, style: theme.textTheme.bodyMedium?.copyWith(color: mono.textMuted)),
+                  ],
+                ),
                   ],
                 ),
                 Wrap(

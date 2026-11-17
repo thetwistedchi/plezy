@@ -228,6 +228,7 @@ class YtStrings {
     'fullscreen' => fullscreen,
     _ => id,
   };
+  static String get youtubeHome => _t('YouTube home', 'YouTube-Startseite');
   static String get normalSpeed => _t('Normal', 'Normal');
 
   // SponsorBlock
@@ -415,8 +416,8 @@ class YtStrings {
     final diff = DateTime.now().difference(when);
     if (diff.isNegative) return _t('soon', 'bald');
     if (diff.inMinutes < 1) return _t('just now', 'gerade eben');
-    if (diff.inHours < 1) return _t('${diff.inMinutes} min ago', 'vor ${diff.inMinutes} Min.');
-    if (diff.inDays < 1) return _t('${diff.inHours} h ago', 'vor ${diff.inHours} Std.');
+    if (diff.inHours < 1) return _t('${diff.inMinutes}m ago', 'vor ${diff.inMinutes}m');
+    if (diff.inDays < 1) return _t('${diff.inHours}h ago', 'vor ${diff.inHours}h');
     if (diff.inDays == 1) return _t('yesterday', 'gestern');
     if (diff.inDays < 30) return _t('${diff.inDays} days ago', 'vor ${diff.inDays} Tagen');
     final months = diff.inDays ~/ 30;

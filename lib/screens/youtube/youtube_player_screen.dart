@@ -29,6 +29,7 @@ import 'youtube_channel_screen.dart';
 import 'youtube_comments_panel.dart';
 import 'youtube_queue_panel.dart';
 import 'youtube_strings.dart';
+import 'youtube_routes.dart';
 
 /// Plays YouTube videos inside the app: the embedded YouTube player in a
 /// WebView2 with YouTube's own controls hidden, and the retrowave player
@@ -63,8 +64,7 @@ class YouTubePlayerScreen extends StatefulWidget {
       return;
     }
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => YouTubePlayerScreen(queue: queue, startIndex: startIndex, fromWatchlist: fromWatchlist),
+      ytRoute<void>('player', (_) => YouTubePlayerScreen(queue: queue, startIndex: startIndex, fromWatchlist: fromWatchlist),
       ),
     );
   }
@@ -720,8 +720,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   Future<void> _openChannel() async {
     _send({'cmd': 'pause'});
     final picked = await Navigator.of(context).push<YouTubeVideo>(
-      MaterialPageRoute(
-        builder: (_) => YouTubeChannelScreen(
+      ytRoute('channel', (_) => YouTubeChannelScreen(
           channelId: _video.channelId,
           channelTitle: _video.channelTitle,
           returnPickedVideo: true,
