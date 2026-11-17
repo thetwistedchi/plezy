@@ -8,7 +8,6 @@ A Windows-focused fork of [Plezy](https://github.com/edde746/plezy) with a retro
 <p>
   <a href="#download">Download</a> ·
   <a href="#what-this-fork-adds">What this fork adds</a> ·
-  <a href="#building-on-windows">Building on Windows</a> ·
   <a href="https://github.com/edde746/plezy">Upstream Plezy</a> ·
   <a href="LICENSE">License</a>
 </p>
@@ -66,61 +65,6 @@ In every theme:
 - Letterboxd has no public API; its score is read from the film page and may stop working if Letterboxd changes it. The card then still links to the film.
 - Trakt scores use Plezy's Trakt app credentials.
 - Guest pause requests and chat in Watch Together are not built; they need changes to the Open Watch Party relay.
-
-## Building on Windows
-
-You need:
-
-- **Visual Studio 2022** with the "Desktop development with C++" workload
-- **Flutter 3.47.1** exactly (the patched engine below is built for it)
-- **JDK 21**, with `JAVA_HOME` set (a dependency needs it at build time)
-- **Developer Mode** on (Settings › System › For developers), so Flutter can create plugin symlinks
-- The project on a **local drive**; network shares break Git and the plugin symlinks
-
-```powershell
-git clone -b stable https://github.com/flutter/flutter.git C:\flutter
-cd C:\flutter
-git checkout 3.47.1
-# add C:\flutter\bin to your PATH, then open a new terminal
-
-winget install --id Microsoft.VisualStudio.2022.Community --override "--add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended --passive --wait"
-winget install EclipseAdoptium.Temurin.21.JDK
-
-git clone -b retrowave https://github.com/thetwistedchi/plezy.git C:\dev\plezy
-cd C:\dev\plezy
-flutter pub get
-
-# Plezy needs its patched Flutter engine on Windows, or the player
-# controls end up hidden behind the video.
-flutter precache --windows
-powershell -ExecutionPolicy Bypass -File .\windows\tool\install-patched-engine.ps1
-
-flutter run -d windows            # debug
-flutter run -d windows --release  # smooth playback
-```
-
-The patched engine covers debug and release builds only; `--profile` uses the stock engine and hides the player controls. Running `flutter upgrade` or `flutter precache --force` restores the stock engine, so re-run the script afterwards.
-
-### Building the installer
-
-```powershell
-winget install 7zip.7zip
-winget install JRSoftware.InnoSetup --scope machine
-$env:Path += ";C:\Program Files\7-Zip"
-
-flutter build windows --release
-powershell -ExecutionPolicy Bypass -File .\windows\build-installer.ps1 -Version 0.1.0
-```
-
-This writes `plezy-retrowave-installer.exe` and `plezy-retrowave-x64-portable.7z` to the project folder.
-
-### Staying up to date with Plezy
-
-```powershell
-git remote add upstream https://github.com/edde746/plezy.git
-git fetch upstream
-git rebase upstream/main
-```
 
 ---
 
