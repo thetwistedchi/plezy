@@ -149,6 +149,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   bool _pointerOnControls = false;
   Timer? _hideTimer;
   _SidePanel _panel = _SidePanel.none;
+
+  /// Briefly shrinks the WebView by one pixel after a resize. WebView2's
+  /// capture sometimes stalls on a size change (black picture, sound keeps
+  /// playing); a second resize restarts it.
+  bool _nudge = false;
+  Timer? _nudgeTimer;
   bool _fullscreen = false;
   bool _enteredFullscreen = false;
   int _metaGeneration = 0;
@@ -661,6 +667,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _fullscreen = next;
       _enteredFullscreen = next;
     });
+    _nudgeVideo();
     if (wasPlaying) {
       for (final delay in const [Duration(milliseconds: 350), Duration(milliseconds: 1200)]) {
         unawaited(
@@ -674,7 +681,23 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   bool _show(String id) => _settings.showButton(id);
 
-  void _togglePanel(_SidePanel panel) => setState(() => _panel = _panel == panel ? _SidePanel.none : panel);
+  void _togglePanel(_SidePanel panel) => _setPanel(_panel == panel ? _SidePanel.none : panel);
+
+  void _setPanel(_SidePanel panel) {
+    setState(() => _panel = panel);
+    _nudgeVideo();
+  }
+
+  void _nudgeVideo() {
+    _nudgeTimer?.cancel();
+    _nudgeTimer = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      setState(() => _nudge = true);
+      _nudgeTimer = Timer(const Duration(milliseconds: 150), () {
+        if (mounted) setState(() => _nudge = false);
+      });
+    });
+  }
 
   /// Plays [video] right after the current one in the queue.
   void _playNow(YouTubeVideo video) {
@@ -1041,7 +1064,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   key: ValueKey('comments-${_video.id}'),
                   videoId: _video.id,
                   commentCount: _info?.commentCount,
-                  onClose: () => setState(() => _panel = _SidePanel.none),
+                  onClose: () => _setPanel(_SidePanel.none),
                 ),
               ),
             if (_panel == _SidePanel.queue)
@@ -1054,7 +1077,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   onRemove: _removeFromQueue,
                   onReorder: _reorderQueue,
                   onAdd: _addToQueue,
-                  onClose: () => setState(() => _panel = _SidePanel.none),
+                  onClose: () => _setPanel(_SidePanel.none),
                 ),
               ),
             if (_panel == _SidePanel.channel)
@@ -1067,7 +1090,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   currentVideoId: _video.id,
                   onPlay: _playNow,
                   onOpenChannel: () => unawaited(_openChannel()),
-                  onClose: () => setState(() => _panel = _SidePanel.none),
+                  onClose: () => _setPanel(_SidePanel.none),
                 ),
               ),
           ],
@@ -1097,7 +1120,10 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             else if (!_webReady)
               Center(child: CircularProgressIndicator(color: accent))
             else ...[
-              Webview(_host.controller),
+              Padding(
+                padding: EdgeInsets.only(right: _nudge ? 1 : 0),
+                child: Webview(_host.controller),
+              ),
               // Takes clicks and hovers away from the embed, so YouTube's own
               // hover UI never shows: click plays/pauses, double-click
               // toggles fullscreen.
