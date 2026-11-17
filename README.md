@@ -1,23 +1,144 @@
 <h1>
-  <img src="assets/plezy.png" alt="Plezy Logo" height="24" style="vertical-align: middle;" />
-  Plezy
+  <img src="assets/plezy.png" alt="Plezy Retrowave logo" height="24" style="vertical-align: middle;" />
+  Plezy Retrowave
 </h1>
 
-A modern client for Plex, Jellyfin, and Emby on desktop, mobile, and TV. Built with Flutter for native performance and a clean interface.
+A Windows-focused fork of [Plezy](https://github.com/edde746/plezy) with a retrowave look, a Ratings & links row on every movie and show, and a restyled player. Everything Plezy does still works; this fork only adds to it.
+
+<p>
+  <a href="#download">Download</a> ·
+  <a href="#what-this-fork-adds">What this fork adds</a> ·
+  <a href="#building-on-windows">Building on Windows</a> ·
+  <a href="https://github.com/edde746/plezy">Upstream Plezy</a> ·
+  <a href="LICENSE">License</a>
+</p>
+
+## Download
+
+Get the latest Windows build from the [Releases page](https://github.com/thetwistedchi/plezy/releases):
+
+| File | What it is |
+| --- | --- |
+| `plezy-retrowave-installer.exe` | Installer (x64). Installs as **Plezy Retrowave**, next to a regular Plezy install. |
+| `plezy-retrowave-x64-portable.7z` | Portable build, unzip and run `plezy.exe`. |
+
+The builds are not code-signed, so Windows SmartScreen warns on first launch: click **More info**, then **Run anyway**.
+
+Plezy Retrowave and upstream Plezy share the same settings and sign-ins on one PC.
+
+## What this fork adds
+
+### Retrowave theme
+
+- New free **Retrowave** theme (Settings › Appearance › Theme): deep violet background, neon magenta accent.
+- Retrowave app icon on the window, taskbar, Start menu, installer and login screen, and a purple-to-magenta startup logo.
+
+### Ratings & links on the details page
+
+- A **Ratings & links** row above the overview of every movie and show, one card per site. The whole card opens the site:
+  - **Letterboxd** (movies): average rating out of 5 and vote count
+  - **Trakt**: community rating and votes, linking straight to the title
+  - **IMDb**, **Rotten Tomatoes** (critics and audience) and **TMDB**
+- Scores from your Plex server or connected trackers (Trakt, MDBList) are used first. Missing Letterboxd and Trakt scores are fetched directly and cached for 24 hours.
+- **Studio, Producer and Director** shown under the overview.
+
+### Player
+
+With the Retrowave theme:
+
+- Purple play/pause button with a soft glow
+- Timeline fades cyan to magenta up to the playhead
+- Neon "Skip intro / credits" button
+- Active controls and playback-settings highlights in purple instead of amber
+
+In every theme:
+
+- **4K / HDR badge** in the bottom bar: resolution (4K, 1440p, 1080p, 720p, SD) and dynamic range (DV, HDR10, HLG). Hidden while transcoding.
+
+### Watch Together
+
+- The in-player session pill shows **HOST** for the host. A guest in a host-only room sees a lock and the host's name.
+- Hovering the dimmed play button tells guests that the host controls playback.
+
+### Known limitations
+
+- Only Windows builds are made and tested for this fork.
+- Letterboxd has no public API; its score is read from the film page and may stop working if Letterboxd changes it. The card then still links to the film.
+- Trakt scores use Plezy's Trakt app credentials.
+- Guest pause requests and chat in Watch Together are not built; they need changes to the Open Watch Party relay.
+
+## Building on Windows
+
+You need:
+
+- **Visual Studio 2022** with the "Desktop development with C++" workload
+- **Flutter 3.47.1** exactly (the patched engine below is built for it)
+- **JDK 21**, with `JAVA_HOME` set (a dependency needs it at build time)
+- **Developer Mode** on (Settings › System › For developers), so Flutter can create plugin symlinks
+- The project on a **local drive**; network shares break Git and the plugin symlinks
+
+```powershell
+git clone -b stable https://github.com/flutter/flutter.git C:\flutter
+cd C:\flutter
+git checkout 3.47.1
+# add C:\flutter\bin to your PATH, then open a new terminal
+
+winget install --id Microsoft.VisualStudio.2022.Community --override "--add Microsoft.VisualStudio.Workload.NativeDesktop --includeRecommended --passive --wait"
+winget install EclipseAdoptium.Temurin.21.JDK
+
+git clone -b retrowave https://github.com/thetwistedchi/plezy.git C:\dev\plezy
+cd C:\dev\plezy
+flutter pub get
+
+# Plezy needs its patched Flutter engine on Windows, or the player
+# controls end up hidden behind the video.
+flutter precache --windows
+powershell -ExecutionPolicy Bypass -File .\windows\tool\install-patched-engine.ps1
+
+flutter run -d windows            # debug
+flutter run -d windows --release  # smooth playback
+```
+
+The patched engine covers debug and release builds only; `--profile` uses the stock engine and hides the player controls. Running `flutter upgrade` or `flutter precache --force` restores the stock engine, so re-run the script afterwards.
+
+### Building the installer
+
+```powershell
+winget install 7zip.7zip
+winget install JRSoftware.InnoSetup --scope machine
+$env:Path += ";C:\Program Files\7-Zip"
+
+flutter build windows --release
+powershell -ExecutionPolicy Bypass -File .\windows\build-installer.ps1 -Version 0.1.0
+```
+
+This writes `plezy-retrowave-installer.exe` and `plezy-retrowave-x64-portable.7z` to the project folder.
+
+### Staying up to date with Plezy
+
+```powershell
+git remote add upstream https://github.com/edde746/plezy.git
+git fetch upstream
+git rebase upstream/main
+```
+
+---
+
+# About Plezy (upstream)
+
+Everything below is the upstream Plezy README. Plezy is a modern client for Plex, Jellyfin, and Emby on desktop, mobile, and TV, built with Flutter by [edde746](https://github.com/edde746). Plezy Retrowave is an unofficial fork and is not affiliated with the Plezy project; please report fork-specific issues here, not upstream.
 
 <p>
   <a href="https://plezy.app">Website</a> ·
   <a href="https://plezy.app/#screenshots">Screenshots</a> ·
-  <a href="#download">Download</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a> ·
-  <a href="LICENSE">License</a>
+  <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
 <p align="center">
   <img src="assets/readme-showcase.webp" alt="Plezy mobile screenshots" width="900" />
 </p>
 
-## Download
+## Download upstream Plezy
 
 <a href='https://apps.apple.com/app/apple-store/id6754315964?pt=128238902&ct=GitHub&mt=8'><img height='60' alt='Download on the App Store' src='./assets/app-store-badge.png'/></a>
 <a href='https://play.google.com/store/apps/details?id=com.edde746.plezy&referrer=utm_source%3Dgithub%26utm_campaign%3Dreadme_badge'><img height='60' alt='Get it on Google Play' src='./assets/play-store-badge.png'/></a>
