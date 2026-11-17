@@ -41,6 +41,7 @@ const _sourceThemes = [
   settings.ThemeMode.forest,
   settings.ThemeMode.plum,
   settings.ThemeMode.paper,
+  settings.ThemeMode.retrowave,
 ];
 
 /// Appearance → Theme → Edit custom theme.

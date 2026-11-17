@@ -141,6 +141,7 @@ class ThemeProvider extends ChangeNotifier with DisposableChangeNotifierMixin, W
     settings.ThemeMode.forest => MonoPalette.forest,
     settings.ThemeMode.plum => MonoPalette.plum,
     settings.ThemeMode.paper => MonoPalette.paper,
+    settings.ThemeMode.retrowave => MonoPalette.retrowave,
     settings.ThemeMode.custom => customPalette,
   };
 
@@ -259,6 +260,7 @@ class ThemeProvider extends ChangeNotifier with DisposableChangeNotifierMixin, W
     settings.ThemeMode.forest ||
     settings.ThemeMode.plum ||
     settings.ThemeMode.paper => Symbols.palette_rounded,
+    settings.ThemeMode.retrowave => Symbols.palette_rounded,
     settings.ThemeMode.custom => Symbols.format_paint_rounded,
   };
 }

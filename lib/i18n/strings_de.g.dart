@@ -301,6 +301,7 @@ class _Translations$settings$de extends Translations$settings$en {
 	@override String get forestTheme => 'Wald';
 	@override String get plumTheme => 'Pflaume';
 	@override String get paperTheme => 'Papier';
+	@override String get retrowaveTheme => 'Retrowave';
 	@override String get libraryDensity => 'Darstellungsdichte der Mediathek';
 	@override String get displayScale => 'Skalierung';
 	@override String get compact => 'Kompakt';
@@ -1335,6 +1336,10 @@ class _Translations$discover$de extends Translations$discover$en {
 	@override String get rating => 'Altersfreigabe';
 	@override String get director => 'Regisseur';
 	@override String get directors => 'Regisseure';
+	@override String get producer => 'Produzent';
+	@override String get producers => 'Produzenten';
+	@override String get ratingsAndLinks => 'Bewertungen & Links';
+	@override String openOn({required Object site}) => 'Auf ${site} öffnen';
 	@override String get movie => 'Film';
 	@override String get tvShow => 'Serie';
 	@override String minutesLeft({required Object minutes}) => 'Noch ${minutes} Min.';
@@ -3584,6 +3589,7 @@ extension on TranslationsDe {
 			'settings.forestTheme' => 'Wald',
 			'settings.plumTheme' => 'Pflaume',
 			'settings.paperTheme' => 'Papier',
+			'settings.retrowaveTheme' => 'Retrowave',
 			'settings.libraryDensity' => 'Darstellungsdichte der Mediathek',
 			'settings.displayScale' => 'Skalierung',
 			'settings.compact' => 'Kompakt',
@@ -4513,6 +4519,10 @@ extension on TranslationsDe {
 			'discover.rating' => 'Altersfreigabe',
 			'discover.director' => 'Regisseur',
 			'discover.directors' => 'Regisseure',
+			'discover.producer' => 'Produzent',
+			'discover.producers' => 'Produzenten',
+			'discover.ratingsAndLinks' => 'Bewertungen & Links',
+			'discover.openOn' => ({required Object site}) => 'Auf ${site} öffnen',
 			'discover.movie' => 'Film',
 			'discover.tvShow' => 'Serie',
 			'discover.minutesLeft' => ({required Object minutes}) => 'Noch ${minutes} Min.',

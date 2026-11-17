@@ -572,6 +572,9 @@ class Translations$settings$en {
 	/// en: 'Paper'
 	String get paperTheme => 'Paper';
 
+	/// en: 'Retrowave'
+	String get retrowaveTheme => 'Retrowave';
+
 	/// en: 'Library Density'
 	String get libraryDensity => 'Library Density';
 
@@ -3327,6 +3330,18 @@ class Translations$discover$en {
 
 	/// en: 'Directors'
 	String get directors => 'Directors';
+
+	/// en: 'Producer'
+	String get producer => 'Producer';
+
+	/// en: 'Producers'
+	String get producers => 'Producers';
+
+	/// en: 'Ratings & links'
+	String get ratingsAndLinks => 'Ratings & links';
+
+	/// en: 'Open on ${site}'
+	String openOn({required Object site}) => 'Open on ${site}';
 
 	/// en: 'Movie'
 	String get movie => 'Movie';
@@ -8305,6 +8320,7 @@ extension on Translations {
 			'settings.forestTheme' => 'Forest',
 			'settings.plumTheme' => 'Plum',
 			'settings.paperTheme' => 'Paper',
+			'settings.retrowaveTheme' => 'Retrowave',
 			'settings.libraryDensity' => 'Library Density',
 			'settings.displayScale' => 'Display Scale',
 			'settings.compact' => 'Compact',
@@ -9238,6 +9254,10 @@ extension on Translations {
 			'discover.rating' => 'Rating',
 			'discover.director' => 'Director',
 			'discover.directors' => 'Directors',
+			'discover.producer' => 'Producer',
+			'discover.producers' => 'Producers',
+			'discover.ratingsAndLinks' => 'Ratings & links',
+			'discover.openOn' => ({required Object site}) => 'Open on ${site}',
 			'discover.movie' => 'Movie',
 			'discover.tvShow' => 'TV Show',
 			'discover.minutesLeft' => ({required Object minutes}) => '${minutes} min left',

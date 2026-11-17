@@ -42,6 +42,9 @@ import '../media/media_role.dart';
 import '../media/paged_media_list_state.dart';
 import '../widgets/media_card.dart';
 import '../widgets/media_rating_badge.dart';
+import '../widgets/ratings_links_row.dart';
+import '../services/ratings/title_links_service.dart';
+import '../utils/external_ids.dart';
 import '../widgets/fitted_metadata_line.dart';
 import '../i18n/strings.g.dart';
 import '../theme/mono_tokens.dart';
@@ -439,6 +442,12 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   // (see [_initCommunityRatings]); empty until then.
   List<MediaRatingSource> _communityRatings = const [];
   StreamSubscription<List<MediaRatingSource>>? _communityRatingsSubscription;
+
+  // Ratings & links row: the title's external ids, once fetched, and the
+  // Letterboxd/Trakt scores fetched directly for sites no connected tracker
+  // scored (see [_initTitleLinks]).
+  ExternalIds? _externalIds;
+  Map<String, TitleLink> _fetchedTitleLinks = const {};
 
   // Inline season tabs
   int _selectedSeasonIndex = 0;
@@ -896,6 +905,83 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     unawaited(_listenForPlaybackVersionChanges());
     _initWatchlistState();
     _initCommunityRatings();
+    unawaited(_initTitleLinks());
+  }
+
+  /// Fetch the title's external ids for the Ratings & links row, then top up
+  /// the Letterboxd and Trakt scores no connected tracker supplied.
+  Future<void> _initTitleLinks() async {
+    if (widget.isOffline || (!_metadata.isMovie && !_metadata.isShow)) return;
+    final client = _getMediaClientForMetadata(context);
+    if (client == null) return;
+    final ExternalIds ids;
+    try {
+      ids = await client.fetchExternalIds(_metadata.id);
+    } on Exception catch (e, stackTrace) {
+      appLogger.w('Ratings & links: external ids unavailable for ${_metadata.id}', error: e, stackTrace: stackTrace);
+      return;
+    }
+    if (!_canUseDetail || !ids.hasCatalogIds) return;
+    setState(() => _externalIds = ids);
+    final fetched = await TitleLinksService.instance.withFetchedScores(
+      _titleLinksFor(_metadata),
+      kind: _metadata.kind,
+      ids: ids,
+    );
+    if (!_canUseDetail) return;
+    setState(() => _fetchedTitleLinks = {for (final link in fetched) link.source: link});
+  }
+
+  /// The Ratings & links row for [metadata]: server and tracker scores win,
+  /// directly fetched scores fill the gaps.
+  List<TitleLink> _titleLinksFor(MediaItem metadata) {
+    final ids = _externalIds;
+    if (ids == null) return const [];
+    return [
+      for (final link in TitleLinksService.instance.linksFor(
+        kind: metadata.kind,
+        ids: ids,
+        title: metadata.title ?? '',
+        year: metadata.year,
+        known: _titleRatings(metadata),
+      ))
+        link.rating == null ? (_fetchedTitleLinks[link.source] ?? link) : link,
+    ];
+  }
+
+  bool _hasCredits(MediaItem metadata) =>
+      metadata.studio != null || metadata.producers?.isNotEmpty == true || metadata.directors?.isNotEmpty == true;
+
+  /// Studio, producers and directors as small label-over-name entries,
+  /// shown under the overview.
+  Widget _buildCreditsLine(MediaItem metadata) {
+    final theme = Theme.of(context);
+    final mono = tokens(context);
+    Widget entry(String label, String value) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: theme.textTheme.labelSmall?.copyWith(color: mono.textMuted, letterSpacing: 1.4),
+        ),
+        const SizedBox(height: 2),
+        Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+      ],
+    );
+    final producers = metadata.producers ?? const <String>[];
+    final directors = metadata.directors ?? const <String>[];
+    return Wrap(
+      spacing: 28,
+      runSpacing: 10,
+      children: [
+        if (metadata.studio != null) entry(t.discover.studio, metadata.studio!),
+        if (producers.isNotEmpty)
+          entry(producers.length > 1 ? t.discover.producers : t.discover.producer, producers.take(3).join(', ')),
+        if (directors.isNotEmpty)
+          entry(directors.length > 1 ? t.discover.directors : t.discover.director, directors.join(', ')),
+      ],
+    );
   }
 
   /// Ask the connected trackers for this title's scores. They resolve the
@@ -2386,7 +2472,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
 
   bool get _hasInfoRows {
     final metadata = _metadata;
-    return metadata.studio != null || metadata.directors?.isNotEmpty == true || metadata.contentRating != null;
+    return metadata.contentRating != null;
   }
 
   /// Focus the trailing info rows (studio / directors / contentRating) and scroll them into view.
@@ -3562,6 +3648,14 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                           child: Column(
                             crossAxisAlignment: .start,
                             children: [
+                              // Ratings & links
+                              if (!isTv && _titleLinksFor(metadata).isNotEmpty) ...[
+                                Text(t.discover.ratingsAndLinks, style: sectionTitleStyle),
+                                const SizedBox(height: 12),
+                                RatingsLinksRow(links: _titleLinksFor(metadata)),
+                                const SizedBox(height: 20),
+                              ],
+
                               // Summary
                               if (!isTv && metadata.summary != null && metadata.summary!.isNotEmpty) ...[
                                 Text(key: _overviewSectionKey, t.discover.overview, style: sectionTitleStyle),
@@ -3585,6 +3679,12 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                                   onNavigateRight: () {},
                                 ),
                                 const SizedBox(height: 12),
+                              ],
+
+                              // Studio · Producer · Director
+                              if (!isTv && _hasCredits(metadata)) ...[
+                                _buildCreditsLine(metadata),
+                                const SizedBox(height: 20),
                               ],
 
                               // Seasons / Episodes (for TV shows and seasons)
@@ -3675,17 +3775,6 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                                     key: _infoRowsSectionKey,
                                     crossAxisAlignment: .start,
                                     children: [
-                                      if (metadata.studio != null) ...[
-                                        _buildInfoRow(t.discover.studio, metadata.studio!),
-                                        const SizedBox(height: 12),
-                                      ],
-                                      if (metadata.directors?.isNotEmpty == true) ...[
-                                        _buildInfoRow(
-                                          metadata.directors!.length > 1 ? t.discover.directors : t.discover.director,
-                                          metadata.directors!.join(', '),
-                                        ),
-                                        const SizedBox(height: 12),
-                                      ],
                                       if (metadata.contentRating != null) ...[
                                         _buildInfoRow(t.discover.rating, formatContentRating(metadata.contentRating!)),
                                         const SizedBox(height: 12),

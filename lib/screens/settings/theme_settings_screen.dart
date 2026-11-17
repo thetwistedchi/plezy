@@ -28,6 +28,7 @@ const _builtIns = [
   settings.ThemeMode.light,
   settings.ThemeMode.dark,
   settings.ThemeMode.oled,
+  settings.ThemeMode.retrowave,
 ];
 
 const _presets = [

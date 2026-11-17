@@ -56,12 +56,13 @@ enum ThemeMode {
   forest,
   plum,
   paper,
+  retrowave,
   custom;
 
   /// The presets and Custom are Supporter perks; the built-ins are free in
   /// every build.
   bool get isSupporterPerk => switch (this) {
-    system || light || dark || oled => false,
+    system || light || dark || oled || retrowave => false,
     ember || glacier || forest || plum || paper || custom => true,
   };
 }

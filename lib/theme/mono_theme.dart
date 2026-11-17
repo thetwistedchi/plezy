@@ -141,6 +141,17 @@ class MonoPalette {
     accent: Color(0xFF1F6B6B),
   );
 
+  /// Deep violet night with a neon magenta accent; the Plezy Retrowave
+  /// fork's own theme, free in every build.
+  static const retrowave = MonoPalette(
+    bg: Color(0xFF0B0618),
+    surface: Color(0xFF160D2E),
+    outline: Color(0x29F4ECFF),
+    text: Color(0xFFF4ECFF),
+    textMuted: Color(0xA3F4ECFF),
+    accent: Color(0xFFE0479A),
+  );
+
   Brightness get brightness => ThemeData.estimateBrightnessForColor(bg);
 
   /// [bg] or white, whichever contrasts more with [accent]. The pair is never
