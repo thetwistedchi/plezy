@@ -89,7 +89,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
         : null;
 
     return RefreshIndicator(
-      onRefresh: _service.refresh,
+      onRefresh: () => _service.refresh(reloadSubscriptions: true),
       child: CustomScrollView(
         slivers: [
           SliverPadding(
@@ -111,7 +111,11 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        updated == null ? subtitle : '$subtitle · ${YtStrings.updatedAgo(YtStrings.age(updated))}',
+                        _service.isLoading && _service.channelCount > 0
+                            ? YtStrings.loadingChannels(_service.channelsDone, _service.channelCount)
+                            : updated == null
+                            ? subtitle
+                            : '$subtitle · ${YtStrings.updatedAgo(YtStrings.age(updated))}',
                         style: theme.textTheme.bodyMedium?.copyWith(color: mono.textMuted),
                       ),
                     ],
@@ -141,7 +145,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                       ),
                       IconButton(
                         tooltip: YtStrings.refresh,
-                        onPressed: _service.isLoading ? null : () => unawaited(_service.refresh()),
+                        onPressed: _service.isLoading ? null : () => unawaited(_service.refresh(reloadSubscriptions: true)),
                         icon: _service.isLoading
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                             : const AppIcon(Symbols.refresh_rounded),
@@ -157,6 +161,21 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               ),
             ),
           ),
+          if (_service.isLoading)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
+              sliver: SliverToBoxAdapter(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: _service.progress,
+                    minHeight: 3,
+                    color: playerActiveColor(context),
+                    backgroundColor: mono.outline,
+                  ),
+                ),
+              ),
+            ),
           if (banner != null)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(32, 20, 32, 0),

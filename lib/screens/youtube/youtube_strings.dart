@@ -36,6 +36,8 @@ class YtStrings {
       _t('Trending · $factor× this channel\'s usual views', 'Im Trend · $factor× so viele Aufrufe wie sonst');
   static String get favoriteChannel => _t('You watch this channel often', 'Diesen Kanal schaust du oft');
   static String get empty => _t('No videos to show.', 'Keine Videos zum Anzeigen.');
+  static String loadingChannels(int done, int total) =>
+      _t('Loading channels $done / $total…', 'Kanäle werden geladen: $done / $total…');
   static String get loading => _t('Loading your subscriptions…', 'Abos werden geladen…');
   static String get errorTitle => _t('Could not load YouTube', 'YouTube konnte nicht geladen werden');
   static String get retry => _t('Try again', 'Erneut versuchen');
