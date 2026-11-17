@@ -49,6 +49,9 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kCacheLimitMb = 'youtube_player_cache_mb';
   static const _kProgress = 'youtube_progress';
   static const _kQuality = 'youtube_preferred_quality';
+  static const _kSpeed = 'youtube_playback_speed';
+
+  static const List<double> speedChoices = [0.25, 0.5, 0.75, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0];
   static const int _maxProgress = 2000;
 
   static const int defaultCacheLimitMb = 300;
@@ -135,6 +138,8 @@ class YouTubeSettings extends ChangeNotifier {
   int get playerCacheLimitMb => _prefs?.getInt(_kCacheLimitMb) ?? defaultCacheLimitMb;
   /// YouTube quality id (hd1080, hd720, …) or 'auto'.
   String get preferredQuality => _prefs?.getString(_kQuality) ?? 'auto';
+  /// Speed new videos start at; the last speed picked in the player.
+  double get playbackSpeed => _prefs?.getDouble(_kSpeed) ?? 1.0;
   int get playerVolume => _prefs?.getInt(_kVolume) ?? 100;
 
   SegmentMode segmentMode(String category) => _sbModes[category] ?? SegmentMode.off;
@@ -196,6 +201,12 @@ class YouTubeSettings extends ChangeNotifier {
   Future<void> setPreferredQuality(String value) async {
     await load();
     await _prefs!.setString(_kQuality, value);
+  }
+
+  Future<void> setPlaybackSpeed(double value) async {
+    await load();
+    await _prefs!.setDouble(_kSpeed, value);
+    notifyListeners();
   }
 
   Future<void> setPlayerVolume(int value) async {

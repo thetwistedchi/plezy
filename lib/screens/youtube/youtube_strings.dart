@@ -133,6 +133,10 @@ class YtStrings {
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)} K';
     return '$n';
   }
+  static String get defaultSpeed => _t('Playback speed', 'Wiedergabegeschwindigkeit');
+  static String get defaultSpeedSub =>
+      _t('Also changes when you pick a speed in the player', 'Ändert sich auch, wenn du im Player eine wählst');
+  static String speedLabel(double s) => s == 1 ? normalSpeed : '${s == s.roundToDouble() ? s.toStringAsFixed(0) : s}×';
   static String get normalSpeed => _t('Normal', 'Normal');
 
   // SponsorBlock

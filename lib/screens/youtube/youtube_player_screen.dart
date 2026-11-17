@@ -64,7 +64,7 @@ class YouTubePlayerScreen extends StatefulWidget {
 enum _SidePanel { none, comments, channel }
 
 class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
-  static const _speeds = [0.25, 0.5, 0.75, 1.0, 1.1, 1.2, 1.25, 1.5, 1.75, 2.0];
+  static const _speeds = YouTubeSettings.speedChoices;
   static const _apiSpeeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
   static const _hideDelay = Duration(seconds: 3);
 
@@ -128,6 +128,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   void initState() {
     super.initState();
     _volume = _settings.playerVolume;
+    _rate = _settings.playbackSpeed;
     _fullscreen = FullscreenStateManager().isFullscreen;
     unawaited(_init());
     unawaited(_loadMeta());
@@ -242,6 +243,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     switch (message['t']) {
       case 'ready':
         _send({'cmd': 'volume', 'v': _volume});
+        if (_rate != 1) _applyRate(_rate);
         setState(() => _errorCode = null);
       case 'time':
         setState(() {
@@ -336,12 +338,17 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   void _setRate(double rate) {
+    _applyRate(rate);
+    setState(() => _rate = rate);
+    unawaited(_settings.setPlaybackSpeed(rate));
+  }
+
+  void _applyRate(double rate) {
     if (_apiSpeeds.contains(rate)) _send({'cmd': 'rate', 'r': rate});
     _send({
       'cmd': 'frame',
       'msg': {'plezy': 'rate', 'r': rate},
     });
-    setState(() => _rate = rate);
   }
 
   void _applyQuality(String quality) {

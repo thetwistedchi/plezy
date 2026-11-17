@@ -251,6 +251,23 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                             onChanged: (v) => unawaited(_settings.setShowPremieres(v)),
                           ),
                           ListTile(
+                            title: Text(YtStrings.defaultSpeed),
+                            subtitle: Text(YtStrings.defaultSpeedSub),
+                            trailing: DropdownButton<double>(
+                              value: YouTubeSettings.speedChoices.contains(_settings.playbackSpeed)
+                                  ? _settings.playbackSpeed
+                                  : 1.0,
+                              underline: const SizedBox.shrink(),
+                              items: [
+                                for (final s in YouTubeSettings.speedChoices)
+                                  DropdownMenuItem(value: s, child: Text(YtStrings.speedLabel(s))),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) unawaited(_settings.setPlaybackSpeed(v));
+                              },
+                            ),
+                          ),
+                          ListTile(
                             title: Text(YtStrings.refreshEvery),
                             trailing: DropdownButton<int>(
                               value: _settings.refreshMinutes,
