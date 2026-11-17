@@ -29,10 +29,32 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
   final _clientSecret = TextEditingController();
   bool _busy = false;
   String? _message;
+  int? _cacheBytes;
+  bool _clearingCache = false;
+
+  Future<void> _refreshCacheSize() async {
+    if (!YouTubeWebView.isSupported) return;
+    final size = await YouTubeWebView.cacheSize();
+    if (mounted) setState(() => _cacheBytes = size);
+  }
+
+  Future<void> _clearCache() async {
+    setState(() => _clearingCache = true);
+    try {
+      await YouTubeWebView.clearCache();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(YtStrings.cacheCleared)));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _clearingCache = false);
+      await _refreshCacheSize();
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    unawaited(_refreshCacheSize());
     unawaited(
       _settings.load().then((_) {
         if (!mounted) return;
@@ -259,6 +281,17 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                                     child: Text(YtStrings.signOutPlayer),
                                   ),
                                 ],
+                              ),
+                            ),
+                            ListTile(
+                              leading: AppIcon(Symbols.cleaning_services_rounded, color: mono.textMuted),
+                              title: Text(YtStrings.playerCache),
+                              subtitle: Text(YtStrings.playerCacheSub(YtStrings.fileSize(_cacheBytes ?? 0))),
+                              trailing: OutlinedButton(
+                                onPressed: _clearingCache ? null : () => unawaited(_clearCache()),
+                                child: _clearingCache
+                                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                    : Text(YtStrings.clearPlayerCache),
                               ),
                             ),
                           ],

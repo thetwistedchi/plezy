@@ -150,6 +150,17 @@ class YtStrings {
   );
   static String get signInPlayer => _t('Sign in to YouTube', 'Bei YouTube anmelden');
   static String get signOutPlayer => _t('Sign out of the player', 'Vom Player abmelden');
+  static String get playerCache => _t('Player cache', 'Player-Cache');
+  static String playerCacheSub(String size) =>
+      _t('$size used · limited to 300 MB · you stay signed in', '$size belegt · begrenzt auf 300 MB · du bleibst angemeldet');
+  static String get clearPlayerCache => _t('Clear player cache', 'Player-Cache leeren');
+  static String get cacheCleared => _t('Player cache cleared.', 'Player-Cache geleert.');
+  static String fileSize(int bytes) {
+    if (bytes >= 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+    if (bytes >= 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(0)} MB';
+    if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    return '$bytes B';
+  }
   static String get done => _t('Done', 'Fertig');
   static String get writeAccessMissing => _t(
     'This sign-in can only read. Sign out and in again to allow rating and comments.',

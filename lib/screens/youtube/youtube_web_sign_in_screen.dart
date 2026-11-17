@@ -27,7 +27,7 @@ class YouTubeWebSignInScreen extends StatefulWidget {
     } catch (e) {
       appLogger.w('YouTube player sign-out failed', error: e);
     } finally {
-      await controller.dispose();
+      unawaited(controller.dispose());
     }
   }
 

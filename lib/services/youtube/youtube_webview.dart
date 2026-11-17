@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -16,6 +17,11 @@ class YouTubeWebView {
   YouTubeWebView._();
 
   static const String host = 'plezy-yt.local';
+
+  /// Upper bound for the player's browser cache.
+  static const int cacheLimitBytes = 300 * 1024 * 1024;
+
+  static const _cacheFolders = {'Cache', 'Code Cache', 'GPUCache', 'Service Worker', 'DawnCache', 'ShaderCache'};
   static Future<String>? _ready;
 
   static bool get isSupported => Platform.isWindows;
@@ -35,13 +41,50 @@ class YouTubeWebView {
     try {
       await WebviewController.initializeEnvironment(
         userDataPath: profile.path,
-        additionalArguments: '--autoplay-policy=no-user-gesture-required',
+        additionalArguments: '--autoplay-policy=no-user-gesture-required --disk-cache-size=$cacheLimitBytes',
       );
     } on PlatformException catch (e) {
       // Already initialized in this process.
       appLogger.d('WebView2 environment: ${e.message}');
     }
     return pageDir.path;
+  }
+
+  static Future<Directory> _profileDir() async {
+    final support = await getApplicationSupportDirectory();
+    return Directory('${support.path}${Platform.pathSeparator}youtube_webview');
+  }
+
+  /// Bytes used by the player's browser caches (not its cookies/sign-in).
+  static Future<int> cacheSize() async {
+    final profile = await _profileDir();
+    if (!await profile.exists()) return 0;
+    var total = 0;
+    try {
+      await for (final entity in profile.list(recursive: true, followLinks: false)) {
+        if (entity is! File) continue;
+        final parts = entity.path.split(Platform.pathSeparator);
+        if (!parts.any(_cacheFolders.contains)) continue;
+        try {
+          total += await entity.length();
+        } catch (_) {}
+      }
+    } catch (e) {
+      appLogger.d('WebView2 cache size: $e');
+    }
+    return total;
+  }
+
+  /// Clears the player's browser cache and keeps the YouTube sign-in.
+  static Future<void> clearCache() async {
+    await ensureReady();
+    final controller = WebviewController();
+    try {
+      await controller.initialize();
+      await controller.clearCache();
+    } finally {
+      unawaited(controller.dispose());
+    }
   }
 
   static Uri playerUrl(String videoId, {double start = 0}) => Uri.https(host, '/player.html', {
