@@ -288,6 +288,7 @@ extension _VideoPlayerBuildMethods on VideoPlayerScreenState {
                         selectedQualityPreset: _selectedQualityPreset,
                         serverSupportsTranscoding: _serverSupportsTranscoding,
                         isTranscoding: _isTranscoding,
+                        displayCriteria: _currentMediaInfo?.displayCriteria,
                         isOfflinePlayback: _isOfflinePlayback,
                         sourceAudioTracks: sourceAudioTracks,
                         selectedAudioStreamId: _selectedAudioStreamId,

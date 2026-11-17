@@ -40,6 +40,7 @@ import '../../media/stepped_seek.dart';
 import '../../models/livetv_capture_buffer.dart';
 import '../../providers/multi_server_provider.dart';
 import '../../media/media_source_info.dart';
+import '../../media/media_display_criteria.dart';
 import '../../models/transcode_quality_preset.dart';
 import '../../media/media_version.dart';
 import '../../screens/video_player_screen.dart';
@@ -570,6 +571,9 @@ class PlexVideoControls extends StatefulWidget {
   final TranscodeQualityPreset selectedQualityPreset;
   final bool serverSupportsTranscoding;
   final bool isTranscoding;
+
+  /// Size and dynamic range of the playing version, for the 4K / HDR badge.
+  final MediaDisplayCriteria? displayCriteria;
   final bool isOfflinePlayback;
   final List<MediaAudioTrack> sourceAudioTracks;
   final int? selectedAudioStreamId;
@@ -712,6 +716,7 @@ class PlexVideoControls extends StatefulWidget {
     this.selectedQualityPreset = TranscodeQualityPreset.original,
     this.serverSupportsTranscoding = false,
     this.isTranscoding = false,
+    this.displayCriteria,
     this.isOfflinePlayback = false,
     this.sourceAudioTracks = const [],
     this.selectedAudioStreamId,

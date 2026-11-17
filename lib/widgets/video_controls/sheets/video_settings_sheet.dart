@@ -25,6 +25,7 @@ import '../../../services/scoped_player_prefs.dart';
 import '../../../services/settings_service.dart';
 import '../../../services/sleep_timer_service.dart';
 import '../../../services/video_filter_manager.dart';
+import '../../../theme/player_style.dart';
 import '../../../focus/focusable_wrapper.dart';
 import '../../../utils/dialogs.dart';
 import '../../../utils/app_logger.dart';
@@ -85,12 +86,12 @@ class _SettingsMenuItem extends StatelessWidget {
     final t = tokens(context);
     final valueWidget = Text(
       valueText,
-      style: TextStyle(color: isHighlighted ? Colors.amber : t.textMuted, fontSize: 14),
+      style: TextStyle(color: isHighlighted ? playerActiveColor(context) : t.textMuted, fontSize: 14),
       overflow: allowValueOverflow ? TextOverflow.ellipsis : null,
     );
 
     return FocusableListTile(
-      leading: AppIcon(icon, fill: 1, color: isHighlighted ? Colors.amber : t.textMuted),
+      leading: AppIcon(icon, fill: 1, color: isHighlighted ? playerActiveColor(context) : t.textMuted),
       title: Text(title),
       trailing: Row(
         mainAxisSize: .min,
@@ -259,12 +260,12 @@ class _SettingsToggleItemState extends State<_SettingsToggleItem> {
         final displayedValue = _pendingValue ?? value;
         final isPending = _pendingValue != null;
         return FocusableListTile(
-          leading: AppIcon(widget.icon, fill: 1, color: displayedValue ? Colors.amber : tokens(context).textMuted),
+          leading: AppIcon(widget.icon, fill: 1, color: displayedValue ? playerActiveColor(context) : tokens(context).textMuted),
           title: Text(widget.title),
           subtitle: widget.subtitle == null
               ? null
               : Text(widget.subtitle!, style: TextStyle(color: tokens(context).textMuted, fontSize: 12)),
-          trailing: Switch(value: displayedValue, onChanged: isPending ? null : _write, activeThumbColor: Colors.amber),
+          trailing: Switch(value: displayedValue, onChanged: isPending ? null : _write, activeThumbColor: playerActiveColor(context)),
           onTap: isPending ? null : () => _write(!displayedValue),
         );
       },
@@ -326,7 +327,7 @@ class _AudioRenderingModeItemState extends State<_AudioRenderingModeItem> {
       leading: AppIcon(
         Symbols.spatial_audio_rounded,
         fill: 1,
-        color: highlighted ? Colors.amber : tokens(context).textMuted,
+        color: highlighted ? playerActiveColor(context) : tokens(context).textMuted,
       ),
       title: Text(t.videoSettings.audioOutput),
       trailing: Text(label, style: TextStyle(color: tokens(context).textMuted)),
@@ -973,7 +974,7 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
             leading: AppIcon(
               Symbols.blur_on_rounded,
               fill: 1,
-              color: _state.isAmbientLightingEnabled ? Colors.amber : tokens(context).textMuted,
+              color: _state.isAmbientLightingEnabled ? playerActiveColor(context) : tokens(context).textMuted,
             ),
             title: Text(t.videoControls.ambientLighting),
             trailing: Switch(
@@ -982,7 +983,7 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
                 _state.onToggleAmbientLighting?.call();
                 OverlaySheetController.of(context).close();
               },
-              activeThumbColor: Colors.amber,
+              activeThumbColor: playerActiveColor(context),
             ),
             onTap: () {
               _state.onToggleAmbientLighting?.call();
@@ -1383,14 +1384,14 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
             final presetName = _shaderPresetTitle(preset);
 
             return FocusableListTile(
-              title: Text(presetName, style: TextStyle(color: isSelected ? Colors.amber : null)),
+              title: Text(presetName, style: TextStyle(color: isSelected ? playerActiveColor(context) : null)),
               subtitle: _getShaderSubtitle(preset) != null
                   ? Text(_getShaderSubtitle(preset)!, style: TextStyle(color: tokens(context).textMuted, fontSize: 12))
                   : null,
               trailing: Row(
                 mainAxisSize: .min,
                 children: [
-                  if (isSelected) const AppIcon(Symbols.check_rounded, fill: 1, color: Colors.amber),
+                  if (isSelected) AppIcon(Symbols.check_rounded, fill: 1, color: playerActiveColor(context)),
                   if (isCustom) ...[
                     if (isSelected) const SizedBox(width: 8),
                     GestureDetector(
@@ -1533,8 +1534,8 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
       title: _getTitle(),
       icon: _getIcon(),
       iconColor: () {
-        if (isIconActive) return Colors.amber;
-        if (_currentView == _SettingsView.shader && isShaderActive) return Colors.amber;
+        if (isIconActive) return playerActiveColor(context);
+        if (_currentView == _SettingsView.shader && isShaderActive) return playerActiveColor(context);
         return null;
       }(),
       onBack: _currentView != _SettingsView.menu ? _navigateBack : null,

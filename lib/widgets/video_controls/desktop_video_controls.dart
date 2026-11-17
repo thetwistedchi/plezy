@@ -10,6 +10,8 @@ import '../../media/media_item.dart';
 import '../../media/stepped_seek.dart';
 import '../../mpv/mpv.dart';
 import '../../media/media_source_info.dart';
+import '../../media/media_display_criteria.dart';
+import 'widgets/quality_badge.dart';
 import '../../services/fullscreen_state_manager.dart';
 import '../../services/live_seek_accumulator.dart';
 import '../../services/scrub_preview_source.dart';
@@ -39,6 +41,10 @@ class DesktopVideoControls extends StatefulWidget {
   final Player player;
   final VideoVolumeController volumeController;
   final MediaItem metadata;
+
+  /// Size and dynamic range of the playing version, for the 4K / HDR badge.
+  final MediaDisplayCriteria? displayCriteria;
+  final bool isTranscoding;
   final VoidCallback? onNext;
   final VoidCallback? onPrevious;
   final VoidCallback onPlayPause;
@@ -118,6 +124,8 @@ class DesktopVideoControls extends StatefulWidget {
     required this.player,
     required this.volumeController,
     required this.metadata,
+    this.displayCriteria,
+    this.isTranscoding = false,
     this.onNext,
     this.onPrevious,
     required this.onPlayPause,
@@ -930,6 +938,12 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                         );
                       },
                     ),
+                  ),
+                // 4K / HDR badge of the playing version
+                if (!_isLive)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: QualityBadge(criteria: widget.displayCriteria, isTranscoding: widget.isTranscoding),
                   ),
                 // Volume control (hidden on TV — hardware handles volume)
                 if (!PlatformDetector.isTV()) ...[

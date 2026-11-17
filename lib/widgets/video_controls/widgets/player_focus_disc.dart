@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../focus/card_focus_scope.dart';
 import '../../../focus/focus_theme.dart';
+import '../../../theme/player_style.dart';
 
 /// Focus chrome for a round player control sitting on video.
 ///
@@ -51,7 +52,7 @@ class PlayerFocusDisc extends StatelessWidget {
       decoration: BoxDecoration(
         shape: borderRadius == null ? BoxShape.circle : BoxShape.rectangle,
         borderRadius: borderRadius,
-        color: showFocus ? (isActive ? _activeFill : _fill) : Colors.transparent,
+        color: showFocus ? (isActive ? (PlayerStyle.of(context).active ?? _activeFill) : _fill) : Colors.transparent,
         boxShadow: showFocus ? const [playerFocusShadow] : const [],
       ),
       child: builder(context, showFocus ? Colors.black.withValues(alpha: iconColor.a) : iconColor),

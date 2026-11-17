@@ -3,6 +3,7 @@ import 'package:plezy/widgets/app_icon.dart';
 
 import '../../focus/focus_theme.dart';
 import '../../focus/focusable_wrapper.dart';
+import '../../theme/player_style.dart';
 import 'widgets/player_focus_disc.dart';
 
 /// A standardized icon button for the video player's control rows.
@@ -76,7 +77,7 @@ class VideoControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final idleColor = color ?? (isActive ? Colors.amber : Colors.white);
+    final idleColor = color ?? (isActive ? (PlayerStyle.of(context).active ?? Colors.amber) : Colors.white);
     final label = this.label;
     final effectiveSemanticLabel = semanticLabel ?? label ?? tooltip;
 
