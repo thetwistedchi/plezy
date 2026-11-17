@@ -55,7 +55,7 @@ class PlayerStyle extends ThemeExtension<PlayerStyle> {
     progressGlow: Color(0xFFE0479A),
     skipButtonBorder: Color(0xFFE0479A),
     progressGradient: [Color(0xFF2DE2E6), Color(0xFFE0479A)],
-    active: Color(0xFFE0479A),
+    active: Color(0xFF9D7BFF),
     badge: Color(0xFF9D7BFF),
   );
 
