@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
@@ -7,12 +9,14 @@ import '../../models/catalog/catalog_item.dart';
 import '../../providers/seerr_account_provider.dart';
 import '../../services/discord_rpc_service.dart';
 import '../../services/settings_service.dart';
+import '../../services/youtube/youtube_settings.dart';
 import '../../widgets/app_icon.dart';
 import '../../widgets/catalog_source_logo.dart';
 import '../../widgets/focused_scroll_scaffold.dart';
 import '../../widgets/focusable_list_tile.dart';
 import '../../widgets/setting_tile.dart';
 import '../../widgets/settings_section.dart';
+import '../youtube/youtube_settings_screen.dart';
 import 'seerr_connect_screen.dart';
 import 'seerr_settings_screen.dart';
 import 'tracker_service_info.dart';
@@ -39,7 +43,9 @@ class ServicesSettingsScreen extends StatelessWidget {
                 ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
-            SettingsGroup(children: [for (final info in TrackerServiceInfo.all) _TrackerHubRow(info), _seerr()]),
+            SettingsGroup(
+              children: [for (final info in TrackerServiceInfo.all) _TrackerHubRow(info), _seerr(), _youtube()],
+            ),
             if (DiscordRPCService.isAvailable)
               SettingsGroup(
                 title: t.services.integrations,
@@ -58,6 +64,20 @@ class ServicesSettingsScreen extends StatelessWidget {
       ],
     );
   }
+
+  Widget _youtube() => ListenableBuilder(
+    listenable: YouTubeSettings.instance,
+    builder: (context, _) {
+      final settings = YouTubeSettings.instance;
+      if (!settings.isLoaded) unawaited(settings.load());
+      return _ServiceHubRow(
+        leading: const AppIcon(Symbols.smart_display_rounded, size: 24),
+        title: 'YouTube',
+        username: settings.isSignedIn ? (settings.accountName.isEmpty ? 'Google' : settings.accountName) : null,
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const YouTubeSettingsScreen())),
+      );
+    },
+  );
 
   Widget _seerr() => Consumer<SeerrAccountProvider>(
     builder: (context, account, _) => _ServiceHubRow(

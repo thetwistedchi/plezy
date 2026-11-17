@@ -31,6 +31,7 @@ import '../mixins/mounted_set_state_mixin.dart';
 import '../mixins/refreshable.dart';
 import '../widgets/overlay_sheet.dart';
 import '../mixins/tab_visibility_aware.dart';
+import 'youtube/youtube_screen.dart';
 import '../navigation/navigation_tabs.dart';
 import '../navigation/profile_navigation_scope.dart';
 import '../navigation/settings_shortcut.dart';
@@ -1235,6 +1236,7 @@ class _MainScreenState extends State<MainScreen>
       ),
       NavigationTabId.liveTv => LiveTvScreen(key: _screenKeys[tab]),
       NavigationTabId.search => SearchScreen(key: _screenKeys[tab]),
+      NavigationTabId.youtube => YouTubeScreen(key: _screenKeys[tab]),
       NavigationTabId.downloads => DownloadsScreen(key: _screenKeys[tab]),
       NavigationTabId.settings => SettingsScreen(key: _screenKeys[tab]),
     };

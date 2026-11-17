@@ -6,7 +6,7 @@ import '../i18n/strings.g.dart';
 import '../utils/platform_detector.dart';
 
 /// Navigation tab identifiers
-enum NavigationTabId { discover, explore, libraries, liveTv, search, downloads, settings }
+enum NavigationTabId { discover, explore, libraries, liveTv, search, youtube, downloads, settings }
 
 /// Represents a navigation tab with its configuration
 class NavigationTab {
@@ -51,6 +51,7 @@ class NavigationTab {
       if (tab.id == NavigationTabId.liveTv && !hasLiveTv) return false;
       if (tab.id == NavigationTabId.explore && !hasExplore) return false;
       if (tab.id == NavigationTabId.downloads && PlatformDetector.isAppleTV()) return false;
+      if (tab.id == NavigationTabId.youtube && PlatformDetector.isTV()) return false;
       return true;
     }).toList();
   }
@@ -96,6 +97,7 @@ String _getLiveTvLabel() => t.navigation.liveTv;
 String _getSearchLabel() => t.common.search;
 String _getDownloadsLabel() => t.navigation.downloads;
 String _getSettingsLabel() => t.common.settings;
+String _getYouTubeLabel() => 'YouTube';
 
 /// All navigation tabs in display order
 const allNavigationTabs = [
@@ -114,6 +116,12 @@ const allNavigationTabs = [
     getLabel: _getExploreLabel,
   ),
   NavigationTab(id: NavigationTabId.search, onlineOnly: true, icon: Symbols.search_rounded, getLabel: _getSearchLabel),
+  NavigationTab(
+    id: NavigationTabId.youtube,
+    onlineOnly: true,
+    icon: Symbols.smart_display_rounded,
+    getLabel: _getYouTubeLabel,
+  ),
   NavigationTab(
     id: NavigationTabId.downloads,
     onlineOnly: false,

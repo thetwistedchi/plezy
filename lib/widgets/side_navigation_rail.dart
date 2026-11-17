@@ -639,6 +639,8 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
         return _kLibraries;
       case NavigationTabId.search:
         return _kSearch;
+      case NavigationTabId.youtube:
+        return 'youtube';
       case NavigationTabId.downloads:
         return _showDownloads ? _kDownloads : null;
       case NavigationTabId.settings:
@@ -1075,6 +1077,18 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                                         isCollapsed: isCollapsed,
                                       ),
                                       const SizedBox(height: _itemGap),
+                                      if (!PlatformDetector.isTV()) ...[
+                                        _buildNavItem(
+                                          icon: Symbols.smart_display_rounded,
+                                          selectedIcon: Symbols.smart_display_rounded,
+                                          label: 'YouTube',
+                                          isSelected: widget.selectedTab == NavigationTabId.youtube,
+                                          onTap: () => widget.onDestinationSelected(NavigationTabId.youtube),
+                                          focusNode: _focusTracker.get('youtube'),
+                                          isCollapsed: isCollapsed,
+                                        ),
+                                        const SizedBox(height: _itemGap),
+                                      ],
                                     ],
                                     // Downloads (hidden on Apple TV — no user
                                     // file storage)
