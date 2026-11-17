@@ -50,6 +50,8 @@ AppName={#Name}
 AppVersion={#Version}
 AppPublisher={#Publisher}
 DefaultDirName={autopf}\{#Name}
+; Always offer the folder choice, also when updating an existing install.
+DisableDirPage=no
 DefaultGroupName={#Name}
 AllowNoIcons=yes
 OutputDir=.
