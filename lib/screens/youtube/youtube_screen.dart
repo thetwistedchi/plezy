@@ -559,6 +559,7 @@ class _VideoCardState extends State<_VideoCard> {
                         CachedNetworkImage(
                           imageUrl: thumb,
                           fit: BoxFit.cover,
+                          memCacheWidth: 480,
                           errorWidget: (_, _, _) => video.thumbnailUrl == null || video.thumbnailUrl == thumb
                               ? const SizedBox.shrink()
                               : CachedNetworkImage(imageUrl: video.thumbnailUrl!, fit: BoxFit.cover),
@@ -858,6 +859,7 @@ class _WatchlistRow extends StatelessWidget {
                           CachedNetworkImage(
                             imageUrl: video.thumbnailUrl!,
                             fit: BoxFit.cover,
+                          memCacheWidth: 480,
                             errorWidget: (_, _, _) => const SizedBox.shrink(),
                           ),
                         if (video.duration > Duration.zero)

@@ -15,6 +15,7 @@ import '../../services/fullscreen_state_manager.dart';
 import '../../services/discord_rpc_service.dart';
 import '../../services/youtube/sponsorblock.dart';
 import '../../services/youtube/youtube_extras.dart';
+import '../../services/youtube/youtube_player_host.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../services/youtube/youtube_watchlist.dart';
@@ -55,6 +56,12 @@ class YouTubePlayerScreen extends StatefulWidget {
       await launchUrl(video.watchUrl, mode: LaunchMode.externalApplication);
       return;
     }
+    // One player at a time: they share a single WebView.
+    final current = _YouTubePlayerScreenState._current;
+    if (current != null && current.mounted) {
+      current._playNow(video);
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => YouTubePlayerScreen(queue: queue, startIndex: startIndex, fromWatchlist: fromWatchlist),
@@ -69,11 +76,13 @@ class YouTubePlayerScreen extends StatefulWidget {
 enum _SidePanel { none, comments, channel, queue }
 
 class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
+  static _YouTubePlayerScreenState? _current;
+
   static const _speeds = YouTubeSettings.speedChoices;
   static const _apiSpeeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
   static const _hideDelay = Duration(seconds: 3);
 
-  final _controller = WebviewController();
+  final _host = YouTubePlayerHost.instance;
   final _settings = YouTubeSettings.instance;
   final _focusNode = FocusNode(debugLabel: 'youtube_player');
   StreamSubscription<dynamic>? _messages;
@@ -150,6 +159,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   @override
   void initState() {
     super.initState();
+    _current = this;
     _volume = _settings.playerVolume;
     _rate = _settings.playbackSpeed;
     _fullscreen = FullscreenStateManager().isFullscreen;
@@ -159,13 +169,14 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   @override
   void dispose() {
+    if (_current == this) _current = null;
     _saveProgress();
     _sleepTimer?.cancel();
     if (DiscordRPCService.isAvailable) unawaited(DiscordRPCService.instance.stopPlayback());
     _hideTimer?.cancel();
     _toastTimer?.cancel();
     unawaited(_messages?.cancel());
-    unawaited(_controller.dispose());
+    unawaited(_host.release());
     _focusNode.dispose();
     if (_enteredFullscreen) unawaited(FullscreenStateManager().exitFullscreen());
     super.dispose();
@@ -173,23 +184,17 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   Future<void> _init() async {
     try {
-      final folder = await YouTubeWebView.ensureReady();
       if (await WebviewController.getWebViewVersion() == null) {
         if (mounted) setState(() => _initError = YtStrings.webviewMissing);
         return;
       }
-      await _controller.initialize();
-      await _controller.setBackgroundColor(Colors.black);
-      await _controller.setPopupWindowPolicy(WebviewPopupWindowPolicy.deny);
-      await _controller.addVirtualHostNameMapping(YouTubeWebView.host, folder, WebviewHostResourceAccessKind.allow);
-      await _controller.addScriptToExecuteOnDocumentCreated(YouTubeWebView.frameScript);
-      _messages = _controller.webMessage.listen(_onMessage);
-      await _controller.loadUrl(
+      _messages = _host.messages.listen(_onMessage);
+      await _host.open(
         YouTubeWebView.playerUrl(
           _video.id,
           start: _settings.resumePosition(_video.id) ?? 0,
           language: LocaleSettings.currentLocale.languageCode,
-        ).toString(),
+        ),
       );
       if (mounted) setState(() => _webReady = true);
       _scheduleHide();
@@ -302,7 +307,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   void _send(Map<String, Object?> command) {
     if (!_webReady) return;
-    unawaited(_controller.postWebMessage(jsonEncode(command)));
+    unawaited(_host.post(jsonEncode(command)));
   }
 
   void _onMessage(dynamic message) {
@@ -313,13 +318,20 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
         if (_rate != 1) _applyRate(_rate);
         setState(() => _errorCode = null);
       case 'time':
-        setState(() {
-          _position = (message['cur'] as num?)?.toDouble() ?? _position;
-          _duration = (message['dur'] as num?)?.toDouble() ?? _duration;
-          _buffered = (message['buf'] as num?)?.toDouble() ?? _buffered;
-          _volume = (message['vol'] as num?)?.round() ?? _volume;
-          _muted = message['muted'] as bool? ?? _muted;
-        });
+        final duration = (message['dur'] as num?)?.toDouble() ?? _duration;
+        final volume = (message['vol'] as num?)?.round() ?? _volume;
+        final muted = message['muted'] as bool? ?? _muted;
+        _position = (message['cur'] as num?)?.toDouble() ?? _position;
+        _buffered = (message['buf'] as num?)?.toDouble() ?? _buffered;
+        // While the controls are hidden nothing shows the time, so skip the
+        // rebuild unless something visible changed.
+        if (_controlsVisible || duration != _duration || volume != _volume || muted != _muted) {
+          setState(() {
+            _duration = duration;
+            _volume = volume;
+            _muted = muted;
+          });
+        }
         _checkSegments();
         if (_playing && DateTime.now().difference(_lastProgressSave) > const Duration(seconds: 5)) {
           _saveProgress();
@@ -1086,7 +1098,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             else if (!_webReady)
               Center(child: CircularProgressIndicator(color: accent))
             else ...[
-              Webview(_controller),
+              Webview(_host.controller),
               // Takes clicks and hovers away from the embed, so YouTube's own
               // hover UI never shows: click plays/pauses, double-click
               // toggles fullscreen.
@@ -2214,6 +2226,7 @@ class _ChannelStrip extends StatelessWidget {
                                 CachedNetworkImage(
                                   imageUrl: video.thumbnailUrl!,
                                   fit: BoxFit.cover,
+                          memCacheWidth: 480,
                                   errorWidget: (_, _, _) => const SizedBox.shrink(),
                                 ),
                               if (video.duration > Duration.zero)

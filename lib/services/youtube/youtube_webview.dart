@@ -163,6 +163,7 @@ class YouTubeWebView {
     }
   });
   var ccLoaded = false;
+  var lastReport = '';
   function captionInfo(p){
     var list = [], cur = null, trans = [];
     try { list = p.getOption('captions', 'tracklist', {includeAsr: true}) || []; } catch (err) {}
@@ -218,9 +219,14 @@ class YouTubeWebView {
       if (p.getAvailableQualityData) {
         data = p.getAvailableQualityData().map(function(d){ return {q: d.quality, label: d.qualityLabel || ''}; });
       }
-      window.parent.postMessage({plezyFrame: 'quality', levels: p.getAvailableQualityLevels(), current: p.getPlaybackQuality(),
+      var payload = {plezyFrame: 'quality', levels: p.getAvailableQualityLevels(), current: p.getPlaybackQuality(),
         currentLabel: p.getPlaybackQualityLabel ? p.getPlaybackQualityLabel() : '', data: data,
-        cc: captionInfo(p), audio: audioInfo(p), sb: storyboard(p)}, '*');
+        cc: captionInfo(p), audio: audioInfo(p), sb: storyboard(p)};
+      // Only report changes; most seconds nothing changes.
+      var text = JSON.stringify(payload);
+      if (text === lastReport) return;
+      lastReport = text;
+      window.parent.postMessage(payload, '*');
     } catch (err) {}
   }, 1000);
 })();''';

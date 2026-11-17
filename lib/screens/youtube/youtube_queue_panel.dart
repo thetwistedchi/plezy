@@ -232,6 +232,7 @@ class _VideoRow extends StatelessWidget {
                         CachedNetworkImage(
                           imageUrl: video.thumbnailUrl!,
                           fit: BoxFit.cover,
+                          memCacheWidth: 480,
                           errorWidget: (_, _, _) => const SizedBox.shrink(),
                         ),
                       if (video.duration > Duration.zero)
