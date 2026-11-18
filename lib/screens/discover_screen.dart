@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/youtube_continue_card.dart';
 import '../theme/page_backdrop.dart';
 import '../media/ids.dart';
 import 'dart:io' show Platform;
@@ -988,6 +989,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                       onRefresh: _discover.updateItem,
                       onRemoveFromContinueWatching: _discover.refreshContinueWatching,
                       isInContinueWatching: true,
+                      leadingCard: YouTubeContinueCard.builderIfAvailable(),
                       loadMoreItems: _discover.loadAllContinueWatching,
                       onVerticalNavigation: (isUp) => _handleVerticalNavigation(0, isUp),
                       onNavigateUp: _focusTopBoundary,

@@ -18,6 +18,7 @@ import 'youtube_channel_screen.dart';
 import 'youtube_channels_screen.dart';
 import 'youtube_guide_screen.dart';
 import 'youtube_player_screen.dart';
+import 'youtube_resume.dart';
 import 'youtube_settings_screen.dart';
 import 'youtube_strings.dart';
 import 'youtube_routes.dart';
@@ -81,29 +82,8 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     _channelCount = channels;
   }
 
-  /// The most recent unfinished video that is not playing right now: the
-  /// last opened one, else the latest saved position of a video still in
-  /// the feed (covers videos watched before the card existed).
-  ({YouTubeVideo video, ({double position, double duration}) progress})? _resumeVideo() {
-    bool unfinished(({double position, double duration})? p) =>
-        p != null && p.position >= 10 && p.position / p.duration < 0.95;
-
-    final json = _settings.lastVideoJson;
-    final last = json == null ? null : YouTubeVideo.fromJson(json);
-    final candidates = <YouTubeVideo>[?last];
-    final byId = {for (final video in _service.videos) video.id: video};
-    for (final id in _settings.recentProgressIds.take(50)) {
-      final video = byId[id];
-      if (video != null && video.id != last?.id) candidates.add(video);
-    }
-    final dismissed = _settings.dismissedResumes.toSet();
-    for (final video in candidates) {
-      if (dismissed.contains(video.id) || YouTubePlayerScreen.isPlaying(video.id)) continue;
-      final progress = _settings.progressOf(video.id);
-      if (unfinished(progress)) return (video: video, progress: progress!);
-    }
-    return null;
-  }
+  ({YouTubeVideo video, ({double position, double duration}) progress})? _resumeVideo() =>
+      youTubeResumeCandidate();
 
   void _openChannels() {
     Navigator.of(context).push(ytRoute<void>('channels', (_) => const YouTubeChannelsScreen()));

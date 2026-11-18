@@ -56,6 +56,11 @@ class HubSection extends StatefulWidget {
   final void Function(MediaItem source)? onRefresh;
   final VoidCallback? onRemoveFromContinueWatching;
   final bool isInContinueWatching;
+
+  /// An extra first card (e.g. a YouTube video to resume), given the size of
+  /// the row's cards. Shown in pointer mode; keyboard/TV navigation keeps the
+  /// row's own items only.
+  final Widget Function(BuildContext context, double width, double posterHeight)? leadingCard;
   final bool usesContinueWatchingAction;
   final bool showServerName;
   final Future<List<MediaItem>> Function()? loadMoreItems;
@@ -101,6 +106,7 @@ class HubSection extends StatefulWidget {
   final double focusScrollAlignment;
 
   const HubSection({
+    this.leadingCard,
     super.key,
     required this.hub,
     required this.focusMemory,
@@ -694,8 +700,15 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                           padding: widget.inset
                               ? EdgeInsets.symmetric(vertical: isTv ? 6 : 2)
                               : EdgeInsets.symmetric(horizontal: isTv ? leadingPadding : 8, vertical: isTv ? 6 : 2),
-                          itemCount: isKeyboardMode ? _totalItemCount : widget.hub.items.length,
-                          itemBuilder: (context, index) {
+                          itemCount: isKeyboardMode
+                              ? _totalItemCount
+                              : widget.hub.items.length + (widget.leadingCard != null ? 1 : 0),
+                          itemBuilder: (context, rawIndex) {
+                            final leading = isKeyboardMode ? null : widget.leadingCard;
+                            if (leading != null && rawIndex == 0) {
+                              return Padding(padding: cardPadding, child: leading(context, cardWidth, posterHeight));
+                            }
+                            final index = leading != null ? rawIndex - 1 : rawIndex;
                             final isItemFocused = hasFocus && index == _focusedIndex;
 
                             if (index == widget.hub.items.length) {
