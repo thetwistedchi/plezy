@@ -101,6 +101,9 @@ class YouTubePlayerHost {
       } catch (e) {
         appLogger.d('YouTube player reset: $e');
       }
+      // Let the old browser process exit, so the new WebView starts a
+      // fresh one (with working GPU and audio) instead of joining it.
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
     }
   });
 

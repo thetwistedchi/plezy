@@ -197,6 +197,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     _nudgeTimer?.cancel();
     _watchdog?.cancel();
     _posterTimer?.cancel();
+    _playCheck?.cancel();
     if (DiscordRPCService.isAvailable) unawaited(DiscordRPCService.instance.stopPlayback());
     _hideTimer?.cancel();
     _toastTimer?.cancel();
@@ -354,8 +355,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     _lastTick = now;
     if (_recovering || _initError != null) return;
     if (slept) {
-      // The PC slept or hibernated; WebView2's capture rarely survives that.
-      unawaited(_recover(fresh: true));
+      // The PC slept or hibernated; WebView2's capture and media pipeline
+      // rarely survive that. Give the devices a moment to come back first.
+      _recovering = true;
+      Timer(const Duration(seconds: 3), () {
+        _recovering = false;
+        if (mounted) unawaited(_recover(fresh: true));
+      });
     } else if (_webReady && now.difference(_lastMessage) > const Duration(seconds: 10)) {
       // Only restart when the page really stopped running, not when its
       // timers were merely slowed down.
@@ -376,10 +382,10 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   /// Reloads the player at the current position, keeping it paused if it
   /// was. [fresh] also replaces the WebView itself.
-  Future<void> _recover({required bool fresh}) async {
+  Future<void> _recover({required bool fresh, bool play = false}) async {
     _recovering = true;
     _recoveries++;
-    final wasPlaying = _playing;
+    final wasPlaying = play || _playing;
     final position = _position;
     appLogger.i('YouTube player not responding, restarting (fresh: $fresh)');
     setState(() => _webReady = false);
@@ -507,7 +513,26 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   // ---- Playback ----
 
-  void _togglePlay() => _send({'cmd': _playing ? 'pause' : 'play'});
+  Timer? _playCheck;
+  DateTime? _lastPlayRecovery;
+
+  void _togglePlay() {
+    if (_playing) {
+      _send({'cmd': 'pause'});
+      return;
+    }
+    _send({'cmd': 'play'});
+    // After sleep the page can look fine while its media pipeline is dead:
+    // play does nothing. Then start a fresh browser and resume playing.
+    _playCheck?.cancel();
+    _playCheck = Timer(const Duration(seconds: 5), () {
+      if (!mounted || _playing || _state == 0 || _recovering) return;
+      final last = _lastPlayRecovery;
+      if (last != null && DateTime.now().difference(last) < const Duration(minutes: 1)) return;
+      _lastPlayRecovery = DateTime.now();
+      unawaited(_recover(fresh: true, play: true));
+    });
+  }
 
   void _seek(double seconds) {
     final target = _duration > 0 ? seconds.clamp(0, _duration).toDouble() : math.max(0.0, seconds);
