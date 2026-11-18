@@ -338,7 +338,20 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       // The PC slept or hibernated; WebView2's capture rarely survives that.
       unawaited(_recover(fresh: true));
     } else if (_webReady && now.difference(_lastMessage) > const Duration(seconds: 10)) {
-      unawaited(_recover(fresh: _recoveries > 0));
+      // Only restart when the page really stopped running, not when its
+      // timers were merely slowed down.
+      _recovering = true;
+      unawaited(
+        _host.ping().then((alive) {
+          _recovering = false;
+          if (!mounted) return;
+          if (alive) {
+            _lastMessage = DateTime.now();
+          } else {
+            unawaited(_recover(fresh: _recoveries > 0));
+          }
+        }),
+      );
     }
   }
 

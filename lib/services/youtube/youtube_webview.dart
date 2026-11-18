@@ -46,7 +46,17 @@ class YouTubeWebView {
     try {
       await WebviewController.initializeEnvironment(
         userDataPath: profile.path,
-        additionalArguments: '--autoplay-policy=no-user-gesture-required --disk-cache-size=${limitMb * 1024 * 1024}',
+        // Chromium pauses or throttles pages it thinks are hidden or covered.
+        // Its occlusion check gets confused with several monitors, which
+        // showed as short black stretches while another app had focus.
+        additionalArguments: [
+          '--autoplay-policy=no-user-gesture-required',
+          '--disk-cache-size=${limitMb * 1024 * 1024}',
+          '--disable-background-timer-throttling',
+          '--disable-renderer-backgrounding',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-features=CalculateNativeWinOcclusion',
+        ].join(' '),
       );
     } on PlatformException catch (e) {
       // Already initialized in this process.

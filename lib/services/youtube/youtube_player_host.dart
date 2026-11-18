@@ -69,6 +69,17 @@ class YouTubePlayerHost {
     await controller.loadUrl(url.toString());
   });
 
+  /// Whether the page still runs scripts, within [timeout].
+  Future<bool> ping({Duration timeout = const Duration(seconds: 3)}) async {
+    if (_ready == null || _suspended) return false;
+    try {
+      await controller.executeScript('1').timeout(timeout);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> post(String json) async {
     if (_ready == null || _suspended) return;
     await controller.postWebMessage(json);
