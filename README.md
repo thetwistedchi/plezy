@@ -39,7 +39,7 @@ Current version: **0.6.0**.
 - Clicking the video plays or pauses it (double-click still toggles fullscreen). Can be turned off under Settings › Playback.
 - The video always keeps its aspect ratio: the stretching fill mode is gone (the fit button switches between fit and crop-to-fill).
 - Optional **Fill the screen when letterboxed** (Settings › Playback): detects black bars baked into a video and crops them, so wide films fill ultrawide screens.
-- **HDR brightness** slider (Settings › Playback, Windows): brightens the midtones of HDR videos that look too dark; changes apply right away. HDR videos also use a brighter tone curve by default.
+- **HDR brightness boost** slider (Settings › Playback, Windows): an extra lift for the midtones of HDR videos that look too dark. Off keeps the picture as mastered, HDR stays on at every setting, and changes apply right away. HDR videos also use a brighter tone curve by default.
 
 #### Retrowave look
 - Every colour comes from one palette taken from a retrowave night landscape: night purple, violet, magenta and cyan.

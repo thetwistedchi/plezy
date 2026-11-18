@@ -52,10 +52,11 @@ class YtStrings {
   // Player
   static String get back => _t('Back', 'Zurück');
   static String get miniPlayer => _t('Mini player', 'Mini-Player');
-  static String get hdrBrightness => _t('HDR brightness', 'HDR-Helligkeit');
+  static String get hdrBrightness => _t('HDR brightness boost', 'HDR-Helligkeitsboost');
+  static String get hdrBrightnessOff => _t('Off · as mastered', 'Aus · wie gemastert');
   static String get hdrBrightnessDescription => _t(
-    'Brightens the midtones of HDR videos that look too dark. 0 % shows them as mastered. Changes apply right away.',
-    'Hellt die Mitteltöne zu dunkler HDR-Videos auf. 0 % zeigt sie wie gemastert. Änderungen wirken sofort.',
+    'An extra lift for HDR videos that look too dark. Off keeps the full HDR picture exactly as mastered; higher values brighten the midtones on top of it. HDR stays on at every setting. Changes apply right away.',
+    'Zusätzliche Aufhellung für HDR-Videos, die zu dunkel wirken. Aus zeigt das volle HDR-Bild genau wie gemastert; höhere Werte hellen die Mitteltöne zusätzlich auf. HDR bleibt bei jeder Einstellung aktiv. Änderungen wirken sofort.',
   );
   static String get cropLetterbox => _t('Fill the screen when letterboxed', 'Bildschirm bei Letterbox füllen');
   static String get cropLetterboxDescription => _t(

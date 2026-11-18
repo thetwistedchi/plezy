@@ -775,7 +775,7 @@ class _HdrBrightnessTile extends StatelessWidget {
       valueListenable: SettingsService.instance.listenable(pref),
       builder: (context, value, _) => ListTile(
         leading: const AppIcon(Symbols.hdr_on_rounded, fill: 1),
-        title: Text('${YtStrings.hdrBrightness} · $value %'),
+        title: Text('${YtStrings.hdrBrightness} · ${value == 0 ? YtStrings.hdrBrightnessOff : '+$value %'}'),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -784,7 +784,7 @@ class _HdrBrightnessTile extends StatelessWidget {
               value: value.clamp(0, 100).toDouble(),
               max: 100,
               divisions: 20,
-              label: '$value %',
+              label: value == 0 ? YtStrings.hdrBrightnessOff : '+$value %',
               onChanged: (v) => unawaited(SettingsService.instance.write(pref, v.round())),
             ),
           ],
