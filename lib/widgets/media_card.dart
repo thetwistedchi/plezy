@@ -1502,7 +1502,11 @@ class _RatingMedianOverlay extends StatelessWidget {
         final cached = cache.medianFor(item);
         if (cached == null && !isOffline) {
           final client = context.tryGetMediaClientForServer(serverIdOrNull(item.serverId));
-          if (client != null) cache.request(item, client, listingSources: listing?.sources ?? 0);
+          if (client != null) {
+            cache.request(item, client, listingSources: listing?.sources ?? 0);
+          } else {
+            cache.noteNoClient(item);
+          }
         }
         final median = cached ?? listing;
         if (median == null) return const SizedBox.shrink();

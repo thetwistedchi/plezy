@@ -88,10 +88,23 @@ class RatingMedianCache extends ChangeNotifier {
     _put(key, _Entry(median.score, median.sources, true, DateTime.now()));
   }
 
+  final Set<String> _noClientLogged = {};
+  final Set<String> _requestLogged = {};
+
+  /// Diagnostics: a poster had no server client to ask (logged once each).
+  void noteNoClient(MediaItem item) {
+    if (_noClientLogged.length < 200 && _noClientLogged.add(item.globalKey)) {
+      appLogger.d('Rating median: no server for "${item.title}" (serverId: ${item.serverId})');
+    }
+  }
+
   /// Asks [client] for [item]'s scores when no median is cached yet and the
   /// listing's own scores are too few ([listingSources]).
   void request(MediaItem item, MediaServerClient client, {required int listingSources}) {
     if (listingSources >= 2) return;
+    if (_requestLogged.length < 200 && _requestLogged.add(item.globalKey)) {
+      appLogger.d('Rating median: queued "${item.title}" (${item.kind.name}, listing sources: $listingSources)');
+    }
     final key = item.globalKey;
     if (_pending.contains(key)) return;
     unawaited(
