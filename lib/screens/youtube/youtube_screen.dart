@@ -80,6 +80,19 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     _channelCount = channels;
   }
 
+  /// The last opened video while it is unfinished and not playing right now.
+  ({YouTubeVideo video, ({double position, double duration}) progress})? _resumeVideo() {
+    final json = _settings.lastVideoJson;
+    if (json == null) return null;
+    final video = YouTubeVideo.fromJson(json);
+    if (video == null || YouTubePlayerScreen.isPlaying(video.id)) return null;
+    final progress = _settings.progressOf(video.id);
+    if (progress == null) return null;
+    final fraction = progress.position / progress.duration;
+    if (progress.position < 10 || fraction >= 0.95) return null;
+    return (video: video, progress: progress);
+  }
+
   void _openChannels() {
     Navigator.of(context).push(ytRoute<void>('channels', (_) => const YouTubeChannelsScreen()));
   }
@@ -239,6 +252,11 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               ),
             ),
           ),
+          if (_resumeVideo() case final resume?)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(32, 20, 32, 0),
+              sliver: SliverToBoxAdapter(child: _ResumeCard(video: resume.video, progress: resume.progress)),
+            ),
           if (_service.isLoading)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
@@ -906,6 +924,116 @@ class _WatchlistRow extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One click back into the last unfinished video, where it stopped.
+class _ResumeCard extends StatelessWidget {
+  const _ResumeCard({required this.video, required this.progress});
+
+  final YouTubeVideo video;
+  final ({double position, double duration}) progress;
+
+  static String _clock(double seconds) {
+    final d = Duration(seconds: seconds.round());
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60).toString().padLeft(h > 0 ? 2 : 1, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mono = tokens(context);
+    final style = PlayerStyle.of(context);
+    final fraction = (progress.position / progress.duration).clamp(0.0, 1.0);
+    final title = YouTubeSettings.instance.deArrowTitles ? DeArrow.instance.titleFor(video) : video.title;
+    void resume() => unawaited(YouTubePlayerScreen.open(context, [video]));
+
+    return Material(
+      color: mono.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(mono.radiusMd),
+        side: BorderSide(color: playerActiveColor(context).withValues(alpha: 0.6)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: resume,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  width: 160,
+                  height: 90,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (video.thumbnailUrl != null)
+                        CachedNetworkImage(imageUrl: video.thumbnailUrl!, fit: BoxFit.cover)
+                      else
+                        ColoredBox(color: mono.outline),
+                      Align(
+                        alignment: Alignment.bottomLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: fraction,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: style.progressGradient ?? [playerActiveColor(context), playerActiveColor(context)],
+                              ),
+                            ),
+                            child: const SizedBox(height: 4, width: double.infinity),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(YtStrings.resumeWatching, style: theme.textTheme.labelMedium?.copyWith(color: mono.textMuted)),
+                    const SizedBox(height: 4),
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${video.channelTitle} · ${_clock(progress.position)} / ${_clock(progress.duration)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: resume,
+                icon: const AppIcon(Symbols.play_arrow_rounded, fill: 1, size: 20),
+                label: Text(YtStrings.resumeAt(_clock(progress.position))),
+              ),
+              IconButton(
+                tooltip: YtStrings.dismiss,
+                onPressed: () => unawaited(YouTubeSettings.instance.clearLastVideo()),
+                icon: const AppIcon(Symbols.close_rounded, size: 20),
+              ),
+            ],
           ),
         ),
       ),

@@ -52,6 +52,8 @@ class YtStrings {
   // Player
   static String get back => _t('Back', 'Zurück');
   static String get miniPlayer => _t('Mini player', 'Mini-Player');
+  static String get resumeWatching => _t('Continue where you left off', 'Weiterschauen, wo du aufgehört hast');
+  static String resumeAt(String time) => _t('Resume at $time', 'Bei $time fortsetzen');
   static String get fitHeight => _t('Fit height (nothing cut at top or bottom)', 'Höhe füllen (oben und unten nichts abgeschnitten)');
   static String get hdrBrightness => _t('HDR brightness boost', 'HDR-Helligkeitsboost');
   static String get hdrBrightnessOff => _t('Off · as mastered', 'Aus · wie gemastert');

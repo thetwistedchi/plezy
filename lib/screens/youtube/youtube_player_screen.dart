@@ -48,6 +48,12 @@ class YouTubePlayerScreen extends StatefulWidget {
   final bool fromWatchlist;
 
   /// Opens the player, or the browser where the in-app player isn't available.
+  /// Whether [videoId] is the video in the open player (full or minimized).
+  static bool isPlaying(String videoId) {
+    final current = _YouTubePlayerScreenState._current;
+    return current != null && current.mounted && current._video.id == videoId;
+  }
+
   static Future<void> open(
     BuildContext context,
     List<YouTubeVideo> queue, {
@@ -57,6 +63,7 @@ class YouTubePlayerScreen extends StatefulWidget {
     if (queue.isEmpty) return;
     final video = queue[startIndex];
     unawaited(YouTubeSettings.instance.markOpened(video.id, video.channelId));
+    unawaited(YouTubeSettings.instance.setLastVideo(video.toJson()));
     if (!YouTubeWebView.isSupported) {
       await launchUrl(video.watchUrl, mode: LaunchMode.externalApplication);
       return;
@@ -923,6 +930,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _qualityApplied = false;
     });
     unawaited(YouTubeSettings.instance.markOpened(_video.id, _video.channelId));
+    unawaited(YouTubeSettings.instance.setLastVideo(_video.toJson()));
     _showPoster();
     _send({'cmd': 'load', 'id': _video.id, 't': _settings.resumePosition(_video.id) ?? 0});
     _expectPlayback(const Duration(seconds: 8));

@@ -53,6 +53,7 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kVolume = 'youtube_player_volume';
   static const _kCacheLimitMb = 'youtube_player_cache_mb';
   static const _kProgress = 'youtube_progress';
+  static const _kLastVideo = 'youtube_last_video';
   static const _kQuality = 'youtube_preferred_quality';
   static const _kSpeed = 'youtube_playback_speed';
   static const _kCcEnabled = 'youtube_captions_enabled';
@@ -146,6 +147,12 @@ class YouTubeSettings extends ChangeNotifier {
 
     _progress = await _readProgress(prefs);
 
+    try {
+      final raw = prefs.getString(_kLastVideo);
+      _lastVideo = raw == null ? null : jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      _lastVideo = null;
+    }
     _hiddenVideos = (prefs.getStringList(_kHiddenVideos) ?? const <String>[]).toSet();
     _mutedChannels = _readMap(prefs.getString(_kMutedChannels));
     _favoriteChannels = _readMap(prefs.getString(_kFavoriteChannels));
@@ -382,6 +389,34 @@ class YouTubeSettings extends ChangeNotifier {
     if (position < 10) return null;
     if (duration > 0 && position > duration - 30) return null;
     return position;
+  }
+
+  Map<String, dynamic>? _lastVideo;
+
+  /// The last video opened (as `YouTubeVideo.toJson`), for the Resume card.
+  Map<String, dynamic>? get lastVideoJson => _lastVideo;
+
+  Future<void> setLastVideo(Map<String, dynamic> json) async {
+    await load();
+    if (_lastVideo?['id'] == json['id']) return;
+    _lastVideo = json;
+    await _prefs!.setString(_kLastVideo, jsonEncode(json));
+    notifyListeners();
+  }
+
+  /// Hides the Resume card until another video is opened.
+  Future<void> clearLastVideo() async {
+    await load();
+    _lastVideo = null;
+    await _prefs!.remove(_kLastVideo);
+    notifyListeners();
+  }
+
+  /// Saved position and length of [videoId] in seconds.
+  ({double position, double duration})? progressOf(String videoId) {
+    final p = _progress[videoId];
+    if (p == null || p[1] <= 0) return null;
+    return (position: p[0], duration: p[1]);
   }
 
   /// Fraction of [videoId] watched, for the progress bar on its thumbnail.

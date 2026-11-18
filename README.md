@@ -39,6 +39,9 @@ Current version: **0.7.0**.
 - A second check a few minutes into a film can only shrink the crop, correcting a too large first guess.
 - The snapshots used for detection are taken at low quality, which avoids hitches on 4K HDR.
 
+#### YouTube
+- A **Continue where you left off** card at the top of the subscriptions page resumes the last unfinished video with one click, at the position it stopped. It disappears once the video is finished or dismissed.
+
 #### Mini player
 - Keyboard media keys control a minimized YouTube video.
 - When a video ends while minimized and nothing plays next, the mini player closes on its own.
