@@ -21,7 +21,7 @@ class UnwatchedCountBadge extends StatelessWidget {
       return RetroPill(
         label: count > 999 ? '999+' : '$count',
         tone: RetroPillTone.magenta,
-        height: size * 0.8,
+        height: (size * 0.8).roundToDouble(),
         fontSize: fontSize * 0.9,
       );
     }
@@ -51,10 +51,6 @@ class UnwatchedCountBadge extends StatelessWidget {
             leadingDistribution: TextLeadingDistribution.even,
           ),
           textAlign: TextAlign.center,
-          textHeightBehavior: const TextHeightBehavior(
-            applyHeightToFirstAscent: false,
-            applyHeightToLastDescent: false,
-          ),
         ),
       ),
     );

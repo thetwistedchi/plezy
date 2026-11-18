@@ -40,6 +40,9 @@ class RetroPill extends StatelessWidget {
     return Container(
       height: height,
       constraints: BoxConstraints(minWidth: height),
+      // Without this the label sat in the top-left corner whenever the pill
+      // was larger than its content (one digit, fixed height).
+      alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: height * 0.38),
       decoration: BoxDecoration(
         color: background,
@@ -59,7 +62,6 @@ class RetroPill extends StatelessWidget {
             maxLines: 1,
             softWrap: false,
             textAlign: TextAlign.center,
-            textHeightBehavior: const TextHeightBehavior(applyHeightToFirstAscent: false, applyHeightToLastDescent: false),
             style: TextStyle(
               color: tone.text,
               fontSize: fontSize,

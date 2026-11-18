@@ -1573,6 +1573,7 @@ class _RatingMedianBadge extends StatelessWidget {
     final mono = tokens(context);
     return Container(
       height: 18,
+      alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: mono.text,
@@ -1586,7 +1587,13 @@ class _RatingMedianBadge extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             '$score',
-            style: TextStyle(color: mono.bg, fontSize: 10.5, fontWeight: FontWeight.w700, height: 1),
+            style: TextStyle(
+              color: mono.bg,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              height: 1,
+              leadingDistribution: TextLeadingDistribution.even,
+            ),
           ),
         ],
       ),
