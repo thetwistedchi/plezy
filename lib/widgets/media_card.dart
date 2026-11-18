@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../theme/retrowave_colors.dart';
+import '../utils/rating_median.dart';
 import 'dart:ui';
 import '../media/ids.dart';
 
@@ -645,9 +647,13 @@ class MediaCardState extends State<MediaCard> with ContextMenuTapMixin<MediaCard
       knownHeight: knownHeight,
       artworkDim: widget.artworkDim,
     );
+    final median = badgeLabels.isEmpty && item is MediaItem && (item.isMovie || item.isShow)
+        ? ratingMedian(item.ratings ?? const [])
+        : null;
     final overlays = <Widget>[
       if (item is MediaItem && _showsWatchedIndicator(item)) WatchedIndicator(item: item),
       if (badgeLabels.isNotEmpty) _CatalogBadges(labels: badgeLabels),
+      if (median != null) _RatingMedianBadge(score: median.score),
     ];
     return ExcludeSemantics(
       child: _CatalogFocusBorder(
@@ -1470,6 +1476,36 @@ class _CatalogBadges extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Top-left median of the scores Plex sent with the listing (no extra
+/// requests; the Tomatometer is left out).
+class _RatingMedianBadge extends StatelessWidget {
+  const _RatingMedianBadge({required this.score});
+
+  final int score;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 6,
+      left: 6,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: RetroColors.night90,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: RetroColors.violet.withValues(alpha: 0.7)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+          child: Text(
+            '$score',
+            style: const TextStyle(color: RetroColors.moon, fontSize: 11, fontWeight: FontWeight.w700, height: 1),
+          ),
+        ),
       ),
     );
   }

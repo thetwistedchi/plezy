@@ -6,6 +6,7 @@ import '../i18n/strings.g.dart';
 import '../services/ratings/title_links_service.dart';
 import '../theme/mono_tokens.dart';
 import '../utils/app_logger.dart';
+import '../utils/rating_median.dart';
 import '../utils/rating_utils.dart';
 
 /// The details page's "Ratings & links" row: one compact card per site. The
@@ -24,7 +25,62 @@ class RatingsLinksRow extends StatelessWidget {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: [for (final link in links) _RatingLinkCard(link: link, launcher: launcher)],
+      children: [
+        for (final link in links) _RatingLinkCard(link: link, launcher: launcher),
+        if (ratingMedian([for (final link in links) ?link.rating]) case final median?)
+          _MedianCard(score: median.score, sources: median.sources),
+      ],
+    );
+  }
+}
+
+/// The median of the row's scores on 0-100, after the site cards. The
+/// Tomatometer is left out (see [ratingMedian]).
+class _MedianCard extends StatelessWidget {
+  const _MedianCard({required this.score, required this.sources});
+
+  final int score;
+  final int sources;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mono = tokens(context);
+    const label = 'Median';
+    final sourcesLabel = LocaleSettings.currentLocale == AppLocale.de
+        ? '$sources ${sources == 1 ? 'Quelle' : 'Quellen'}'
+        : '$sources ${sources == 1 ? 'source' : 'sources'}';
+    return Tooltip(
+      message: LocaleSettings.currentLocale == AppLocale.de
+          ? 'Median aller Wertungen auf 0–100, ohne Tomatometer'
+          : 'Median of all scores on 0–100, without the Tomatometer',
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 132),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: mono.surface,
+          borderRadius: BorderRadius.circular(mono.radiusMd),
+          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: theme.textTheme.labelMedium?.copyWith(color: mono.textMuted)),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text('$score', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: mono.text)),
+                const SizedBox(width: 6),
+                Text(sourcesLabel, style: theme.textTheme.labelSmall?.copyWith(color: mono.textMuted)),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
