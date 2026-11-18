@@ -1018,6 +1018,9 @@ class SettingsService extends BaseSharedPreferencesService {
   /// screen, keeping the aspect ratio (desktop mpv).
   static const cropLetterbox = BoolPref('crop_letterbox');
 
+  /// Windows: lifts the midtones of HDR videos, 0 (as mastered) to 100.
+  static const hdrBrightness = IntPref('hdr_brightness', defaultValue: 0);
+
   static const playbackBufferTier = EnumPref<PlaybackBufferTier>(
     'playback_buffer_tier',
     values: PlaybackBufferTier.values,
@@ -1634,6 +1637,7 @@ class SettingsService extends BaseSharedPreferencesService {
     exitFullscreenOnPlayerClose,
     backMinimizesPlayer,
     cropLetterbox,
+    hdrBrightness,
   ];
 
   /// Group three: reset but *not* exported — device-local paths, endpoints and

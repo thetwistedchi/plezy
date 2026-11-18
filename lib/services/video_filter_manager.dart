@@ -10,6 +10,7 @@ import '../mpv/mpv.dart';
 
 import '../utils/app_logger.dart';
 import 'ambient_lighting_service.dart';
+import 'settings_service.dart';
 
 /// Manages video filtering, aspect ratio modes, and subtitle positioning for video playback.
 ///
@@ -108,6 +109,12 @@ class VideoFilterManager {
       leading: true,
       trailing: true,
     );
+    if (Platform.isWindows) {
+      _hdrBrightness = SettingsService.instanceOrNull?.listenable(SettingsService.hdrBrightness);
+      _hdrBrightness?.addListener(updateVideoFilter);
+      _hdrFileSub = player.streams.fileLoaded.listen((_) => _isHdr = false);
+      _hdrRestartSub = player.streams.playbackRestart.listen((_) => unawaited(_checkHdr()));
+    }
     if (_cropLetterbox) {
       _fileLoadedSub = player.streams.fileLoaded.listen((_) => _resetLetterbox());
       _positionSub = player.streams.position.listen(_maybeDetectLetterbox);
@@ -117,6 +124,33 @@ class VideoFilterManager {
   /// Retrowave keeps the aspect ratio: the stretching fill mode (2) is gone,
   /// and a stored 2 reads as contain.
   static int _keepAspect(int mode) => mode == 1 ? 1 : 0;
+
+  // ---- HDR brightness ----
+  //
+  // Windows: HDR (PQ/HLG) video gets mpv's gamma lifted by the HDR
+  // brightness setting, which brightens the midtones that PQ masters keep dim
+  // for dark rooms. SDR video is left alone.
+
+  ValueNotifier<int>? _hdrBrightness;
+  StreamSubscription<void>? _hdrFileSub;
+  StreamSubscription<void>? _hdrRestartSub;
+  bool _isHdr = false;
+
+  Future<void> _checkHdr() async {
+    try {
+      final gamma = await player.getProperty('video-params/gamma');
+      final hdr = gamma == 'pq' || gamma == 'hlg';
+      if (hdr == _isHdr) return;
+      _isHdr = hdr;
+      updateVideoFilter();
+    } catch (_) {}
+  }
+
+  /// mpv `gamma` for the current video: 0 to +40 for HDR, 0 otherwise.
+  String get _hdrGamma {
+    final level = (_hdrBrightness?.value ?? 0).clamp(0, 100);
+    return _isHdr && level > 0 ? (level * 0.4).round().toString() : '0';
+  }
 
   // ---- Letterbox crop ----
   //
@@ -362,6 +396,7 @@ class VideoFilterManager {
       await _applyProperty('sub-ass-force-margins', coverMode || zoomScale > 1.0001 ? 'yes' : 'no');
       await _applyProperty('panscan', coverMode ? '1.0' : '0');
       await _applyProperty('video-zoom', nativeVideoZoom ? '0.0' : videoZoomPropertyForScale(zoomScale).toString());
+      if (_hdrBrightness != null) await _applyProperty('gamma', _hdrGamma);
       // Last: older libmpv builds have no video-crop and refuse it.
       if (_cropLetterbox) {
         await _applyProperty('video-crop', boxFitMode == 0 && zoomScale <= 1.0001 ? _letterboxCrop : '');
@@ -387,6 +422,9 @@ class VideoFilterManager {
   void dispose() {
     _debouncedUpdateVideoFilter.cancel();
     unawaited(_fileLoadedSub?.cancel());
+    _hdrBrightness?.removeListener(updateVideoFilter);
+    unawaited(_hdrFileSub?.cancel());
+    unawaited(_hdrRestartSub?.cancel());
     unawaited(_positionSub?.cancel());
   }
 }

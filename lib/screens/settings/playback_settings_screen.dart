@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import '../youtube/youtube_strings.dart';
@@ -15,6 +16,7 @@ import '../../services/settings_service.dart';
 import '../../services/video_decode_capabilities.dart';
 import '../../utils/codec_utils.dart';
 import '../../utils/platform_detector.dart';
+import '../../widgets/app_icon.dart';
 import '../../widgets/setting_tile.dart';
 import '../../widgets/settings_builder.dart';
 import '../../widgets/settings_page.dart';
@@ -285,6 +287,7 @@ class PlaybackSettingsScreen extends StatelessWidget {
           title: t.settings.clickVideoTogglesPlayback,
           subtitle: t.settings.clickVideoTogglesPlaybackDescription,
         ),
+      if (Platform.isWindows) const _HdrBrightnessTile(),
       if (Platform.isWindows || Platform.isLinux)
         SettingSwitchTile(
           pref: SettingsService.cropLetterbox,
@@ -759,4 +762,34 @@ class PlaybackSettingsScreen extends StatelessWidget {
     subtitle: t.mpvConfig.description,
     destinationBuilder: (_) => const MpvConfigScreen(),
   );
+}
+
+/// Slider row for [SettingsService.hdrBrightness].
+class _HdrBrightnessTile extends StatelessWidget {
+  const _HdrBrightnessTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final pref = SettingsService.hdrBrightness;
+    return ValueListenableBuilder<int>(
+      valueListenable: SettingsService.instance.listenable(pref),
+      builder: (context, value, _) => ListTile(
+        leading: const AppIcon(Symbols.hdr_on_rounded, fill: 1),
+        title: Text('${YtStrings.hdrBrightness} · $value %'),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(YtStrings.hdrBrightnessDescription),
+            Slider(
+              value: value.clamp(0, 100).toDouble(),
+              max: 100,
+              divisions: 20,
+              label: '$value %',
+              onChanged: (v) => unawaited(SettingsService.instance.write(pref, v.round())),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

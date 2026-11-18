@@ -2166,6 +2166,24 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
         await currentPlayer.setProperty('screenshot-directory', '~/Pictures');
       }
 
+      // Retrowave HDR defaults (Windows): a brighter HDR-to-display tone curve,
+      // used whenever the source peak exceeds what the display reports. Before
+      // custom mpv.conf, so lines there still win. Failures are harmless: an
+      // older libmpv may not know every option.
+      if (Platform.isWindows) {
+        for (final (name, value) in const [
+          ('tone-mapping', 'bt.2446a'),
+          ('hdr-peak-percentile', '99.5'),
+          ('hdr-contrast-recovery', '0.3'),
+        ]) {
+          try {
+            await currentPlayer.setProperty(name, value);
+          } catch (e) {
+            appLogger.d('VideoPlayerScreen: $name not applied', error: e);
+          }
+        }
+      }
+
       // Before custom mpv.conf, so an `audio-device` line there still wins.
       if (!(Platform.isAndroid && useExoPlayer)) {
         await applyPreferredAudioDevice(currentPlayer, settingsService.read(SettingsService.audioOutputDevice));
