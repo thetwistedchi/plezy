@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/page_backdrop.dart';
 import '../theme/retrowave_colors.dart';
+import 'retro_pill.dart';
 import '../theme/mono_tokens.dart';
 
 /// Unwatched-episode count chip shown in the top-right corner of poster
@@ -17,18 +17,22 @@ class UnwatchedCountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final retro = Theme.of(context).extension<PageBackdropStyle>() != null;
+    if (RetroColors.isActive(context)) {
+      return RetroPill(
+        label: count > 999 ? '999+' : '$count',
+        tone: RetroPillTone.magenta,
+        height: size * 0.8,
+        fontSize: fontSize * 0.9,
+      );
+    }
     return Container(
       height: size,
       constraints: BoxConstraints(minWidth: size),
       padding: EdgeInsets.symmetric(horizontal: size * 0.2),
       decoration: BoxDecoration(
-        // Retrowave: a muted magenta-to-blue fade.
-        color: retro ? null : tokens(context).text,
-        gradient: retro ? const LinearGradient(colors: [RetroColors.magentaMuted, RetroColors.blueMuted]) : null,
-        border: retro ? Border.all(color: RetroColors.magenta.withValues(alpha: 0.35), width: 0.8) : null,
+        color: tokens(context).text,
         borderRadius: BorderRadius.circular(size / 2),
-        boxShadow: retro ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
       ),
       // Center with widthFactor shrink-wraps the pill to the label (Container
       // alignment would expand into the Stack's loose width instead).
@@ -39,7 +43,7 @@ class UnwatchedCountBadge extends StatelessWidget {
           maxLines: 1,
           softWrap: false,
           style: TextStyle(
-            color: retro ? RetroColors.moon.withValues(alpha: 0.92) : tokens(context).bg,
+            color: tokens(context).bg,
             fontSize: fontSize,
             fontWeight: .bold,
             // Tight line box, so the digits sit in the middle of the pill.

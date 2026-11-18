@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import '../youtube/youtube_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
@@ -169,6 +170,13 @@ class AppearanceSettingsScreen extends StatelessWidget {
               title: t.settings.showUnwatchedCount,
               subtitle: t.settings.showUnwatchedCountDescription,
             ),
+            if (!PlatformDetector.isTV())
+              SettingSwitchTile(
+                pref: SettingsService.posterInfoPills,
+                icon: Symbols.hd_rounded,
+                title: YtStrings.posterInfoPills,
+                subtitle: YtStrings.posterInfoPillsDescription,
+              ),
           ],
         ),
 

@@ -6,8 +6,7 @@ import '../media/media_item_types.dart';
 import '../media/media_kind.dart';
 import '../services/settings_service.dart';
 import '../theme/mono_tokens.dart';
-import '../theme/page_backdrop.dart';
-import '../theme/retrowave_colors.dart';
+import 'retro_pill.dart';
 import 'app_icon.dart';
 import 'media_progress_bar.dart';
 import 'unwatched_count_badge.dart';
@@ -80,7 +79,7 @@ class WatchedIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool showCount = showUnwatchedCount ?? SettingsService.instance.read(SettingsService.showUnwatchedCount);
     final bool showWatched = SettingsService.instance.read(SettingsService.showWatchedIndicators);
-    final retro = Theme.of(context).extension<PageBackdropStyle>() != null;
+    final retro = isRetrowave(context);
     final hasActiveProgress = item.hasActiveProgress;
     final unwatched = item.unwatchedCount;
     final barRadius = BorderRadius.only(
@@ -98,16 +97,15 @@ class WatchedIndicator extends StatelessWidget {
             child: Container(
               padding: EdgeInsets.all(size.checkPadding),
               decoration: BoxDecoration(
-                color: retro ? null : tokens(context).text,
-                gradient: retro ? const LinearGradient(colors: [RetroColors.magentaMuted, RetroColors.blueMuted]) : null,
-                border: retro ? Border.all(color: RetroColors.magenta.withValues(alpha: 0.35), width: 0.8) : null,
+                color: retro ? RetroPill.background : tokens(context).text,
+                border: retro ? Border.all(color: RetroPillTone.magenta.rim) : null,
                 shape: BoxShape.circle,
                 boxShadow: retro ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
               ),
               child: AppIcon(
                 Symbols.check_rounded,
                 fill: 1,
-                color: retro ? RetroColors.moon.withValues(alpha: 0.92) : tokens(context).bg,
+                color: retro ? RetroPillTone.magenta.text : tokens(context).bg,
                 size: size.checkIconSize,
               ),
             ),

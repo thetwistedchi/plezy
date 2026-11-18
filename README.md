@@ -22,7 +22,9 @@ Current version: **0.7.0**.
 - Movie and series posters show the median of their scores as a small star badge in the top left corner, on a 0–100 scale.
 - Library lists carry at most two scores per title, often only the Tomatometer. Posters therefore use the full median once a title's details page was opened, and otherwise fetch the title's scores from its own Plex server in the background, a few at a time. Medians are kept on disk, so each title is looked up only once every two weeks.
 - When the Plex server has too few scores for a title, posters use MDBList too (with an MDBList key).
-- Rating, unwatched-episode count and watched check mark use muted theme colours.
+- Poster badges (rating, unwatched episodes, watched) are small dark purple pills with a muted neon rim and tinted text.
+- Under each poster a row of pills shows the resolution, HDR and the audio languages (e.g. `4K` `HDR` `DE · EN`; more than two languages as `+2`). Languages come from the title's own Plex server, looked up once per title and kept for a month; series use their first episode. Can be turned off under Settings › Appearance.
+- Row headings with their icons and arrows, and card titles, use a periwinkle blue that no other text uses.
 - The details page shows a **Median** card after Ratings & links, with the number of sources it is based on.
 - Every score is converted to 0–100 first (IMDb 7.8/10 → 78, Letterboxd 3.9/5 → 78). The Tomatometer is left out: it is the share of positive reviews, not an average score.
 

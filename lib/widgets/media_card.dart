@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'retro_pill.dart';
+import '../services/poster_info_cache.dart';
 import '../services/ratings/rating_median_cache.dart';
 import '../theme/retrowave_colors.dart';
 import '../utils/rating_median.dart';
@@ -235,6 +237,11 @@ class MediaCard extends StatefulWidget {
   /// caller (see `LibrariesProvider.libraryLabelFor`). Null renders nothing.
   final String? libraryName;
   final EpisodePosterMode? episodePosterModeOverride;
+
+  /// Fixed-height cards (hub rows) opt in to the quality/language pill row;
+  /// their host reserves [infoPillsBand] for it. Grid cells get it whenever
+  /// [showsInfoPills] holds, through [gridCaptionBandHeight].
+  final bool infoPills;
   final bool fullBleedImage;
 
   /// The card sits inside its own show, as in the TV detail rail. The show
@@ -254,6 +261,7 @@ class MediaCard extends StatefulWidget {
   const MediaCard({
     super.key,
     required this.item,
+    this.infoPills = false,
     this.semanticValue,
     this.width,
     this.height,
@@ -281,6 +289,19 @@ class MediaCard extends StatefulWidget {
   static const EdgeInsets gridCardPadding = EdgeInsets.fromLTRB(3, 3, 3, 1);
 
   static const TextStyle _gridTitleStyle = TextStyle(fontWeight: .w600, fontSize: 13, height: 1.1);
+
+  /// Card titles: periwinkle in the retrowave theme.
+  static TextStyle _titleStyle(BuildContext context) =>
+      RetroColors.isActive(context) ? _gridTitleStyle.copyWith(color: retroHeadingColor) : _gridTitleStyle;
+
+  /// Height of the quality/language pill row with its gap.
+  static const double infoPillsBand = 22;
+
+  /// Retrowave on desktop with the setting on: posters get the pill row.
+  static bool showsInfoPills(BuildContext context) =>
+      !PlatformDetector.isTV() &&
+      RetroColors.isActive(context) &&
+      SettingsService.instance.read(SettingsService.posterInfoPills);
 
   /// Height a captioned grid card spends outside its artwork: the vertical
   /// [gridCardPadding], the poster→title gap, and one title plus one caption
@@ -311,7 +332,8 @@ class MediaCard extends StatefulWidget {
     return gridCardPadding.vertical +
         context.settingsRead(SettingsService.gridSpacing).posterTitleGap +
         lineHeight(_gridTitleStyle) +
-        lineHeight(_MediaCardHelpers._captionMetricsStyle(context));
+        lineHeight(_MediaCardHelpers._captionMetricsStyle(context)) +
+        (showsInfoPills(context) ? infoPillsBand : 0);
   }
 
   @override
@@ -722,7 +744,7 @@ class MediaCardState extends State<MediaCard> with ContextMenuTapMixin<MediaCard
               if (widget.onTap == null && item is MediaItem && !_impliesShowTitle(item) && _hasClickableTitle(item))
                 _ClickableText(
                   text: item.displayTitle,
-                  style: MediaCard._gridTitleStyle,
+                  style: MediaCard._titleStyle(context),
                   onTap: () => _navigateToFocusedDetail(context, item, isOffline: widget.isOffline),
                 )
               else
@@ -735,7 +757,7 @@ class MediaCardState extends State<MediaCard> with ContextMenuTapMixin<MediaCard
                     },
                     maxLines: 1,
                     overflow: .ellipsis,
-                    style: MediaCard._gridTitleStyle,
+                    style: MediaCard._titleStyle(context),
                   ),
                 ),
               if (item is MediaPlaylist)
@@ -749,6 +771,13 @@ class MediaCardState extends State<MediaCard> with ContextMenuTapMixin<MediaCard
                   showTitleImplied: _impliesShowTitle(item),
                   catalogItem: _catalogItem,
                 ),
+              if ((posterHeight == null || widget.infoPills) && MediaCard.showsInfoPills(context)) ...[
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: MediaCard.infoPillsBand - 4,
+                  child: item is MediaItem ? _InfoPills(item: item, isOffline: widget.isOffline) : null,
+                ),
+              ],
             ],
           ),
         ),
@@ -1536,34 +1565,49 @@ class _RatingMedianBadge extends StatelessWidget {
   final int score;
 
   @override
+  Widget build(BuildContext context) =>
+      RetroPill(label: '$score', tone: RetroPillTone.violet, icon: Symbols.star_rounded);
+}
+
+/// Quality (cyan) and audio languages (violet) in one fixed-height row; more
+/// than two languages collapse to `+N`.
+class _InfoPills extends StatelessWidget {
+  const _InfoPills({required this.item, required this.isOffline});
+
+  final MediaItem item;
+  final bool isOffline;
+
+  @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        // Muted violet-to-magenta with a faint rim: on theme, not loud.
-        gradient: const LinearGradient(colors: [RetroColors.violetMuted, RetroColors.magentaMuted]),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: RetroColors.violet.withValues(alpha: 0.35), width: 0.8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(5, 3, 7, 3),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppIcon(Symbols.star_rounded, fill: 1, size: 11, color: RetroColors.moon.withValues(alpha: 0.85)),
-            const SizedBox(width: 3),
-            Text(
-              '$score',
-              style: TextStyle(
-                color: RetroColors.moon.withValues(alpha: 0.92),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                height: 1,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-      ),
+    if (!(item.isMovie || item.isShow || item.isSeason || item.isEpisode)) return const SizedBox.shrink();
+    final cache = PosterInfoCache.instance;
+    final client = isOffline ? null : context.tryGetMediaClientForServer(serverIdOrNull(item.serverId));
+    return ListenableBuilder(
+      listenable: cache,
+      builder: (context, _) {
+        final info = cache.infoFor(item, client);
+        final langs = info.languages;
+        final langLabel = langs.isEmpty
+            ? null
+            : langs.length <= 2
+            ? langs.join(' · ')
+            : '${langs.take(2).join(' · ')} +${langs.length - 2}';
+        return ClipRect(
+          child: Row(
+            children: [
+              if (info.quality case final quality?) ...[
+                RetroPill(label: quality, tone: RetroPillTone.cyan),
+                const SizedBox(width: 4),
+              ],
+              if (info.hdr) ...[
+                const RetroPill(label: 'HDR', tone: RetroPillTone.cyan),
+                const SizedBox(width: 4),
+              ],
+              if (langLabel != null) Flexible(child: RetroPill(label: langLabel, tone: RetroPillTone.violet)),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -1,9 +1,14 @@
-import 'package:flutter/painting.dart';
+import 'package:flutter/material.dart';
+
+import 'page_backdrop.dart';
 
 /// The Retrowave palette, sampled from the reference artwork (violet night
 /// sky, magenta clouds, cyan glow). Every colour of the retrowave theme, the
 /// player and the YouTube screens comes from here.
 abstract final class RetroColors {
+  /// Whether the retrowave theme is active in [context].
+  static bool isActive(BuildContext context) => Theme.of(context).extension<PageBackdropStyle>() != null;
+
   /// Darkest cliff shadow: page background.
   static const night = Color(0xFF140327);
 

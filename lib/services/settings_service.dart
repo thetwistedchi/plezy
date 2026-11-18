@@ -1027,6 +1027,9 @@ class SettingsService extends BaseSharedPreferencesService {
   static const omdbApiKey = StringPref('omdb_api_key', defaultValue: '');
   static const jikanRatings = BoolPref('jikan_ratings', defaultValue: true);
 
+  /// Retrowave: quality and language pills under posters (desktop).
+  static const posterInfoPills = BoolPref('poster_info_pills', defaultValue: true);
+
   static const playbackBufferTier = EnumPref<PlaybackBufferTier>(
     'playback_buffer_tier',
     values: PlaybackBufferTier.values,
@@ -1645,6 +1648,7 @@ class SettingsService extends BaseSharedPreferencesService {
     cropLetterbox,
     hdrBrightness,
     jikanRatings,
+    posterInfoPills,
   ];
 
   /// Group three: reset but *not* exported — device-local paths, endpoints and

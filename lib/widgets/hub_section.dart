@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'retro_pill.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:plezy/widgets/app_icon.dart';
@@ -498,6 +499,8 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
     final titleStyle = Theme.of(
       context,
     ).textTheme.titleLarge?.copyWith(fontSize: isTv ? 26 : null, fontWeight: isTv ? FontWeight.w700 : null);
+    // Retrowave: periwinkle heading, icon and arrow.
+    final retroHeading = isRetrowave(context) ? retroHeadingColor : null;
 
     return Padding(
       padding: .only(
@@ -526,10 +529,15 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                   child: Row(
                     mainAxisSize: .min,
                     children: [
-                      AppIcon(widget.icon, fill: 1, size: isTv ? 28 : null),
+                      AppIcon(widget.icon, fill: 1, size: isTv ? 28 : null, color: retroHeading),
                       SizedBox(width: isTv ? 12 : 8),
                       Flexible(
-                        child: Text(widget.hub.title, style: titleStyle, overflow: .ellipsis, maxLines: 1),
+                        child: Text(
+                          widget.hub.title,
+                          style: titleStyle?.copyWith(color: retroHeading),
+                          overflow: .ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                       if (widget.totalResults case final totalResults?) ...[
                         SizedBox(width: isTv ? 12 : 8),
@@ -561,7 +569,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                       ],
                       if (widget.hub.more && !isKeyboardMode) ...[
                         const SizedBox(width: 4),
-                        AppIcon(Symbols.chevron_right_rounded, fill: 1, size: isTv ? 26 : 20),
+                        AppIcon(Symbols.chevron_right_rounded, fill: 1, size: isTv ? 26 : 20, color: retroHeading),
                       ],
                     ],
                   ),
@@ -642,7 +650,9 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                         ? EdgeInsets.only(right: cardGap)
                         : EdgeInsets.symmetric(horizontal: cardGap / 2);
 
-                    final containerHeight = posterHeight + (isTv ? 48 : 33);
+                    final infoPills = !isTv && MediaCard.showsInfoPills(context);
+                    final containerHeight =
+                        posterHeight + (isTv ? 48 : 33) + (infoPills ? MediaCard.infoPillsBand : 0);
                     final focusBorderWidth = FocusTheme.focusBorderWidth;
                     final focusExtra = focusBorderWidth * 2; // border on both sides
                     _itemExtent = cardWidth + focusExtra + cardGap;
@@ -790,6 +800,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                                     usesContinueWatchingAction: widget.usesContinueWatchingAction,
                                     mixedHubContext: isMixedHub,
                                     episodePosterModeOverride: episodePosterMode,
+                                    infoPills: infoPills,
                                   ),
                                 ),
                               ),
