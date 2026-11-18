@@ -1565,8 +1565,33 @@ class _RatingMedianBadge extends StatelessWidget {
   final int score;
 
   @override
-  Widget build(BuildContext context) =>
-      RetroPill(label: '$score', tone: RetroPillTone.violet, icon: Symbols.star_rounded);
+  Widget build(BuildContext context) {
+    if (RetroColors.isActive(context)) {
+      return RetroPill(label: '$score', tone: RetroPillTone.violet, icon: Symbols.star_rounded);
+    }
+    // Other themes: the same look as their unwatched-count pill.
+    final mono = tokens(context);
+    return Container(
+      height: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: mono.text,
+        borderRadius: BorderRadius.circular(9),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppIcon(Symbols.star_rounded, fill: 1, size: 11, color: mono.bg),
+          const SizedBox(width: 3),
+          Text(
+            '$score',
+            style: TextStyle(color: mono.bg, fontSize: 10.5, fontWeight: FontWeight.w700, height: 1),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Quality (cyan) and audio languages (violet) in one fixed-height row; more

@@ -7,6 +7,9 @@
 - Poster badges (rating, unwatched episodes, watched) are small dark purple pills with a muted neon rim and tinted text.
 - Under each poster a row of pills shows the resolution, HDR and the audio languages (e.g. `4K` `HDR` `DE · EN`; more than two languages as `+2`). Languages come from the title's own Plex server, looked up once per title and kept for a month; series use their first episode. Can be turned off under Settings › Appearance.
 - Row headings with their icons and arrows, and card titles, use a periwinkle blue that no other text uses.
+
+### Other themes
+- The Windows title bar, the mini player bar, the YouTube pages and player panels, and the rating badge on posters follow the active theme. The retrowave colours stay in the Retrowave theme.
 - The details page shows a **Median** card after Ratings & links, with the number of sources it is based on.
 - Every score is converted to 0–100 first (IMDb 7.8/10 → 78, Letterboxd 3.9/5 → 78). The Tomatometer is left out: it is the share of positive reviews, not an average score.
 

@@ -225,6 +225,7 @@ Future<StartupThemeResolution> _resolveStartupTheme() async {
   final palette = ThemeProvider.resolveStored(settings, unlocked: SupporterService.startupUnlocked(settings)).palette;
   ThemeProvider.applyWindowChromeBrightness(
     ThemeProvider.isDarkFor(palette, WidgetsBinding.instance.platformDispatcher.platformBrightness),
+    retro: palette == MonoPalette.retrowave,
   );
   return (
     themeMode: ThemeProvider.materialThemeModeFor(palette),

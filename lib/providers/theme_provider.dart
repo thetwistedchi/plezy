@@ -24,6 +24,7 @@ class ThemeProvider extends ChangeNotifier with DisposableChangeNotifierMixin, W
   late ThemeChoice _choice;
   late Brightness _systemBrightness;
   bool? _windowChromeDark;
+  bool? _windowChromeRetro;
 
   /// Gated by the [SupporterService]: a stored preset or Custom paints only
   /// while it is unlocked, and reappears as soon as it is.
@@ -189,12 +190,12 @@ class ThemeProvider extends ChangeNotifier with DisposableChangeNotifierMixin, W
   /// own theme is the correct fallback.
   ///
   /// Static so startup can theme the frame as soon as settings load, before this provider exists.
-  static void applyWindowChromeBrightness(bool dark) {
+  static void applyWindowChromeBrightness(bool dark, {bool retro = false}) {
     final Future<void> applied;
     if (Platform.isLinux) {
       applied = windowManager.setBrightness(dark ? Brightness.dark : Brightness.light);
     } else if (Platform.isWindows) {
-      applied = NativeWindowService.setDarkMode(dark);
+      applied = NativeWindowService.setDarkMode(dark, retro: retro);
     } else {
       return;
     }
@@ -208,9 +209,11 @@ class ThemeProvider extends ChangeNotifier with DisposableChangeNotifierMixin, W
   void _syncWindowChrome() {
     if (isDisposed) return;
     final dark = isDarkMode;
-    if (_windowChromeDark == dark) return;
+    final retro = _choice.palette == MonoPalette.retrowave;
+    if (_windowChromeDark == dark && _windowChromeRetro == retro) return;
     _windowChromeDark = dark;
-    applyWindowChromeBrightness(dark);
+    _windowChromeRetro = retro;
+    applyWindowChromeBrightness(dark, retro: retro);
   }
 
   static const _themeChannel = MethodChannel('com.plezy/theme');

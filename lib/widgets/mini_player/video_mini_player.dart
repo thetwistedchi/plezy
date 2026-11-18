@@ -9,6 +9,7 @@ import '../../mpv/video.dart' show videoSurfaceDetached;
 import '../../screens/youtube/youtube_strings.dart';
 import '../../theme/gapped_track_shape.dart';
 import '../../theme/player_style.dart';
+import '../../theme/mono_tokens.dart';
 import '../../theme/retrowave_colors.dart';
 import '../app_icon.dart';
 
@@ -242,7 +243,15 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _placeVideo());
     final session = widget.session;
     final style = PlayerStyle.of(context);
-    final gradient = style.progressGradient ?? const [RetroColors.cyan, RetroColors.magenta];
+    // Retrowave colours in that theme, the active theme's own elsewhere.
+    final retro = RetroColors.isActive(context);
+    final mono = tokens(context);
+    final scheme = Theme.of(context).colorScheme;
+    final barColor = retro ? RetroColors.rock : mono.surface;
+    final lineColor = retro ? RetroColors.outline : mono.outline;
+    final textColor = retro ? RetroColors.moon : mono.text;
+    final accent = retro ? RetroColors.magenta : scheme.primary;
+    final gradient = style.progressGradient ?? [scheme.primary, scheme.primary];
     final position = session.position;
     final duration = session.duration;
     final progress = duration.inMilliseconds > 0
@@ -259,8 +268,8 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
         // Paints the bar around a hole: the native video shows through it.
         painter: _BarPainter(
           hole: const Rect.fromLTWH(_videoLeft, (VideoMiniPlayer.barHeight - _videoHeight) / 2, _videoWidth, _videoHeight),
-          color: RetroColors.rock,
-          border: RetroColors.outline,
+          color: barColor,
+          border: lineColor,
         ),
         child: Stack(
           children: [
@@ -271,7 +280,7 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
               height: 3,
               child: Stack(
                 children: [
-                  const ColoredBox(color: RetroColors.outline, child: SizedBox.expand()),
+                  ColoredBox(color: lineColor, child: const SizedBox.expand()),
                   FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: progress,
@@ -315,7 +324,7 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.titleSmall?.copyWith(
-                                  color: RetroColors.moon,
+                                  color: textColor,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -336,6 +345,7 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           _BarButton(
+                            color: textColor,
                             icon: Symbols.replay_10_rounded,
                             tooltip: YtStrings.back10s,
                             onPressed: () => session.seekBy(const Duration(seconds: -10)),
@@ -344,7 +354,7 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
                           Tooltip(
                             message: session.isPlaying ? YtStrings.pause : YtStrings.play,
                             child: Material(
-                              color: style.playButtonFill ?? RetroColors.violet,
+                              color: style.playButtonFill ?? scheme.primary,
                               shape: const CircleBorder(),
                               child: InkWell(
                                 customBorder: const CircleBorder(),
@@ -360,7 +370,7 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
                                       session.isPlaying ? Symbols.pause_rounded : Symbols.play_arrow_rounded,
                                       fill: 1,
                                       size: 20,
-                                      color: style.playButtonIcon ?? RetroColors.night,
+                                      color: style.playButtonIcon ?? scheme.onPrimary,
                                     ),
                                   ),
                                 ),
@@ -369,13 +379,14 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
                           ),
                           const SizedBox(width: 8),
                           _BarButton(
+                            color: textColor,
                             icon: Symbols.forward_30_rounded,
                             tooltip: YtStrings.forward30s,
                             onPressed: () => session.seekBy(const Duration(seconds: 30)),
                           ),
                           if (session.canNext) ...[
                             const SizedBox(width: 4),
-                            _BarButton(icon: Symbols.skip_next_rounded, tooltip: YtStrings.nextItem, onPressed: session.next),
+                            _BarButton(color: textColor, icon: Symbols.skip_next_rounded, tooltip: YtStrings.nextItem, onPressed: session.next),
                           ],
                         ],
                       ),
@@ -391,7 +402,7 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
                     AppIcon(
                       session.volume <= 0 ? Symbols.volume_off_rounded : Symbols.volume_up_rounded,
                       size: 20,
-                      color: RetroColors.moon,
+                      color: textColor,
                     ),
                     SizedBox(
                       width: 96,
@@ -401,8 +412,8 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
                           trackGap: 0,
                           trackShape: GappedTrackShape(activeGradient: gradient),
                           activeTrackColor: gradient.last,
-                          inactiveTrackColor: RetroColors.outline,
-                          thumbColor: RetroColors.moon,
+                          inactiveTrackColor: lineColor,
+                          thumbColor: textColor,
                           thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                           overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
                           tickMarkShape: SliderTickMarkShape.noTickMark,
@@ -417,7 +428,7 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
                       ),
                     ),
                     const SizedBox(width: 4),
-                    _BarButton(icon: Symbols.open_in_full_rounded, tooltip: YtStrings.openPlayer, onPressed: session.expand),
+                    _BarButton(color: textColor, icon: Symbols.open_in_full_rounded, tooltip: YtStrings.openPlayer, onPressed: session.expand),
                     const SizedBox(width: 8),
                     Tooltip(
                       message: YtStrings.stopAndClose,
@@ -428,12 +439,12 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
                                 setState(() => _stopping = true);
                                 session.stop();
                               },
-                        icon: const AppIcon(Symbols.stop_rounded, fill: 1, size: 16, color: RetroColors.moon),
+                        icon: AppIcon(Symbols.stop_rounded, fill: 1, size: 16, color: textColor),
                         label: Text(YtStrings.stop),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: RetroColors.moon,
-                          backgroundColor: RetroColors.magenta.withValues(alpha: 0.14),
-                          side: const BorderSide(color: RetroColors.magenta),
+                          foregroundColor: textColor,
+                          backgroundColor: accent.withValues(alpha: 0.14),
+                          side: BorderSide(color: accent),
                           shape: const StadiumBorder(),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
@@ -452,7 +463,9 @@ class _VideoMiniPlayerBarState extends State<VideoMiniPlayerBar> {
 }
 
 class _BarButton extends StatelessWidget {
-  const _BarButton({required this.icon, required this.tooltip, required this.onPressed});
+  const _BarButton({required this.icon, required this.tooltip, required this.onPressed, required this.color});
+
+  final Color color;
 
   final IconData icon;
   final String tooltip;
@@ -463,7 +476,7 @@ class _BarButton extends StatelessWidget {
     return IconButton(
       tooltip: tooltip,
       onPressed: onPressed,
-      icon: AppIcon(icon, size: 22, color: RetroColors.moon),
+      icon: AppIcon(icon, size: 22, color: color),
     );
   }
 }

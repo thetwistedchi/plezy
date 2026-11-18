@@ -303,7 +303,7 @@ class _ChannelCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    const ColoredBox(color: RetroColors.dusk),
+                    ColoredBox(color: RetroColors.isActive(context) ? RetroColors.dusk : tokens(context).surface),
                     if (video.thumbnailUrl != null)
                       CachedNetworkImage(
                         imageUrl: video.thumbnailUrl!,

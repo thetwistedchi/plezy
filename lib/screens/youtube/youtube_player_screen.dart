@@ -2075,7 +2075,7 @@ class _NeonSkipButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 48),
           padding: const EdgeInsets.symmetric(horizontal: 22),
-          backgroundColor: RetroColors.night75,
+          backgroundColor: PlayerChrome.of(context).scrim75,
           foregroundColor: Colors.white,
           side: BorderSide(color: color, width: 2),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -2099,7 +2099,7 @@ class _SkipToast extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
       decoration: BoxDecoration(
-        color: RetroColors.night90,
+        color: PlayerChrome.of(context).scrim90,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: accent),
         boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 22)],
@@ -2280,7 +2280,7 @@ class _TimelineState extends State<_Timeline> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: RetroColors.night90,
+                                color: PlayerChrome.of(context).scrim90,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(color: Colors.white24),
                               ),
@@ -2477,7 +2477,7 @@ class _ChannelStrip extends StatelessWidget {
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
-                              const ColoredBox(color: RetroColors.dusk),
+                              ColoredBox(color: PlayerChrome.of(context).surface),
                               if (video.thumbnailUrl != null)
                                 CachedNetworkImage(
                                   imageUrl: video.thumbnailUrl!,
@@ -2630,8 +2630,8 @@ class _StoryboardFrame extends StatelessWidget {
               fit: BoxFit.fitWidth,
               alignment: Alignment.topLeft,
               fadeInDuration: Duration.zero,
-              placeholder: (_, _) => const ColoredBox(color: RetroColors.dusk),
-              errorWidget: (_, _, _) => const ColoredBox(color: RetroColors.dusk),
+              placeholder: (_, _) => ColoredBox(color: PlayerChrome.of(context).surface),
+              errorWidget: (_, _, _) => ColoredBox(color: PlayerChrome.of(context).surface),
             ),
           ),
         ),

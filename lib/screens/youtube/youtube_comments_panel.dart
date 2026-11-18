@@ -12,8 +12,6 @@ import '../../widgets/app_icon.dart';
 import 'youtube_strings.dart';
 import '../../theme/retrowave_colors.dart';
 
-const _panelBg = RetroColors.rock;
-const _panelSurface = RetroColors.dusk;
 
 /// Comments of a video, shown beside the player: top or newest first,
 /// replies on demand, and writing, editing and deleting your own comments.
@@ -221,15 +219,15 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
   Widget build(BuildContext context) {
     final accent = playerActiveColor(context);
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: _panelBg,
-        border: Border(left: BorderSide(color: RetroColors.outline)),
+      decoration: BoxDecoration(
+        color: PlayerChrome.of(context).panel,
+        border: Border(left: BorderSide(color: PlayerChrome.of(context).outline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _header(accent),
-          const Divider(height: 1, color: RetroColors.divider),
+          Divider(height: 1, color: PlayerChrome.of(context).divider),
           Expanded(child: _body(accent)),
           if (!_disabled) _composer(accent),
         ],
@@ -383,7 +381,7 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
     if (!_settings.canWrite) {
       return Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: RetroColors.divider))),
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: PlayerChrome.of(context).divider))),
         child: Text(YtStrings.needWriteAccess, style: const TextStyle(color: Colors.white60, fontSize: 13)),
       );
     }
@@ -394,7 +392,7 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
         : null;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 12, 12),
-      decoration: const BoxDecoration(border: Border(top: BorderSide(color: RetroColors.divider))),
+      decoration: BoxDecoration(border: Border(top: BorderSide(color: PlayerChrome.of(context).divider))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -423,16 +421,16 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
                     hintText: _replyTo != null ? YtStrings.addReply : YtStrings.addComment,
                     hintStyle: const TextStyle(color: Colors.white38),
                     filled: true,
-                    fillColor: _panelSurface,
+                    fillColor: PlayerChrome.of(context).surface,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: RetroColors.outline),
+                      borderSide: BorderSide(color: PlayerChrome.of(context).outline),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: RetroColors.outline),
+                      borderSide: BorderSide(color: PlayerChrome.of(context).outline),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -490,11 +488,11 @@ class _CommentTile extends StatelessWidget {
               width: avatar,
               height: avatar,
               child: comment.avatarUrl == null
-                  ? const ColoredBox(color: _panelSurface)
+                  ? ColoredBox(color: PlayerChrome.of(context).surface)
                   : CachedNetworkImage(
                       imageUrl: comment.avatarUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => const ColoredBox(color: _panelSurface),
+                      errorWidget: (_, _, _) => ColoredBox(color: PlayerChrome.of(context).surface),
                     ),
             ),
           ),
@@ -520,7 +518,7 @@ class _CommentTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 SelectableText(
                   comment.text,
-                  style: const TextStyle(color: RetroColors.moon, fontSize: 14, height: 1.4),
+                  style: TextStyle(color: PlayerChrome.of(context).text, fontSize: 14, height: 1.4),
                 ),
                 const SizedBox(height: 6),
                 Row(

@@ -59,3 +59,53 @@ const retroBackdropGradient = LinearGradient(
   stops: [0, 0.22, 0.62, 1],
   colors: [RetroColors.night, RetroColors.night, Color(0xFF1A0E3C), Color(0xFF280938)],
 );
+
+/// Dark chrome of the YouTube player and its side panels, which sit over
+/// video in every theme: retrowave purples in that theme, neutral greys in
+/// the others.
+@immutable
+class PlayerChrome {
+  const PlayerChrome({
+    required this.panel,
+    required this.surface,
+    required this.outline,
+    required this.divider,
+    required this.text,
+    required this.highlight,
+    required this.scrim75,
+    required this.scrim90,
+  });
+
+  final Color panel;
+  final Color surface;
+  final Color outline;
+  final Color divider;
+  final Color text;
+  final Color highlight;
+  final Color scrim75;
+  final Color scrim90;
+
+  static const retro = PlayerChrome(
+    panel: RetroColors.rock,
+    surface: RetroColors.dusk,
+    outline: RetroColors.outline,
+    divider: RetroColors.divider,
+    text: RetroColors.moon,
+    highlight: RetroColors.ice,
+    scrim75: RetroColors.night75,
+    scrim90: RetroColors.night90,
+  );
+
+  static const neutral = PlayerChrome(
+    panel: Color(0xFF161618),
+    surface: Color(0xFF26262B),
+    outline: Color(0x29FFFFFF),
+    divider: Color(0x1FFFFFFF),
+    text: Color(0xFFF2F2F5),
+    highlight: Colors.white,
+    scrim75: Color(0xC00E0E10),
+    scrim90: Color(0xE60E0E10),
+  );
+
+  static PlayerChrome of(BuildContext context) => RetroColors.isActive(context) ? retro : neutral;
+}

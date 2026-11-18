@@ -278,12 +278,25 @@ void FlutterWindow::RegisterWindowChannel() {
     } else if (name == "isFullScreen") {
       result->Success(flutter::EncodableValue(is_fullscreen_));
     } else if (name == "setDarkMode") {
-      const bool* dark = std::get_if<bool>(call.arguments());
-      if (dark == nullptr) {
-        result->Error("invalid_arguments", "setDarkMode expects a bool");
+      // A bool (dark), or {dark: bool, retro: bool}.
+      bool dark = false;
+      bool retro = false;
+      if (const bool* b = std::get_if<bool>(call.arguments())) {
+        dark = *b;
+      } else if (const auto* args = std::get_if<flutter::EncodableMap>(call.arguments())) {
+        auto d = args->find(flutter::EncodableValue("dark"));
+        if (d != args->end()) {
+          if (const bool* v = std::get_if<bool>(&d->second)) dark = *v;
+        }
+        auto r = args->find(flutter::EncodableValue("retro"));
+        if (r != args->end()) {
+          if (const bool* v = std::get_if<bool>(&r->second)) retro = *v;
+        }
+      } else {
+        result->Error("invalid_arguments", "setDarkMode expects a bool or a map");
         return;
       }
-      SetDarkMode(*dark);
+      SetDarkMode(dark, retro);
       result->Success();
     } else {
       result->NotImplemented();

@@ -45,8 +45,10 @@ class NativeWindowService {
 
   /// Theme the window frame (title bar) dark or light. The runner follows the
   /// OS app theme until the first call.
-  static Future<void> setDarkMode(bool dark) async {
+  /// With [retro] the caption and border take the retrowave night colour;
+  /// otherwise Windows' own colours for the dark or light frame.
+  static Future<void> setDarkMode(bool dark, {bool retro = false}) async {
     if (!Platform.isWindows) return;
-    await _channel.invokeMethod<void>('setDarkMode', dark);
+    await _channel.invokeMethod<void>('setDarkMode', {'dark': dark, 'retro': retro});
   }
 }

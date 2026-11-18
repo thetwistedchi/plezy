@@ -57,7 +57,7 @@ class Win32Window {
 
   // Themes the window frame dark or light. Until the first call the frame
   // follows the system app theme; afterwards it keeps the app's choice.
-  void SetDarkMode(bool dark);
+  void SetDarkMode(bool dark, bool retro = false);
 
  protected:
   // Processes and route salient window messages for mouse handling,
@@ -93,6 +93,8 @@ class Win32Window {
 
   // The app's frame theme; empty until SetDarkMode is first called.
   std::optional<bool> dark_mode_;
+  // Retrowave caption colours; off: Windows' own. On until the app says.
+  bool retro_caption_ = true;
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;

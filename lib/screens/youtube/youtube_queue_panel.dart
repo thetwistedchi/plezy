@@ -42,9 +42,9 @@ class _YouTubeQueuePanelState extends State<YouTubeQueuePanel> {
   Widget build(BuildContext context) {
     final accent = playerActiveColor(context);
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: RetroColors.rock,
-        border: Border(left: BorderSide(color: RetroColors.outline)),
+      decoration: BoxDecoration(
+        color: PlayerChrome.of(context).panel,
+        border: Border(left: BorderSide(color: PlayerChrome.of(context).outline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -74,13 +74,13 @@ class _YouTubeQueuePanelState extends State<YouTubeQueuePanel> {
               showSelectedIcon: false,
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.resolveWith(
-                  (s) => s.contains(WidgetState.selected) ? Color.lerp(accent, Colors.black, 0.55) : RetroColors.dusk,
+                  (s) => s.contains(WidgetState.selected) ? Color.lerp(accent, Colors.black, 0.55) : PlayerChrome.of(context).surface,
                 ),
                 foregroundColor: WidgetStateProperty.resolveWith(
                   (s) => s.contains(WidgetState.selected) ? Colors.white : Colors.white60,
                 ),
                 side: WidgetStateProperty.resolveWith(
-                  (s) => BorderSide(color: s.contains(WidgetState.selected) ? accent : RetroColors.outline),
+                  (s) => BorderSide(color: s.contains(WidgetState.selected) ? accent : PlayerChrome.of(context).outline),
                 ),
               ),
               segments: [
@@ -91,7 +91,7 @@ class _YouTubeQueuePanelState extends State<YouTubeQueuePanel> {
               onSelectionChanged: (s) => setState(() => _adding = s.first),
             ),
           ),
-          const Divider(height: 1, color: RetroColors.divider),
+          Divider(height: 1, color: PlayerChrome.of(context).divider),
           Expanded(child: _adding ? _buildAdd(accent) : _buildQueue(accent)),
         ],
       ),
@@ -228,7 +228,7 @@ class _VideoRow extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      const ColoredBox(color: RetroColors.dusk),
+                      ColoredBox(color: PlayerChrome.of(context).surface),
                       if (video.thumbnailUrl != null)
                         CachedNetworkImage(
                           imageUrl: video.thumbnailUrl!,

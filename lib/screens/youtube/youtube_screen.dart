@@ -607,7 +607,7 @@ class _VideoCardState extends State<_VideoCard> {
                 child: AnimatedContainer(
                   duration: mono.fast,
                   decoration: BoxDecoration(
-                    color: RetroColors.dusk,
+                    color: RetroColors.isActive(context) ? RetroColors.dusk : tokens(context).surface,
                     borderRadius: BorderRadius.circular(mono.radiusMd),
                     border: Border.all(color: _highlighted ? accent : mono.outline, width: _highlighted ? 2 : 1),
                     boxShadow: _highlighted ? [BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 16)] : null,
@@ -915,7 +915,7 @@ class _WatchlistRow extends StatelessWidget {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        const ColoredBox(color: RetroColors.dusk),
+                        ColoredBox(color: RetroColors.isActive(context) ? RetroColors.dusk : tokens(context).surface),
                         if (video.thumbnailUrl != null)
                           CachedNetworkImage(
                             imageUrl: video.thumbnailUrl!,

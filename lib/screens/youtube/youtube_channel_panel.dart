@@ -61,9 +61,9 @@ class _YouTubeChannelPanelState extends State<YouTubeChannelPanel> {
         .where((v) => (settings.showShorts || !v.isShort) && (settings.showPremieres || !(v.isUpcoming || v.isLive)))
         .toList();
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: RetroColors.rock,
-        border: Border(left: BorderSide(color: RetroColors.outline)),
+      decoration: BoxDecoration(
+        color: PlayerChrome.of(context).panel,
+        border: Border(left: BorderSide(color: PlayerChrome.of(context).outline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -93,7 +93,7 @@ class _YouTubeChannelPanelState extends State<YouTubeChannelPanel> {
               ],
             ),
           ),
-          const Divider(height: 1, color: RetroColors.divider),
+          Divider(height: 1, color: PlayerChrome.of(context).divider),
           Expanded(
             child: _error != null
                 ? Center(
@@ -166,7 +166,7 @@ class _ChannelVideoRow extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    const ColoredBox(color: RetroColors.dusk),
+                    ColoredBox(color: PlayerChrome.of(context).surface),
                     if (video.thumbnailUrl != null)
                       CachedNetworkImage(
                         imageUrl: video.thumbnailUrl!,
