@@ -1,6 +1,5 @@
 import 'dart:async';
 import '../services/ratings/rating_median_cache.dart';
-import '../theme/player_style.dart';
 import '../theme/retrowave_colors.dart';
 import '../utils/rating_median.dart';
 import 'dart:ui';
@@ -1524,36 +1523,33 @@ class _RatingMedianBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = PlayerStyle.of(context);
-    final fade = style.progressGradient == null
-        ? const [RetroColors.violet, RetroColors.magenta]
-        : [RetroColors.violet, style.progressGradient!.last];
     return DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: fade),
-          borderRadius: BorderRadius.circular(999),
-          boxShadow: const [BoxShadow(color: Color(0x80140327), blurRadius: 4, offset: Offset(0, 1))],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(5, 3, 7, 3),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AppIcon(Symbols.star_rounded, fill: 1, size: 11, color: RetroColors.moon),
-              const SizedBox(width: 3),
-              Text(
-                '$score',
-                style: const TextStyle(
-                  color: RetroColors.moon,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
+      decoration: BoxDecoration(
+        // Muted violet-to-magenta with a faint rim: on theme, not loud.
+        gradient: const LinearGradient(colors: [RetroColors.violetMuted, RetroColors.magentaMuted]),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: RetroColors.violet.withValues(alpha: 0.35), width: 0.8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(5, 3, 7, 3),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppIcon(Symbols.star_rounded, fill: 1, size: 11, color: RetroColors.moon.withValues(alpha: 0.85)),
+            const SizedBox(width: 3),
+            Text(
+              '$score',
+              style: TextStyle(
+                color: RetroColors.moon.withValues(alpha: 0.92),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                height: 1,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
     );
   }
 }

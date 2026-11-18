@@ -99,14 +99,15 @@ class WatchedIndicator extends StatelessWidget {
               padding: EdgeInsets.all(size.checkPadding),
               decoration: BoxDecoration(
                 color: retro ? null : tokens(context).text,
-                gradient: retro ? const LinearGradient(colors: [RetroColors.cyan, RetroColors.violet]) : null,
+                gradient: retro ? const LinearGradient(colors: [RetroColors.cyanMuted, RetroColors.violetMuted]) : null,
+                border: retro ? Border.all(color: RetroColors.cyan.withValues(alpha: 0.35), width: 0.8) : null,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
+                boxShadow: retro ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
               ),
               child: AppIcon(
                 Symbols.check_rounded,
                 fill: 1,
-                color: retro ? RetroColors.night : tokens(context).bg,
+                color: retro ? RetroColors.moon.withValues(alpha: 0.92) : tokens(context).bg,
                 size: size.checkIconSize,
               ),
             ),

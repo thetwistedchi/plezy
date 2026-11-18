@@ -36,6 +36,12 @@ abstract final class RetroColors {
   static const night75 = Color(0xC0140327);
   static const night80 = Color(0xCC140327);
   static const night90 = Color(0xE6140327);
+
+  // Muted badge tones: the accents mixed half-and-half with [night], for
+  // small pills on posters that should fit in rather than stand out.
+  static const violetMuted = Color(0xE63E2C92);
+  static const magentaMuted = Color(0xE66A015D);
+  static const cyanMuted = Color(0xE61B6A89);
 }
 
 /// The page background: a muted fade through the artwork's night, dusk and

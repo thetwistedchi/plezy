@@ -26,9 +26,10 @@ class UnwatchedCountBadge extends StatelessWidget {
         // Retrowave: the cyan-to-violet fade, apart from the rating badge's
         // violet-to-magenta.
         color: retro ? null : tokens(context).text,
-        gradient: retro ? const LinearGradient(colors: [RetroColors.cyan, RetroColors.violet]) : null,
+        gradient: retro ? const LinearGradient(colors: [RetroColors.cyanMuted, RetroColors.violetMuted]) : null,
+        border: retro ? Border.all(color: RetroColors.cyan.withValues(alpha: 0.35), width: 0.8) : null,
         borderRadius: BorderRadius.circular(size / 2),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
+        boxShadow: retro ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
       ),
       // Center with widthFactor shrink-wraps the pill to the label (Container
       // alignment would expand into the Stack's loose width instead).
@@ -39,7 +40,7 @@ class UnwatchedCountBadge extends StatelessWidget {
           maxLines: 1,
           softWrap: false,
           style: TextStyle(
-            color: retro ? RetroColors.night : tokens(context).bg,
+            color: retro ? RetroColors.moon.withValues(alpha: 0.92) : tokens(context).bg,
             fontSize: fontSize,
             fontWeight: .bold,
           ),
