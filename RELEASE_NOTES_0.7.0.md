@@ -1,15 +1,7 @@
 ## Plezy Retrowave 0.7.0
 
 ### Rating median
-- Movie and series posters show the median of their scores as a small star badge in the top left corner, on a 0–100 scale.
-- Library lists carry at most two scores per title, often only the Tomatometer. Posters therefore use the full median once a title's details page was opened, and otherwise fetch the title's scores from its own Plex server in the background, a few at a time. Medians are kept on disk, so each title is looked up only once every two weeks.
-- When the Plex server has too few scores for a title, posters use MDBList too (with an MDBList key).
-- Poster badges (rating, unwatched episodes, watched) are small dark purple pills with a muted neon rim and tinted text.
-- Under each poster a row of pills shows the resolution, HDR and the audio languages (e.g. `4K` `HDR` `DE · EN`; more than two languages as `+2`). Languages come from the title's own Plex server, looked up once per title and kept for a month; series use their first episode. Can be turned off under Settings › Appearance.
-- Row headings with their icons and arrows, and card titles, use a periwinkle blue that no other text uses.
-
-### Other themes
-- The Windows title bar, the mini player bar, the YouTube pages and player panels, and the rating badge on posters follow the active theme. The retrowave colours stay in the Retrowave theme.
+- Movie and series posters show the median of their scores in the top left corner, on a 0–100 scale. It uses only the scores Plex already sends with the library, so scrolling makes no extra requests.
 - The details page shows a **Median** card after Ratings & links, with the number of sources it is based on.
 - Every score is converted to 0–100 first (IMDb 7.8/10 → 78, Letterboxd 3.9/5 → 78). The Tomatometer is left out: it is the share of positive reviews, not an average score.
 
@@ -26,11 +18,6 @@
 - Black bars are only cropped when they are about equally high at the top and bottom (or left and right), so dark scenes no longer cause wrong crops.
 - A second check a few minutes into a film can only shrink the crop, correcting a too large first guess.
 - The snapshots used for detection are taken at low quality, which avoids hitches on 4K HDR.
-
-### YouTube
-- A **Continue where you left off** card at the top of the subscriptions page resumes the last unfinished video with one click, at the position it stopped. It disappears once the video is finished or dismissed.
-- The same video also appears as the first card of Home's **Continue watching** row, in poster size with a YouTube mark and its progress. Right-click hides it.
-- The **⋮** menu of a video has **Copy link**, and **Copy link at …** for a video watched part way, which starts at the saved position.
 
 ### Mini player
 - Keyboard media keys control a minimized YouTube video.
