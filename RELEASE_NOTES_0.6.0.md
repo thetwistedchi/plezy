@@ -19,7 +19,7 @@
 
 ### Plex player
 - Clicking the video plays or pauses it (double-click still toggles fullscreen). Can be turned off under Settings › Playback.
-- The video always keeps its aspect ratio: the stretching fill mode is gone (the fit button switches between fit and crop-to-fill).
+- The video always keeps its aspect ratio: the stretching fill mode is gone. The fit button switches between **Fit** and **Fit height**, which fills the screen's height and never cuts anything off at the top or bottom.
 - Optional **Fill the screen when letterboxed** (Settings › Playback): detects black bars baked into a video and crops them, so wide films fill ultrawide screens.
 - **HDR brightness boost** slider (Settings › Playback, Windows): an extra lift for the midtones of HDR videos that look too dark. Off keeps the picture as mastered, HDR stays on at every setting, and changes apply right away. HDR videos also use a brighter tone curve by default.
 

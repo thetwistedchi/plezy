@@ -52,6 +52,7 @@ class YtStrings {
   // Player
   static String get back => _t('Back', 'Zurück');
   static String get miniPlayer => _t('Mini player', 'Mini-Player');
+  static String get fitHeight => _t('Fit height (nothing cut at top or bottom)', 'Höhe füllen (oben und unten nichts abgeschnitten)');
   static String get hdrBrightness => _t('HDR brightness boost', 'HDR-Helligkeitsboost');
   static String get hdrBrightnessOff => _t('Off · as mastered', 'Aus · wie gemastert');
   static String get hdrBoostShort => _t('Extra lift for dark HDR. Off = as mastered; HDR stays on.', 'Extra-Aufhellung für dunkles HDR. Aus = wie gemastert; HDR bleibt an.');

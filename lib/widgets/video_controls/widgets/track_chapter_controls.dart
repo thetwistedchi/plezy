@@ -459,7 +459,7 @@ class TrackChapterControls extends StatelessWidget {
       case 0:
         return t.videoControls.letterbox;
       case 1:
-        return t.videoControls.fillScreen;
+        return YtStrings.fitHeight;
       case 2:
         return t.videoControls.stretch;
       default:

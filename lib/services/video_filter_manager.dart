@@ -109,6 +109,8 @@ class VideoFilterManager {
       leading: true,
       trailing: true,
     );
+    _aspectFileSub = player.streams.fileLoaded.listen((_) => _videoAspect = null);
+    _aspectRestartSub = player.streams.playbackRestart.listen((_) => unawaited(_readVideoAspect()));
     if (Platform.isWindows) {
       _hdrBrightness = SettingsService.instanceOrNull?.listenable(SettingsService.hdrBrightness);
       _hdrBrightness?.addListener(updateVideoFilter);
@@ -124,6 +126,42 @@ class VideoFilterManager {
   /// Retrowave keeps the aspect ratio: the stretching fill mode (2) is gone,
   /// and a stored 2 reads as contain.
   static int _keepAspect(int mode) => mode == 1 ? 1 : 0;
+
+  // ---- Fit height ----
+  //
+  // Mode 1 fills the screen's height and never cuts the top or bottom: a
+  // picture wider than the screen is zoomed until it is as tall as the screen
+  // (the sides are cut); a narrower one already is (bars at the sides).
+
+  StreamSubscription<void>? _aspectFileSub;
+  StreamSubscription<void>? _aspectRestartSub;
+  double? _videoAspect;
+
+  Future<void> _readVideoAspect() async {
+    try {
+      final aspect = double.tryParse(await player.getProperty('video-params/aspect') ?? '');
+      if (aspect == null || !aspect.isFinite || aspect <= 0 || aspect == _videoAspect) return;
+      _videoAspect = aspect;
+      if (_boxFitMode == 1) updateVideoFilter();
+    } catch (_) {}
+  }
+
+  /// Zoom factor that makes the (cropped) picture as tall as the player.
+  double _fitHeightZoom(Size? playerSize) {
+    var aspect = _videoAspect;
+    final crop = RegExp(r'^(\d+)x(\d+)').firstMatch(_letterboxCrop);
+    final sourceW = _cropSourceWidth;
+    final sourceH = _cropSourceHeight;
+    if (aspect != null && crop != null && sourceW != null && sourceH != null) {
+      // The display aspect of the whole frame, reshaped by the crop.
+      final w = int.parse(crop.group(1)!);
+      final h = int.parse(crop.group(2)!);
+      if (w > 0 && h > 0) aspect = aspect * (w / sourceW) / (h / sourceH);
+    }
+    if (aspect == null || playerSize == null || playerSize.width <= 0 || playerSize.height <= 0) return 1.0;
+    final playerAspect = playerSize.width / playerSize.height;
+    return aspect > playerAspect ? aspect / playerAspect : 1.0;
+  }
 
   // ---- HDR brightness ----
   //
@@ -165,6 +203,8 @@ class VideoFilterManager {
   bool _letterboxChecked = false;
   bool _letterboxDetecting = false;
   String _letterboxCrop = '';
+  int? _cropSourceWidth;
+  int? _cropSourceHeight;
 
   static const _cropLabel = 'plezycrop';
 
@@ -176,7 +216,7 @@ class VideoFilterManager {
   }
 
   void _maybeDetectLetterbox(Duration position) {
-    if (_letterboxChecked || _letterboxDetecting || _boxFitMode != 0) return;
+    if (_letterboxChecked || _letterboxDetecting) return;
     // Past studio logos and black openings.
     if (position < const Duration(seconds: 10)) return;
     _letterboxDetecting = true;
@@ -204,6 +244,8 @@ class VideoFilterManager {
         final bars = (height - h) >= height * 0.04 || (width - w) >= width * 0.04;
         if (bars) crop = '${w}x$h+$x+$y';
       }
+      _cropSourceWidth = width;
+      _cropSourceHeight = height;
       appLogger.d('Letterbox detection: ${crop.isEmpty ? 'none' : crop} (video ${width}x$height)');
       if (crop != _letterboxCrop) {
         _letterboxCrop = crop;
@@ -394,12 +436,23 @@ class VideoFilterManager {
 
       await _applyProperty('video-aspect-override', aspectOverride);
       await _applyProperty('sub-ass-force-margins', coverMode || zoomScale > 1.0001 ? 'yes' : 'no');
-      await _applyProperty('panscan', coverMode ? '1.0' : '0');
-      await _applyProperty('video-zoom', nativeVideoZoom ? '0.0' : videoZoomPropertyForScale(zoomScale).toString());
+      if (nativeVideoZoom) {
+        await _applyProperty('panscan', coverMode ? '1.0' : '0');
+        await _applyProperty('video-zoom', '0.0');
+      } else {
+        // Fit height (see above) instead of panscan, which also cut the top
+        // and bottom on ultrawide screens.
+        final fitZoom = coverMode ? _fitHeightZoom(playerSize) : 1.0;
+        await _applyProperty('panscan', '0');
+        await _applyProperty(
+          'video-zoom',
+          (videoZoomPropertyForScale(zoomScale) + math.log(fitZoom) / math.ln2).toStringAsFixed(4),
+        );
+      }
       if (_hdrBrightness != null) await _applyProperty('gamma', _hdrGamma);
       // Last: older libmpv builds have no video-crop and refuse it.
       if (_cropLetterbox) {
-        await _applyProperty('video-crop', boxFitMode == 0 && zoomScale <= 1.0001 ? _letterboxCrop : '');
+        await _applyProperty('video-crop', zoomScale <= 1.0001 ? _letterboxCrop : '');
       }
     } catch (e) {
       appLogger.w('Failed to update video filter', error: e);
@@ -422,6 +475,8 @@ class VideoFilterManager {
   void dispose() {
     _debouncedUpdateVideoFilter.cancel();
     unawaited(_fileLoadedSub?.cancel());
+    unawaited(_aspectFileSub?.cancel());
+    unawaited(_aspectRestartSub?.cancel());
     _hdrBrightness?.removeListener(updateVideoFilter);
     unawaited(_hdrFileSub?.cancel());
     unawaited(_hdrRestartSub?.cancel());
