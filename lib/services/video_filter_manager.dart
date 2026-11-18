@@ -1,8 +1,12 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:rate_limiter/rate_limiter.dart';
 
 import '../media/video_zoom.dart';
@@ -223,7 +227,6 @@ class VideoFilterManager {
   int? _cropSourceWidth;
   int? _cropSourceHeight;
 
-  static const _cropLabel = 'plezycrop';
 
   void _resetLetterbox() {
     _letterboxChecked = false;
@@ -241,26 +244,42 @@ class VideoFilterManager {
     unawaited(_detectLetterbox());
   }
 
+  /// Finds black bars from a few screenshots of the video (no filter: the
+  /// cropdetect filter cannot take hardware-decoded frames, and switching the
+  /// decoder to copy mode would stutter). Each shot is decoded small and
+  /// scanned for dark rows and columns; the content box is the union over all
+  /// shots, so one dark scene does not crop real picture.
   Future<void> _detectLetterbox() async {
-    var filterAdded = false;
     try {
+      final dir = await getTemporaryDirectory();
       final width = int.tryParse(await player.getProperty('width') ?? '');
       final height = int.tryParse(await player.getProperty('height') ?? '');
       if (width == null || height == null || width <= 0 || height <= 0) return;
-      await player.command(['vf', 'add', '@$_cropLabel:cropdetect=limit=24:round=2:reset=0']);
-      filterAdded = true;
-      await Future<void>.delayed(const Duration(seconds: 2));
-      Future<int?> meta(String key) async =>
-          int.tryParse(await player.getProperty('vf-metadata/$_cropLabel/lavfi.cropdetect.$key') ?? '');
-      final w = await meta('w');
-      final h = await meta('h');
-      final x = await meta('x');
-      final y = await meta('y');
+
+      _Box? content;
+      for (var shot = 0; shot < 3; shot++) {
+        if (shot > 0) await Future<void>.delayed(const Duration(milliseconds: 1500));
+        final file = File(p.join(dir.path, 'plezy_letterbox_$shot.jpg'));
+        try {
+          await player.command(['screenshot-to-file', file.path, 'video']);
+          if (!await file.exists()) continue;
+          final box = await _contentBox(await file.readAsBytes());
+          if (box != null) content = content == null ? box : content.union(box);
+        } finally {
+          if (await file.exists()) unawaited(file.delete().catchError((_) => file));
+        }
+      }
+
       var crop = '';
-      if (w != null && h != null && x != null && y != null && w > width / 2 && h > height / 2) {
-        // Only clear bars count: at least 4 % of the height or the width.
+      if (content != null) {
+        // Fractions of the frame, mapped onto the decoded size; even values.
+        int even(double v) => (v / 2).round() * 2;
+        final x = even(content.left * width);
+        final y = even(content.top * height);
+        final w = even((content.right - content.left) * width);
+        final h = even((content.bottom - content.top) * height);
         final bars = (height - h) >= height * 0.04 || (width - w) >= width * 0.04;
-        if (bars) crop = '${w}x$h+$x+$y';
+        if (bars && w > width / 2 && h > height / 2) crop = '${w}x$h+$x+$y';
       }
       _cropSourceWidth = width;
       _cropSourceHeight = height;
@@ -274,11 +293,68 @@ class VideoFilterManager {
     } finally {
       _letterboxChecked = true;
       _letterboxDetecting = false;
-      if (filterAdded) {
-        try {
-          await player.command(['vf', 'remove', '@$_cropLabel']);
-        } catch (_) {}
+    }
+  }
+
+  /// The non-black area of one screenshot, as fractions of its size, or null
+  /// for a frame that is (nearly) all dark.
+  static Future<_Box?> _contentBox(Uint8List bytes) async {
+    const scanWidth = 320;
+    final codec = await ui.instantiateImageCodec(bytes, targetWidth: scanWidth);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+    try {
+      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (data == null) return null;
+      final w = image.width;
+      final h = image.height;
+      final px = data.buffer.asUint8List();
+      // A pixel is picture when brighter than this (0-255 luma).
+      const threshold = 28;
+      bool bright(int x, int y) {
+        final o = (y * w + x) * 4;
+        final luma = (px[o] * 299 + px[o + 1] * 587 + px[o + 2] * 114) ~/ 1000;
+        return luma > threshold;
       }
+
+      // A row or column is picture when more than 1 % of it is bright.
+      bool rowLit(int y) {
+        var n = 0;
+        for (var x = 0; x < w; x++) {
+          if (bright(x, y) && ++n > w ~/ 100) return true;
+        }
+        return false;
+      }
+
+      bool colLit(int x) {
+        var n = 0;
+        for (var y = 0; y < h; y++) {
+          if (bright(x, y) && ++n > h ~/ 100) return true;
+        }
+        return false;
+      }
+
+      var top = 0;
+      while (top < h && !rowLit(top)) {
+        top++;
+      }
+      if (top >= h) return null;
+      var bottom = h - 1;
+      while (bottom > top && !rowLit(bottom)) {
+        bottom--;
+      }
+      var left = 0;
+      while (left < w && !colLit(left)) {
+        left++;
+      }
+      var right = w - 1;
+      while (right > left && !colLit(right)) {
+        right--;
+      }
+      return _Box(left / w, top / h, (right + 1) / w, (bottom + 1) / h);
+    } finally {
+      image.dispose();
+      codec.dispose();
     }
   }
 
@@ -503,4 +579,21 @@ class VideoFilterManager {
     unawaited(_hdrRestartSub?.cancel());
     unawaited(_positionSub?.cancel());
   }
+}
+
+/// A rectangle in fractions of a frame.
+class _Box {
+  const _Box(this.left, this.top, this.right, this.bottom);
+
+  final double left;
+  final double top;
+  final double right;
+  final double bottom;
+
+  _Box union(_Box o) => _Box(
+    math.min(left, o.left),
+    math.min(top, o.top),
+    math.max(right, o.right),
+    math.max(bottom, o.bottom),
+  );
 }
