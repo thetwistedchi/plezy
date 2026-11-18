@@ -100,7 +100,8 @@ class VideoFilterManager {
     this.onBoxFitModeChanged,
     bool cropLetterbox = false,
   }) : _boxFitMode = _keepAspect(initialBoxFitMode),
-       _cropLetterbox = cropLetterbox && (Platform.isWindows || Platform.isLinux),
+       _cropLetterbox = cropLetterbox,
+       _canCrop = Platform.isWindows || Platform.isLinux,
        _zoomScale = normalizeZoomScale(initialZoomScale),
        _playerSize = initialPlayerSize {
     _debouncedUpdateVideoFilter = debounce(
@@ -117,9 +118,9 @@ class VideoFilterManager {
       _hdrFileSub = player.streams.fileLoaded.listen((_) => _isHdr = false);
       _hdrRestartSub = player.streams.playbackRestart.listen((_) => unawaited(_checkHdr()));
     }
-    if (_cropLetterbox) {
+    if (_canCrop) {
       _fileLoadedSub = player.streams.fileLoaded.listen((_) => _resetLetterbox());
-      _positionSub = player.streams.position.listen(_maybeDetectLetterbox);
+      _positionSub = player.streams.position.listen(_onPosition);
     }
   }
 
@@ -197,7 +198,23 @@ class VideoFilterManager {
   // cropped with `video-crop`, so a 2.39:1 film fills an ultrawide screen.
   // Contain mode only: cover and zoom already fill.
 
+  /// The setting: crop black bars in Fit mode too. Fit height always does.
   final bool _cropLetterbox;
+  final bool _canCrop;
+
+  bool get _wantsCrop => _canCrop && (_cropLetterbox || _boxFitMode == 1);
+
+  bool _aspectReading = false;
+
+  void _onPosition(Duration position) {
+    // playbackRestart is not reported by every backend: read the aspect
+    // from the first position update too.
+    if (_videoAspect == null && !_aspectReading && position > Duration.zero) {
+      _aspectReading = true;
+      unawaited(_readVideoAspect().whenComplete(() => _aspectReading = false));
+    }
+    _maybeDetectLetterbox(position);
+  }
   StreamSubscription<void>? _fileLoadedSub;
   StreamSubscription<Duration>? _positionSub;
   bool _letterboxChecked = false;
@@ -216,8 +233,9 @@ class VideoFilterManager {
   }
 
   void _maybeDetectLetterbox(Duration position) {
-    if (_letterboxChecked || _letterboxDetecting) return;
-    // Past studio logos and black openings.
+    if (!_wantsCrop || _letterboxChecked || _letterboxDetecting) return;
+    // Past studio logos and black openings (switching to Fit height later in
+    // a film checks on the next position update).
     if (position < const Duration(seconds: 10)) return;
     _letterboxDetecting = true;
     unawaited(_detectLetterbox());
@@ -443,6 +461,9 @@ class VideoFilterManager {
         // Fit height (see above) instead of panscan, which also cut the top
         // and bottom on ultrawide screens.
         final fitZoom = coverMode ? _fitHeightZoom(playerSize) : 1.0;
+        if (coverMode) {
+          appLogger.d('Fit height: zoom=$fitZoom aspect=$_videoAspect crop=$_letterboxCrop player=$playerSize');
+        }
         await _applyProperty('panscan', '0');
         await _applyProperty(
           'video-zoom',
@@ -451,8 +472,8 @@ class VideoFilterManager {
       }
       if (_hdrBrightness != null) await _applyProperty('gamma', _hdrGamma);
       // Last: older libmpv builds have no video-crop and refuse it.
-      if (_cropLetterbox) {
-        await _applyProperty('video-crop', zoomScale <= 1.0001 ? _letterboxCrop : '');
+      if (_canCrop) {
+        await _applyProperty('video-crop', _wantsCrop && zoomScale <= 1.0001 ? _letterboxCrop : '');
       }
     } catch (e) {
       appLogger.w('Failed to update video filter', error: e);

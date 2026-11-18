@@ -26,8 +26,8 @@ Current version: **0.6.1**.
 - Playing something else opens it in the full player; starting a YouTube video stops a minimized Plex video and the other way round.
 
 #### Picture
-- The video always keeps its aspect ratio: the stretching fill mode is gone. The fit button switches between **Fit** and **Fit height**, which fills the screen's height and never cuts anything off at the top or bottom.
-- Optional **Fill the screen when letterboxed** (Settings › Playback): detects black bars baked into a video and crops them, so wide films fill ultrawide screens. Works in both fit modes.
+- The video always keeps its aspect ratio: the stretching fill mode is gone. The fit button switches between **Fit** and **Fit height**. Fit height crops black bars baked into the video and fills the screen's height with the picture itself, never cutting anything off at the top or bottom.
+- Optional **Fill the screen when letterboxed** (Settings › Playback): crops black bars baked into a video in Fit mode as well.
 
 #### HDR
 - **HDR brightness boost** slider (Settings › Playback and the player's own settings, under the HDR switch; Windows): an extra lift for the midtones of HDR videos that look too dark. Off keeps the picture as mastered, HDR stays on at every setting, and changes apply right away.
