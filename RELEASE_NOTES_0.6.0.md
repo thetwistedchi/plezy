@@ -22,4 +22,4 @@
 - Episodes show the series poster in libraries and rows by default. Episode thumbnails appear in a season's episode list. Existing installs keep their setting: Settings › Appearance › Episode poster.
 
 ### Installer
-- Always shows the install folder page, so you can choose where it installs.
+- The installer always shows the install folder page, so the install location can be chosen.
