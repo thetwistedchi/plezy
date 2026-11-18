@@ -6,7 +6,9 @@ import '../../media/media_kind.dart';
 import '../../media/media_rating.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/external_ids.dart';
+import '../settings_service.dart';
 import '../trackers/trakt/trakt_constants.dart';
+import 'rating_providers.dart';
 
 /// One site a title can be opened on, with the score that site gives it when
 /// one is known. [source] uses the [MediaRatingSource] keys so the card can
@@ -50,7 +52,9 @@ class TitleLinksService {
     'imdb',
     'rottenTomatoesCritic',
     'rottenTomatoesAudience',
+    'metacritic',
     'tmdb',
+    'mal',
   ];
 
   /// Every link for a title. [known] are the scores the server and the
@@ -149,43 +153,141 @@ class TitleLinksService {
     return null;
   }
 
-  /// Fills in Letterboxd and Trakt scores missing from [links]. Each lookup
-  /// is cached for [cacheTtl]; failures are cached too, so an unreachable site
-  /// is not asked again on every visit.
+  /// Fills in scores missing from [links], and adds Metacritic, MyAnimeList
+  /// and Rotten Tomatoes audience cards when a provider knows them:
+  ///
+  /// 1. MDBList (API key): one request for nearly every site.
+  /// 2. OMDb (API key): IMDb, Tomatometer and Metascore, only for what is
+  ///    still missing.
+  /// 3. Jikan (no key, anime only): the MyAnimeList score.
+  /// 4. Letterboxd's page and Trakt's API, only for what is still missing,
+  ///    in parallel.
+  ///
+  /// Every lookup is cached for [cacheTtl], failures too.
   Future<List<TitleLink>> withFetchedScores(
     List<TitleLink> links, {
     required MediaKind kind,
     required ExternalIds ids,
+    String title = '',
+    int? year,
+    bool isAnime = false,
   }) async {
-    final result = <TitleLink>[];
-    for (final link in links) {
-      if (link.rating != null) {
-        result.add(link);
-        continue;
-      }
-      switch (link.source) {
-        case 'letterboxd':
-          final fetched = await _cached('lb:${ids.tmdb ?? ids.imdb}', () => _fetchLetterboxd(link.url));
-          result.add(link.withRating(fetched.rating));
-        case 'trakt':
-          final fetched = await _cached(
-            'trakt:${kind.name}:${ids.tmdb ?? ids.imdb ?? ids.tvdb}',
-            () => _fetchTrakt(kind, ids),
-          );
-          final slugUrl = fetched.slug == null ? null : traktUrl(kind: kind, slug: fetched.slug);
-          result.add(
-            TitleLink(
-              source: link.source,
-              siteName: link.siteName,
-              url: slugUrl ?? link.url,
-              rating: fetched.rating,
-            ),
-          );
-        default:
-          result.add(link);
-      }
+    final have = <String>{for (final link in links) if (link.rating != null) link.source};
+    final found = <String, MediaRatingSource>{};
+    bool missing(String source) => !have.contains(source) && !found.containsKey(source);
+    void take(ProviderScores scores) {
+      scores.ratings.forEach((source, rating) {
+        if (missing(source)) found[source] = rating;
+      });
     }
+
+    final idKey = '${kind.name}:${ids.tmdb ?? ids.imdb ?? ids.tvdb}';
+    final settings = SettingsService.instanceOrNull;
+    int? malId;
+
+    final mdbKey = settings?.read(SettingsService.mdblistApiKey).trim() ?? '';
+    if (mdbKey.isNotEmpty) {
+      final scores = await _cachedScores('mdb:$idKey', () => _mdbList.fetch(apiKey: mdbKey, kind: kind, ids: ids));
+      take(scores);
+      malId = scores.malId;
+    }
+
+    final omdbKey = settings?.read(SettingsService.omdbApiKey).trim() ?? '';
+    if (omdbKey.isNotEmpty &&
+        (missing('metacritic') || missing('imdb') || missing('rottenTomatoesCritic'))) {
+      take(await _cachedScores('omdb:$idKey', () => _omdb.fetch(apiKey: omdbKey, ids: ids)));
+    }
+
+    if (isAnime && (settings?.read(SettingsService.jikanRatings) ?? true) && missing('mal')) {
+      final scores = await _cachedScores(
+        'jikan:${malId ?? '$title:$year'}',
+        () => _jikan.fetch(malId: malId, title: title, year: year),
+      );
+      take(scores);
+      malId ??= scores.malId;
+    }
+
+    // Letterboxd and Trakt directly, for what the providers left open.
+    final result = await Future.wait([
+      for (final link in links)
+        () async {
+          final rating = link.rating ?? found[link.source];
+          if (rating != null) return link.withRating(rating);
+          switch (link.source) {
+            case 'letterboxd':
+              final fetched = await _cached('lb:${ids.tmdb ?? ids.imdb}', () => _fetchLetterboxd(link.url));
+              return link.withRating(fetched.rating);
+            case 'trakt':
+              final fetched = await _cached('trakt:$idKey', () => _fetchTrakt(kind, ids));
+              final slugUrl = fetched.slug == null ? null : traktUrl(kind: kind, slug: fetched.slug);
+              return TitleLink(
+                source: link.source,
+                siteName: link.siteName,
+                url: slugUrl ?? link.url,
+                rating: fetched.rating,
+              );
+            default:
+              return link;
+          }
+        }(),
+    ]);
+
+    // Sites the base row has no card for.
+    final present = {for (final link in result) link.source};
+    final query = Uri.encodeComponent(title);
+    for (final MapEntry(key: source, value: rating) in found.entries) {
+      if (present.contains(source)) continue;
+      final link = switch (source) {
+        'metacritic' => TitleLink(
+          source: source,
+          siteName: 'Metacritic',
+          url: Uri.parse('https://www.metacritic.com/search/$query/'),
+          rating: rating,
+        ),
+        'mal' => TitleLink(
+          source: source,
+          siteName: 'MyAnimeList',
+          url: malId != null
+              ? Uri.parse('https://myanimelist.net/anime/$malId')
+              : Uri.parse('https://myanimelist.net/anime.php?q=$query'),
+          rating: rating,
+        ),
+        'rottenTomatoesAudience' => TitleLink(
+          source: source,
+          siteName: 'Rotten Tomatoes',
+          url: Uri.parse('https://www.rottentomatoes.com/search?search=$query'),
+          rating: rating,
+        ),
+        _ => null,
+      };
+      if (link != null) result.add(link);
+    }
+    int order(TitleLink link) {
+      final i = siteOrder.indexOf(link.source);
+      return i < 0 ? siteOrder.length : i;
+    }
+
+    result.sort((a, b) => order(a).compareTo(order(b)));
     return result;
+  }
+
+  late final _mdbList = MdbListProvider(_client);
+  late final _omdb = OmdbProvider(_client);
+  late final _jikan = JikanProvider(_client);
+  final Map<String, ({DateTime at, ProviderScores value})> _scoreCache = {};
+
+  Future<ProviderScores> _cachedScores(String key, Future<ProviderScores> Function() load) async {
+    final hit = _scoreCache[key];
+    if (hit != null && _now().difference(hit.at) < cacheTtl) return hit.value;
+    ProviderScores value;
+    try {
+      value = await load();
+    } on Exception catch (e) {
+      appLogger.d('Ratings & links: $key unavailable', error: e);
+      value = ProviderScores.empty;
+    }
+    _scoreCache[key] = (at: _now(), value: value);
+    return value;
   }
 
   Future<_Fetched> _cached(String key, Future<_Fetched> Function() load) async {

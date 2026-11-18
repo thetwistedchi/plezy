@@ -1021,6 +1021,12 @@ class SettingsService extends BaseSharedPreferencesService {
   /// Windows: lifts the midtones of HDR videos, 0 (as mastered) to 100.
   static const hdrBrightness = IntPref('hdr_brightness', defaultValue: 0);
 
+  /// Rating sources for the Ratings & links row. MDBList and OMDb need the
+  /// user's own free API key; Jikan (MyAnimeList, anime only) needs none.
+  static const mdblistApiKey = StringPref('mdblist_api_key', defaultValue: '');
+  static const omdbApiKey = StringPref('omdb_api_key', defaultValue: '');
+  static const jikanRatings = BoolPref('jikan_ratings', defaultValue: true);
+
   static const playbackBufferTier = EnumPref<PlaybackBufferTier>(
     'playback_buffer_tier',
     values: PlaybackBufferTier.values,
@@ -1638,6 +1644,7 @@ class SettingsService extends BaseSharedPreferencesService {
     backMinimizesPlayer,
     cropLetterbox,
     hdrBrightness,
+    jikanRatings,
   ];
 
   /// Group three: reset but *not* exported — device-local paths, endpoints and

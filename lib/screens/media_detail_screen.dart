@@ -928,6 +928,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       _titleLinksFor(_metadata),
       kind: _metadata.kind,
       ids: ids,
+      title: _metadata.title ?? '',
+      year: _metadata.year,
+      isAnime: _metadata.genres?.any((g) => g.toLowerCase() == 'anime') ?? false,
     );
     if (!_canUseDetail) return;
     setState(() => _fetchedTitleLinks = {for (final link in fetched) link.source: link});
@@ -938,7 +941,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   List<TitleLink> _titleLinksFor(MediaItem metadata) {
     final ids = _externalIds;
     if (ids == null) return const [];
-    return [
+    final links = [
       for (final link in TitleLinksService.instance.linksFor(
         kind: metadata.kind,
         ids: ids,
@@ -948,6 +951,16 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       ))
         link.rating == null ? (_fetchedTitleLinks[link.source] ?? link) : link,
     ];
+    // Sites only a rating provider knows (Metacritic, MyAnimeList, ...).
+    final present = {for (final link in links) link.source};
+    links.addAll(_fetchedTitleLinks.values.where((link) => !present.contains(link.source)));
+    int order(TitleLink link) {
+      final i = TitleLinksService.siteOrder.indexOf(link.source);
+      return i < 0 ? TitleLinksService.siteOrder.length : i;
+    }
+
+    links.sort((a, b) => order(a).compareTo(order(b)));
+    return links;
   }
 
   bool _hasCredits(MediaItem metadata) =>
