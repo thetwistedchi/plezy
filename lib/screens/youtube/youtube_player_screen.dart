@@ -175,6 +175,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   void initState() {
     super.initState();
     _current = this;
+    _watchdog = Timer.periodic(const Duration(seconds: 4), (_) => _checkHealth());
     _volume = _settings.playerVolume;
     _rate = _settings.playbackSpeed;
     _fullscreen = FullscreenStateManager().isFullscreen;
@@ -188,6 +189,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     _saveProgress();
     _sleepTimer?.cancel();
     _nudgeTimer?.cancel();
+    _watchdog?.cancel();
     if (DiscordRPCService.isAvailable) unawaited(DiscordRPCService.instance.stopPlayback());
     _hideTimer?.cancel();
     _toastTimer?.cancel();
@@ -326,10 +328,66 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     unawaited(_host.post(jsonEncode(command)));
   }
 
+  void _checkHealth() {
+    if (!mounted) return;
+    final now = DateTime.now();
+    final slept = now.difference(_lastTick) > const Duration(seconds: 30);
+    _lastTick = now;
+    if (_recovering || _initError != null) return;
+    if (slept) {
+      // The PC slept or hibernated; WebView2's capture rarely survives that.
+      unawaited(_recover(fresh: true));
+    } else if (_webReady && now.difference(_lastMessage) > const Duration(seconds: 10)) {
+      unawaited(_recover(fresh: _recoveries > 0));
+    }
+  }
+
+  /// Reloads the player at the current position, keeping it paused if it
+  /// was. [fresh] also replaces the WebView itself.
+  Future<void> _recover({required bool fresh}) async {
+    _recovering = true;
+    _recoveries++;
+    final wasPlaying = _playing;
+    final position = _position;
+    appLogger.i('YouTube player not responding, restarting (fresh: $fresh)');
+    setState(() => _webReady = false);
+    try {
+      if (fresh) await _host.reset();
+      _pauseWhenReady = !wasPlaying;
+      await _host.open(
+        YouTubeWebView.playerUrl(
+          _video.id,
+          start: position,
+          language: LocaleSettings.currentLocale.languageCode,
+        ),
+      );
+      _lastMessage = DateTime.now();
+      if (!mounted) return;
+      setState(() {
+        _webReady = true;
+        _frameReady = false;
+        _qualityApplied = false;
+        _ccApplied = false;
+        _audioApplied = false;
+        _trackSignature = '';
+      });
+    } catch (e) {
+      appLogger.w('YouTube player restart failed', error: e);
+    } finally {
+      _recovering = false;
+    }
+  }
+
   void _onMessage(dynamic message) {
     if (message is! Map || !mounted) return;
+    _lastMessage = DateTime.now();
     switch (message['t']) {
       case 'ready':
+        if (_pauseWhenReady) {
+          _pauseWhenReady = false;
+          _send({'cmd': 'pause'});
+        }
+        _recoveries = 0;
         _send({'cmd': 'volume', 'v': _volume});
         if (_rate != 1) _applyRate(_rate);
         setState(() => _errorCode = null);
@@ -1132,7 +1190,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             else ...[
               Padding(
                 padding: EdgeInsets.only(right: _nudge ? 1 : 0),
-                child: Webview(_host.controller),
+                // Keyed by the controller, so a restarted WebView gets a new view.
+                child: KeyedSubtree(key: ObjectKey(_host.controller), child: Webview(_host.controller)),
               ),
               // Takes clicks and hovers away from the embed, so YouTube's own
               // hover UI never shows: click plays/pauses, double-click
