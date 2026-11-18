@@ -41,9 +41,13 @@ class TitleLinksService {
 
   static const Duration cacheTtl = Duration(hours: 24);
 
+  /// How long a failed lookup (timeout, error status) is remembered: short,
+  /// so a site that was down is asked again soon.
+  static const Duration failureTtl = Duration(minutes: 15);
+
   final http.Client _client;
   final DateTime Function() _now;
-  final Map<String, ({DateTime at, _Fetched value})> _cache = {};
+  final Map<String, ({DateTime until, _Fetched value})> _cache = {};
 
   /// Order the row shows the sites in.
   static const List<String> siteOrder = [
@@ -274,41 +278,44 @@ class TitleLinksService {
   late final _mdbList = MdbListProvider(_client);
   late final _omdb = OmdbProvider(_client);
   late final _jikan = JikanProvider(_client);
-  final Map<String, ({DateTime at, ProviderScores value})> _scoreCache = {};
+  final Map<String, ({DateTime until, ProviderScores value})> _scoreCache = {};
 
   Future<ProviderScores> _cachedScores(String key, Future<ProviderScores> Function() load) async {
     final hit = _scoreCache[key];
-    if (hit != null && _now().difference(hit.at) < cacheTtl) return hit.value;
-    ProviderScores value;
+    if (hit != null && _now().isBefore(hit.until)) return hit.value;
     try {
-      value = await load();
+      final value = await load();
+      _scoreCache[key] = (until: _now().add(cacheTtl), value: value);
+      return value;
     } on Exception catch (e) {
+      // The caller falls back to the direct lookups for this visit.
       appLogger.d('Ratings & links: $key unavailable', error: e);
-      value = ProviderScores.empty;
+      _scoreCache[key] = (until: _now().add(failureTtl), value: ProviderScores.empty);
+      return ProviderScores.empty;
     }
-    _scoreCache[key] = (at: _now(), value: value);
-    return value;
   }
 
   Future<_Fetched> _cached(String key, Future<_Fetched> Function() load) async {
     final hit = _cache[key];
-    if (hit != null && _now().difference(hit.at) < cacheTtl) return hit.value;
-    _Fetched value;
+    if (hit != null && _now().isBefore(hit.until)) return hit.value;
     try {
-      value = await load();
+      final value = await load();
+      _cache[key] = (until: _now().add(cacheTtl), value: value);
+      return value;
     } on Exception catch (e) {
       appLogger.d('Ratings & links: $key unavailable', error: e);
-      value = const _Fetched();
+      _cache[key] = (until: _now().add(failureTtl), value: const _Fetched());
+      return const _Fetched();
     }
-    _cache[key] = (at: _now(), value: value);
-    return value;
   }
 
   Future<_Fetched> _fetchLetterboxd(Uri url) async {
     final response = await _client
         .get(url, headers: const {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) PlezyRetrowave'})
         .timeout(const Duration(seconds: 8));
-    if (response.statusCode != 200) return const _Fetched();
+    // 404: no such film page (a real answer). Anything else: unavailable.
+    if (response.statusCode == 404) return const _Fetched();
+    if (response.statusCode != 200) throw ProviderUnavailable(response.statusCode);
     return _Fetched(rating: parseLetterboxdRating(response.body));
   }
 
@@ -383,7 +390,8 @@ class TitleLinksService {
     final response = await _client
         .get(Uri.parse('${TraktConstants.apiBase}$path'), headers: TraktConstants.headers())
         .timeout(const Duration(seconds: 8));
-    if (response.statusCode != 200) return null;
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) throw ProviderUnavailable(response.statusCode);
     return jsonDecode(response.body);
   }
 }

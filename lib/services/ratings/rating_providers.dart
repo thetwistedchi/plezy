@@ -6,6 +6,17 @@ import '../../media/media_kind.dart';
 import '../../media/media_rating.dart';
 import '../../utils/external_ids.dart';
 
+/// A provider answered with an error status (down, rate limited, bad key).
+/// Thrown so the cache keeps it only briefly and the next visit asks again.
+class ProviderUnavailable implements Exception {
+  const ProviderUnavailable(this.statusCode);
+
+  final int statusCode;
+
+  @override
+  String toString() => 'HTTP $statusCode';
+}
+
 /// What one provider returned for a title: scores by [MediaRatingSource] key
 /// (0-10 scale) plus ids other lookups can use.
 class ProviderScores {
@@ -49,7 +60,7 @@ class MdbListProvider {
     if (provider == null) return ProviderScores.empty;
     final uri = Uri.https('api.mdblist.com', '/$provider/$type/$id', {'apikey': apiKey});
     final response = await _client.get(uri).timeout(const Duration(seconds: 8));
-    if (response.statusCode != 200) return ProviderScores.empty;
+    if (response.statusCode != 200) throw ProviderUnavailable(response.statusCode);
     return parse(jsonDecode(response.body));
   }
 
@@ -96,7 +107,7 @@ class OmdbProvider {
     if (imdb == null || imdb.isEmpty) return ProviderScores.empty;
     final uri = Uri.https('www.omdbapi.com', '/', {'i': imdb, 'apikey': apiKey});
     final response = await _client.get(uri).timeout(const Duration(seconds: 8));
-    if (response.statusCode != 200) return ProviderScores.empty;
+    if (response.statusCode != 200) throw ProviderUnavailable(response.statusCode);
     return parse(jsonDecode(response.body));
   }
 
@@ -135,7 +146,7 @@ class JikanProvider {
       final response = await _client
           .get(Uri.https('api.jikan.moe', '/v4/anime/$malId'))
           .timeout(const Duration(seconds: 8));
-      if (response.statusCode != 200) return ProviderScores.empty;
+      if (response.statusCode != 200) throw ProviderUnavailable(response.statusCode);
       final json = jsonDecode(response.body);
       anime = json is Map && json['data'] is Map ? json['data'] as Map : null;
     } else {
@@ -143,7 +154,7 @@ class JikanProvider {
       final response = await _client
           .get(Uri.https('api.jikan.moe', '/v4/anime', {'q': title, 'limit': '5'}))
           .timeout(const Duration(seconds: 8));
-      if (response.statusCode != 200) return ProviderScores.empty;
+      if (response.statusCode != 200) throw ProviderUnavailable(response.statusCode);
       final json = jsonDecode(response.body);
       final data = json is Map ? json['data'] : null;
       if (data is! List) return ProviderScores.empty;
