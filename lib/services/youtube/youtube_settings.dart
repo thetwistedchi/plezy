@@ -54,6 +54,7 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kCacheLimitMb = 'youtube_player_cache_mb';
   static const _kProgress = 'youtube_progress';
   static const _kLastVideo = 'youtube_last_video';
+  static const _kResumeDismissed = 'youtube_resume_dismissed';
   static const _kQuality = 'youtube_preferred_quality';
   static const _kSpeed = 'youtube_playback_speed';
   static const _kCcEnabled = 'youtube_captions_enabled';
@@ -404,6 +405,16 @@ class YouTubeSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Videos whose Resume card was dismissed (kept small).
+  List<String> get dismissedResumes => _prefs?.getStringList(_kResumeDismissed) ?? const [];
+
+  Future<void> dismissResume(String videoId) async {
+    await load();
+    final list = [...dismissedResumes.where((id) => id != videoId), videoId];
+    await _prefs!.setStringList(_kResumeDismissed, list.length > 50 ? list.sublist(list.length - 50) : list);
+    notifyListeners();
+  }
+
   /// Hides the Resume card until another video is opened.
   Future<void> clearLastVideo() async {
     await load();
@@ -411,6 +422,9 @@ class YouTubeSettings extends ChangeNotifier {
     await _prefs!.remove(_kLastVideo);
     notifyListeners();
   }
+
+  /// Video ids with saved progress, most recently saved first.
+  Iterable<String> get recentProgressIds => _progress.keys.toList().reversed;
 
   /// Saved position and length of [videoId] in seconds.
   ({double position, double duration})? progressOf(String videoId) {

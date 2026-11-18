@@ -80,17 +80,28 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     _channelCount = channels;
   }
 
-  /// The last opened video while it is unfinished and not playing right now.
+  /// The most recent unfinished video that is not playing right now: the
+  /// last opened one, else the latest saved position of a video still in
+  /// the feed (covers videos watched before the card existed).
   ({YouTubeVideo video, ({double position, double duration}) progress})? _resumeVideo() {
+    bool unfinished(({double position, double duration})? p) =>
+        p != null && p.position >= 10 && p.position / p.duration < 0.95;
+
     final json = _settings.lastVideoJson;
-    if (json == null) return null;
-    final video = YouTubeVideo.fromJson(json);
-    if (video == null || YouTubePlayerScreen.isPlaying(video.id)) return null;
-    final progress = _settings.progressOf(video.id);
-    if (progress == null) return null;
-    final fraction = progress.position / progress.duration;
-    if (progress.position < 10 || fraction >= 0.95) return null;
-    return (video: video, progress: progress);
+    final last = json == null ? null : YouTubeVideo.fromJson(json);
+    final candidates = <YouTubeVideo>[?last];
+    final byId = {for (final video in _service.videos) video.id: video};
+    for (final id in _settings.recentProgressIds.take(50)) {
+      final video = byId[id];
+      if (video != null && video.id != last?.id) candidates.add(video);
+    }
+    final dismissed = _settings.dismissedResumes.toSet();
+    for (final video in candidates) {
+      if (dismissed.contains(video.id) || YouTubePlayerScreen.isPlaying(video.id)) continue;
+      final progress = _settings.progressOf(video.id);
+      if (unfinished(progress)) return (video: video, progress: progress!);
+    }
+    return null;
   }
 
   void _openChannels() {
@@ -1030,7 +1041,7 @@ class _ResumeCard extends StatelessWidget {
               ),
               IconButton(
                 tooltip: YtStrings.dismiss,
-                onPressed: () => unawaited(YouTubeSettings.instance.clearLastVideo()),
+                onPressed: () => unawaited(YouTubeSettings.instance.dismissResume(video.id)),
                 icon: const AppIcon(Symbols.close_rounded, size: 20),
               ),
             ],
