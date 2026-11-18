@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../theme/player_style.dart';
 import '../theme/retrowave_colors.dart';
 import '../utils/rating_median.dart';
 import 'dart:ui';
@@ -1482,7 +1483,8 @@ class _CatalogBadges extends StatelessWidget {
 }
 
 /// Top-left median of the scores Plex sent with the listing (no extra
-/// requests; the Tomatometer is left out).
+/// requests; the Tomatometer is left out): a star and the score on the
+/// theme's violet-to-magenta fade, like the player's accents.
 class _RatingMedianBadge extends StatelessWidget {
   const _RatingMedianBadge({required this.score});
 
@@ -1490,20 +1492,37 @@ class _RatingMedianBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style = PlayerStyle.of(context);
+    final fade = style.progressGradient == null
+        ? const [RetroColors.violet, RetroColors.magenta]
+        : [RetroColors.violet, style.progressGradient!.last];
     return Positioned(
       top: 6,
       left: 6,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: RetroColors.night90,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: RetroColors.violet.withValues(alpha: 0.7)),
+          gradient: LinearGradient(colors: fade),
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: const [BoxShadow(color: Color(0x80140327), blurRadius: 4, offset: Offset(0, 1))],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-          child: Text(
-            '$score',
-            style: const TextStyle(color: RetroColors.moon, fontSize: 11, fontWeight: FontWeight.w700, height: 1),
+          padding: const EdgeInsets.fromLTRB(5, 3, 7, 3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const AppIcon(Symbols.star_rounded, fill: 1, size: 11, color: RetroColors.moon),
+              const SizedBox(width: 3),
+              Text(
+                '$score',
+                style: const TextStyle(
+                  color: RetroColors.moon,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
           ),
         ),
       ),

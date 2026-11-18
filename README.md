@@ -19,7 +19,7 @@ Current version: **0.7.0**.
 ## What's new in 0.7.0
 
 #### Rating median
-- Movie and series posters show the median of their scores in the top left corner, on a 0–100 scale. It uses only the scores Plex already sends with the library, so scrolling makes no extra requests.
+- Movie and series posters show the median of their scores as a small star badge in the top left corner, on a 0–100 scale. It uses only the scores Plex already sends with the library, so scrolling makes no extra requests.
 - The details page shows a **Median** card after Ratings & links, with the number of sources it is based on.
 - Every score is converted to 0–100 first (IMDb 7.8/10 → 78, Letterboxd 3.9/5 → 78). The Tomatometer is left out: it is the share of positive reviews, not an average score.
 
