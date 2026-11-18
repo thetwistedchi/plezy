@@ -9,6 +9,7 @@ add_executable(${BINARY_NAME} WIN32
   "mpv/display_mode_manager.cpp"
   "mpv/mpv_player.cpp"
   "mpv/mpv_plugin.cpp"
+  "youtube/youtube_web_plugin.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
   "runner.exe.manifest"
@@ -39,6 +40,16 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(${BINARY_NAME} PRIVATE "${MPV_INCLUDE_DIR}")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/../shared/cpp")
+
+# WebView2 SDK for the native YouTube player (youtube/youtube_web_plugin.cpp).
+# The webview_windows plugin restores the same NuGet package into
+# ${CMAKE_BINARY_DIR}/packages before building; reuse it rather than fetching
+# a second copy, and build after that download.
+target_link_libraries(${BINARY_NAME} PRIVATE
+  "${CMAKE_BINARY_DIR}/packages/Microsoft.Web.WebView2/build/native/Microsoft.Web.WebView2.targets")
+target_include_directories(${BINARY_NAME} PRIVATE
+  "${CMAKE_BINARY_DIR}/packages/Microsoft.Web.WebView2/build/native/include")
+add_dependencies(${BINARY_NAME} webview_windows_DEPENDENCIES_DOWNLOAD)
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)

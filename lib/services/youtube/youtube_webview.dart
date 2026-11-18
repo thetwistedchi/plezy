@@ -23,6 +23,11 @@ class YouTubeWebView {
   /// the setting takes effect at the next app start.
   static int? activeCacheLimitMb;
 
+  /// The player's browser profile folder and Chromium arguments, set by
+  /// [ensureReady]. Every WebView on this profile must use the same ones.
+  static String? profilePath;
+  static String? browserArguments;
+
   static const _cacheFolders = {'Cache', 'Code Cache', 'GPUCache', 'Service Worker', 'DawnCache', 'ShaderCache'};
   static Future<String>? _ready;
 
@@ -43,21 +48,21 @@ class YouTubeWebView {
     await YouTubeSettings.instance.load();
     final limitMb = YouTubeSettings.instance.playerCacheLimitMb;
     activeCacheLimitMb = limitMb;
+    profilePath = profile.path;
+    // Chromium pauses or throttles pages it thinks are hidden or covered;
+    // its occlusion check gets confused with several monitors.
+    browserArguments = [
+      '--autoplay-policy=no-user-gesture-required',
+      '--disk-cache-size=${limitMb * 1024 * 1024}',
+      '--disable-background-timer-throttling',
+      '--disable-renderer-backgrounding',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-features=CalculateNativeWinOcclusion',
+    ].join(' ');
     try {
-      await WebviewController.initializeEnvironment(
-        userDataPath: profile.path,
-        // Chromium pauses or throttles pages it thinks are hidden or covered.
-        // Its occlusion check gets confused with several monitors, which
-        // showed as short black stretches while another app had focus.
-        additionalArguments: [
-          '--autoplay-policy=no-user-gesture-required',
-          '--disk-cache-size=${limitMb * 1024 * 1024}',
-          '--disable-background-timer-throttling',
-          '--disable-renderer-backgrounding',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-features=CalculateNativeWinOcclusion',
-        ].join(' '),
-      );
+      // The sign-in window still uses webview_windows; with the same folder
+      // and the same arguments it shares the player's browser profile.
+      await WebviewController.initializeEnvironment(userDataPath: profile.path, additionalArguments: browserArguments);
     } on PlatformException catch (e) {
       // Already initialized in this process.
       appLogger.d('WebView2 environment: ${e.message}');

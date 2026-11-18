@@ -150,12 +150,6 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   Timer? _hideTimer;
   _SidePanel _panel = _SidePanel.none;
 
-  /// Briefly shrinks the WebView by one pixel after a resize. WebView2's
-  /// capture sometimes stalls on a size change (black picture, sound keeps
-  /// playing); a second resize restarts it.
-  bool _nudge = false;
-  Timer? _nudgeTimer;
-
   /// Watches for a player that stopped talking (e.g. after sleep or
   /// hibernation) and restarts it where it was.
   Timer? _watchdog;
@@ -194,7 +188,6 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     if (_current == this) _current = null;
     _saveProgress();
     _sleepTimer?.cancel();
-    _nudgeTimer?.cancel();
     _watchdog?.cancel();
     _posterTimer?.cancel();
     _playCheck?.cancel();
@@ -506,6 +499,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
           _qualityApplied = true;
           if (_wantedQuality != 'auto') _applyQuality(_pickQuality(levels, _wantedQuality));
         }
+      case 'processFailed':
+        if (!_recovering) unawaited(_recover(fresh: true));
       case 'key':
         _handleKey(message['k'] as String? ?? '', shift: message['shift'] as bool? ?? false);
     }
@@ -802,7 +797,6 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _fullscreen = next;
       _enteredFullscreen = next;
     });
-    _nudgeVideo();
     if (wasPlaying) {
       for (final delay in const [Duration(milliseconds: 350), Duration(milliseconds: 1200)]) {
         unawaited(
@@ -818,21 +812,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   void _togglePanel(_SidePanel panel) => _setPanel(_panel == panel ? _SidePanel.none : panel);
 
-  void _setPanel(_SidePanel panel) {
-    setState(() => _panel = panel);
-    _nudgeVideo();
-  }
-
-  void _nudgeVideo() {
-    _nudgeTimer?.cancel();
-    _nudgeTimer = Timer(const Duration(milliseconds: 350), () {
-      if (!mounted) return;
-      setState(() => _nudge = true);
-      _nudgeTimer = Timer(const Duration(milliseconds: 150), () {
-        if (mounted) setState(() => _nudge = false);
-      });
-    });
-  }
+  void _setPanel(_SidePanel panel) => setState(() => _panel = panel);
 
   /// Plays [video] right after the current one in the queue.
   void _playNow(YouTubeVideo video) {
@@ -877,6 +857,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   Future<void> _openChannel() async {
     _send({'cmd': 'pause'});
+    // The native WebView sits beneath Flutter, but hide it while another
+    // page covers the player so it doesn't keep rendering.
+    unawaited(_host.setVisible(false));
     final picked = await Navigator.of(context).push<YouTubeVideo>(
       ytRoute('channel', (_) => YouTubeChannelScreen(
           channelId: _video.channelId,
@@ -886,6 +869,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       ),
     );
     if (!mounted) return;
+    unawaited(_host.setVisible(true));
     _focusNode.requestFocus();
     if (picked != null) {
       _playNow(picked);
@@ -1186,7 +1170,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      // Transparent: the native YouTube WebView sits beneath the Flutter UI
+      // and shows through the video area.
+      backgroundColor: Colors.transparent,
       body: Focus(
         focusNode: _focusNode,
         autofocus: true,
@@ -1252,16 +1238,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // Reports where the native WebView goes; paints nothing.
+            _VideoSurface(host: _host),
             if (_initError != null)
               _CenterMessage(text: _initError!, onOpen: _openOnYouTube)
             else if (!_webReady)
-              Center(child: CircularProgressIndicator(color: accent))
+              ColoredBox(color: Colors.black, child: Center(child: CircularProgressIndicator(color: accent)))
             else ...[
-              Padding(
-                padding: EdgeInsets.only(right: _nudge ? 1 : 0),
-                // Keyed by the controller, so a restarted WebView gets a new view.
-                child: KeyedSubtree(key: ObjectKey(_host.controller), child: Webview(_host.controller)),
-              ),
               // Takes clicks and hovers away from the embed, so YouTube's own
               // hover UI never shows: click plays/pauses, double-click
               // toggles fullscreen.
@@ -2564,6 +2547,52 @@ class _StoryboardFrame extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// An empty box that tells the native WebView where to sit, in physical
+/// pixels of the Flutter view, whenever its layout changes.
+class _VideoSurface extends StatefulWidget {
+  const _VideoSurface({required this.host});
+
+  final YouTubePlayerHost host;
+
+  @override
+  State<_VideoSurface> createState() => _VideoSurfaceState();
+}
+
+class _VideoSurfaceState extends State<_VideoSurface> {
+  List<int>? _sent;
+
+  void _report() {
+    if (!mounted) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize || !box.attached) return;
+    final position = box.localToGlobal(Offset.zero);
+    final size = box.size;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final rect = [
+      (position.dx * dpr).floor(),
+      (position.dy * dpr).floor(),
+      ((position.dx + size.width) * dpr).ceil(),
+      ((position.dy + size.height) * dpr).ceil(),
+    ];
+    final sent = _sent;
+    if (sent != null && sent[0] == rect[0] && sent[1] == rect[1] && sent[2] == rect[2] && sent[3] == rect[3]) {
+      return;
+    }
+    _sent = rect;
+    unawaited(widget.host.setRect(left: rect[0], top: rect[1], right: rect[2], bottom: rect[3]));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _report());
+        return const SizedBox.expand();
+      },
     );
   }
 }
