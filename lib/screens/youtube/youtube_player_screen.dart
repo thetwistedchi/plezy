@@ -522,10 +522,15 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       return;
     }
     _send({'cmd': 'play'});
-    // After sleep the page can look fine while its media pipeline is dead:
-    // play does nothing. Then start a fresh browser and resume playing.
+    _expectPlayback(const Duration(seconds: 5));
+  }
+
+  /// After sleep the page can look fine while its media pipeline is dead:
+  /// play and load do nothing. If playback hasn't started within [wait],
+  /// start a fresh browser and play from the same spot.
+  void _expectPlayback(Duration wait) {
     _playCheck?.cancel();
-    _playCheck = Timer(const Duration(seconds: 5), () {
+    _playCheck = Timer(wait, () {
       if (!mounted || _playing || _state == 0 || _recovering) return;
       final last = _lastPlayRecovery;
       if (last != null && DateTime.now().difference(last) < const Duration(minutes: 1)) return;
@@ -923,6 +928,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     unawaited(YouTubeSettings.instance.markOpened(_video.id, _video.channelId));
     _showPoster();
     _send({'cmd': 'load', 'id': _video.id, 't': _settings.resumePosition(_video.id) ?? 0});
+    _expectPlayback(const Duration(seconds: 8));
     unawaited(_loadMeta());
     _showControls();
   }
