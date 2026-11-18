@@ -5,7 +5,7 @@
 
 A Windows-focused fork of [Plezy](https://github.com/edde746/plezy) with a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
 
-Current version: **0.5.0**.
+Current version: **0.6.0**.
 
 <p>
   <a href="#download">Download</a> ·
@@ -32,8 +32,11 @@ Plezy Retrowave and upstream Plezy share the same settings and sign-ins on one P
 
 ### Retrowave theme
 
-- New free **Retrowave** theme (Settings › Appearance › Theme): deep violet background, neon magenta accent.
-- Retrowave app icon on the window, taskbar, Start menu, installer and login screen, and a purple-to-magenta startup logo.
+- New free **Retrowave** theme (Settings › Appearance › Theme). Every colour comes from one palette taken from a retrowave night landscape: night purple, violet, magenta and cyan.
+- A muted background fade on every page, from night purple at the top through dark blue-violet to a hint of magenta.
+- The Windows title bar and window border in the same night purple (Windows 11).
+- Retrowave app icon on the window, taskbar, Start menu, installer and login screen, and a cyan-violet-magenta startup logo.
+- Libraries and rows show the **series poster** for episodes by default. Episode thumbnails appear in a season's episode list. Existing installs keep their setting (Settings › Appearance › Episode poster).
 
 ### Ratings & links on the details page
 
@@ -49,8 +52,8 @@ Plezy Retrowave and upstream Plezy share the same settings and sign-ins on one P
 
 With the Retrowave theme:
 
-- Purple play/pause button with a soft glow
-- Timeline fades cyan to magenta up to the playhead
+- Compact violet play/pause button
+- Timeline fades cyan to magenta up to the playhead, and the volume slider uses the same fade
 - Neon "Skip intro / credits" button
 - Active controls and playback-settings highlights in purple instead of amber
 
