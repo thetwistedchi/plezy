@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../theme/page_backdrop.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -57,7 +58,7 @@ class TvSpotlightBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = item;
-    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+    final bgColor = Theme.of(context).pageColor;
 
     // The gradients never differ between spotlight items, so only the artwork
     // cross-fades by image paint alpha. Keeping the gradients outside the
@@ -243,7 +244,7 @@ class TvSpotlightBackground extends StatelessWidget {
     // The spotlight scrim washes artwork toward the scaffold background, so
     // light themes recolor light-toned logos to stay visible.
     final logoToneTarget = logoToneTargetFor(
-      surface: theme.scaffoldBackgroundColor,
+      surface: theme.pageColor,
       foreground: theme.colorScheme.onSurface,
     );
     final scale = _scale(context);

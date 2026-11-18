@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../theme/page_backdrop.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:plezy/widgets/app_icon.dart';
@@ -1007,7 +1008,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
                 if (showMobileTabsRow && !useTvRecommendedBackdrop)
                   SliverToBoxAdapter(
                     child: Container(
-                      color: Theme.of(context).scaffoldBackgroundColor,
+                      color: Theme.of(context).pageColor,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       // Horizontal-only SafeArea: the strip's background
                       // stays full-bleed; its chips clear a landscape notch

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import '../theme/page_backdrop.dart';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -387,7 +388,7 @@ class _CollectionDetailScreenState extends BaseMediaListDetailScreen<CollectionD
   /// copy of the poster.
   Widget _buildBackdropLayer(BuildContext context, {required Size size, required double height}) {
     final theme = Theme.of(context);
-    final bg = theme.scaffoldBackgroundColor;
+    final bg = theme.pageColor;
     final containerAspect = size.width / height;
     final artPaths = widget.collection.heroArtCandidates(containerAspectRatio: containerAspect);
     final usePoster = artPaths.isEmpty;
@@ -479,7 +480,7 @@ class _CollectionDetailScreenState extends BaseMediaListDetailScreen<CollectionD
             return IgnorePointer(
               ignoring: progress < 0.5,
               child: ColoredBox(
-                color: theme.scaffoldBackgroundColor.withValues(alpha: progress),
+                color: theme.pageColor.withValues(alpha: progress),
                 child: Opacity(opacity: progress, child: child),
               ),
             );

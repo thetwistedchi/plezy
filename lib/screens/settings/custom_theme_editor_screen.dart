@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../theme/page_backdrop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -471,7 +472,7 @@ class _CustomThemeEditorScreenState extends State<CustomThemeEditorScreen>
     void cancel() => unawaited(Navigator.maybePop(context));
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: Theme.of(context).pageColor,
         border: Border(top: BorderSide(color: tokens(context).outline)),
       ),
       child: SafeArea(

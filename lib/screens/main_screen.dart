@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../theme/page_backdrop.dart';
 import '../media/ids.dart';
 import '../media/media_server_client.dart';
 import '../navigation/main_screen_scope.dart';
@@ -2119,7 +2120,7 @@ class _MainScreenState extends State<MainScreen>
                       child: Stack(
                         clipBehavior: Clip.hardEdge,
                         children: [
-                          Positioned.fill(child: ColoredBox(color: Theme.of(context).scaffoldBackgroundColor)),
+                          Positioned.fill(child: DecoratedBox(decoration: pageDecoration(Theme.of(context)))),
                           Positioned(
                             top: 0,
                             bottom: 0,

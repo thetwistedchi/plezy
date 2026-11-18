@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../theme/page_backdrop.dart';
 import 'package:flutter/material.dart';
 
 import '../i18n/strings.g.dart';
@@ -109,7 +110,7 @@ class TvSpotlightScaffold extends StatelessWidget {
     final spotlightLeft = (24 * scale).clamp(18.0, 40.0).toDouble();
 
     return Material(
-      color: Theme.of(context).scaffoldBackgroundColor,
+      color: Theme.of(context).pageColor,
       child: SizedBox.expand(
         child: Stack(
           fit: StackFit.expand,
@@ -264,7 +265,7 @@ class _CatalogSpotlightBackgroundState extends State<_CatalogSpotlightBackground
     if (accentColor == null) return background;
     return Theme(
       data: theme.copyWith(
-        scaffoldBackgroundColor: Color.alphaBlend(accentColor.withValues(alpha: 0.18), theme.scaffoldBackgroundColor),
+        scaffoldBackgroundColor: Color.alphaBlend(accentColor.withValues(alpha: 0.18), theme.pageColor),
       ),
       child: background,
     );

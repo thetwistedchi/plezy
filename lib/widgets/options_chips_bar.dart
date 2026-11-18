@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/page_backdrop.dart';
 import 'focusable_filter_chip.dart';
 
 /// Height of an [OptionsChipsBar] (padding + chip + padding).
@@ -96,7 +97,7 @@ class OptionsChipsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
+      color: Theme.of(context).pageColor,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       alignment: .centerLeft,
       child: Row(

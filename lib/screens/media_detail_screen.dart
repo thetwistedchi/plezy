@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../theme/page_backdrop.dart';
 import 'dart:math' as math;
 import '../media/ids.dart';
 
@@ -3815,9 +3816,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            theme.scaffoldBackgroundColor.withValues(alpha: 0.8),
-                            theme.scaffoldBackgroundColor.withValues(alpha: 0.5),
-                            theme.scaffoldBackgroundColor.withValues(alpha: 0),
+                            theme.pageColor.withValues(alpha: 0.8),
+                            theme.pageColor.withValues(alpha: 0.5),
+                            theme.pageColor.withValues(alpha: 0),
                           ],
                           stops: const [0.0, 0.3, 1.0],
                         ),
@@ -4305,7 +4306,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     // light theme needs light-toned clear logos recolored to stay visible.
     final theme = Theme.of(context);
     final logoToneTarget = logoToneTargetFor(
-      surface: theme.scaffoldBackgroundColor,
+      surface: theme.pageColor,
       foreground: theme.colorScheme.onSurface,
     );
 
@@ -4831,7 +4832,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                 // Gradient overlay
                 Builder(
                   builder: (context) {
-                    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+                    final bgColor = Theme.of(context).pageColor;
                     // Full-height eased scrim. The light global dim (alpha 0.2 at
                     // the very top) lowers the contrast the ramp has to bridge on
                     // bright artwork — without it, any fade to solid compresses

@@ -37,3 +37,13 @@ abstract final class RetroColors {
   static const night80 = Color(0xCC140327);
   static const night90 = Color(0xE6140327);
 }
+
+/// The page background: a muted fade through the artwork's night, dusk and
+/// magenta. It starts at [RetroColors.night] across the whole top edge, so app
+/// bars and the window caption sit on the same colour.
+const retroBackdropGradient = LinearGradient(
+  begin: Alignment(-0.35, -1),
+  end: Alignment(0.35, 1),
+  stops: [0, 0.22, 0.62, 1],
+  colors: [RetroColors.night, RetroColors.night, Color(0xFF1A0E3C), Color(0xFF280938)],
+);

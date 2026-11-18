@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'gapped_track_shape.dart';
 import 'mono_tokens.dart';
+import 'page_backdrop.dart';
 import 'player_style.dart';
 import 'retrowave_colors.dart';
 
@@ -322,6 +323,9 @@ ThemeData _buildMonoTheme(MonoPalette c, {required TargetPlatform platform}) {
     hoverColor: c.text.withValues(alpha: 0.05),
     dividerColor: c.outline,
     scaffoldBackgroundColor: c.bg,
+    pageTransitionsTheme: c == MonoPalette.retrowave
+        ? PageTransitionsTheme(builders: {for (final p in TargetPlatform.values) p: const BackdropPageTransitionsBuilder()})
+        : null,
     appBarTheme: AppBarTheme(
       backgroundColor: c.bg,
       elevation: 0,
@@ -416,6 +420,7 @@ ThemeData _buildMonoTheme(MonoPalette c, {required TargetPlatform platform}) {
         accent: c.accent,
       ),
       if (c == MonoPalette.retrowave) PlayerStyle.retrowave,
+      if (c == MonoPalette.retrowave) const PageBackdropStyle(color: RetroColors.night, gradient: retroBackdropGradient),
     ],
   );
 }

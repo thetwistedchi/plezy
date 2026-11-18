@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/page_backdrop.dart';
 import '../../media/ids.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
@@ -391,7 +392,7 @@ class _SwipeRevealDeleteActionState extends State<_SwipeRevealDeleteAction> {
               curve: Curves.easeOutCubic,
               transform: Matrix4.translationValues(-_dragExtent, 0, 0),
               child: DecoratedBox(
-                decoration: BoxDecoration(color: theme.scaffoldBackgroundColor),
+                decoration: BoxDecoration(color: theme.pageColor),
                 child: widget.child,
               ),
             ),

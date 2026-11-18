@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../theme/page_backdrop.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -1323,8 +1324,8 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            theme.scaffoldBackgroundColor.withValues(alpha: 0),
-                            theme.scaffoldBackgroundColor.withValues(alpha: 0.7),
+                            theme.pageColor.withValues(alpha: 0),
+                            theme.pageColor.withValues(alpha: 0.7),
                           ],
                         ),
                       ),
@@ -1382,7 +1383,7 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
                         selector: () => _focusModel.railHasFocus,
                         builder: (context, railHasFocus, _) => AnimatedDimScrim(
                           dimmed: !railHasFocus,
-                          color: theme.scaffoldBackgroundColor,
+                          color: theme.pageColor,
                           alpha: _unfocusedRailDimAlpha,
                           // The band's top edge cuts across the spotlight
                           // artwork; ramp the dim in instead.

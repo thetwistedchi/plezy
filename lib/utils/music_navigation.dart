@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/page_backdrop.dart';
 import 'package:provider/provider.dart';
 
 import '../media/media_item.dart';
@@ -73,7 +74,7 @@ Future<void> openNowPlaying(BuildContext context) async {
       settings: const RouteSettings(name: kNowPlayingRouteName),
       transitionDuration: duration,
       reverseTransitionDuration: duration,
-      pageBuilder: (context, animation, secondaryAnimation) => const NowPlayingScreen(),
+      pageBuilder: (context, animation, secondaryAnimation) => const PageBackdrop(child: NowPlayingScreen()),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(
           parent: animation,

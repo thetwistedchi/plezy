@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../theme/page_backdrop.dart';
 import '../media/ids.dart';
 import 'dart:io' show Platform;
 import 'dart:math' as math;
@@ -1361,7 +1362,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
             bottom: -4, // Extend past stack bounds to ensure coverage
             child: Builder(
               builder: (context) {
-                final bgColor = Theme.of(context).scaffoldBackgroundColor;
+                final bgColor = Theme.of(context).pageColor;
                 return RasterizedGradient(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -1512,7 +1513,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                                 // The hero scrim washes artwork toward the scaffold
                                 // background; light themes recolor light-toned logos.
                                 logoToneTarget: logoToneTargetFor(
-                                  surface: theme.scaffoldBackgroundColor,
+                                  surface: theme.pageColor,
                                   foreground: colorScheme.onSurface,
                                 ),
                                 fallbackBuilder: (context) => FittingTitleText(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/page_backdrop.dart';
 import 'package:flutter/services.dart';
 
 /// The app-wide system status bar style, declared once at the root.
@@ -22,7 +23,7 @@ class AppSystemUiStyle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = ThemeData.estimateBrightnessForColor(Theme.of(context).scaffoldBackgroundColor);
+    final background = ThemeData.estimateBrightnessForColor(Theme.of(context).pageColor);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: const Color(0x00000000),

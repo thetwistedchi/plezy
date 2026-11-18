@@ -276,4 +276,16 @@ void Win32Window::UpdateTheme(HWND const window) {
     enable_dark_mode = light_mode == 0;
   }
   DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE, &enable_dark_mode, sizeof(enable_dark_mode));
+
+  // Retrowave: caption and border in the page's night colour, caption text in
+  // the theme's moon white. Windows 11 only; older versions ignore these.
+  // Applied whatever the system light/dark setting, like the theme itself.
+  constexpr DWORD kCaptionColor = 35;  // DWMWA_CAPTION_COLOR
+  constexpr DWORD kTextColor = 36;     // DWMWA_TEXT_COLOR
+  constexpr DWORD kBorderColor = 34;   // DWMWA_BORDER_COLOR
+  const COLORREF caption = RGB(0x14, 0x03, 0x27);
+  const COLORREF text = RGB(0xF2, 0xEE, 0xFF);
+  DwmSetWindowAttribute(window, kCaptionColor, &caption, sizeof(caption));
+  DwmSetWindowAttribute(window, kTextColor, &text, sizeof(text));
+  DwmSetWindowAttribute(window, kBorderColor, &caption, sizeof(caption));
 }

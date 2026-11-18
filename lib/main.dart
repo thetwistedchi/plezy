@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'theme/page_backdrop.dart';
 import 'dart:io' show Directory, Platform, ProcessInfo;
 import 'dart:ui' show AppExitResponse;
 import 'package:flutter/foundation.dart';
@@ -2518,8 +2519,8 @@ class _SetupScreenState extends State<SetupScreen> with MountedSetStateMixin {
     // needs roughly 700 logical pixels of height. A car at a large interface scale — and a phone in
     // landscape — has less than that, and the rows would collide or fall outside the Stack's clip.
     if (height < 700) {
-      return ColoredBox(
-        color: Theme.of(context).scaffoldBackgroundColor,
+      return DecoratedBox(
+        decoration: pageDecoration(Theme.of(context)),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -2546,8 +2547,8 @@ class _SetupScreenState extends State<SetupScreen> with MountedSetStateMixin {
         ),
       );
     }
-    return ColoredBox(
-      color: Theme.of(context).scaffoldBackgroundColor,
+    return DecoratedBox(
+      decoration: pageDecoration(Theme.of(context)),
       child: Stack(
         children: [
           Center(child: SvgPicture.asset('assets/plezy_adaptive_foreground.svg', width: 288, height: 288)),
