@@ -626,6 +626,15 @@ class MediaCardState extends State<MediaCard> with ContextMenuTapMixin<MediaCard
   /// top. Full-bleed cards clip the overlays together with the artwork;
   /// standard cards clip only the image so the overlays sit on the poster's
   /// corners.
+  /// Movies and shows, and seasons or episodes shown with their series
+  /// poster (recently added, home rows): those carry the series' median.
+  bool _showsRatingMedian(MediaItem item) {
+    if (item.isMovie || item.isShow || item.isSeason) return true;
+    if (!item.isEpisode) return false;
+    final mode = widget.episodePosterModeOverride ?? SettingsService.instance.read(SettingsService.episodePosterMode);
+    return mode != EpisodePosterMode.episodeThumbnail;
+  }
+
   Widget _buildPosterStack(
     BuildContext context,
     Object item,
@@ -651,7 +660,7 @@ class MediaCardState extends State<MediaCard> with ContextMenuTapMixin<MediaCard
     final overlays = <Widget>[
       if (item is MediaItem && _showsWatchedIndicator(item)) WatchedIndicator(item: item),
       if (badgeLabels.isNotEmpty) _CatalogBadges(labels: badgeLabels),
-      if (badgeLabels.isEmpty && item is MediaItem && (item.isMovie || item.isShow))
+      if (badgeLabels.isEmpty && item is MediaItem && _showsRatingMedian(item))
         _RatingMedianOverlay(item: item, isOffline: widget.isOffline),
     ];
     return ExcludeSemantics(
@@ -1498,7 +1507,8 @@ class _RatingMedianOverlay extends StatelessWidget {
       child: ListenableBuilder(
       listenable: cache,
       builder: (context, _) {
-        final listing = ratingMedian(item.ratings ?? const []);
+        // A season's or episode's own scores are not the series' median.
+        final listing = item.isEpisode || item.isSeason ? null : ratingMedian(item.ratings ?? const []);
         final cached = cache.medianFor(item);
         if (cached == null && !isOffline) {
           final client = context.tryGetMediaClientForServer(serverIdOrNull(item.serverId));
