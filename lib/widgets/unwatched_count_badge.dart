@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/page_backdrop.dart';
+import '../theme/retrowave_colors.dart';
 import '../theme/mono_tokens.dart';
 
 /// Unwatched-episode count chip shown in the top-right corner of poster
@@ -15,12 +17,16 @@ class UnwatchedCountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final retro = Theme.of(context).extension<PageBackdropStyle>() != null;
     return Container(
       height: size,
       constraints: BoxConstraints(minWidth: size),
       padding: EdgeInsets.symmetric(horizontal: size * 0.2),
       decoration: BoxDecoration(
-        color: tokens(context).text,
+        // Retrowave: the cyan-to-violet fade, apart from the rating badge's
+        // violet-to-magenta.
+        color: retro ? null : tokens(context).text,
+        gradient: retro ? const LinearGradient(colors: [RetroColors.cyan, RetroColors.violet]) : null,
         borderRadius: BorderRadius.circular(size / 2),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
       ),
@@ -32,7 +38,11 @@ class UnwatchedCountBadge extends StatelessWidget {
           count > 999 ? '999+' : '$count',
           maxLines: 1,
           softWrap: false,
-          style: TextStyle(color: tokens(context).bg, fontSize: fontSize, fontWeight: .bold),
+          style: TextStyle(
+            color: retro ? RetroColors.night : tokens(context).bg,
+            fontSize: fontSize,
+            fontWeight: .bold,
+          ),
         ),
       ),
     );

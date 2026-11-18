@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../services/ratings/rating_median_cache.dart';
+import '../utils/rating_median.dart';
 import '../theme/page_backdrop.dart';
 import 'dart:math' as math;
 import '../media/ids.dart';
@@ -934,6 +936,11 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     );
     if (!_canUseDetail) return;
     setState(() => _fetchedTitleLinks = {for (final link in fetched) link.source: link});
+    // The poster shows this same median from now on.
+    RatingMedianCache.instance.storeFromDetail(
+      _metadata,
+      ratingMedian([for (final link in _titleLinksFor(_metadata)) ?link.rating]),
+    );
   }
 
   /// The Ratings & links row for [metadata]: server and tracker scores win,

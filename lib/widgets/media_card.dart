@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../services/ratings/rating_median_cache.dart';
 import '../theme/player_style.dart';
 import '../theme/retrowave_colors.dart';
 import '../utils/rating_median.dart';
@@ -648,13 +649,11 @@ class MediaCardState extends State<MediaCard> with ContextMenuTapMixin<MediaCard
       knownHeight: knownHeight,
       artworkDim: widget.artworkDim,
     );
-    final median = badgeLabels.isEmpty && item is MediaItem && (item.isMovie || item.isShow)
-        ? ratingMedian(item.ratings ?? const [])
-        : null;
     final overlays = <Widget>[
       if (item is MediaItem && _showsWatchedIndicator(item)) WatchedIndicator(item: item),
       if (badgeLabels.isNotEmpty) _CatalogBadges(labels: badgeLabels),
-      if (median != null) _RatingMedianBadge(score: median.score),
+      if (badgeLabels.isEmpty && item is MediaItem && (item.isMovie || item.isShow))
+        _RatingMedianOverlay(item: item, isOffline: widget.isOffline),
     ];
     return ExcludeSemantics(
       child: _CatalogFocusBorder(
@@ -1482,6 +1481,39 @@ class _CatalogBadges extends StatelessWidget {
   }
 }
 
+/// Picks the poster's median: a cached one (from a details page or the
+/// title's own Plex server, see [RatingMedianCache]), else the listing's own
+/// scores; asks the server in the background when neither is enough.
+class _RatingMedianOverlay extends StatelessWidget {
+  const _RatingMedianOverlay({required this.item, required this.isOffline});
+
+  final MediaItem item;
+  final bool isOffline;
+
+  @override
+  Widget build(BuildContext context) {
+    final cache = RatingMedianCache.instance;
+    return Positioned(
+      top: 6,
+      left: 6,
+      child: ListenableBuilder(
+      listenable: cache,
+      builder: (context, _) {
+        final listing = ratingMedian(item.ratings ?? const []);
+        final cached = cache.medianFor(item);
+        if (cached == null && !isOffline) {
+          final client = context.tryGetMediaClientForServer(serverIdOrNull(item.serverId));
+          if (client != null) cache.request(item, client, listingSources: listing?.sources ?? 0);
+        }
+        final median = cached ?? listing;
+        if (median == null) return const SizedBox.shrink();
+        return _RatingMedianBadge(score: median.score);
+      },
+      ),
+    );
+  }
+}
+
 /// Top-left median of the scores Plex sent with the listing (no extra
 /// requests; the Tomatometer is left out): a star and the score on the
 /// theme's violet-to-magenta fade, like the player's accents.
@@ -1496,10 +1528,7 @@ class _RatingMedianBadge extends StatelessWidget {
     final fade = style.progressGradient == null
         ? const [RetroColors.violet, RetroColors.magenta]
         : [RetroColors.violet, style.progressGradient!.last];
-    return Positioned(
-      top: 6,
-      left: 6,
-      child: DecoratedBox(
+    return DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(colors: fade),
           borderRadius: BorderRadius.circular(999),
@@ -1525,7 +1554,6 @@ class _RatingMedianBadge extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }

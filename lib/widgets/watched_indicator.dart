@@ -6,6 +6,8 @@ import '../media/media_item_types.dart';
 import '../media/media_kind.dart';
 import '../services/settings_service.dart';
 import '../theme/mono_tokens.dart';
+import '../theme/page_backdrop.dart';
+import '../theme/retrowave_colors.dart';
 import 'app_icon.dart';
 import 'media_progress_bar.dart';
 import 'unwatched_count_badge.dart';
@@ -78,6 +80,7 @@ class WatchedIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool showCount = showUnwatchedCount ?? SettingsService.instance.read(SettingsService.showUnwatchedCount);
     final bool showWatched = SettingsService.instance.read(SettingsService.showWatchedIndicators);
+    final retro = Theme.of(context).extension<PageBackdropStyle>() != null;
     final hasActiveProgress = item.hasActiveProgress;
     final unwatched = item.unwatchedCount;
     final barRadius = BorderRadius.only(
@@ -95,11 +98,17 @@ class WatchedIndicator extends StatelessWidget {
             child: Container(
               padding: EdgeInsets.all(size.checkPadding),
               decoration: BoxDecoration(
-                color: tokens(context).text,
+                color: retro ? null : tokens(context).text,
+                gradient: retro ? const LinearGradient(colors: [RetroColors.cyan, RetroColors.violet]) : null,
                 shape: BoxShape.circle,
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
               ),
-              child: AppIcon(Symbols.check_rounded, fill: 1, color: tokens(context).bg, size: size.checkIconSize),
+              child: AppIcon(
+                Symbols.check_rounded,
+                fill: 1,
+                color: retro ? RetroColors.night : tokens(context).bg,
+                size: size.checkIconSize,
+              ),
             ),
           ),
         // Unwatched count for shows/seasons
