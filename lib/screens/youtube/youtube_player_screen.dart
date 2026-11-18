@@ -155,6 +155,15 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   /// playing); a second resize restarts it.
   bool _nudge = false;
   Timer? _nudgeTimer;
+
+  /// Watches for a player that stopped talking (e.g. after sleep or
+  /// hibernation) and restarts it where it was.
+  Timer? _watchdog;
+  DateTime _lastTick = DateTime.now();
+  DateTime _lastMessage = DateTime.now();
+  bool _recovering = false;
+  int _recoveries = 0;
+  bool _pauseWhenReady = false;
   bool _fullscreen = false;
   bool _enteredFullscreen = false;
   int _metaGeneration = 0;

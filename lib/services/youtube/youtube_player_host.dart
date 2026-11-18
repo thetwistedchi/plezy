@@ -17,7 +17,8 @@ class YouTubePlayerHost {
 
   static final YouTubePlayerHost instance = YouTubePlayerHost._();
 
-  final WebviewController controller = WebviewController();
+  WebviewController controller = WebviewController();
+  StreamSubscription<dynamic>? _subscription;
   final StreamController<dynamic> _messages = StreamController<dynamic>.broadcast();
   Future<void>? _ready;
   Future<void> _queue = Future<void>.value();
@@ -52,7 +53,10 @@ class YouTubePlayerHost {
     await controller.addVirtualHostNameMapping(YouTubeWebView.host, folder, WebviewHostResourceAccessKind.allow);
     await controller.addScriptToExecuteOnDocumentCreated(YouTubeWebView.frameScript);
     await controller.setFpsLimit(60);
-    controller.webMessage.listen(_messages.add, onError: (Object e) => appLogger.d('YouTube web message: $e'));
+    _subscription = controller.webMessage.listen(
+      _messages.add,
+      onError: (Object e) => appLogger.d('YouTube web message: $e'),
+    );
   }
 
   /// Wakes the WebView if needed and loads [url].
@@ -69,6 +73,25 @@ class YouTubePlayerHost {
     if (_ready == null || _suspended) return;
     await controller.postWebMessage(json);
   }
+
+  /// Throws the WebView away and starts a fresh one on the next [open].
+  /// Used when it stopped responding, e.g. after the PC slept or hibernated.
+  Future<void> reset() => _serial(() async {
+    final old = controller;
+    final hadOne = _ready != null;
+    await _subscription?.cancel();
+    _subscription = null;
+    controller = WebviewController();
+    _ready = null;
+    _suspended = false;
+    if (hadOne) {
+      try {
+        await old.dispose().timeout(const Duration(seconds: 3));
+      } catch (e) {
+        appLogger.d('YouTube player reset: $e');
+      }
+    }
+  });
 
   /// Stops playback and suspends the WebView until the next [open].
   Future<void> release() => _serial(() async {
