@@ -841,12 +841,12 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                       Widget explain(Widget child) =>
                           _canControl ? child : Tooltip(message: t.watchTogether.hostControlsPlayback, child: child);
                       if (fill == null) return explain(button);
-                      // Themed: a filled disc behind the icon, 20 % smaller
+                      // Themed: a filled disc behind the icon, about a third smaller
                       // than the 56 px focusable button, without a glow.
                       return explain(
                         SizedBox(
-                          width: 45,
-                          height: 45,
+                          width: 38,
+                          height: 38,
                           child: FittedBox(
                             child: DecoratedBox(
                               decoration: BoxDecoration(color: fill, shape: BoxShape.circle),

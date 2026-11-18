@@ -1854,13 +1854,13 @@ class _PlayButton extends StatelessWidget {
             customBorder: const CircleBorder(),
             onTap: onPressed,
             child: SizedBox(
-              width: 45,
-              height: 45,
+              width: 38,
+              height: 38,
               child: Center(
                 child: AppIcon(
                   playing ? Symbols.pause_rounded : Symbols.play_arrow_rounded,
                   fill: 1,
-                  size: 24,
+                  size: 20,
                   color: iconColor,
                 ),
               ),
