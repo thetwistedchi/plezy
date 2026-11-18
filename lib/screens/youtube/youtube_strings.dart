@@ -52,6 +52,11 @@ class YtStrings {
   // Player
   static String get back => _t('Back', 'Zurück');
   static String get miniPlayer => _t('Mini player', 'Mini-Player');
+  static String get backMinimizes => _t('Back opens the mini player', 'Zurück öffnet den Mini-Player');
+  static String get backMinimizesDescription => _t(
+    'Back in the Plex or YouTube player keeps the video playing in the bar at the bottom. Off: Back closes the player.',
+    'Zurück im Plex- oder YouTube-Player spielt das Video in der Leiste unten weiter. Aus: Zurück schließt den Player.',
+  );
   static String get openPlayer => _t('Open player', 'Player öffnen');
   static String get stop => _t('Stop', 'Stopp');
   static String get stopAndClose => _t('Stop and close', 'Stoppen und schließen');

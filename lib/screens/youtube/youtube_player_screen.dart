@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../services/settings_service.dart';
 import '../../widgets/mini_player/video_mini_player.dart';
 import '../../mpv/video.dart' show videoSurfaceDetached;
 import 'dart:convert';
@@ -1218,7 +1219,23 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   @override
   Widget build(BuildContext context) => Offstage(offstage: _minimized, child: _buildScreen(context));
 
+  /// Back minimizes into the mini-player when the setting is on.
+  bool get _backMinimizes =>
+      (SettingsService.instanceOrNull?.read(SettingsService.backMinimizesPlayer) ?? true) &&
+      ModalRoute.of(context) is MinimizableRoute &&
+      _initError == null;
+
   Widget _buildScreen(BuildContext context) {
+    return PopScope(
+      canPop: !_backMinimizes,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _minimize();
+      },
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       // Transparent: the native YouTube WebView sits beneath the Flutter UI
       // and shows through the video area.

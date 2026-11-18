@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../youtube/youtube_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
@@ -283,6 +284,13 @@ class PlaybackSettingsScreen extends StatelessWidget {
           icon: Symbols.play_pause_rounded,
           title: t.settings.clickVideoTogglesPlayback,
           subtitle: t.settings.clickVideoTogglesPlaybackDescription,
+        ),
+      if (PlatformDetector.isDesktopOS())
+        SettingSwitchTile(
+          pref: SettingsService.backMinimizesPlayer,
+          icon: Symbols.call_to_action_rounded,
+          title: YtStrings.backMinimizes,
+          subtitle: YtStrings.backMinimizesDescription,
         ),
       if (PlatformDetector.isDesktopOS())
         SettingSwitchTile(

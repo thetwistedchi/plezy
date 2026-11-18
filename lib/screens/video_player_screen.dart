@@ -1464,7 +1464,7 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
         videoPlayerNavigationEnabled: videoPlayerNavigationPreference(),
         playerEnteredFullscreen: FullscreenStateManager().scopeOwnsFullscreen,
       ),
-      exitPlayer: () => unawaited(_handleBackButton()),
+      exitPlayer: () => unawaited(_handleUserBack()),
       navigateHome: _handleHomeButton,
       isActive: () => mounted,
     );

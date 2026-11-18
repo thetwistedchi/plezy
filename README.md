@@ -21,6 +21,7 @@ Current version: **0.6.0**.
 #### Mini player
 - A **Mini player** button in the Plex player and the YouTube player shrinks the video into a bar along the bottom of the app, so you can keep browsing while it plays.
 - The bar has the live video, title, back 10 s, play/pause, forward 30 s, next, volume, a button to open the full player again and a **Stop** button that ends playback and closes the player.
+- **Back** (back arrow, Escape or the Back key) also minimizes the player instead of closing it. Turn it off under Settings › Playback › "Back opens the mini player".
 - Clicking the small video or the title opens the full player again. Pages opened while it was minimized are closed when you do.
 - Playing something else opens it in the full player; starting a YouTube video stops a minimized Plex video and the other way round.
 

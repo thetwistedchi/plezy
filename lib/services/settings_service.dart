@@ -1010,6 +1010,10 @@ class SettingsService extends BaseSharedPreferencesService {
   static const startInFullscreen = BoolPref('start_in_fullscreen');
   static const exitFullscreenOnPlayerClose = BoolPref('exit_fullscreen_on_player_close');
 
+  /// Back in the Plex or YouTube player minimizes it into the mini-player
+  /// bar instead of closing it (desktop).
+  static const backMinimizesPlayer = BoolPref('back_minimizes_player', defaultValue: true);
+
   static const playbackBufferTier = EnumPref<PlaybackBufferTier>(
     'playback_buffer_tier',
     values: PlaybackBufferTier.values,
@@ -1624,6 +1628,7 @@ class SettingsService extends BaseSharedPreferencesService {
     enableCompanionRemoteServer,
     startInFullscreen,
     exitFullscreenOnPlayerClose,
+    backMinimizesPlayer,
   ];
 
   /// Group three: reset but *not* exported — device-local paths, endpoints and

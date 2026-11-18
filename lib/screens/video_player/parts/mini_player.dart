@@ -32,6 +32,22 @@ extension _VideoPlayerMiniMethods on VideoPlayerScreenState {
     _screenFocusNode.requestFocus();
   }
 
+  /// Back from the viewer (Back key, Escape, the back arrow): minimizes when
+  /// [SettingsService.backMinimizesPlayer] is on, otherwise closes.
+  Future<void> _handleUserBack() async {
+    final minimize = SettingsService.instanceOrNull?.read(SettingsService.backMinimizesPlayer) ?? true;
+    if (minimize &&
+        !_minimized &&
+        _canMinimize &&
+        _isPlayerInitialized &&
+        player != null &&
+        _playbackFailureMessage == null) {
+      _minimizePlayer();
+      return;
+    }
+    await _handleBackButton();
+  }
+
   void _stopMinimized() {
     if (!mounted) return;
     unawaited(_exitPlayerRoute(navigateHome: false, stop: true, allowCovered: true));
