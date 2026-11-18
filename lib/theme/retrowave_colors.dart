@@ -42,6 +42,7 @@ abstract final class RetroColors {
   static const violetMuted = Color(0xE63E2C92);
   static const magentaMuted = Color(0xE66A015D);
   static const cyanMuted = Color(0xE61B6A89);
+  static const blueMuted = Color(0xE6212F86);
 }
 
 /// The page background: a muted fade through the artwork's night, dusk and

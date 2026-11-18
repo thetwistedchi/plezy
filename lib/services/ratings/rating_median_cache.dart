@@ -6,10 +6,15 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as pathlib;
 import 'package:path_provider/path_provider.dart';
 
+import 'package:http/http.dart' as http;
+
 import '../../media/media_item.dart';
+import '../../media/media_rating.dart';
 import '../../media/media_server_client.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/rating_median.dart';
+import 'rating_keys.dart';
+import 'rating_providers.dart';
 
 /// Rating medians for posters, kept on disk across sessions.
 ///
@@ -62,7 +67,7 @@ class RatingMedianCache extends ChangeNotifier {
 
   static Future<File> _file() async {
     final dir = await getApplicationSupportDirectory();
-    return File(pathlib.join(dir.path, 'rating_medians.json'));
+    return File(pathlib.join(dir.path, 'rating_medians_v2.json'));
   }
 
   /// The cached median for [item], if any. Starts loading the cache file on
@@ -121,12 +126,48 @@ class RatingMedianCache extends ChangeNotifier {
   Future<void> _fetch(String key, MediaItem item, MediaServerClient client) async {
     try {
       final full = await client.fetchItem(item.id).timeout(const Duration(seconds: 10));
-      final median = ratingMedian(full?.ratings ?? const []);
-      // No score at all is remembered too, so the title is not asked again.
-      _put(key, _Entry(median?.score ?? -1, median?.sources ?? 0, false, DateTime.now()));
+      final ratings = <String, MediaRatingSource>{
+        for (final rating in [...?full?.ratings, ...?item.ratings]) rating.source: rating,
+      };
+      var median = ratingMedian(ratings.values);
+      // Too few scores on the server (often only the Tomatometer): MDBList,
+      // when the user has a key for it.
+      if ((median?.sources ?? 0) < 2) {
+        final mdbKey = await _mdbListKey();
+        if (mdbKey.isNotEmpty) {
+          try {
+            final ids = await client.fetchExternalIds(item.id).timeout(const Duration(seconds: 10));
+            final scores = await _mdbList.fetch(apiKey: mdbKey, kind: item.kind, ids: ids);
+            for (final rating in scores.ratings.values) {
+              ratings.putIfAbsent(rating.source, () => rating);
+            }
+            median = ratingMedian(ratings.values);
+          } catch (e) {
+            appLogger.d('Rating median: MDBList for ${item.id} unavailable: $e');
+          }
+        }
+      }
+      appLogger.d(
+        'Rating median for "${item.title}": ${median?.score ?? 'none'} '
+        '(sources: ${ratings.keys.join(', ')})',
+      );
+      // No score at all is remembered too, for two days, so the title is not
+      // asked again on every scroll.
+      _put(
+        key,
+        _Entry(median?.score ?? -1, median?.sources ?? 0, false, median == null ? DateTime.now().subtract(_serverTtl - const Duration(days: 2)) : DateTime.now()),
+      );
     } catch (e) {
       appLogger.d('Rating median for ${item.id} unavailable: $e');
     }
+  }
+
+  late final _mdbList = MdbListProvider(http.Client());
+
+  static Future<String> _mdbListKey() async {
+    final keys = RatingKeys.instance;
+    await keys.load();
+    return keys.status(RatingKeys.mdblist) == RatingKeyStatus.rejected ? '' : keys.key(RatingKeys.mdblist);
   }
 
   void _put(String key, _Entry entry) {

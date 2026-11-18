@@ -23,11 +23,10 @@ class UnwatchedCountBadge extends StatelessWidget {
       constraints: BoxConstraints(minWidth: size),
       padding: EdgeInsets.symmetric(horizontal: size * 0.2),
       decoration: BoxDecoration(
-        // Retrowave: the cyan-to-violet fade, apart from the rating badge's
-        // violet-to-magenta.
+        // Retrowave: a muted magenta-to-blue fade.
         color: retro ? null : tokens(context).text,
-        gradient: retro ? const LinearGradient(colors: [RetroColors.cyanMuted, RetroColors.violetMuted]) : null,
-        border: retro ? Border.all(color: RetroColors.cyan.withValues(alpha: 0.35), width: 0.8) : null,
+        gradient: retro ? const LinearGradient(colors: [RetroColors.magentaMuted, RetroColors.blueMuted]) : null,
+        border: retro ? Border.all(color: RetroColors.magenta.withValues(alpha: 0.35), width: 0.8) : null,
         borderRadius: BorderRadius.circular(size / 2),
         boxShadow: retro ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
       ),
@@ -43,6 +42,14 @@ class UnwatchedCountBadge extends StatelessWidget {
             color: retro ? RetroColors.moon.withValues(alpha: 0.92) : tokens(context).bg,
             fontSize: fontSize,
             fontWeight: .bold,
+            // Tight line box, so the digits sit in the middle of the pill.
+            height: 1,
+            leadingDistribution: TextLeadingDistribution.even,
+          ),
+          textAlign: TextAlign.center,
+          textHeightBehavior: const TextHeightBehavior(
+            applyHeightToFirstAscent: false,
+            applyHeightToLastDescent: false,
           ),
         ),
       ),
