@@ -9,6 +9,7 @@ import '../../../media/media_source_info.dart';
 import '../../../theme/mono_tokens.dart';
 import '../../../theme/player_style.dart';
 import '../../app_icon.dart';
+import '../../../theme/retrowave_colors.dart';
 
 class SkipMarkerButton extends StatelessWidget {
   final MediaMarker marker;
@@ -94,7 +95,7 @@ class SkipMarkerButton extends StatelessWidget {
                         ],
                       )
                     : BoxDecoration(
-                        color: const Color(0xCC0B0618),
+                        color: RetroColors.night80,
                         borderRadius: BorderRadius.circular(tokens(context).radiusSm),
                         border: Border.all(color: neon, width: 2),
                         boxShadow: [BoxShadow(color: neon.withValues(alpha: 0.5), blurRadius: 16)],

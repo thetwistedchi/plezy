@@ -10,9 +10,10 @@ import '../../theme/player_style.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/app_icon.dart';
 import 'youtube_strings.dart';
+import '../../theme/retrowave_colors.dart';
 
-const _panelBg = Color(0xFF0E0820);
-const _panelSurface = Color(0xFF160D2E);
+const _panelBg = RetroColors.rock;
+const _panelSurface = RetroColors.dusk;
 
 /// Comments of a video, shown beside the player: top or newest first,
 /// replies on demand, and writing, editing and deleting your own comments.
@@ -222,13 +223,13 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: _panelBg,
-        border: Border(left: BorderSide(color: Color(0x29F4ECFF))),
+        border: Border(left: BorderSide(color: RetroColors.outline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _header(accent),
-          const Divider(height: 1, color: Color(0x1FF4ECFF)),
+          const Divider(height: 1, color: RetroColors.divider),
           Expanded(child: _body(accent)),
           if (!_disabled) _composer(accent),
         ],
@@ -382,7 +383,7 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
     if (!_settings.canWrite) {
       return Container(
         padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0x1FF4ECFF)))),
+        decoration: const BoxDecoration(border: Border(top: BorderSide(color: RetroColors.divider))),
         child: Text(YtStrings.needWriteAccess, style: const TextStyle(color: Colors.white60, fontSize: 13)),
       );
     }
@@ -393,7 +394,7 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
         : null;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 12, 12),
-      decoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0x1FF4ECFF)))),
+      decoration: const BoxDecoration(border: Border(top: BorderSide(color: RetroColors.divider))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -427,11 +428,11 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0x29F4ECFF)),
+                      borderSide: const BorderSide(color: RetroColors.outline),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0x29F4ECFF)),
+                      borderSide: const BorderSide(color: RetroColors.outline),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -519,7 +520,7 @@ class _CommentTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 SelectableText(
                   comment.text,
-                  style: const TextStyle(color: Color(0xFFF4ECFF), fontSize: 14, height: 1.4),
+                  style: const TextStyle(color: RetroColors.moon, fontSize: 14, height: 1.4),
                 ),
                 const SizedBox(height: 6),
                 Row(

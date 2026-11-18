@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'gapped_track_shape.dart';
 import 'mono_tokens.dart';
 import 'player_style.dart';
+import 'retrowave_colors.dart';
 
 /// One of the six colours a [MonoPalette] holds. [id] is the key the custom
 /// theme persists the colour under.
@@ -145,12 +146,12 @@ class MonoPalette {
   /// Deep violet night with a neon magenta accent; the Plezy Retrowave
   /// fork's own theme, free in every build.
   static const retrowave = MonoPalette(
-    bg: Color(0xFF0B0618),
-    surface: Color(0xFF160D2E),
-    outline: Color(0x29F4ECFF),
-    text: Color(0xFFF4ECFF),
-    textMuted: Color(0xA3F4ECFF),
-    accent: Color(0xFFE0479A),
+    bg: RetroColors.night,
+    surface: RetroColors.dusk,
+    outline: RetroColors.outline,
+    text: RetroColors.moon,
+    textMuted: Color(0xA3F2EEFF),
+    accent: RetroColors.magenta,
   );
 
   Brightness get brightness => ThemeData.estimateBrightnessForColor(bg);

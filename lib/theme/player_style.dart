@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'retrowave_colors.dart';
 
 /// How the video player's chrome is coloured. Stock Plezy draws its player in
 /// plain white over the video; a theme may attach a [PlayerStyle] to tint it.
@@ -48,14 +49,14 @@ class PlayerStyle extends ThemeExtension<PlayerStyle> {
 
   /// Purple play button, cyan-to-magenta timeline and neon skip button.
   static const PlayerStyle retrowave = PlayerStyle(
-    playButtonFill: Color(0xFF9D7BFF),
-    playButtonIcon: Color(0xFF14041F),
-    progress: Color(0xFFE0479A),
-    progressGlow: Color(0xFFE0479A),
-    skipButtonBorder: Color(0xFFE0479A),
-    progressGradient: [Color(0xFF2DE2E6), Color(0xFFE0479A)],
-    active: Color(0xFF9D7BFF),
-    badge: Color(0xFF9D7BFF),
+    playButtonFill: RetroColors.violet,
+    playButtonIcon: RetroColors.night,
+    progress: RetroColors.magenta,
+    progressGlow: RetroColors.magenta,
+    skipButtonBorder: RetroColors.magenta,
+    progressGradient: [RetroColors.cyan, RetroColors.magenta],
+    active: RetroColors.violet,
+    badge: RetroColors.violet,
   );
 
   static PlayerStyle of(BuildContext context) => Theme.of(context).extension<PlayerStyle>() ?? stock;

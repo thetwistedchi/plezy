@@ -10,6 +10,8 @@ import '../../../services/video_volume_controller.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../focus/focus_theme.dart';
 import '../../../focus/focusable_wrapper.dart';
+import '../../../theme/gapped_track_shape.dart';
+import '../../../theme/player_style.dart';
 import 'player_focus_disc.dart';
 
 /// A volume control widget that displays a mute/unmute button and volume slider.
@@ -200,6 +202,10 @@ class _VolumeControlState extends State<VolumeControl> {
             data: SliderTheme.of(context).copyWith(
               trackHeight: 8,
               trackGap: 0,
+              // Same fade as the timeline in themes that have one.
+              trackShape: PlayerStyle.of(context).progressGradient == null
+                  ? null
+                  : GappedTrackShape(activeGradient: PlayerStyle.of(context).progressGradient),
               padding: .zero,
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 0),
               tickMarkShape: SliderTickMarkShape.noTickMark,
@@ -217,7 +223,7 @@ class _VolumeControlState extends State<VolumeControl> {
                 label: '${volume.round()}%',
                 onChanged: widget.volumeController.preview,
                 onChangeEnd: widget.volumeController.commit,
-                activeColor: Colors.white,
+                activeColor: PlayerStyle.of(context).progressGradient?.last ?? Colors.white,
                 inactiveColor: Colors.white.withValues(alpha: 0.3),
               ),
             ),

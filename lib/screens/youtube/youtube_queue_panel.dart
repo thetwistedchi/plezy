@@ -7,6 +7,7 @@ import '../../services/youtube/youtube_settings.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
 import 'youtube_strings.dart';
+import '../../theme/retrowave_colors.dart';
 
 /// The player's queue / watchlist beside the video: the playing order (jump,
 /// drag to reorder, remove) and the newest subscription videos to add.
@@ -42,8 +43,8 @@ class _YouTubeQueuePanelState extends State<YouTubeQueuePanel> {
     final accent = playerActiveColor(context);
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: Color(0xFF0E0820),
-        border: Border(left: BorderSide(color: Color(0x29F4ECFF))),
+        color: RetroColors.rock,
+        border: Border(left: BorderSide(color: RetroColors.outline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -73,13 +74,13 @@ class _YouTubeQueuePanelState extends State<YouTubeQueuePanel> {
               showSelectedIcon: false,
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.resolveWith(
-                  (s) => s.contains(WidgetState.selected) ? Color.lerp(accent, Colors.black, 0.55) : const Color(0xFF1E1538),
+                  (s) => s.contains(WidgetState.selected) ? Color.lerp(accent, Colors.black, 0.55) : RetroColors.dusk,
                 ),
                 foregroundColor: WidgetStateProperty.resolveWith(
                   (s) => s.contains(WidgetState.selected) ? Colors.white : Colors.white60,
                 ),
                 side: WidgetStateProperty.resolveWith(
-                  (s) => BorderSide(color: s.contains(WidgetState.selected) ? accent : const Color(0x29F4ECFF)),
+                  (s) => BorderSide(color: s.contains(WidgetState.selected) ? accent : RetroColors.outline),
                 ),
               ),
               segments: [
@@ -90,7 +91,7 @@ class _YouTubeQueuePanelState extends State<YouTubeQueuePanel> {
               onSelectionChanged: (s) => setState(() => _adding = s.first),
             ),
           ),
-          const Divider(height: 1, color: Color(0x1FF4ECFF)),
+          const Divider(height: 1, color: RetroColors.divider),
           Expanded(child: _adding ? _buildAdd(accent) : _buildQueue(accent)),
         ],
       ),
@@ -227,7 +228,7 @@ class _VideoRow extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      const ColoredBox(color: Color(0xFF1B1240)),
+                      const ColoredBox(color: RetroColors.dusk),
                       if (video.thumbnailUrl != null)
                         CachedNetworkImage(
                           imageUrl: video.thumbnailUrl!,

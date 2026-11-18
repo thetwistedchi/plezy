@@ -318,7 +318,7 @@ class _AutomotiveUiScalePref extends Pref<double> {
 /// Migrates from the legacy `use_season_poster` boolean key.
 class _EpisodePosterModePref extends EnumPref<EpisodePosterMode> {
   const _EpisodePosterModePref()
-    : super('episode_poster_mode', values: EpisodePosterMode.values, defaultValue: EpisodePosterMode.episodeThumbnail);
+    : super('episode_poster_mode', values: EpisodePosterMode.values, defaultValue: EpisodePosterMode.seriesPoster);
 
   @override
   Future<void> removeFrom(BaseSharedPreferencesService svc, {void Function()? checkCurrent}) async {

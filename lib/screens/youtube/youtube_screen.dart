@@ -20,6 +20,7 @@ import 'youtube_player_screen.dart';
 import 'youtube_settings_screen.dart';
 import 'youtube_strings.dart';
 import 'youtube_routes.dart';
+import '../../theme/retrowave_colors.dart';
 
 /// The YouTube tab: newest uploads of the signed-in user's subscriptions.
 class YouTubeScreen extends StatefulWidget {
@@ -557,7 +558,7 @@ class _VideoCardState extends State<_VideoCard> {
                 child: AnimatedContainer(
                   duration: mono.fast,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B1240),
+                    color: RetroColors.dusk,
                     borderRadius: BorderRadius.circular(mono.radiusMd),
                     border: Border.all(color: _highlighted ? accent : mono.outline, width: _highlighted ? 2 : 1),
                     boxShadow: _highlighted ? [BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 16)] : null,
@@ -865,7 +866,7 @@ class _WatchlistRow extends StatelessWidget {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        const ColoredBox(color: Color(0xFF1B1240)),
+                        const ColoredBox(color: RetroColors.dusk),
                         if (video.thumbnailUrl != null)
                           CachedNetworkImage(
                             imageUrl: video.thumbnailUrl!,

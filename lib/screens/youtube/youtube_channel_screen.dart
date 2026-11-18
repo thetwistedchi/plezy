@@ -14,6 +14,7 @@ import '../../widgets/app_icon.dart';
 import 'youtube_player_screen.dart';
 import 'youtube_strings.dart';
 import 'youtube_routes.dart';
+import '../../theme/retrowave_colors.dart';
 
 /// A channel's page: banner, name and counts, and all uploads newest first,
 /// loaded 50 at a time while scrolling.
@@ -302,7 +303,7 @@ class _ChannelCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    const ColoredBox(color: Color(0xFF1B1240)),
+                    const ColoredBox(color: RetroColors.dusk),
                     if (video.thumbnailUrl != null)
                       CachedNetworkImage(
                         imageUrl: video.thumbnailUrl!,

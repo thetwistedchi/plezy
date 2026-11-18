@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:plezy/widgets/app_icon.dart';
 
+import '../../../theme/player_style.dart';
 import '../helpers/mobile_edge_adjustment_tracker.dart';
 
 class MobileEdgeAdjustmentIndicator extends StatelessWidget {
@@ -59,7 +60,7 @@ class _FilledPillIndicator extends StatelessWidget {
                   heightFactor: animatedValue,
                   widthFactor: 1,
                   alignment: .bottomCenter,
-                  child: ColoredBox(color: Colors.white.withValues(alpha: 0.74)),
+                  child: _fill(context),
                 ),
               ),
               _IndicatorContent(icon: icon, value: animatedValue, color: Colors.white),
@@ -120,4 +121,15 @@ class _BottomFractionClipper extends CustomClipper<Rect> {
 
   @override
   bool shouldReclip(_BottomFractionClipper oldClipper) => oldClipper.fraction != fraction;
+}
+
+/// The level fill: the theme's timeline fade (bottom to top) when it has one.
+Widget _fill(BuildContext context) {
+  final gradient = PlayerStyle.of(context).progressGradient;
+  if (gradient == null || gradient.length < 2) return ColoredBox(color: Colors.white.withValues(alpha: 0.74));
+  return DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter, colors: gradient),
+    ),
+  );
 }

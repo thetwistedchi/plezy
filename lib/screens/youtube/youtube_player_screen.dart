@@ -30,6 +30,7 @@ import 'youtube_comments_panel.dart';
 import 'youtube_queue_panel.dart';
 import 'youtube_strings.dart';
 import 'youtube_routes.dart';
+import '../../theme/retrowave_colors.dart';
 
 /// Plays YouTube videos inside the app: the embedded YouTube player in a
 /// WebView2 with YouTube's own controls hidden, and the retrowave player
@@ -1848,19 +1849,18 @@ class _PlayButton extends StatelessWidget {
         child: Material(
           color: fill,
           shape: const CircleBorder(),
-          shadowColor: fill,
-          elevation: 8,
+          elevation: 0,
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: onPressed,
             child: SizedBox(
-              width: 56,
-              height: 56,
+              width: 45,
+              height: 45,
               child: Center(
                 child: AppIcon(
                   playing ? Symbols.pause_rounded : Symbols.play_arrow_rounded,
                   fill: 1,
-                  size: 30,
+                  size: 24,
                   color: iconColor,
                 ),
               ),
@@ -1986,7 +1986,7 @@ class _NeonSkipButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 48),
           padding: const EdgeInsets.symmetric(horizontal: 22),
-          backgroundColor: const Color(0xC00B0618),
+          backgroundColor: RetroColors.night75,
           foregroundColor: Colors.white,
           side: BorderSide(color: color, width: 2),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -2010,7 +2010,7 @@ class _SkipToast extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
       decoration: BoxDecoration(
-        color: const Color(0xE60B0618),
+        color: RetroColors.night90,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: accent),
         boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 22)],
@@ -2191,7 +2191,7 @@ class _TimelineState extends State<_Timeline> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xE60B0618),
+                                color: RetroColors.night90,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(color: Colors.white24),
                               ),
@@ -2301,7 +2301,7 @@ class _TimelinePainter extends CustomPainter {
         canvas.drawRRect(
           RRect.fromRectAndRadius(Rect.fromLTWH(x - 2, track.top - 4, 4, trackHeight + 8), const Radius.circular(2)),
           Paint()
-            ..color = const Color(0xFFF9E2FF)
+            ..color = RetroColors.ice
             ..maskFilter = const ui.MaskFilter.blur(ui.BlurStyle.solid, 3),
         );
       }
@@ -2388,7 +2388,7 @@ class _ChannelStrip extends StatelessWidget {
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
-                              const ColoredBox(color: Color(0xFF1B1240)),
+                              const ColoredBox(color: RetroColors.dusk),
                               if (video.thumbnailUrl != null)
                                 CachedNetworkImage(
                                   imageUrl: video.thumbnailUrl!,
@@ -2541,8 +2541,8 @@ class _StoryboardFrame extends StatelessWidget {
               fit: BoxFit.fitWidth,
               alignment: Alignment.topLeft,
               fadeInDuration: Duration.zero,
-              placeholder: (_, _) => const ColoredBox(color: Color(0xFF1B1240)),
-              errorWidget: (_, _, _) => const ColoredBox(color: Color(0xFF1B1240)),
+              placeholder: (_, _) => const ColoredBox(color: RetroColors.dusk),
+              errorWidget: (_, _, _) => const ColoredBox(color: RetroColors.dusk),
             ),
           ),
         ),

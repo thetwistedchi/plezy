@@ -9,6 +9,7 @@ import '../../services/youtube/youtube_settings.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
 import 'youtube_strings.dart';
+import '../../theme/retrowave_colors.dart';
 
 /// Recent videos of the playing video's channel, beside the player.
 class YouTubeChannelPanel extends StatefulWidget {
@@ -61,8 +62,8 @@ class _YouTubeChannelPanelState extends State<YouTubeChannelPanel> {
         .toList();
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: Color(0xFF0E0820),
-        border: Border(left: BorderSide(color: Color(0x29F4ECFF))),
+        color: RetroColors.rock,
+        border: Border(left: BorderSide(color: RetroColors.outline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -92,7 +93,7 @@ class _YouTubeChannelPanelState extends State<YouTubeChannelPanel> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0x1FF4ECFF)),
+          const Divider(height: 1, color: RetroColors.divider),
           Expanded(
             child: _error != null
                 ? Center(
@@ -165,7 +166,7 @@ class _ChannelVideoRow extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    const ColoredBox(color: Color(0xFF1B1240)),
+                    const ColoredBox(color: RetroColors.dusk),
                     if (video.thumbnailUrl != null)
                       CachedNetworkImage(
                         imageUrl: video.thumbnailUrl!,
