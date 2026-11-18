@@ -137,6 +137,26 @@ class OmdbProvider {
 class JikanProvider {
   JikanProvider(this._client);
 
+  static String _normalize(String s) => s.toLowerCase().replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), '');
+
+  /// Whether [title] is one of the entry's names: its main, English or
+  /// Japanese title, or any listed synonym.
+  static bool _titleMatches(Map entry, String title) {
+    final wanted = _normalize(title);
+    if (wanted.isEmpty) return false;
+    final names = <String>[
+      for (final key in ['title', 'title_english', 'title_japanese'])
+        if (entry[key] is String) entry[key] as String,
+      if (entry['titles'] is List)
+        for (final t in entry['titles'] as List)
+          if (t is Map && t['title'] is String) t['title'] as String,
+      if (entry['title_synonyms'] is List)
+        for (final t in entry['title_synonyms'] as List)
+          if (t is String) t,
+    ];
+    return names.any((name) => _normalize(name) == wanted);
+  }
+
   final http.Client _client;
 
   /// By MAL id when known, otherwise the best title match of the right year.
@@ -163,8 +183,9 @@ class JikanProvider {
         final aired = entry['aired'];
         final from = aired is Map ? aired['prop'] : null;
         final entryYear = from is Map && from['from'] is Map ? (from['from'] as Map)['year'] : null;
-        // A title search is fuzzy: without a matching year, no score.
-        if (year == null || entryYear == year) {
+        // A title search is fuzzy: the year must match, and without a year
+        // the title must match exactly (case and punctuation aside).
+        if (year != null ? entryYear == year : _titleMatches(entry, title)) {
           anime = entry;
           break;
         }

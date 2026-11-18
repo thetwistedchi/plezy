@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../../mpv/video.dart' show videoSurfaceDetached;
@@ -39,6 +40,11 @@ abstract class VideoMiniSession {
 
   /// Ends playback and closes the player.
   void stop();
+
+  /// True when the player already takes media keys through Windows' media
+  /// controls (the Plex player); otherwise the mini player handles the
+  /// keyboard's media keys while minimized.
+  bool get hasSystemMediaControls => false;
 }
 
 /// The minimized video, if any. The profile shell shows [VideoMiniPlayerBar]
@@ -56,7 +62,41 @@ class VideoMiniPlayer extends ChangeNotifier {
   void show(VideoMiniSession session) {
     _session = session;
     videoSurfaceDetached.value = true;
+    if (!session.hasSystemMediaControls) _listenToMediaKeys(true);
     notifyListeners();
+  }
+
+  bool _mediaKeysAttached = false;
+
+  void _listenToMediaKeys(bool on) {
+    if (on == _mediaKeysAttached) return;
+    _mediaKeysAttached = on;
+    if (on) {
+      HardwareKeyboard.instance.addHandler(_onKey);
+    } else {
+      HardwareKeyboard.instance.removeHandler(_onKey);
+    }
+  }
+
+  bool _onKey(KeyEvent event) {
+    final session = _session;
+    if (session == null || event is! KeyDownEvent) return false;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.mediaPlayPause ||
+        (key == LogicalKeyboardKey.mediaPlay && !session.isPlaying) ||
+        (key == LogicalKeyboardKey.mediaPause && session.isPlaying)) {
+      session.togglePlay();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.mediaTrackNext && session.canNext) {
+      session.next();
+      return true;
+    }
+    if (key == LogicalKeyboardKey.mediaStop) {
+      session.stop();
+      return true;
+    }
+    return false;
   }
 
   /// Removes [session] if it is the one shown. The full player's video
@@ -64,6 +104,7 @@ class VideoMiniPlayer extends ChangeNotifier {
   void clear(VideoMiniSession session) {
     if (!identical(_session, session)) return;
     _session = null;
+    _listenToMediaKeys(false);
     videoSurfaceDetached.value = false;
     notifyListeners();
   }

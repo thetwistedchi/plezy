@@ -8,6 +8,7 @@ import '../../i18n/strings.g.dart';
 import '../../models/catalog/catalog_item.dart';
 import '../../providers/seerr_account_provider.dart';
 import '../../services/discord_rpc_service.dart';
+import '../../services/ratings/rating_keys.dart';
 import '../../services/settings_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../widgets/app_icon.dart';
@@ -53,7 +54,7 @@ class ServicesSettingsScreen extends StatelessWidget {
               title: _de ? 'Bewertungsquellen' : 'Rating sources',
               children: [
                 _ApiKeyTile(
-                  pref: SettingsService.mdblistApiKey,
+                  name: RatingKeys.mdblist,
                   title: 'MDBList',
                   subtitle: _de
                       ? 'Eine Anfrage für IMDb, TMDB, Trakt, Letterboxd, Rotten Tomatoes, Metacritic und MyAnimeList. Kostenloser API-Schlüssel auf mdblist.com (1.000 Anfragen pro Tag).'
@@ -61,7 +62,7 @@ class ServicesSettingsScreen extends StatelessWidget {
                   keyUrl: 'https://mdblist.com/preferences/',
                 ),
                 _ApiKeyTile(
-                  pref: SettingsService.omdbApiKey,
+                  name: RatingKeys.omdb,
                   title: 'OMDb',
                   subtitle: _de
                       ? 'IMDb, Tomatometer und Metascore, wenn MDBList sie nicht liefert. Kostenloser API-Schlüssel auf omdbapi.com (1.000 Anfragen pro Tag).'
@@ -175,18 +176,22 @@ class _ServiceHubRow extends StatelessWidget {
   }
 }
 
-/// A rating provider's API key: shows whether one is set, edits it in a
-/// dialog. Keys stay on this device and are not part of settings exports.
+/// A rating provider's API key: shows whether one is set and works, edits it
+/// in a dialog that tests it on saving. Keys are stored encrypted and are not
+/// part of settings exports.
 class _ApiKeyTile extends StatelessWidget {
-  const _ApiKeyTile({required this.pref, required this.title, required this.subtitle, required this.keyUrl});
+  const _ApiKeyTile({required this.name, required this.title, required this.subtitle, required this.keyUrl});
 
-  final StringPref pref;
+  final String name;
   final String title;
   final String subtitle;
   final String keyUrl;
 
   Future<void> _edit(BuildContext context) async {
-    final controller = TextEditingController(text: SettingsService.instance.read(pref));
+    final keys = RatingKeys.instance;
+    await keys.load();
+    if (!context.mounted) return;
+    final controller = TextEditingController(text: keys.key(name));
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -213,20 +218,38 @@ class _ApiKeyTile extends StatelessWidget {
       ),
     );
     controller.dispose();
-    if (result != null) await SettingsService.instance.write(pref, result.trim());
+    if (result == null) return;
+    final status = await keys.save(name, result);
+    if (!context.mounted || result.trim().isEmpty) return;
+    final message = switch (status) {
+      RatingKeyStatus.working => _de ? '$title: Schlüssel funktioniert' : '$title: key works',
+      RatingKeyStatus.rejected => _de ? '$title: Schlüssel abgelehnt' : '$title: key rejected',
+      RatingKeyStatus.unknown => _de ? '$title: gespeichert, Test nicht möglich' : '$title: saved, could not be tested',
+    };
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<String>(
-      valueListenable: SettingsService.instance.listenable(pref),
-      builder: (context, value, _) {
-        final set = value.trim().isNotEmpty;
-        final status = set
-            ? (_de ? 'Schlüssel gesetzt' : 'Key set')
-            : (_de ? 'Kein Schlüssel' : 'No key');
+    final keys = RatingKeys.instance;
+    unawaited(keys.load());
+    return ListenableBuilder(
+      listenable: keys,
+      builder: (context, _) {
+        final set = keys.key(name).isNotEmpty;
+        final status = !set
+            ? (_de ? 'Kein Schlüssel' : 'No key')
+            : switch (keys.status(name)) {
+                RatingKeyStatus.working => _de ? 'Schlüssel funktioniert' : 'Key works',
+                RatingKeyStatus.rejected => _de ? 'Schlüssel abgelehnt' : 'Key rejected',
+                RatingKeyStatus.unknown => _de ? 'Schlüssel gesetzt' : 'Key set',
+              };
+        final rejected = set && keys.status(name) == RatingKeyStatus.rejected;
         return FocusableListTile(
-          leading: AppIcon(set ? Symbols.key_rounded : Symbols.key_off_rounded),
+          leading: AppIcon(
+            rejected ? Symbols.error_rounded : (set ? Symbols.key_rounded : Symbols.key_off_rounded),
+            color: rejected ? Theme.of(context).colorScheme.error : null,
+          ),
           title: Text('$title · $status'),
           subtitle: Text(subtitle),
           onTap: () => unawaited(_edit(context)),

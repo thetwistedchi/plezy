@@ -93,6 +93,9 @@ class DeArrow extends ChangeNotifier {
         break;
       }
       _cache[id] = (title: (title?.isEmpty ?? true) ? null : title, thumbnailTime: time);
+      while (_cache.length > 5000) {
+        _cache.remove(_cache.keys.first);
+      }
       if (title != null || time != null) {
         _notify ??= Timer(const Duration(milliseconds: 400), () {
           _notify = null;

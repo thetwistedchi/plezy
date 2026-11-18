@@ -222,6 +222,8 @@ class VideoFilterManager {
   StreamSubscription<void>? _fileLoadedSub;
   StreamSubscription<Duration>? _positionSub;
   bool _letterboxChecked = false;
+  bool _letterboxRechecked = false;
+  _Box? _letterboxContent;
   bool _letterboxDetecting = false;
   String _letterboxCrop = '';
   int? _cropSourceWidth;
@@ -230,18 +232,26 @@ class VideoFilterManager {
 
   void _resetLetterbox() {
     _letterboxChecked = false;
+    _letterboxRechecked = false;
+    _letterboxContent = null;
     if (_letterboxCrop.isEmpty) return;
     _letterboxCrop = '';
     updateVideoFilter();
   }
 
   void _maybeDetectLetterbox(Duration position) {
-    if (!_wantsCrop || _letterboxChecked || _letterboxDetecting) return;
-    // Past studio logos and black openings (switching to Fit height later in
-    // a film checks on the next position update).
-    if (position < const Duration(seconds: 10)) return;
-    _letterboxDetecting = true;
-    unawaited(_detectLetterbox());
+    if (!_wantsCrop || _letterboxDetecting) return;
+    if (!_letterboxChecked) {
+      // Past studio logos and black openings (switching to Fit height later
+      // in a film checks on the next position update).
+      if (position < const Duration(seconds: 10)) return;
+      _letterboxDetecting = true;
+      unawaited(_detectLetterbox());
+    } else if (!_letterboxRechecked && _letterboxCrop.isNotEmpty && position >= const Duration(minutes: 5)) {
+      // A second look, which can only shrink the crop.
+      _letterboxDetecting = true;
+      unawaited(_detectLetterbox(recheck: true));
+    }
   }
 
   /// Finds black bars from a few screenshots of the video (no filter: the
@@ -249,14 +259,74 @@ class VideoFilterManager {
   /// decoder to copy mode would stutter). Each shot is decoded small and
   /// scanned for dark rows and columns; the content box is the union over all
   /// shots, so one dark scene does not crop real picture.
-  Future<void> _detectLetterbox() async {
+  ///
+  /// Bars are taken as symmetric: top and bottom (and left and right) are
+  /// both cut by the smaller of the two, so a dark sky at the top alone
+  /// crops nothing. With [recheck] (minutes into the film) the crop can only
+  /// shrink: the new picture area is joined with the current one.
+  Future<void> _detectLetterbox({bool recheck = false}) async {
     try {
-      final dir = await getTemporaryDirectory();
       final width = int.tryParse(await player.getProperty('width') ?? '');
       final height = int.tryParse(await player.getProperty('height') ?? '');
       if (width == null || height == null || width <= 0 || height <= 0) return;
 
-      _Box? content;
+      var content = await _sampleContent();
+      if (content == null) return;
+      // Symmetric bars: the smaller side decides.
+      final vertical = math.min(content.top, 1 - content.bottom);
+      final horizontal = math.min(content.left, 1 - content.right);
+      content = _Box(horizontal, vertical, 1 - horizontal, 1 - vertical);
+      if (recheck && _letterboxContent != null) content = content.union(_letterboxContent!);
+
+      var crop = '';
+      // Only clear bars count: at least 4 % of the height or the width.
+      if (vertical * 2 >= 0.04 || horizontal * 2 >= 0.04) {
+        int even(double v) => (v / 2).round() * 2;
+        final x = even(content.left * width);
+        final y = even(content.top * height);
+        final w = even((content.right - content.left) * width);
+        final h = even((content.bottom - content.top) * height);
+        if (w > width / 2 && h > height / 2 && (w < width || h < height)) crop = '${w}x$h+$x+$y';
+      }
+      if (recheck && crop.isEmpty && _letterboxCrop.isEmpty) return;
+      _letterboxContent = crop.isEmpty ? null : content;
+      _cropSourceWidth = width;
+      _cropSourceHeight = height;
+      appLogger.d(
+        'Letterbox ${recheck ? 'recheck' : 'detection'}: ${crop.isEmpty ? 'none' : crop} (video ${width}x$height)',
+      );
+      if (crop != _letterboxCrop) {
+        _letterboxCrop = crop;
+        updateVideoFilter();
+      }
+    } catch (e) {
+      appLogger.w('Letterbox detection failed', error: e);
+    } finally {
+      if (recheck) {
+        _letterboxRechecked = true;
+      } else {
+        _letterboxChecked = true;
+      }
+      _letterboxDetecting = false;
+    }
+  }
+
+  /// The picture area over three cheap screenshots 1.5 s apart, or null.
+  Future<_Box?> _sampleContent() async {
+    final dir = await getTemporaryDirectory();
+    // Cheap shots: low JPEG quality, no high bit depth. The user's own
+    // screenshot settings are put back afterwards.
+    const cheap = {'screenshot-format': 'jpg', 'screenshot-jpeg-quality': '40', 'screenshot-high-bit-depth': 'no'};
+    final saved = <String, String>{};
+    for (final MapEntry(:key, :value) in cheap.entries) {
+      try {
+        final old = await player.getProperty(key);
+        if (old != null) saved[key] = old;
+        await player.setProperty(key, value);
+      } catch (_) {}
+    }
+    _Box? content;
+    try {
       for (var shot = 0; shot < 3; shot++) {
         if (shot > 0) await Future<void>.delayed(const Duration(milliseconds: 1500));
         final file = File(p.join(dir.path, 'plezy_letterbox_$shot.jpg'));
@@ -269,31 +339,14 @@ class VideoFilterManager {
           if (await file.exists()) unawaited(file.delete().catchError((_) => file));
         }
       }
-
-      var crop = '';
-      if (content != null) {
-        // Fractions of the frame, mapped onto the decoded size; even values.
-        int even(double v) => (v / 2).round() * 2;
-        final x = even(content.left * width);
-        final y = even(content.top * height);
-        final w = even((content.right - content.left) * width);
-        final h = even((content.bottom - content.top) * height);
-        final bars = (height - h) >= height * 0.04 || (width - w) >= width * 0.04;
-        if (bars && w > width / 2 && h > height / 2) crop = '${w}x$h+$x+$y';
-      }
-      _cropSourceWidth = width;
-      _cropSourceHeight = height;
-      appLogger.d('Letterbox detection: ${crop.isEmpty ? 'none' : crop} (video ${width}x$height)');
-      if (crop != _letterboxCrop) {
-        _letterboxCrop = crop;
-        updateVideoFilter();
-      }
-    } catch (e) {
-      appLogger.w('Letterbox detection failed', error: e);
     } finally {
-      _letterboxChecked = true;
-      _letterboxDetecting = false;
+      for (final MapEntry(:key, :value) in saved.entries) {
+        try {
+          await player.setProperty(key, value);
+        } catch (_) {}
+      }
     }
+    return content;
   }
 
   /// The non-black area of one screenshot, as fractions of its size, or null

@@ -78,6 +78,8 @@ class YouTubePlayerHost {
 
   /// Shows the WebView and loads [url].
   Future<void> open(Uri url) => _serial(() async {
+    _idleTimer?.cancel();
+    _idleTimer = null;
     await ensureReady();
     if (_suspended) {
       await _channel.invokeMethod<void>('resume');
@@ -149,5 +151,28 @@ class YouTubePlayerHost {
     } catch (e) {
       appLogger.d('YouTube player release: $e');
     }
+    // A suspended WebView still holds its browser processes (100-200 MB).
+    // Unused for [idleDispose], it goes completely; the next [open] builds a
+    // new one, which takes a second or two longer.
+    _idleTimer?.cancel();
+    _idleTimer = Timer(idleDispose, () {
+      _idleTimer = null;
+      unawaited(_disposeIdle());
+    });
+  });
+
+  static const idleDispose = Duration(minutes: 10);
+  Timer? _idleTimer;
+
+  Future<void> _disposeIdle() => _serial(() async {
+    if (_ready == null || !_suspended) return;
+    try {
+      await _channel.invokeMethod<void>('dispose');
+    } catch (e) {
+      appLogger.d('YouTube player idle dispose: $e');
+    }
+    _ready = null;
+    _suspended = false;
+    appLogger.d('YouTube player: released after ${idleDispose.inMinutes} idle minutes');
   });
 }

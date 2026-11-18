@@ -198,7 +198,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     if (_current == this) _current = null;
     final mini = _mini;
     if (mini != null) VideoMiniPlayer.instance.clear(mini);
-    _saveProgress();
+    _saveProgress(flush: true);
     _sleepTimer?.cancel();
     _watchdog?.cancel();
     _posterTimer?.cancel();
@@ -462,6 +462,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
           Timer(const Duration(milliseconds: 250), _hidePoster);
         }
         _updateDiscord();
+        if (state == 2) _saveProgress(flush: true);
         if (state == 0) {
           _onEnded();
         } else if (state == 1) {
@@ -891,15 +892,15 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   /// Remembers where the current video is, so it resumes there next time.
-  void _saveProgress() {
+  void _saveProgress({bool flush = false}) {
     if (_duration <= 0 || _position <= 0) return;
     _lastProgressSave = DateTime.now();
-    unawaited(_settings.saveProgress(_video.id, _position, _duration));
+    unawaited(_settings.saveProgress(_video.id, _position, _duration, flush: flush));
   }
 
   void _playIndex(int index) {
     if (index < 0 || index >= _queue.length) return;
-    _saveProgress();
+    _saveProgress(flush: true);
     setState(() {
       _index = index;
       _position = 0;
@@ -971,6 +972,10 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   void _onEnded() {
+    if (_sleepAfterVideo && _minimized) {
+      _stopMinimized();
+      return;
+    }
     if (_sleepAfterVideo) {
       if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(_video.id));
       setState(() => _sleepAfterVideo = false);
@@ -982,6 +987,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(_video.id));
     if (_index < _queue.length - 1) {
       _playIndex(_index + 1);
+    } else if (_minimized) {
+      // Nothing next and nobody looking: the mini player closes.
+      _stopMinimized();
     } else {
       _showControls(autoHide: false);
     }
@@ -2696,6 +2704,9 @@ class _YouTubeMiniSession implements VideoMiniSession {
 
   @override
   String get kind => 'youtube';
+
+  @override
+  bool get hasSystemMediaControls => false;
 
   @override
   String get title {

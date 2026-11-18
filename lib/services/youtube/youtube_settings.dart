@@ -1,4 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:path/path.dart' as pathlib;
+import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -139,17 +144,7 @@ class YouTubeSettings extends ChangeNotifier {
       }
     } catch (_) {}
 
-    try {
-      final raw = prefs.getString(_kProgress);
-      final decoded = raw == null ? const <String, dynamic>{} : jsonDecode(raw) as Map<String, dynamic>;
-      _progress = {
-        for (final e in decoded.entries)
-          if (e.value is List && (e.value as List).length == 2)
-            e.key: [((e.value as List)[0] as num).toDouble(), ((e.value as List)[1] as num).toDouble()],
-      };
-    } catch (_) {
-      _progress = {};
-    }
+    _progress = await _readProgress(prefs);
 
     _hiddenVideos = (prefs.getStringList(_kHiddenVideos) ?? const <String>[]).toSet();
     _mutedChannels = _readMap(prefs.getString(_kMutedChannels));
@@ -396,8 +391,14 @@ class YouTubeSettings extends ChangeNotifier {
     return (p[0] / p[1]).clamp(0.0, 1.0);
   }
 
-  Future<void> saveProgress(String videoId, double position, double duration) async {
+  /// Records where [videoId] is. Kept in memory and written to its own file
+  /// at most every 30 s (or right away with [flush]: pause, video change,
+  /// close), so playback does not rewrite the whole settings file every few
+  /// seconds. Listeners hear about it when it is written, or at once when the
+  /// video becomes watched.
+  Future<void> saveProgress(String videoId, double position, double duration, {bool flush = false}) async {
     await load();
+    final wasWatched = (progressFraction(videoId) ?? 0) >= 0.95;
     _progress.remove(videoId);
     if (duration > 0 && position >= duration * 0.95) {
       _progress[videoId] = [duration, duration];
@@ -407,8 +408,68 @@ class YouTubeSettings extends ChangeNotifier {
     while (_progress.length > _maxProgress) {
       _progress.remove(_progress.keys.first);
     }
-    await _prefs!.setString(_kProgress, jsonEncode(_progress));
+    final nowWatched = (progressFraction(videoId) ?? 0) >= 0.95;
+    _progressDirty = true;
+    if (flush || nowWatched != wasWatched) {
+      await flushProgress();
+    } else {
+      _progressTimer ??= Timer(const Duration(seconds: 30), () => unawaited(flushProgress()));
+    }
+  }
+
+  bool _progressDirty = false;
+  Timer? _progressTimer;
+
+  /// Writes pending progress to disk and tells listeners.
+  Future<void> flushProgress() async {
+    _progressTimer?.cancel();
+    _progressTimer = null;
+    if (!_progressDirty) return;
+    _progressDirty = false;
     notifyListeners();
+    try {
+      final file = await _progressFile();
+      final tmp = File('${file.path}.tmp');
+      await tmp.writeAsString(jsonEncode(_progress), flush: true);
+      await tmp.rename(file.path);
+    } catch (e) {
+      _progressDirty = true;
+      debugPrint('YouTube progress not saved: $e');
+    }
+  }
+
+  static Future<File> _progressFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File(pathlib.join(dir.path, 'youtube_progress.json'));
+  }
+
+  static Map<String, List<double>> _decodeProgress(String? raw) {
+    try {
+      final decoded = raw == null ? const <String, dynamic>{} : jsonDecode(raw) as Map<String, dynamic>;
+      return {
+        for (final e in decoded.entries)
+          if (e.value is List && (e.value as List).length == 2)
+            e.key: [((e.value as List)[0] as num).toDouble(), ((e.value as List)[1] as num).toDouble()],
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// From its own file; moves an older copy out of the settings file.
+  static Future<Map<String, List<double>>> _readProgress(SharedPreferences prefs) async {
+    try {
+      final file = await _progressFile();
+      if (await file.exists()) return _decodeProgress(await file.readAsString());
+      final legacy = prefs.getString(_kProgress);
+      if (legacy == null) return {};
+      final progress = _decodeProgress(legacy);
+      await file.writeAsString(jsonEncode(progress), flush: true);
+      await prefs.remove(_kProgress);
+      return progress;
+    } catch (_) {
+      return _decodeProgress(prefs.getString(_kProgress));
+    }
   }
 
   bool isWatched(String videoId) => _watched?.contains(videoId) ?? false;

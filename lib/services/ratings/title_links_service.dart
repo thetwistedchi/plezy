@@ -8,6 +8,7 @@ import '../../utils/app_logger.dart';
 import '../../utils/external_ids.dart';
 import '../settings_service.dart';
 import '../trackers/trakt/trakt_constants.dart';
+import 'rating_keys.dart';
 import 'rating_providers.dart';
 
 /// One site a title can be opened on, with the score that site gives it when
@@ -44,6 +45,16 @@ class TitleLinksService {
   /// How long a failed lookup (timeout, error status) is remembered: short,
   /// so a site that was down is asked again soon.
   static const Duration failureTtl = Duration(minutes: 15);
+
+  /// Cache entries kept per cache (a title takes up to three): about the
+  /// last 300 titles. The oldest go first.
+  static const int maxCacheEntries = 900;
+
+  static void _trim(Map<String, Object?> cache) {
+    while (cache.length > maxCacheEntries) {
+      cache.remove(cache.keys.first);
+    }
+  }
 
   final http.Client _client;
   final DateTime Function() _now;
@@ -189,17 +200,24 @@ class TitleLinksService {
     final settings = SettingsService.instanceOrNull;
     int? malId;
 
-    final mdbKey = settings?.read(SettingsService.mdblistApiKey).trim() ?? '';
+    final keys = RatingKeys.instance;
+    await keys.load();
+    final mdbKey = keys.key(RatingKeys.mdblist);
     if (mdbKey.isNotEmpty) {
-      final scores = await _cachedScores('mdb:$idKey', () => _mdbList.fetch(apiKey: mdbKey, kind: kind, ids: ids));
+      final scores = await _cachedScores(
+        'mdb:$idKey',
+        () => _keyed(RatingKeys.mdblist, () => _mdbList.fetch(apiKey: mdbKey, kind: kind, ids: ids)),
+      );
       take(scores);
       malId = scores.malId;
     }
 
-    final omdbKey = settings?.read(SettingsService.omdbApiKey).trim() ?? '';
+    final omdbKey = keys.key(RatingKeys.omdb);
     if (omdbKey.isNotEmpty &&
         (missing('metacritic') || missing('imdb') || missing('rottenTomatoesCritic'))) {
-      take(await _cachedScores('omdb:$idKey', () => _omdb.fetch(apiKey: omdbKey, ids: ids)));
+      take(
+        await _cachedScores('omdb:$idKey', () => _keyed(RatingKeys.omdb, () => _omdb.fetch(apiKey: omdbKey, ids: ids))),
+      );
     }
 
     if (isAnime && (settings?.read(SettingsService.jikanRatings) ?? true) && missing('mal')) {
@@ -212,7 +230,8 @@ class TitleLinksService {
     }
 
     // Letterboxd and Trakt directly, for what the providers left open.
-    final result = await Future.wait([
+    final result = <TitleLink>[
+      ...await Future.wait([
       for (final link in links)
         () async {
           final rating = link.rating ?? found[link.source];
@@ -234,7 +253,8 @@ class TitleLinksService {
               return link;
           }
         }(),
-    ]);
+      ]),
+    ];
 
     // Sites the base row has no card for.
     final present = {for (final link in result) link.source};
@@ -275,36 +295,52 @@ class TitleLinksService {
     return result;
   }
 
+  /// Runs a keyed provider and records whether its key worked.
+  static Future<ProviderScores> _keyed(String name, Future<ProviderScores> Function() load) async {
+    try {
+      final scores = await load();
+      RatingKeys.instance.markWorking(name);
+      return scores;
+    } on ProviderUnavailable catch (e) {
+      if (e.statusCode == 401 || e.statusCode == 403) RatingKeys.instance.markRejected(name);
+      rethrow;
+    }
+  }
+
   late final _mdbList = MdbListProvider(_client);
   late final _omdb = OmdbProvider(_client);
   late final _jikan = JikanProvider(_client);
   final Map<String, ({DateTime until, ProviderScores value})> _scoreCache = {};
 
   Future<ProviderScores> _cachedScores(String key, Future<ProviderScores> Function() load) async {
-    final hit = _scoreCache[key];
-    if (hit != null && _now().isBefore(hit.until)) return hit.value;
+    final hit = _scoreCache.remove(key);
+    if (hit != null && _now().isBefore(hit.until)) return (_scoreCache[key] = hit).value;
     try {
       final value = await load();
       _scoreCache[key] = (until: _now().add(cacheTtl), value: value);
+      _trim(_scoreCache);
       return value;
     } on Exception catch (e) {
       // The caller falls back to the direct lookups for this visit.
       appLogger.d('Ratings & links: $key unavailable', error: e);
       _scoreCache[key] = (until: _now().add(failureTtl), value: ProviderScores.empty);
+      _trim(_scoreCache);
       return ProviderScores.empty;
     }
   }
 
   Future<_Fetched> _cached(String key, Future<_Fetched> Function() load) async {
-    final hit = _cache[key];
-    if (hit != null && _now().isBefore(hit.until)) return hit.value;
+    final hit = _cache.remove(key);
+    if (hit != null && _now().isBefore(hit.until)) return (_cache[key] = hit).value;
     try {
       final value = await load();
       _cache[key] = (until: _now().add(cacheTtl), value: value);
+      _trim(_cache);
       return value;
     } on Exception catch (e) {
       appLogger.d('Ratings & links: $key unavailable', error: e);
       _cache[key] = (until: _now().add(failureTtl), value: const _Fetched());
+      _trim(_cache);
       return const _Fetched();
     }
   }

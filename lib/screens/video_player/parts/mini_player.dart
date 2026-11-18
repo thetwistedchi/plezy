@@ -69,6 +69,9 @@ class _PlexMiniSession implements VideoMiniSession {
   String get kind => 'plex';
 
   @override
+  bool get hasSystemMediaControls => true;
+
+  @override
   String get title {
     if (_screen.widget.isLive) return _screen._live.channelName ?? _screen._currentMetadata.displayTitle;
     return _screen._currentMetadata.displayTitle;

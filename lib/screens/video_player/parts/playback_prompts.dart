@@ -118,6 +118,18 @@ extension _VideoPlayerPlaybackPromptMethods on VideoPlayerScreenState {
       final autoPlayEnabled = !serverStopped && settings.read(SettingsService.autoPlayNextEpisode);
       final countdownSeconds = settings.read(SettingsService.playNextCountdown);
 
+      // Minimized: nobody sees a prompt. Autoplay goes straight on, otherwise
+      // the mini player closes.
+      if (_minimized) {
+        _logVideoCompleted(autoPlayEnabled ? 'action=presentNext minimized' : 'action=exit minimized');
+        if (autoPlayEnabled) {
+          unawaited(_playNext());
+        } else {
+          _stopMinimized();
+        }
+        return;
+      }
+
       // A zero countdown (#1827) behaves like the PiP path above: no prompt,
       // straight into the next episode.
       if (autoPlayEnabled && (skipAutoPlayCountdown || countdownSeconds == 0)) {
@@ -147,7 +159,11 @@ extension _VideoPlayerPlaybackPromptMethods on VideoPlayerScreenState {
     } else if (navigationAction == CompletionNavigationAction.exit && !_episode.completionLatch.triggered) {
       _logVideoCompleted('action=exit');
       _episode.completionLatch.latch();
-      unawaited(_handleBackButton());
+      if (_minimized) {
+        _stopMinimized();
+      } else {
+        unawaited(_handleBackButton());
+      }
     } else {
       _logVideoCompleted('action=${navigationAction.name} latched');
     }
