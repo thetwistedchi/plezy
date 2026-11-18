@@ -25,7 +25,9 @@ import '../../../services/scoped_player_prefs.dart';
 import '../../../services/settings_service.dart';
 import '../../../services/sleep_timer_service.dart';
 import '../../../services/video_filter_manager.dart';
+import '../../../theme/gapped_track_shape.dart';
 import '../../../theme/player_style.dart';
+import '../../../screens/youtube/youtube_strings.dart';
 import '../../../focus/focusable_wrapper.dart';
 import '../../../utils/dialogs.dart';
 import '../../../utils/app_logger.dart';
@@ -267,6 +269,64 @@ class _SettingsToggleItemState extends State<_SettingsToggleItem> {
               : Text(widget.subtitle!, style: TextStyle(color: tokens(context).textMuted, fontSize: 12)),
           trailing: Switch(value: displayedValue, onChanged: isPending ? null : _write, activeThumbColor: playerActiveColor(context)),
           onTap: isPending ? null : () => _write(!displayedValue),
+        );
+      },
+    );
+  }
+}
+
+/// The HDR brightness boost ([SettingsService.hdrBrightness]) as a slider row.
+/// The value is written while dragging, so the picture follows the thumb.
+class _HdrBoostItem extends StatelessWidget {
+  const _HdrBoostItem();
+
+  @override
+  Widget build(BuildContext context) {
+    final pref = SettingsService.hdrBrightness;
+    final style = PlayerStyle.of(context);
+    final gradient = style.progressGradient;
+    return ValueListenableBuilder<int>(
+      valueListenable: SettingsService.instance.listenable(pref),
+      builder: (context, value, _) {
+        final label = value == 0 ? YtStrings.hdrBrightnessOff : '+$value %';
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Row(
+            children: [
+              AppIcon(
+                Symbols.brightness_6_rounded,
+                fill: 1,
+                color: value > 0 ? playerActiveColor(context) : tokens(context).textMuted,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${YtStrings.hdrBrightness} · $label'),
+                    Text(
+                      YtStrings.hdrBoostShort,
+                      style: TextStyle(color: tokens(context).textMuted, fontSize: 12),
+                    ),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackShape: gradient == null ? null : GappedTrackShape(activeGradient: gradient),
+                        activeTrackColor: gradient?.last ?? playerActiveColor(context),
+                      ),
+                      child: Slider(
+                        value: value.clamp(0, 100).toDouble(),
+                        max: 100,
+                        divisions: 20,
+                        label: label,
+                        onChanged: (v) => unawaited(SettingsService.instance.write(pref, v.round())),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -890,6 +950,9 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
             title: t.videoSettings.hdr,
             onAfterWrite: _setHdrEnabled,
           ),
+
+        // Windows: the HDR brightness boost, live while the video plays.
+        if (_supportsHdrControl && Platform.isWindows) const _HdrBoostItem(),
 
         // Only meaningful where the plane can actually carry HDR, and only the
         // Linux plane lets us pick the curve: elsewhere the platform decides who

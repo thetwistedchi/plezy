@@ -54,6 +54,7 @@ class YtStrings {
   static String get miniPlayer => _t('Mini player', 'Mini-Player');
   static String get hdrBrightness => _t('HDR brightness boost', 'HDR-Helligkeitsboost');
   static String get hdrBrightnessOff => _t('Off · as mastered', 'Aus · wie gemastert');
+  static String get hdrBoostShort => _t('Extra lift for dark HDR. Off = as mastered; HDR stays on.', 'Extra-Aufhellung für dunkles HDR. Aus = wie gemastert; HDR bleibt an.');
   static String get hdrBrightnessDescription => _t(
     'An extra lift for HDR videos that look too dark. Off keeps the full HDR picture exactly as mastered; higher values brighten the midtones on top of it. HDR stays on at every setting. Changes apply right away.',
     'Zusätzliche Aufhellung für HDR-Videos, die zu dunkel wirken. Aus zeigt das volle HDR-Bild genau wie gemastert; höhere Werte hellen die Mitteltöne zusätzlich auf. HDR bleibt bei jeder Einstellung aktiv. Änderungen wirken sofort.',
