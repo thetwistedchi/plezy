@@ -164,6 +164,11 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   bool _recovering = false;
   int _recoveries = 0;
   bool _pauseWhenReady = false;
+
+  /// The video's thumbnail with a spinner, shown from loading until the
+  /// first frame plays, instead of the embed's black loading screen.
+  bool _poster = true;
+  Timer? _posterTimer;
   bool _fullscreen = false;
   bool _enteredFullscreen = false;
   int _metaGeneration = 0;
@@ -176,6 +181,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     super.initState();
     _current = this;
     _watchdog = Timer.periodic(const Duration(seconds: 4), (_) => _checkHealth());
+    _posterTimer = Timer(const Duration(seconds: 12), _hidePoster);
     _volume = _settings.playerVolume;
     _rate = _settings.playbackSpeed;
     _fullscreen = FullscreenStateManager().isFullscreen;
@@ -190,6 +196,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     _sleepTimer?.cancel();
     _nudgeTimer?.cancel();
     _watchdog?.cancel();
+    _posterTimer?.cancel();
     if (DiscordRPCService.isAvailable) unawaited(DiscordRPCService.instance.stopPlayback());
     _hideTimer?.cancel();
     _toastTimer?.cancel();
@@ -328,6 +335,18 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     unawaited(_host.post(jsonEncode(command)));
   }
 
+  void _showPoster() {
+    _posterTimer?.cancel();
+    if (!_poster) setState(() => _poster = true);
+    // Never cover the video for long if the state messages don't come.
+    _posterTimer = Timer(const Duration(seconds: 12), _hidePoster);
+  }
+
+  void _hidePoster() {
+    _posterTimer?.cancel();
+    if (mounted && _poster) setState(() => _poster = false);
+  }
+
   void _checkHealth() {
     if (!mounted) return;
     final now = DateTime.now();
@@ -364,6 +383,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     final position = _position;
     appLogger.i('YouTube player not responding, restarting (fresh: $fresh)');
     setState(() => _webReady = false);
+    _showPoster();
     try {
       if (fresh) await _host.reset();
       _pauseWhenReady = !wasPlaying;
@@ -426,6 +446,10 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       case 'state':
         final state = (message['s'] as num?)?.toInt() ?? -1;
         setState(() => _state = state);
+        if (state == 1 || state == 2) {
+          // A short delay so the first frame is drawn before the poster goes.
+          Timer(const Duration(milliseconds: 250), _hidePoster);
+        }
         _updateDiscord();
         if (state == 0) {
           _onEnded();
@@ -872,6 +896,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _qualityApplied = false;
     });
     unawaited(YouTubeSettings.instance.markOpened(_video.id, _video.channelId));
+    _showPoster();
     _send({'cmd': 'load', 'id': _video.id, 't': _settings.resumePosition(_video.id) ?? 0});
     unawaited(_loadMeta());
     _showControls();
@@ -1215,6 +1240,27 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                 onDoubleTap: () => unawaited(_toggleFullscreen()),
               ),
             ],
+            if (_poster && _initError == null && _errorCode == null)
+              IgnorePointer(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    const ColoredBox(color: Colors.black),
+                    CachedNetworkImage(
+                      imageUrl: 'https://i.ytimg.com/vi/${_video.id}/maxresdefault.jpg',
+                      fit: BoxFit.contain,
+                      fadeInDuration: const Duration(milliseconds: 150),
+                      errorWidget: (_, _, _) => CachedNetworkImage(
+                        imageUrl: 'https://i.ytimg.com/vi/${_video.id}/hqdefault.jpg',
+                        fit: BoxFit.contain,
+                        errorWidget: (_, _, _) => const SizedBox.shrink(),
+                      ),
+                    ),
+                    const ColoredBox(color: Color(0x66000000)),
+                    Center(child: CircularProgressIndicator(color: accent)),
+                  ],
+                ),
+              ),
             if (_errorCode != null)
               _CenterMessage(
                 text: _errorCode == 101 || _errorCode == 150 || _errorCode == 152 || _errorCode == 153
