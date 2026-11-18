@@ -68,6 +68,14 @@ class BackdropPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    if (route is NoPageBackdropRoute) return _defaults.buildTransitions(route, context, animation, secondaryAnimation, child);
     return _defaults.buildTransitions(route, context, animation, secondaryAnimation, PageBackdrop(child: child));
   }
+}
+
+/// A page route that must stay see-through, such as a player whose video is a
+/// native surface beneath the Flutter view. [BackdropPageTransitionsBuilder]
+/// leaves it without a backdrop.
+class NoPageBackdropRoute<T> extends MaterialPageRoute<T> {
+  NoPageBackdropRoute({required super.builder, super.settings});
 }

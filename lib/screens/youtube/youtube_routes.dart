@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import '../../theme/page_backdrop.dart';
 import '../../widgets/app_icon.dart';
 import 'youtube_strings.dart';
 
@@ -8,8 +9,11 @@ import 'youtube_strings.dart';
 /// [YouTubeHomeButton] can pop back to the tab in one step.
 const String _ytRoutePrefix = 'yt/';
 
-MaterialPageRoute<T> ytRoute<T>(String name, WidgetBuilder builder) =>
-    MaterialPageRoute<T>(settings: RouteSettings(name: '$_ytRoutePrefix$name'), builder: builder);
+/// The player route is [NoPageBackdropRoute]: its video is the native WebView
+/// beneath the Flutter view, which a painted backdrop would cover.
+MaterialPageRoute<T> ytRoute<T>(String name, WidgetBuilder builder) => name == 'player'
+    ? NoPageBackdropRoute<T>(settings: RouteSettings(name: '$_ytRoutePrefix$name'), builder: builder)
+    : MaterialPageRoute<T>(settings: RouteSettings(name: '$_ytRoutePrefix$name'), builder: builder);
 
 /// Back to the YouTube home (the subscriptions page) from any sub-page.
 class YouTubeHomeButton extends StatelessWidget {

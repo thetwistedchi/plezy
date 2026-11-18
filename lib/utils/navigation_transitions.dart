@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/page_backdrop.dart';
 import '../services/device_performance.dart';
 import 'layout_constants.dart';
 
@@ -10,7 +9,7 @@ Route<T> fadeRoute<T>(Widget page) {
     // below the transparent root scaffold. The reduced tier only drops the
     // fade (two full-screen layers blending for the whole transition).
     opaque: false,
-    pageBuilder: (context, animation, secondaryAnimation) => PageBackdrop(child: page),
+    pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) =>
         FadeTransition(opacity: animation, child: child),
     transitionDuration: DevicePerformance.reducedDuration(AppDurations.animSlow),
