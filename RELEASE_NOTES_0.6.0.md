@@ -16,12 +16,15 @@
 - A home button on every YouTube sub-page leads straight back to the subscriptions page, and the watchlist has a back button.
 - Upload time is shown as "2h ago" with the same spacing as the view count.
 
+### Plex player
+- Clicking the video plays or pauses it (double-click still toggles fullscreen). Can be turned off under Settings › Playback.
+
 ### Retrowave look
 - Every colour comes from one palette taken from a retrowave night landscape: night purple, violet, magenta and cyan.
 - A muted background fade on every page.
 - Windows title bar and window border in the same night purple (Windows 11).
 - New cyan, violet and magenta app icon, installer icon and startup logo.
-- Smaller violet play button without the glow, in the Plex and YouTube players.
+- Smaller violet play button (38 px) without the glow, in the Plex and YouTube players.
 - The volume slider uses the same fade as the timeline, everywhere.
 
 ### Libraries
