@@ -1014,6 +1014,10 @@ class SettingsService extends BaseSharedPreferencesService {
   /// bar instead of closing it (desktop).
   static const backMinimizesPlayer = BoolPref('back_minimizes_player', defaultValue: true);
 
+  /// Crop black bars baked into the video (letterbox) so it fills the
+  /// screen, keeping the aspect ratio (desktop mpv).
+  static const cropLetterbox = BoolPref('crop_letterbox');
+
   static const playbackBufferTier = EnumPref<PlaybackBufferTier>(
     'playback_buffer_tier',
     values: PlaybackBufferTier.values,
@@ -1629,6 +1633,7 @@ class SettingsService extends BaseSharedPreferencesService {
     startInFullscreen,
     exitFullscreenOnPlayerClose,
     backMinimizesPlayer,
+    cropLetterbox,
   ];
 
   /// Group three: reset but *not* exported — device-local paths, endpoints and

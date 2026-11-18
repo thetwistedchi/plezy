@@ -285,6 +285,13 @@ class PlaybackSettingsScreen extends StatelessWidget {
           title: t.settings.clickVideoTogglesPlayback,
           subtitle: t.settings.clickVideoTogglesPlaybackDescription,
         ),
+      if (Platform.isWindows || Platform.isLinux)
+        SettingSwitchTile(
+          pref: SettingsService.cropLetterbox,
+          icon: Symbols.crop_landscape_rounded,
+          title: YtStrings.cropLetterbox,
+          subtitle: YtStrings.cropLetterboxDescription,
+        ),
       if (PlatformDetector.isDesktopOS())
         SettingSwitchTile(
           pref: SettingsService.backMinimizesPlayer,

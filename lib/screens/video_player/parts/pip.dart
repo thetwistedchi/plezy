@@ -43,6 +43,7 @@ extension _VideoPlayerPipMethods on VideoPlayerScreenState {
         initialBoxFitMode: ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.boxFitMode, _currentMetadata),
         initialZoomScale: ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.videoZoom, _currentMetadata),
         initialPlayerSize: initialPlayerSize,
+        cropLetterbox: SettingsService.instanceOrNull?.read(SettingsService.cropLetterbox) ?? false,
         // Reads _currentMetadata at invocation time so a cycle after an
         // in-place episode swap keys against the item actually on screen.
         onBoxFitModeChanged: (mode) =>

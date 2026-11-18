@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -95,7 +97,9 @@ class VideoFilterManager {
     double initialZoomScale = 1.0,
     Size? initialPlayerSize,
     this.onBoxFitModeChanged,
-  }) : _boxFitMode = initialBoxFitMode,
+    bool cropLetterbox = false,
+  }) : _boxFitMode = _keepAspect(initialBoxFitMode),
+       _cropLetterbox = cropLetterbox && (Platform.isWindows || Platform.isLinux),
        _zoomScale = normalizeZoomScale(initialZoomScale),
        _playerSize = initialPlayerSize {
     _debouncedUpdateVideoFilter = debounce(
@@ -104,9 +108,87 @@ class VideoFilterManager {
       leading: true,
       trailing: true,
     );
+    if (_cropLetterbox) {
+      _fileLoadedSub = player.streams.fileLoaded.listen((_) => _resetLetterbox());
+      _positionSub = player.streams.position.listen(_maybeDetectLetterbox);
+    }
   }
 
-  /// Current BoxFit mode (0=contain, 1=cover, 2=fill)
+  /// Retrowave keeps the aspect ratio: the stretching fill mode (2) is gone,
+  /// and a stored 2 reads as contain.
+  static int _keepAspect(int mode) => mode == 1 ? 1 : 0;
+
+  // ---- Letterbox crop ----
+  //
+  // With [_cropLetterbox] on, a few seconds into each file the cropdetect
+  // filter samples the picture; black bars baked into the video are then
+  // cropped with `video-crop`, so a 2.39:1 film fills an ultrawide screen.
+  // Contain mode only: cover and zoom already fill.
+
+  final bool _cropLetterbox;
+  StreamSubscription<void>? _fileLoadedSub;
+  StreamSubscription<Duration>? _positionSub;
+  bool _letterboxChecked = false;
+  bool _letterboxDetecting = false;
+  String _letterboxCrop = '';
+
+  static const _cropLabel = 'plezycrop';
+
+  void _resetLetterbox() {
+    _letterboxChecked = false;
+    if (_letterboxCrop.isEmpty) return;
+    _letterboxCrop = '';
+    updateVideoFilter();
+  }
+
+  void _maybeDetectLetterbox(Duration position) {
+    if (_letterboxChecked || _letterboxDetecting || _boxFitMode != 0) return;
+    // Past studio logos and black openings.
+    if (position < const Duration(seconds: 10)) return;
+    _letterboxDetecting = true;
+    unawaited(_detectLetterbox());
+  }
+
+  Future<void> _detectLetterbox() async {
+    var filterAdded = false;
+    try {
+      final width = int.tryParse(await player.getProperty('width') ?? '');
+      final height = int.tryParse(await player.getProperty('height') ?? '');
+      if (width == null || height == null || width <= 0 || height <= 0) return;
+      await player.command(['vf', 'add', '@$_cropLabel:cropdetect=limit=24:round=2:reset=0']);
+      filterAdded = true;
+      await Future<void>.delayed(const Duration(seconds: 2));
+      Future<int?> meta(String key) async =>
+          int.tryParse(await player.getProperty('vf-metadata/$_cropLabel/lavfi.cropdetect.$key') ?? '');
+      final w = await meta('w');
+      final h = await meta('h');
+      final x = await meta('x');
+      final y = await meta('y');
+      var crop = '';
+      if (w != null && h != null && x != null && y != null && w > width / 2 && h > height / 2) {
+        // Only clear bars count: at least 4 % of the height or the width.
+        final bars = (height - h) >= height * 0.04 || (width - w) >= width * 0.04;
+        if (bars) crop = '${w}x$h+$x+$y';
+      }
+      appLogger.d('Letterbox detection: ${crop.isEmpty ? 'none' : crop} (video ${width}x$height)');
+      if (crop != _letterboxCrop) {
+        _letterboxCrop = crop;
+        updateVideoFilter();
+      }
+    } catch (e) {
+      appLogger.w('Letterbox detection failed', error: e);
+    } finally {
+      _letterboxChecked = true;
+      _letterboxDetecting = false;
+      if (filterAdded) {
+        try {
+          await player.command(['vf', 'remove', '@$_cropLabel']);
+        } catch (_) {}
+      }
+    }
+  }
+
+  /// Current BoxFit mode (0=contain, 1=cover; fill is not offered)
   int get boxFitMode => _boxFitMode;
 
   double get zoomScale => _zoomScale;
@@ -136,7 +218,7 @@ class VideoFilterManager {
 
   /// Cycle through BoxFit modes: contain → cover → fill → contain (for button)
   void cycleBoxFitMode() {
-    _boxFitMode = (_boxFitMode + 1) % 3;
+    _boxFitMode = (_boxFitMode + 1) % 2;
     onBoxFitModeChanged?.call(_boxFitMode);
     updateVideoFilter();
   }
@@ -145,7 +227,7 @@ class VideoFilterManager {
   /// on an in-place item change). Does not fire [onBoxFitModeChanged]: the
   /// value came from the store, so echoing it back would be redundant.
   void setBoxFitMode(int mode) {
-    final next = mode.clamp(0, 2);
+    final next = _keepAspect(mode);
     if (_boxFitMode == next) return;
     _boxFitMode = next;
     updateVideoFilter();
@@ -280,6 +362,10 @@ class VideoFilterManager {
       await _applyProperty('sub-ass-force-margins', coverMode || zoomScale > 1.0001 ? 'yes' : 'no');
       await _applyProperty('panscan', coverMode ? '1.0' : '0');
       await _applyProperty('video-zoom', nativeVideoZoom ? '0.0' : videoZoomPropertyForScale(zoomScale).toString());
+      // Last: older libmpv builds have no video-crop and refuse it.
+      if (_cropLetterbox) {
+        await _applyProperty('video-crop', boxFitMode == 0 && zoomScale <= 1.0001 ? _letterboxCrop : '');
+      }
     } catch (e) {
       appLogger.w('Failed to update video filter', error: e);
     }
@@ -300,5 +386,7 @@ class VideoFilterManager {
 
   void dispose() {
     _debouncedUpdateVideoFilter.cancel();
+    unawaited(_fileLoadedSub?.cancel());
+    unawaited(_positionSub?.cancel());
   }
 }

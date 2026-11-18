@@ -52,6 +52,11 @@ class YtStrings {
   // Player
   static String get back => _t('Back', 'Zurück');
   static String get miniPlayer => _t('Mini player', 'Mini-Player');
+  static String get cropLetterbox => _t('Fill the screen when letterboxed', 'Bildschirm bei Letterbox füllen');
+  static String get cropLetterboxDescription => _t(
+    'Detects black bars baked into a video and crops them, so wide films fill ultrawide screens. The aspect ratio is always kept. Applies to newly started videos.',
+    'Erkennt schwarze Balken im Video und schneidet sie ab, damit Breitbildfilme Ultrawide-Bildschirme füllen. Das Seitenverhältnis bleibt immer erhalten. Gilt für neu gestartete Videos.',
+  );
   static String get backMinimizes => _t('Back opens the mini player', 'Zurück öffnet den Mini-Player');
   static String get backMinimizesDescription => _t(
     'Back in the Plex or YouTube player keeps the video playing in the bar at the bottom. Off: Back closes the player.',
