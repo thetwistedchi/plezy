@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../../services/youtube/youtube_auth.dart';
@@ -369,6 +370,10 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   Future<void> _showVideoMenu(YouTubeVideo video, Offset position) async {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final favorite = _settings.isFavorite(video.channelId);
+    final progress = _settings.progressOf(video.id);
+    final resumeAt = progress != null && progress.position >= 10 && progress.position / progress.duration < 0.95
+        ? progress.position.floor()
+        : null;
     final action = await showMenu<String>(
       context: context,
       position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
@@ -378,6 +383,8 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
           child: Text(_watchlist.contains(video.id) ? YtStrings.removeFromWatchlist : YtStrings.addToWatchlist),
         ),
         PopupMenuItem(value: 'channel', child: Text(YtStrings.openChannel)),
+        PopupMenuItem(value: 'share', child: Text(YtStrings.copyLink)),
+        if (resumeAt != null) PopupMenuItem(value: 'shareAt', child: Text(YtStrings.copyLinkAt(_clock(resumeAt)))),
         PopupMenuItem(
           value: 'favorite',
           child: Text(favorite ? YtStrings.unfavoriteChannel : YtStrings.favoriteChannelAction),
@@ -396,6 +403,12 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
           ytRoute<void>('channel', (_) => YouTubeChannelScreen(channelId: video.channelId, channelTitle: video.channelTitle),
           ),
         );
+      case 'share' || 'shareAt':
+        final url = Uri.https('youtu.be', '/${video.id}', {if (action == 'shareAt' && resumeAt != null) 't': '$resumeAt'});
+        await Clipboard.setData(ClipboardData(text: url.toString()));
+        if (mounted) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(YtStrings.linkCopied)));
+        }
       case 'favorite':
         await _settings.setFavorite(video.channelId, video.channelTitle, !favorite);
       case 'hide':
@@ -403,6 +416,13 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       case 'mute':
         await _settings.setMuted(video.channelId, video.channelTitle, true);
     }
+  }
+
+  static String _clock(int seconds) {
+    final h = seconds ~/ 3600;
+    final m = (seconds ~/ 60) % 60;
+    final sec = (seconds % 60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$sec' : '$m:$sec';
   }
 
   Widget _viewSwitch(BuildContext context) {

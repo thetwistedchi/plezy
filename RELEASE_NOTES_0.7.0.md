@@ -24,6 +24,7 @@
 
 ### YouTube
 - A **Continue where you left off** card at the top of the subscriptions page resumes the last unfinished video with one click, at the position it stopped. It disappears once the video is finished or dismissed.
+- The **⋮** menu of a video has **Copy link**, and **Copy link at …** for a video watched part way, which starts at the saved position.
 
 ### Mini player
 - Keyboard media keys control a minimized YouTube video.
