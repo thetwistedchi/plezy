@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../screens/youtube/youtube_strings.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/services.dart';
 
@@ -263,6 +264,21 @@ class TrackChapterControls extends StatelessWidget {
                     .show(builder: (_) => QueueSheet(onItemSelected: state.onQueueItemSelected!))
                     .whenComplete(() => state.onStartAutoHide?.call());
               },
+            ),
+          );
+          buttonIndex++;
+        }
+
+        if (state.onMinimize != null) {
+          final currentIndex = buttonIndex;
+          buttons.add(
+            _buildTrackButton(
+              buttonIndex: currentIndex,
+              icon: Symbols.call_to_action_rounded,
+              tooltip: YtStrings.miniPlayer,
+              semanticLabel: YtStrings.miniPlayer,
+              buttons: buttons,
+              onPressed: state.onMinimize,
             ),
           );
           buttonIndex++;

@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../../widgets/mini_player/video_mini_player.dart';
+import '../../mpv/video.dart' show videoSurfaceDetached;
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -62,6 +64,7 @@ class YouTubePlayerScreen extends StatefulWidget {
     final current = _YouTubePlayerScreenState._current;
     if (current != null && current.mounted) {
       current._playNow(video);
+      current._expand();
       return;
     }
     await Navigator.of(context).push(
@@ -171,9 +174,14 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   bool get _playing => _state == 1 || _state == 3;
 
+  /// Minimized into the bottom bar ([VideoMiniPlayer]).
+  bool _minimized = false;
+  _YouTubeMiniSession? _mini;
+
   @override
   void initState() {
     super.initState();
+    VideoMiniPlayer.instance.stopOtherThan('youtube');
     _current = this;
     _watchdog = Timer.periodic(const Duration(seconds: 4), (_) => _checkHealth());
     _posterTimer = Timer(const Duration(seconds: 12), _hidePoster);
@@ -187,6 +195,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   @override
   void dispose() {
     if (_current == this) _current = null;
+    final mini = _mini;
+    if (mini != null) VideoMiniPlayer.instance.clear(mini);
     _saveProgress();
     _sleepTimer?.cancel();
     _watchdog?.cancel();
@@ -1166,17 +1176,57 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     return true;
   }
 
+  // ---- Mini player ----
+
+  void _minimize() {
+    final route = ModalRoute.of(context);
+    if (route is! MinimizableRoute || _minimized) return;
+    if (_fullscreen) unawaited(_toggleFullscreen());
+    _setPanel(_SidePanel.none);
+    final mini = _mini ??= _YouTubeMiniSession(this);
+    _focusNode.unfocus();
+    setState(() => _minimized = true);
+    route.minimized = true;
+    VideoMiniPlayer.instance.show(mini);
+  }
+
+  void _expand() {
+    if (!mounted || !_minimized) return;
+    final route = ModalRoute.of(context);
+    if (route is MinimizableRoute) {
+      // Pages opened while minimized sit above the player: close them.
+      if (!route.isTopRoute) Navigator.of(context).popUntil((r) => r == route);
+      route.minimized = false;
+    }
+    setState(() => _minimized = false);
+    final mini = _mini;
+    if (mini != null) VideoMiniPlayer.instance.clear(mini);
+    _focusNode.requestFocus();
+    _showControls();
+  }
+
+  void _stopMinimized() {
+    if (!mounted) return;
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isActive) return;
+    _send({'cmd': 'pause'});
+    Navigator.of(context).removeRoute(route);
+  }
+
   // ---- Build ----
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Offstage(offstage: _minimized, child: _buildScreen(context));
+
+  Widget _buildScreen(BuildContext context) {
     return Scaffold(
       // Transparent: the native YouTube WebView sits beneath the Flutter UI
       // and shows through the video area.
       backgroundColor: Colors.transparent,
       body: Focus(
         focusNode: _focusNode,
-        autofocus: true,
+        autofocus: !_minimized,
+        canRequestFocus: !_minimized,
         onKeyEvent: _onKey,
         child: Row(
           children: [
@@ -1395,6 +1445,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             tooltip: YtStrings.back,
             onPressed: () => Navigator.of(context).maybePop(),
           ),
+          if (ModalRoute.of(context) is MinimizableRoute)
+            _PlayerButton(
+              icon: Symbols.call_to_action_rounded,
+              tooltip: YtStrings.miniPlayer,
+              onPressed: _minimize,
+            ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -2565,8 +2621,27 @@ class _VideoSurface extends StatefulWidget {
 class _VideoSurfaceState extends State<_VideoSurface> {
   List<int>? _sent;
 
+  @override
+  void initState() {
+    super.initState();
+    videoSurfaceDetached.addListener(_onDetachedChanged);
+  }
+
+  @override
+  void dispose() {
+    videoSurfaceDetached.removeListener(_onDetachedChanged);
+    super.dispose();
+  }
+
+  /// Back from the mini-player: the bar moved the WebView, so report again.
+  void _onDetachedChanged() {
+    if (videoSurfaceDetached.value) return;
+    _sent = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _report());
+  }
+
   void _report() {
-    if (!mounted) return;
+    if (!mounted || videoSurfaceDetached.value) return;
     final box = context.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize || !box.attached) return;
     final position = box.localToGlobal(Offset.zero);
@@ -2595,4 +2670,68 @@ class _VideoSurfaceState extends State<_VideoSurface> {
       },
     );
   }
+}
+
+class _YouTubeMiniSession implements VideoMiniSession {
+  _YouTubeMiniSession(this._screen);
+
+  final _YouTubePlayerScreenState _screen;
+
+  @override
+  String get kind => 'youtube';
+
+  @override
+  String get title {
+    final video = _screen._video;
+    return _screen._settings.deArrowTitles ? DeArrow.instance.titleFor(video) : (_screen._info?.title ?? video.title);
+  }
+
+  @override
+  String? get subtitle => _screen._video.channelTitle;
+
+  @override
+  bool get isPlaying => _screen._playing;
+
+  @override
+  Duration get position => Duration(milliseconds: (_screen._position * 1000).round());
+
+  @override
+  Duration get duration => Duration(milliseconds: (_screen._duration * 1000).round());
+
+  @override
+  bool get canNext => _screen._index < _screen._queue.length - 1;
+
+  @override
+  double get volume => _screen._muted ? 0 : _screen._volume / 100;
+
+  @override
+  void togglePlay() {
+    if (_screen.mounted) _screen._togglePlay();
+  }
+
+  @override
+  void seekBy(Duration delta) {
+    if (_screen.mounted) _screen._seekBy(delta.inMilliseconds / 1000);
+  }
+
+  @override
+  void next() {
+    if (_screen.mounted && canNext) _screen._playIndex(_screen._index + 1);
+  }
+
+  @override
+  void setVolume(double volume) {
+    if (_screen.mounted) _screen._setVolume((volume * 100).round());
+  }
+
+  @override
+  void placeVideo({required int left, required int top, required int right, required int bottom, required double dpr}) {
+    unawaited(_screen._host.setRect(left: left, top: top, right: right, bottom: bottom));
+  }
+
+  @override
+  void expand() => _screen._expand();
+
+  @override
+  void stop() => _screen._stopMinimized();
 }

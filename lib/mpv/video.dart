@@ -21,6 +21,11 @@ import 'player/video_rect_support.dart';
 ///   controls: (context) => MyCustomControls(),
 /// )
 /// ```
+/// True while a minimized player has moved the native video elsewhere (the
+/// mini-player bar). Full-size video surfaces stop reporting their rect, and
+/// report it again when this turns false.
+final videoSurfaceDetached = ValueNotifier<bool>(false);
+
 class Video extends StatefulWidget {
   final Player player;
   final Widget Function(BuildContext context)? controls;
@@ -59,6 +64,15 @@ class _VideoState extends State<Video> {
     _hasFirstFrame = widget.hasFirstFrame?.value ?? false;
     widget.hasFirstFrame?.addListener(_syncExternalFirstFrame);
     _listenForPlaybackRestart();
+    videoSurfaceDetached.addListener(_onDetachedChanged);
+  }
+
+  void _onDetachedChanged() {
+    if (videoSurfaceDetached.value || !mounted) return;
+    _hasSentRect = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateVideoRect(context, const BoxConstraints());
+    });
   }
 
   @override
@@ -83,6 +97,7 @@ class _VideoState extends State<Video> {
 
   @override
   void dispose() {
+    videoSurfaceDetached.removeListener(_onDetachedChanged);
     widget.hasFirstFrame?.removeListener(_syncExternalFirstFrame);
     _playbackRestartSubscription?.cancel();
     super.dispose();
@@ -145,6 +160,7 @@ class _VideoState extends State<Video> {
   }
 
   void _updateVideoRect(BuildContext context, BoxConstraints _) {
+    if (videoSurfaceDetached.value) return;
     final renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null || !renderBox.hasSize) return;
 

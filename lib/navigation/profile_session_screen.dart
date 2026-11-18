@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../widgets/mini_player/video_mini_player.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -422,20 +423,45 @@ class _ProfileSessionNavigatorState extends State<_ProfileSessionNavigator> {
             child: SettingsShortcut(
               navigatorKey: _navigatorKey,
               settingsRoutes: _settingsRouteTracker,
-              child: Stack(
-                children: [
-                  Navigator(
-                    key: _navigatorKey,
-                    observers: [
-                      _routeObserver,
-                      _musicRouteObserver,
-                      _settingsRouteTracker,
-                      BackKeySuppressorObserver(),
+              child: ListenableBuilder(
+                listenable: VideoMiniPlayer.instance,
+                child: Navigator(
+                  key: _navigatorKey,
+                  observers: [
+                    _routeObserver,
+                    _musicRouteObserver,
+                    _settingsRouteTracker,
+                    BackKeySuppressorObserver(),
+                  ],
+                  onGenerateRoute: _onGenerateRoute,
+                ),
+                builder: (context, navigator) {
+                  final videoMini = VideoMiniPlayer.instance.session;
+                  // A minimized video takes a bar below the pages; nothing
+                  // else paints there, so the native video shows through
+                  // the bar's hole.
+                  final barHeight = videoMini == null ? 0.0 : VideoMiniPlayer.barHeight;
+                  return Stack(
+                    children: [
+                      Positioned(left: 0, top: 0, right: 0, bottom: barHeight, child: navigator!),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: barHeight,
+                        child: const MusicMiniPlayerOverlay(),
+                      ),
+                      if (videoMini != null)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: barHeight,
+                          child: VideoMiniPlayerBar(session: videoMini),
+                        ),
                     ],
-                    onGenerateRoute: _onGenerateRoute,
-                  ),
-                  const Positioned.fill(child: MusicMiniPlayerOverlay()),
-                ],
+                  );
+                },
               ),
             ),
           ),

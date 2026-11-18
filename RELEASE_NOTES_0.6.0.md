@@ -1,5 +1,11 @@
 ## Plezy Retrowave 0.6.0
 
+### Mini player
+- A **Mini player** button in the Plex player and the YouTube player shrinks the video into a bar along the bottom of the app, so you can keep browsing while it plays.
+- The bar has the live video, title, back 10 s, play/pause, forward 30 s, next, volume, a button to open the full player again and a **Stop** button that ends playback and closes the player.
+- Clicking the small video or the title opens the full player again. Pages opened while it was minimized are closed when you do.
+- Playing something else opens it in the full player; starting a YouTube video stops a minimized Plex video and the other way round.
+
 ### Rebuilt YouTube player
 - The player is now a native WebView2 window beneath the app's interface, the same way the Plex player (mpv) works. This replaces the old frame-capture bridge, which caused black video (with audio still playing) when the app was out of focus, on another monitor, while side panels opened or when a watchlist moved to the next video.
 - One shared WebView for all videos, capped at 60 fps and suspended when the player is closed, for lower memory and CPU use.

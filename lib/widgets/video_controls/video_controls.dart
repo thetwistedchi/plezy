@@ -586,6 +586,9 @@ class PlexVideoControls extends StatefulWidget {
   final int boxFitMode;
   final double videoZoomScale;
   final VoidCallback? onTogglePIPMode;
+
+  /// Minimizes the player into the bottom bar (desktop).
+  final VoidCallback? onMinimize;
   final VoidCallback? onCycleBoxFitMode;
   final ValueChanged<double>? onVideoZoomChanged;
   final VoidCallback? onZoomIn;
@@ -729,6 +732,7 @@ class PlexVideoControls extends StatefulWidget {
     this.boxFitMode = 0,
     this.videoZoomScale = 1.0,
     this.onTogglePIPMode,
+    this.onMinimize,
     this.onCycleBoxFitMode,
     this.onVideoZoomChanged,
     this.onZoomIn,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../widgets/mini_player/video_mini_player.dart';
 import '../media/ids.dart';
 
 import 'package:flutter/material.dart';
@@ -40,7 +41,7 @@ const String kVideoPlayerRouteName = '/video_player';
 ///
 /// Commit through [push], not Navigator.push: a covered player still owns the
 /// native channel and must leave before another playback can take ownership.
-class VideoPlayerRoute extends PageRouteBuilder<bool> {
+class VideoPlayerRoute extends PageRouteBuilder<bool> with MinimizableRoute<bool> {
   /// [joinsWatchTogether]: the player can take part in a Watch Together
   /// room (video on demand, streamed or downloaded; not Live TV).
   VideoPlayerRoute({required WidgetBuilder builder, this.joinsWatchTogether = false})

@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../mpv/player/video_rect_support.dart';
+import '../widgets/mini_player/video_mini_player.dart';
 import '../services/playback_launch_observer.dart';
 import '../media/ids.dart';
 import 'dart:io';
@@ -144,6 +146,7 @@ part 'video_player/parts/errors.dart';
 part 'video_player/parts/lifecycle.dart';
 part 'video_player/parts/live_tv.dart';
 part 'video_player/parts/pip.dart';
+part 'video_player/parts/mini_player.dart';
 part 'video_player/parts/playback_open.dart';
 part 'video_player/parts/playback_prompts.dart';
 part 'video_player/parts/playback_reload.dart';
@@ -539,6 +542,10 @@ class VideoPlayerScreen extends StatefulWidget {
 
 class VideoPlayerScreenState extends State<VideoPlayerScreen>
     with WidgetsBindingObserver, MountedSetStateMixin, ListenableBindingsMixin {
+  /// Minimized into the bottom bar ([VideoMiniPlayer]).
+  bool _minimized = false;
+  _PlexMiniSession? _miniSession;
+
   /// How close to the capture buffer's end counts as "live". A live-edge
   /// transcode starts behind the buffer's edge by tuner ingest and encoder
   /// start-up latency (10–20 s observed), so a tighter threshold would flag
@@ -1393,6 +1400,7 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
   @override
   void initState() {
     super.initState();
+    VideoMiniPlayer.instance.stopOtherThan('plex');
     PlaybackCoordinator.instance.registerVideoSession(
       shutdown: _shutdownVideo,
       stopAndExit: _stopVideoAndExit,
@@ -2328,13 +2336,15 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// The returned future completes once navigation has been attempted. Accept
   /// once: the entry guard below only admits an exit that can remove its own
   /// route, and [_removePlayerRoute] removes it whatever ends up on top (#2290).
-  Future<void> _exitPlayerRoute({required bool navigateHome, bool stop = false}) {
+  Future<void> _exitPlayerRoute({required bool navigateHome, bool stop = false, bool allowCovered = false}) {
     final existing = _routeExitOperation;
     if (existing != null) return existing;
     if (!mounted) return Future<void>.value();
     final navigator = Navigator.of(context);
     final route = ModalRoute.of(context);
-    if (!navigator.canPop() || route == null || !route.isCurrent) return Future<void>.value();
+    // A minimized player is never the current route; its Stop button still
+    // closes it, wherever it sits in the stack.
+    if (!navigator.canPop() || route == null || (!route.isCurrent && !allowCovered)) return Future<void>.value();
 
     final completer = Completer<void>();
     _routeExitOperation = completer.future;
@@ -2461,6 +2471,7 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   @override
   void dispose() {
+    _releaseMiniPlayer();
     PlaybackCoordinator.instance.unregisterVideoSession(
       _shutdownVideo,
       retirement: () async {
@@ -3035,8 +3046,12 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
     });
   }
 
+  /// While minimized the whole screen steps aside (laid out, not painted, no
+  /// input): the video is in the mini-player bar.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Offstage(offstage: _minimized, child: _buildScreen(context));
+
+  Widget _buildScreen(BuildContext context) {
     final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? true;
     // Screen-level Focus wraps ALL phases (loading + initialized).
     // - autofocus: grabs focus when no deeper child claims it.

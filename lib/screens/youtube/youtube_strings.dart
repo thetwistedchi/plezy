@@ -51,6 +51,13 @@ class YtStrings {
   static String get dragToReorder => _t('Drag to reorder', 'Zum Sortieren ziehen');
   // Player
   static String get back => _t('Back', 'Zurück');
+  static String get miniPlayer => _t('Mini player', 'Mini-Player');
+  static String get openPlayer => _t('Open player', 'Player öffnen');
+  static String get stop => _t('Stop', 'Stopp');
+  static String get stopAndClose => _t('Stop and close', 'Stoppen und schließen');
+  static String get nextItem => _t('Next', 'Weiter');
+  static String get back10s => _t('Back 10 s', '10 s zurück');
+  static String get forward30s => _t('Forward 30 s', '30 s vor');
   static String get play => _t('Play', 'Abspielen');
   static String get pause => _t('Pause', 'Pause');
   static String get back10 => _t('Back 10 seconds', '10 Sekunden zurück');
