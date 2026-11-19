@@ -19,6 +19,8 @@ class YouTubeChannelPanel extends StatefulWidget {
     required this.channelTitle,
     required this.currentVideoId,
     required this.onPlay,
+    required this.onQueue,
+    this.queuedIds = const {},
     required this.onOpenChannel,
     required this.onClose,
   });
@@ -27,6 +29,12 @@ class YouTubeChannelPanel extends StatefulWidget {
   final String channelTitle;
   final String currentVideoId;
   final ValueChanged<YouTubeVideo> onPlay;
+
+  /// Adds a video to the end of the queue and to the watchlist.
+  final ValueChanged<YouTubeVideo> onQueue;
+
+  /// Videos already in the queue: their button shows a check.
+  final Set<String> queuedIds;
   final VoidCallback onOpenChannel;
   final VoidCallback onClose;
 
@@ -116,6 +124,8 @@ class _YouTubeChannelPanelState extends State<YouTubeChannelPanel> {
                         playing: video.id == widget.currentVideoId,
                         accent: accent,
                         onTap: () => widget.onPlay(video),
+                        queued: widget.queuedIds.contains(video.id),
+                        onQueue: () => widget.onQueue(video),
                       );
                     },
                   ),
@@ -140,12 +150,21 @@ class _YouTubeChannelPanelState extends State<YouTubeChannelPanel> {
 }
 
 class _ChannelVideoRow extends StatelessWidget {
-  const _ChannelVideoRow({required this.video, required this.playing, required this.accent, required this.onTap});
+  const _ChannelVideoRow({
+    required this.video,
+    required this.playing,
+    required this.accent,
+    required this.onTap,
+    required this.queued,
+    required this.onQueue,
+  });
 
   final YouTubeVideo video;
   final bool playing;
   final Color accent;
   final VoidCallback onTap;
+  final bool queued;
+  final VoidCallback onQueue;
 
   @override
   Widget build(BuildContext context) {
@@ -236,6 +255,15 @@ class _ChannelVideoRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (!playing)
+              IconButton(
+                tooltip: queued ? YtStrings.inWatchlist : YtStrings.addToWatchlist,
+                onPressed: queued ? null : onQueue,
+                icon: AppIcon(
+                  queued ? Symbols.playlist_add_check_rounded : Symbols.playlist_add_rounded,
+                  color: queued ? accent : Colors.white70,
+                ),
+              ),
           ],
         ),
       ),

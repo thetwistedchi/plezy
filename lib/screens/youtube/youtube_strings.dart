@@ -38,6 +38,7 @@ class YtStrings {
   static String get watchlist => _t('Watchlist', 'Merkliste');
   static String watchlistCount(int n) => n == 0 ? watchlist : '$watchlist ($n)';
   static String get addToWatchlist => _t('Add to watchlist', 'Zur Merkliste hinzufügen');
+  static String get inWatchlist => _t('In the watchlist', 'Auf der Merkliste');
   static String get removeFromWatchlist => _t('Remove from watchlist', 'Von der Merkliste entfernen');
   static String get playAll => _t('Play all', 'Alle abspielen');
   static String get clearWatchlist => _t('Clear', 'Leeren');

@@ -1296,6 +1296,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   channelTitle: _video.channelTitle,
                   currentVideoId: _video.id,
                   onPlay: _playNow,
+                  onQueue: _addToQueue,
+                  queuedIds: {for (final v in _queue) v.id},
                   onOpenChannel: () => unawaited(_openChannel()),
                   onClose: () => _setPanel(_SidePanel.none),
                 ),
