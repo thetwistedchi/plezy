@@ -205,7 +205,11 @@ class TvBrowseRailLayout {
     final posterHeight = (isPersonHub || isSquareHub)
         ? posterWidth
         : (useWideLayout ? posterWidth * 9 / 16 : posterWidth * 1.5);
-    final labelHeight = fullCardLayout ? 0.0 : ((isPersonHub ? 52 : 36) * scale);
+    // Fork: room for the quality/language pill row under the caption.
+    final pillsBand = !fullCardLayout && !isPersonHub && SettingsService.instance.read(SettingsService.posterInfoPills)
+        ? MediaCard.infoPillsBand
+        : 0.0;
+    final labelHeight = fullCardLayout ? 0.0 : ((isPersonHub ? 52 : 36) * scale) + pillsBand;
     final containerHeight = (posterHeight + labelHeight).ceilToDouble();
     final height = containerHeight + focusExtra + (22 * scale);
 
@@ -1904,6 +1908,7 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
             episodePosterModeOverride: episodePosterMode,
             showTitleImplied: widget.showTitleImpliedForHub?.call(hub) ?? false,
             menuExtraEntries: widget.menuExtraEntriesFor?.call(hub) ?? const [],
+            infoPills: !fullCardLayout,
           );
   }
 
