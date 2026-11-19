@@ -39,41 +39,56 @@ Plezy Retrowave and upstream Plezy share the same settings and sign-ins on one P
 
 ## What this fork adds
 
+A feature overview. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
+
 ### Retrowave theme
 
-- New free **Retrowave** theme (Settings › Appearance › Theme). Every colour comes from one palette taken from a retrowave night landscape: night purple, violet, magenta and cyan.
-- A muted background fade on every page, from night purple at the top through dark blue-violet to a hint of magenta.
-- The Windows title bar and window border in the same night purple (Windows 11).
-- Retrowave app icon on the window, taskbar, Start menu, installer and login screen, and a cyan-violet-magenta startup logo.
-- Libraries and rows show the **series poster** for episodes by default. Episode thumbnails appear in a season's episode list. Existing installs keep their setting (Settings › Appearance › Episode poster).
+- Free **Retrowave** theme (Settings › Appearance › Theme), the default for new installs. Every colour comes from one palette of night purple, violet, magenta and cyan, with a muted background fade on every page.
+- AI-generated outrun-style icons (simple SVG line drawings) with a cyan to magenta stroke in the sidebar, the bottom bar, the main top bars and the row headings. Other themes keep the Material icons.
+- Retrowave app icon, startup logo and, on Windows 11, a night purple title bar and window border.
+- The fork's additions (poster pills, rating cards, quality and language pills) follow the active theme's colours in every other theme too.
 
-### Ratings & links on the details page
+### Ratings
 
-- A **Ratings & links** row above the overview of every movie and show, one card per site. The whole card opens the site:
-  - **Letterboxd** (movies): average rating out of 5 and vote count
-  - **Trakt**: community rating and votes, linking straight to the title
-  - **IMDb**, **Rotten Tomatoes** (critics and audience) and **TMDB**
-- Scores from your Plex server or connected trackers (Trakt, MDBList) are used first. Missing Letterboxd and Trakt scores are fetched directly and cached for 24 hours.
-- The **Rate** sheet gets a **Rate on Letterboxd** row that opens the film's page (Letterboxd's API is by request only).
-- **Studio, Producer and Director** shown under the overview.
+- A **Ratings & links** row on every movie and show: Letterboxd, Trakt, IMDb, Rotten Tomatoes (critics and audience), TMDB, Metacritic and MyAnimeList, each card linking to the site.
+- Optional **MDBList** and **OMDb** API keys (Settings › Services › Rating sources) fill in missing scores; MyAnimeList works without a key. Keys are stored encrypted and tested when saved.
+- A **rating median** (0–100) on posters and as a card on the details page. Clicking it compares every score side by side with the median.
+- **Studio, Producer and Director** under the overview, and **Similar in your library** on the details page.
+
+### Libraries and Home
+
+- **Quick filters** (Unwatched, 4K, HDR, audio language, Added recently), active filters as removable pills, **saved filter sets** per library and **Surprise me**. On phones they are in the library options sheet.
+- A **search box** next to the library tabs that narrows the current library.
+- Libraries remember their scroll position; a **startup library** can be set under Settings › General.
+- Each Home row can **hide watched** titles.
+
+### Posters
+
+- Quality, HDR and audio language pills under each poster (e.g. `4K` `HDR` `DE · EN`).
+- A hover preview with year, runtime, genres, median and plot, with an adjustable delay (Settings › Appearance).
+- Series posters for episodes in libraries and rows by default (Settings › Appearance › Episode poster).
 
 ### Player
 
-With the Retrowave theme:
+- **Play from start** next to Resume, and the trailer button plays the YouTube trailer.
+- Audio track, subtitles and zoom are remembered per movie or series (Settings › Playback).
+- A **4K / HDR badge** in the bottom bar, and letterbox detection that crops black bars.
+- Desktop: the title in the top bar opens the series or the episode details.
+- Retrowave look: a violet play button, a cyan to magenta timeline and volume, and a neon **Skip intro / credits** button.
 
-- Compact violet play/pause button
-- Timeline fades cyan to magenta up to the playhead, and the volume slider uses the same fade
-- Neon "Skip intro / credits" button
-- Active controls and playback-settings highlights in purple instead of amber
+### Updates
 
-In every theme:
+- The app checks this fork's GitHub releases on start and every 6 hours. Installed Windows builds and Android update in place; the portable build opens the download page. After an update, the first start shows what is new.
 
-- **4K / HDR badge** in the bottom bar: resolution (4K, 1440p, 1080p, 720p, SD) and dynamic range (DV, HDR10, HLG). Hidden while transcoding.
+### Platforms
+
+- **Windows** is the main platform.
+- **Android and Android TV** (tested on an NVIDIA Shield) install as their own app next to the official Plezy. Weak devices automatically skip the heavier extras. There is no YouTube tab on Android.
+- **macOS** is experimental and untested; it has no YouTube tab or mini player.
 
 ### Watch Together
 
-- The in-player session pill shows **HOST** for the host. A guest in a host-only room sees a lock and the host's name.
-- Hovering the dimmed play button tells guests that the host controls playback.
+- The in-player session pill shows **HOST** for the host; guests in a host-only room see a lock and the host's name.
 
 ## YouTube
 
@@ -117,7 +132,7 @@ Google sign-in needs a free Google Cloud project with your own OAuth client (Des
 
 ### Known limitations
 
-- Only Windows builds are made and tested for this fork.
+- Android, Android TV and macOS builds get less testing than Windows; the macOS build is untested.
 - Letterboxd has no public API; its score is read from the film page and may stop working if Letterboxd changes it. The card then still links to the film.
 - Trakt scores use Plezy's Trakt app credentials.
 - Guest pause requests and chat in Watch Together are not built; they need changes to the Open Watch Party relay.
