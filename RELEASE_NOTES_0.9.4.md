@@ -5,3 +5,6 @@
 
 ### Posters
 - The median rating (top left) and the watched check or unwatched count (top right) now have the same height and the same distance from the poster edges, in every theme.
+
+### Companion remote
+- The online dot, the "Connected to" line and the connected check use the theme's cyan with a soft glow on Retrowave instead of plain green.

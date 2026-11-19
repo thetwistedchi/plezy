@@ -9,6 +9,17 @@ abstract final class RetroColors {
   /// Whether the retrowave theme is active in [context].
   static bool isActive(BuildContext context) => Theme.of(context).extension<PageBackdropStyle>() != null;
 
+  /// "Online / connected" status colour: the cyan glow on retrowave, plain
+  /// green elsewhere.
+  static Color online(BuildContext context) => isActive(context) ? cyan : Colors.green;
+
+  /// Status dot in [online] colour; glows softly on retrowave.
+  static BoxDecoration onlineDot(BuildContext context) => BoxDecoration(
+    color: online(context),
+    shape: BoxShape.circle,
+    boxShadow: isActive(context) ? [BoxShadow(color: cyan.withValues(alpha: 0.6), blurRadius: 6)] : null,
+  );
+
   /// Darkest cliff shadow: page background.
   static const night = Color(0xFF140327);
 

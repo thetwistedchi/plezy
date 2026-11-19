@@ -8,6 +8,7 @@ import '../../providers/companion_remote_provider.dart';
 import '../../services/companion_remote/companion_remote_host_controller.dart';
 import '../../services/settings_service.dart';
 import '../../theme/mono_tokens.dart';
+import '../../theme/retrowave_colors.dart';
 import '../../utils/dialogs.dart';
 import '../../focus/focusable_button.dart';
 import '../../focus/key_event_utils.dart';
@@ -232,7 +233,7 @@ class _RemoteSessionDialogState extends State<RemoteSessionDialog> with MountedS
     if (provider.connectedDevice != null) {
       return Text(
         t.companionRemote.connectedTo(name: provider.connectedDevice!.name),
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.green),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: RetroColors.online(context)),
       );
     }
     if (provider.isHostServerRunning) {
@@ -258,10 +259,9 @@ class _RemoteSessionDialogState extends State<RemoteSessionDialog> with MountedS
             Container(
               width: 12,
               height: 12,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isRunning ? Colors.green : tokens(context).textMuted,
-              ),
+              decoration: isRunning
+                  ? RetroColors.onlineDot(context)
+                  : BoxDecoration(shape: BoxShape.circle, color: tokens(context).textMuted),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -304,7 +304,7 @@ class _RemoteSessionDialogState extends State<RemoteSessionDialog> with MountedS
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const AppIcon(Symbols.check_circle_rounded, color: Colors.green, size: 48),
+            AppIcon(Symbols.check_circle_rounded, color: RetroColors.online(context), size: 48),
             const SizedBox(height: 8),
             Text(t.companionRemote.session.connected, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),

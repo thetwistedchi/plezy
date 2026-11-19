@@ -13,6 +13,7 @@ import '../../mixins/controller_disposer_mixin.dart';
 import '../../providers/companion_remote_provider.dart';
 import '../../utils/platform_detector.dart';
 import '../../theme/mono_tokens.dart';
+import '../../theme/retrowave_colors.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/dialogs.dart';
 import '../../widgets/companion_remote/discovery_view.dart';
@@ -207,7 +208,7 @@ class _RemoteControlContentState extends State<_RemoteControlContent> {
                   Container(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+                    decoration: RetroColors.onlineDot(context),
                   ),
                 ],
               ),
