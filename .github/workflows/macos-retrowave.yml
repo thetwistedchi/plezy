@@ -20,7 +20,9 @@ env:
 
 jobs:
   build-macos:
-    runs-on: macos-latest
+    # Same image as upstream Plezy's macOS build.
+    runs-on: macos-26
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
