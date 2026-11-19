@@ -4,10 +4,10 @@
 #   powershell -ExecutionPolicy Bypass -File .\windows\release.ps1
 #
 # The version comes from lib/retrowave_version.dart, the release text from
-# RELEASE_NOTES_<version>.md. Bump the version and write the notes first.
+# release-notes/<version>.md. Bump the version and write the notes first.
 #
 #   -SkipAndroid / -SkipWindows   build only one platform
-#   -Replace                      re-upload files (and notes) to an existing release
+#   -Replace                      (no longer needed: an existing release is updated)
 #   -NoPublish                    build and check only, no GitHub release
 #   -SkipAnalyze                  skip the "flutter analyze" check
 
@@ -35,7 +35,7 @@ $match = Select-String -Path "lib\retrowave_version.dart" -Pattern "retrowaveVer
 if (-not $match) { throw "Could not read retrowaveVersion from lib\retrowave_version.dart" }
 $version = $match.Matches[0].Groups[1].Value
 $tag = "v$version"
-$notes = "RELEASE_NOTES_$version.md"
+$notes = "release-notes\$version.md"
 Write-Host "Plezy Retrowave $version ($tag)"
 if (-not $NoPublish -and -not (Test-Path $notes)) { throw "$notes is missing" }
 
@@ -82,7 +82,15 @@ if ($NoPublish) {
 }
 
 Step "GitHub release $tag"
-if ($Replace) {
+# A release that already exists (e.g. a rebuild) gets its files replaced and
+# its notes refreshed instead of failing.
+# (Windows PowerShell turns redirected stderr into errors under "Stop".)
+$ErrorActionPreference = "Continue"
+& gh release view $tag --repo $repo *> $null
+$exists = $LASTEXITCODE -eq 0
+$ErrorActionPreference = "Stop"
+if ($Replace -or $exists) {
+    if ($exists) { Write-Host "$tag exists: replacing its files and notes" }
     Run gh (@("release", "upload", $tag) + $files + @("--repo", $repo, "--clobber"))
     Run gh @("release", "edit", $tag, "--repo", $repo, "--notes-file", $notes)
 } else {
