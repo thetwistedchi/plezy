@@ -4,7 +4,7 @@ import 'package:material_symbols_icons/symbols.dart';
 
 import '../theme/retrowave_colors.dart';
 
-/// Fork: hand-drawn outrun glyphs (sunset house, VHS tape, CRT with antennas,
+/// Fork: AI-generated outrun-style SVG glyphs (sunset house, VHS tape, CRT with antennas,
 /// horizon lines) for the navigation, the main tabs' top bar actions and the
 /// hub headers, stroked with the cyan to magenta fade. Only on the retrowave
 /// theme; [AppIcon] swaps them in when called with `retro: true`.
