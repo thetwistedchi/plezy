@@ -448,6 +448,7 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
   final FocusNode _savedChipFocusNode = FocusNode(debugLabel: 'saved_filters_chip');
   final FocusNode _surpriseChipFocusNode = FocusNode(debugLabel: 'surprise_chip');
   final GlobalKey _savedChipKey = GlobalKey();
+  final GlobalKey _audioChipKey = GlobalKey();
   bool _surpriseBusy = false;
 
   // The inner CustomScrollView attaches its position to NestedScrollView's
@@ -2034,10 +2035,13 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
           for (var i = 0; i < _quickFilters.length; i++)
             OptionsChipDescriptor(
               focusNode: _quickChipFocusNode(i),
+              anchorKey: _quickFilters[i].isChooser ? _audioChipKey : null,
               icon: _quickFilters[i].icon,
-              label: _quickFilters[i].label,
+              label: _quickFilters[i].labelFor(_selectedFilters),
               selected: _quickFilters[i].isActive(_selectedFilters),
-              onPressed: () => _toggleQuickFilter(_quickFilters[i]),
+              onPressed: _quickFilters[i].isChooser
+                  ? () => unawaited(_showAudioChooser(_quickFilters[i]))
+                  : () => _toggleQuickFilter(_quickFilters[i]),
             ),
           if (_isFiltersChipVisible || _isSortChipVisible)
             OptionsChipDescriptor(
@@ -2164,6 +2168,37 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
       );
     }
     unawaited(_applyFilters(quick.toggle(_selectedFilters)));
+  }
+
+  static final Object _anyLanguageValue = Object();
+
+  /// The audio chip: pick one of the library's languages, or any.
+  Future<void> _showAudioChooser(QuickFilter quick) async {
+    final anchor = chipAnchorRect(_audioChipKey);
+    if (anchor == null) return;
+    final current = quick.selectedChoice(_selectedFilters);
+    final choice = await showAppMenu<Object>(
+      context,
+      anchorRect: anchor,
+      focusFirstItem: InputModeTracker.isKeyboardMode(context, listen: false),
+      entries: [
+        AppMenuItem<Object>(value: _anyLanguageValue, label: FilterStrings.anyLanguage, selected: current == null),
+        const AppMenuDivider(),
+        for (final c in quick.choices) AppMenuItem<Object>(value: c.id, label: c.title, selected: c.id == current),
+      ],
+    );
+    if (!mounted || choice == null) return;
+    final id = identical(choice, _anyLanguageValue) ? null : choice as String;
+    if (id != null) {
+      FilterValueNames.remember(
+        serverId: widget.library.serverId ?? '',
+        libraryKey: widget.library.globalKey,
+        field: quick.field.filter,
+        value: id,
+        title: quick.choices.firstWhere((c) => c.id == id).title,
+      );
+    }
+    unawaited(_applyFilters(quick.choose(_selectedFilters, id)));
   }
 
   static final Object _saveSetValue = Object();

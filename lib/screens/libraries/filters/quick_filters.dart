@@ -22,6 +22,8 @@ class FilterStrings {
   static String get uhd => '4K';
   static String get hdr => 'HDR';
   static String audio(String code) => _t('Audio: $code', 'Ton: $code');
+  static String get audioAny => _t('Audio', 'Ton');
+  static String get anyLanguage => _t('Any language', 'Alle Sprachen');
   static String get recent => _t('Added recently', 'Neu hinzugefügt');
   static String get saved => _t('Saved', 'Gespeichert');
   static String get saveCurrent => _t('Save current filters…', 'Aktuelle Filter speichern…');
@@ -54,6 +56,10 @@ class QuickFilter {
   final String? valueTitle;
   final String label;
 
+  /// For the audio chooser: every language the library has (value id and
+  /// title), the app's language first. Empty for plain toggles.
+  final List<({String id, String title})> choices;
+
   const QuickFilter({
     required this.kind,
     required this.field,
@@ -61,7 +67,32 @@ class QuickFilter {
     required this.value,
     required this.label,
     this.valueTitle,
+    this.choices = const [],
   });
+
+  bool get isChooser => choices.isNotEmpty;
+
+  /// The chooser's selected value id, if this field has exactly one.
+  String? selectedChoice(List<LibraryFilter> selected) {
+    final own = selected.clausesFor(field.filter);
+    if (own.length != 1 || own.first.op != LibraryFilterOperator.is_ || own.first.values.length != 1) return null;
+    return own.first.values.first;
+  }
+
+  /// Chip label: the chosen language, or plain "Audio".
+  String labelFor(List<LibraryFilter> selected) {
+    if (!isChooser) return label;
+    final id = selectedChoice(selected);
+    if (id == null) return selected.clausesFor(field.filter).isEmpty ? FilterStrings.audioAny : label;
+    final title = choices.where((c) => c.id == id).firstOrNull?.title ?? id;
+    return FilterStrings.audio(title);
+  }
+
+  /// [selected] with the chooser set to [id] (null clears the field).
+  List<LibraryFilter> choose(List<LibraryFilter> selected, String? id) => selected.withField(
+    field.filter,
+    id == null ? const [] : [LibraryFilter(field: field.filter, op: LibraryFilterOperator.is_, values: [id])],
+  );
 
   IconData get icon => switch (kind) {
     QuickFilterKind.unwatched => Symbols.visibility_off_rounded,
@@ -71,8 +102,9 @@ class QuickFilter {
     QuickFilterKind.recent => Symbols.new_releases_rounded,
   };
 
-  bool isActive(List<LibraryFilter> selected) =>
-      selected.any((c) => c.field == field.filter && c.op == op && c.values.contains(value));
+  bool isActive(List<LibraryFilter> selected) => isChooser
+      ? selected.any((c) => c.field == field.filter)
+      : selected.any((c) => c.field == field.filter && c.op == op && c.values.contains(value));
 
   /// [selected] with this toggle flipped. Turning it on replaces whatever
   /// else was set on the same field, since two clauses on one field AND and
@@ -211,19 +243,37 @@ Future<List<QuickFilter>> _resolveQuickFilters(
     );
   }
 
-  final aliases = _languageAliases[lang];
-  final audio = aliases == null ? null : _findField(filters, const ['audioLanguage'], where: (f) => f.hasValueList);
-  if (audio != null && aliases != null) {
-    final v = await matchValue(audio, (id, title) => aliases.contains(id) || aliases.contains(title));
-    if (v != null) {
+  // Audio: a chooser of every language the library has, the app's language
+  // listed first.
+  final aliases = _languageAliases[lang] ?? [lang];
+  final audio = _findField(filters, const ['audioLanguage'], where: (f) => f.hasValueList);
+  if (audio != null) {
+    List<MediaFilterValue> values = const [];
+    try {
+      values = await valuesOf(audio);
+    } catch (e) {
+      appLogger.d('Quick filter values for ${audio.filter} unavailable', error: e);
+    }
+    final choices = [
+      for (final v in values)
+        if (v.title.trim().isNotEmpty) (id: libraryFilterValueId(v.key, _bareField(audio)), title: v.title.trim()),
+    ];
+    bool isAppLanguage(({String id, String title}) c) =>
+        aliases.contains(c.id.toLowerCase()) || aliases.contains(c.title.toLowerCase());
+    choices.sort((a, b) {
+      final pa = isAppLanguage(a) ? 0 : 1;
+      final pb = isAppLanguage(b) ? 0 : 1;
+      return pa != pb ? pa - pb : a.title.toLowerCase().compareTo(b.title.toLowerCase());
+    });
+    if (choices.isNotEmpty) {
       result.add(
         QuickFilter(
           kind: QuickFilterKind.audio,
           field: audio,
           op: LibraryFilterOperator.is_,
-          value: libraryFilterValueId(v.key, _bareField(audio)),
-          valueTitle: v.title,
-          label: FilterStrings.audio(lang.toUpperCase()),
+          value: choices.first.id,
+          label: FilterStrings.audioAny,
+          choices: choices,
         ),
       );
     }

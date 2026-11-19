@@ -94,8 +94,10 @@ class WatchedIndicator extends StatelessWidget {
           Positioned(
             top: size.checkInset,
             right: size.checkInset,
+            // The check pill is drawn at 75 % of the preset, so it sits quieter
+            // than the count pill it replaces once a show is finished.
             child: Container(
-              padding: EdgeInsets.all(size.checkPadding),
+              padding: EdgeInsets.all(size.checkPadding * 0.75),
               decoration: BoxDecoration(
                 color: retro ? RetroPill.background : tokens(context).text,
                 border: retro ? Border.all(color: RetroPillTone.magenta.rim) : null,
@@ -106,7 +108,7 @@ class WatchedIndicator extends StatelessWidget {
                 Symbols.check_rounded,
                 fill: 1,
                 color: retro ? RetroPillTone.magenta.text : tokens(context).bg,
-                size: size.checkIconSize,
+                size: size.checkIconSize * 0.75,
               ),
             ),
           ),
