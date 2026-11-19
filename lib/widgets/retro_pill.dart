@@ -40,16 +40,18 @@ class RetroPill extends StatelessWidget {
     return Container(
       height: height,
       constraints: BoxConstraints(minWidth: height),
-      // Without this the label sat in the top-left corner whenever the pill
-      // was larger than its content (one digit, fixed height).
-      alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: height * 0.38),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(height / 2),
         border: Border.all(color: tone.rim, width: 1),
       ),
-      child: Row(
+      // Centred, but only as wide as the label: Container's own alignment
+      // would stretch the pill across any loose width (the language pill in
+      // its row), and without centring a one-digit label sat top-left.
+      child: Center(
+        widthFactor: 1,
+        child: Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -72,6 +74,7 @@ class RetroPill extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

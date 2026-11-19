@@ -1573,7 +1573,6 @@ class _RatingMedianBadge extends StatelessWidget {
     final mono = tokens(context);
     return Container(
       height: 18,
-      alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: mono.text,
@@ -1635,7 +1634,7 @@ class _InfoPills extends StatelessWidget {
                 const RetroPill(label: 'HDR', tone: RetroPillTone.cyan),
                 const SizedBox(width: 4),
               ],
-              if (langLabel != null) Flexible(child: RetroPill(label: langLabel, tone: RetroPillTone.violet)),
+              if (langLabel != null) RetroPill(label: langLabel, tone: RetroPillTone.violet),
             ],
           ),
         );
