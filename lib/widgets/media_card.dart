@@ -1619,14 +1619,14 @@ class _InfoPills extends StatelessWidget {
   static const double _gap = 4;
 
   /// Width of a [RetroPill] with [label] at its default size.
-  static double _pillWidth(String label) {
+  static double _pillWidth(String label, TextDirection direction) {
     final painter = TextPainter(
       text: TextSpan(
         text: label,
         style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, height: 1),
       ),
       maxLines: 1,
-      textDirection: TextDirection.ltr,
+      textDirection: direction,
     )..layout();
     final width = painter.width;
     painter.dispose();
@@ -1637,7 +1637,7 @@ class _InfoPills extends StatelessWidget {
   /// dense grids) quality and HDR merge into one pill and the languages
   /// shorten to the first one plus a count, instead of the last pill being
   /// cut off.
-  static List<(String, RetroPillTone)> _fit(PosterInfo info, double maxWidth) {
+  static List<(String, RetroPillTone)> _fit(PosterInfo info, double maxWidth, TextDirection direction) {
     final quality = info.quality;
     final langs = info.languages;
     String? langsFull;
@@ -1664,7 +1664,7 @@ class _InfoPills extends StatelessWidget {
       [if (langsShort != null) (langsShort, RetroPillTone.violet) else if (merged.isNotEmpty) (merged, RetroPillTone.cyan)],
     ];
     for (final pills in candidates) {
-      final width = pills.fold<double>(0, (sum, p) => sum + _pillWidth(p.$1)) + _gap * math.max(0, pills.length - 1);
+      final width = pills.fold<double>(0, (sum, p) => sum + _pillWidth(p.$1, direction)) + _gap * math.max(0, pills.length - 1);
       if (width <= maxWidth) return pills;
     }
     return candidates.last;
@@ -1681,7 +1681,7 @@ class _InfoPills extends StatelessWidget {
         final info = cache.infoFor(item, client);
         return LayoutBuilder(
           builder: (context, constraints) {
-            final pills = _fit(info, constraints.maxWidth);
+            final pills = _fit(info, constraints.maxWidth, Directionality.of(context));
             return ClipRect(
               child: Row(
                 children: [
