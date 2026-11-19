@@ -1539,9 +1539,11 @@ class _RatingMedianOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cache = RatingMedianCache.instance;
+    // Same inset as the check / unwatched count in the opposite corner.
+    final inset = WatchedIndicatorSize.standard.inset;
     return Positioned(
-      top: 6,
-      left: 6,
+      top: inset,
+      left: inset,
       child: ListenableBuilder(
       listenable: cache,
       builder: (context, _) {
@@ -1576,16 +1578,22 @@ class _RatingMedianBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (RetroColors.isActive(context)) {
-      return RetroPill(label: '$score', tone: RetroPillTone.violet, icon: Symbols.star_rounded);
+      return RetroPill(
+        label: '$score',
+        tone: RetroPillTone.violet,
+        icon: Symbols.star_rounded,
+        height: WatchedIndicatorSize.standard.pillHeight,
+      );
     }
     // Other themes: the same look as their unwatched-count pill.
     final mono = tokens(context);
+    final height = WatchedIndicatorSize.standard.pillHeight;
     return Container(
-      height: 18,
+      height: height,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: mono.text,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(height / 2),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
       ),
       child: Row(

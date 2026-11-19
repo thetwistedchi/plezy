@@ -15,40 +15,25 @@ import 'unwatched_count_badge.dart';
 /// [compact] for dense surfaces (folder tree rows, episode thumbnails).
 /// Add a preset here instead of hand-rolling a new overlay variant.
 enum WatchedIndicatorSize {
-  standard(
-    checkInset: 4,
-    checkPadding: 4,
-    checkIconSize: 16,
-    badgeSize: 24,
-    badgeFontSize: 12,
-    barRadius: 8,
-    barMinHeight: 4,
-  ),
-  compact(
-    checkInset: 3,
-    checkPadding: 2,
-    checkIconSize: 12,
-    badgeSize: 20,
-    badgeFontSize: 10,
-    barRadius: 6,
-    barMinHeight: 3,
-  );
+  // Fork: the check, the unwatched count and the poster's median rating pill
+  // share one height and one inset, so the top corners line up.
+  standard(inset: 6, pillHeight: 18, countFontSize: 10.5, barRadius: 8, barMinHeight: 4),
+  compact(inset: 3, pillHeight: 15, countFontSize: 9, barRadius: 6, barMinHeight: 3);
 
   const WatchedIndicatorSize({
-    required this.checkInset,
-    required this.checkPadding,
-    required this.checkIconSize,
-    required this.badgeSize,
-    required this.badgeFontSize,
+    required this.inset,
+    required this.pillHeight,
+    required this.countFontSize,
     required this.barRadius,
     required this.barMinHeight,
   });
 
-  final double checkInset;
-  final double checkPadding;
-  final double checkIconSize;
-  final double badgeSize;
-  final double badgeFontSize;
+  /// Distance of the corner pills from the artwork's top and side edges.
+  final double inset;
+
+  /// Height of the check circle and the unwatched-count pill.
+  final double pillHeight;
+  final double countFontSize;
   final double barRadius;
   final double barMinHeight;
 }
@@ -92,12 +77,12 @@ class WatchedIndicator extends StatelessWidget {
         // Watched checkmark
         if (showWatched && item.isWatched && !hasActiveProgress)
           Positioned(
-            top: size.checkInset,
-            right: size.checkInset,
-            // The check pill is drawn at 75 % of the preset, so it sits quieter
-            // than the count pill it replaces once a show is finished.
+            top: size.inset,
+            right: size.inset,
             child: Container(
-              padding: EdgeInsets.all(size.checkPadding * 0.75),
+              width: size.pillHeight,
+              height: size.pillHeight,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: retro ? RetroPill.background : tokens(context).text,
                 border: retro ? Border.all(color: RetroPillTone.magenta.rim) : null,
@@ -108,7 +93,7 @@ class WatchedIndicator extends StatelessWidget {
                 Symbols.check_rounded,
                 fill: 1,
                 color: retro ? RetroPillTone.magenta.text : tokens(context).bg,
-                size: size.checkIconSize * 0.75,
+                size: (size.pillHeight * 0.62).roundToDouble(),
               ),
             ),
           ),
@@ -119,9 +104,9 @@ class WatchedIndicator extends StatelessWidget {
             unwatched != null &&
             unwatched > 0)
           Positioned(
-            top: size.checkInset,
-            right: size.checkInset,
-            child: UnwatchedCountBadge(count: unwatched, size: size.badgeSize, fontSize: size.badgeFontSize),
+            top: size.inset,
+            right: size.inset,
+            child: UnwatchedCountBadge(count: unwatched, size: size.pillHeight, fontSize: size.countFontSize),
           ),
         // Progress bar for partially watched content (episodes/movies)
         if (hasActiveProgress)

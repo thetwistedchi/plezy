@@ -5,7 +5,7 @@ import 'retro_pill.dart';
 import '../theme/mono_tokens.dart';
 
 /// Unwatched-episode count chip shown in the top-right corner of poster
-/// cards. Keeps a [size]-diameter circular footprint for 1–2 digit counts
+/// cards. [size] is its height. Keeps a [size]-diameter circular footprint for 1–2 digit counts
 /// and widens into a stadium pill beyond that; counts above 999 render as
 /// "999+" so the label stays on one line (#1310).
 class UnwatchedCountBadge extends StatelessWidget {
@@ -13,7 +13,7 @@ class UnwatchedCountBadge extends StatelessWidget {
   final double size;
   final double fontSize;
 
-  const UnwatchedCountBadge({super.key, required this.count, this.size = 24, this.fontSize = 12});
+  const UnwatchedCountBadge({super.key, required this.count, this.size = 18, this.fontSize = 10.5});
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +21,8 @@ class UnwatchedCountBadge extends StatelessWidget {
       return RetroPill(
         label: count > 999 ? '999+' : '$count',
         tone: RetroPillTone.magenta,
-        height: (size * 0.8).roundToDouble(),
-        fontSize: fontSize * 0.9,
+        height: size,
+        fontSize: fontSize,
       );
     }
     return Container(
