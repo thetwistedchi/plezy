@@ -303,7 +303,8 @@ android {
   }
 
   defaultConfig {
-    applicationId = "com.edde746.plezy"
+    // Own id so the fork installs next to upstream Plezy.
+    applicationId = "com.thetwistedchi.plezyretrowave"
     minSdk = 25 // Fire OS 6.x (API 25); the mpv-android AAR shares the same floor
     targetSdk = flutter.targetSdkVersion
     versionCode = flutter.versionCode

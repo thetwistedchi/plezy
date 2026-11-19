@@ -21,6 +21,8 @@ Current version: **0.8.1**.
 
 ## What's new in 0.8.1
 #### Android TV (e.g. NVIDIA Shield)
+- The Android app is now called **Plezy Retrowave**, with a retrowave launcher icon and TV home-screen banner.
+- It installs as its own app (`com.thetwistedchi.plezyretrowave`), so it sits next to the official Plezy instead of replacing it. Coming from an earlier Android build of this fork, sign in once again.
 - The quality and language pills under posters now also show on Android TV, and their switch is in Settings › Appearance there too.
 - Hide watched per Home row works on TV: long-press (Select held) a title in a Home row and pick **Hide watched in this row** or **Show watched in this row**. A row emptied this way stays visible so it can be shown again.
 - The Home spotlight on TV shows the rating median (★) next to the other scores.
