@@ -1,0 +1,35 @@
+# Codemagic: macOS build of Plezy Retrowave. Start it in Codemagic with
+# "Start new build" and pick the workflow "macOS (Plezy Retrowave)"; the DMG
+# appears under the build's artifacts.
+workflows:
+  macos-retrowave:
+    name: macOS (Plezy Retrowave)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: 3.47.1
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get packages
+        script: flutter pub get
+      - name: Build
+        # No update check: the upstream appcast would offer upstream Plezy.
+        script: |
+          flutter build macos --release \
+            --dart-define=GIT_COMMIT=$CM_COMMIT \
+            --dart-define=SUPPORTER_MODE=unlocked
+      - name: Package DMG
+        script: |
+          set -euo pipefail
+          BUILT="build/macos/Build/Products/Release/Plezy.app"
+          STAGE="$CM_BUILD_DIR/dmg"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp -R "$BUILT" "$STAGE/Plezy Retrowave.app"
+          # Ad-hoc signature so Apple Silicon runs it; there is no Developer ID.
+          codesign --force --deep --sign - "$STAGE/Plezy Retrowave.app"
+          ln -s /Applications "$STAGE/Applications"
+          hdiutil create -volname "Plezy Retrowave" -srcfolder "$STAGE" -ov -format UDZO "$CM_BUILD_DIR/plezy-retrowave-macos.dmg"
+    artifacts:
+      - plezy-retrowave-macos.dmg
