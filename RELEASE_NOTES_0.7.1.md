@@ -11,6 +11,7 @@
 - A **Continue where you left off** card at the top of the subscriptions page resumes the last unfinished video with one click, at the position it stopped. Dismissing it hides that video.
 - The same video appears as the first card of Home's **Continue watching** row, in poster size with a YouTube mark and its progress. Right-click hides it.
 - The **⋮** menu of a video has **Copy link**, and **Copy link at …** for a video watched part way, which starts at the saved position.
+- In the player's **More from this channel** panel, each video has a button that adds it to the queue and the watchlist; queued videos show a check.
 
 ### Other themes
 - The Windows title bar, the mini player bar, the YouTube pages and player panels, and the rating badge on posters follow the active theme. The retrowave colours stay in the Retrowave theme.
