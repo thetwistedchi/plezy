@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'retro_pill.dart';
 import 'hover_preview.dart';
 import '../services/poster_info_cache.dart';
@@ -1615,6 +1616,60 @@ class _InfoPills extends StatelessWidget {
   final MediaItem item;
   final bool isOffline;
 
+  static const double _gap = 4;
+
+  /// Width of a [RetroPill] with [label] at its default size.
+  static double _pillWidth(String label) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, height: 1),
+      ),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return math.max(18.0, width + 18 * 0.38 * 2 + 2);
+  }
+
+  /// The most detailed pill set that fits [maxWidth]: on narrow cards (TV,
+  /// dense grids) quality and HDR merge into one pill and the languages
+  /// shorten to the first one plus a count, instead of the last pill being
+  /// cut off.
+  static List<(String, RetroPillTone)> _fit(PosterInfo info, double maxWidth) {
+    final quality = info.quality;
+    final langs = info.languages;
+    String? langsFull;
+    if (langs.isNotEmpty) {
+      langsFull = langs.length <= 2 ? langs.join(' · ') : '${langs.take(2).join(' · ')} +${langs.length - 2}';
+    }
+    final langsShort = langs.isEmpty ? null : (langs.length == 1 ? langs.first : '${langs.first} +${langs.length - 1}');
+    final merged = [?quality, if (info.hdr) 'HDR'].join(' ');
+
+    final candidates = <List<(String, RetroPillTone)>>[
+      [
+        if (quality != null) (quality, RetroPillTone.cyan),
+        if (info.hdr) ('HDR', RetroPillTone.cyan),
+        if (langsFull != null) (langsFull, RetroPillTone.violet),
+      ],
+      [
+        if (merged.isNotEmpty) (merged, RetroPillTone.cyan),
+        if (langsFull != null) (langsFull, RetroPillTone.violet),
+      ],
+      [
+        if (merged.isNotEmpty) (merged, RetroPillTone.cyan),
+        if (langsShort != null) (langsShort, RetroPillTone.violet),
+      ],
+      [if (langsShort != null) (langsShort, RetroPillTone.violet) else if (merged.isNotEmpty) (merged, RetroPillTone.cyan)],
+    ];
+    for (final pills in candidates) {
+      final width = pills.fold<double>(0, (sum, p) => sum + _pillWidth(p.$1)) + _gap * math.max(0, pills.length - 1);
+      if (width <= maxWidth) return pills;
+    }
+    return candidates.last;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!(item.isMovie || item.isShow || item.isSeason || item.isEpisode)) return const SizedBox.shrink();
@@ -1624,26 +1679,20 @@ class _InfoPills extends StatelessWidget {
       listenable: cache,
       builder: (context, _) {
         final info = cache.infoFor(item, client);
-        final langs = info.languages;
-        final langLabel = langs.isEmpty
-            ? null
-            : langs.length <= 2
-            ? langs.join(' · ')
-            : '${langs.take(2).join(' · ')} +${langs.length - 2}';
-        return ClipRect(
-          child: Row(
-            children: [
-              if (info.quality case final quality?) ...[
-                RetroPill(label: quality, tone: RetroPillTone.cyan),
-                const SizedBox(width: 4),
-              ],
-              if (info.hdr) ...[
-                const RetroPill(label: 'HDR', tone: RetroPillTone.cyan),
-                const SizedBox(width: 4),
-              ],
-              if (langLabel != null) RetroPill(label: langLabel, tone: RetroPillTone.violet),
-            ],
-          ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final pills = _fit(info, constraints.maxWidth);
+            return ClipRect(
+              child: Row(
+                children: [
+                  for (var i = 0; i < pills.length; i++) ...[
+                    if (i > 0) const SizedBox(width: _gap),
+                    RetroPill(label: pills[i].$1, tone: pills[i].$2),
+                  ],
+                ],
+              ),
+            );
+          },
         );
       },
     );

@@ -11,6 +11,7 @@
 - Library filters (quick chips, active pills, saved sets, Surprise me), Play from start, Similar in your library and Startup library already work on Android TV.
 
 ### All platforms
+- On narrow posters (TV, dense grids) the pill row no longer cuts off the language pill: quality and HDR merge into one pill (`4K HDR`) and the languages shorten to the first one plus a count (`DE +2`) as far as needed to fit.
 - The quality and language pills under posters now work in every theme, drawn in the theme's own colours (Retrowave keeps its neon look).
 - YouTube appears only where its in-app player exists (Windows): on Android and Android TV there is no YouTube tab, no YouTube entry in Settings › Services and no YouTube startup option. Trailers still open in the device's YouTube app.
 - New installs start with the Retrowave theme on every platform (Android TV used to start with OLED). An already chosen theme is kept.
