@@ -8,16 +8,20 @@
 
 A Windows-focused fork of [Plezy](https://github.com/edde746/plezy), with an Android and Android TV build, a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
 
-Current version: **0.9.2**.
+Current version: **0.9.2.1**.
 
 <p>
-  <a href="#whats-new-in-092">What's new</a> ·
+  <a href="#whats-new-in-0921">What's new</a> ·
   <a href="#download">Download</a> ·
   <a href="#what-this-fork-adds">What this fork adds</a> ·
   <a href="#youtube">YouTube</a> ·
   <a href="https://github.com/edde746/plezy">Upstream Plezy</a> ·
   <a href="LICENSE">License</a>
 </p>
+
+## What's new in 0.9.2.1
+#### YouTube
+- A video that plays to the end is taken off the watchlist wherever it was started (the subscriptions feed, a channel page, the queue), not only when it was started from the watchlist.
 
 ## What's new in 0.9.2
 #### Updates

@@ -44,7 +44,8 @@ class YouTubePlayerScreen extends StatefulWidget {
   final List<YouTubeVideo> queue;
   final int startIndex;
 
-  /// Finished videos are taken off the watchlist.
+  /// Started from the watchlist. (Finished videos leave the watchlist
+  /// wherever they were started.)
   final bool fromWatchlist;
 
   /// Opens the player, or the browser where the in-app player isn't available.
@@ -982,19 +983,19 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   void _onEnded() {
     if (_sleepAfterVideo && _minimized) {
       // Finished all the same: off the watchlist before the bar closes.
-      if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(_video.id));
+      unawaited(YouTubeWatchlist.instance.remove(_video.id));
       _stopMinimized();
       return;
     }
     if (_sleepAfterVideo) {
-      if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(_video.id));
+      unawaited(YouTubeWatchlist.instance.remove(_video.id));
       setState(() => _sleepAfterVideo = false);
       _showControls(autoHide: false);
       _snack(YtStrings.sleepDone);
       return;
     }
     if (_duration > 0) unawaited(_settings.saveProgress(_video.id, _duration, _duration));
-    if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(_video.id));
+    unawaited(YouTubeWatchlist.instance.remove(_video.id));
     if (_index < _queue.length - 1) {
       _playIndex(_index + 1);
     } else if (_minimized) {
