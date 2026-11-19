@@ -42,7 +42,7 @@ extension _VideoPlayerPipMethods on VideoPlayerScreenState {
         nativeVideoZoom: Platform.isIOS || Platform.isMacOS,
         initialBoxFitMode:
             TitleTrackMemory.zoomFor(_currentMetadata) ??
-            ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.boxFitMode, _currentMetadata),
+            ScopedPlayerPrefs.resolve<int>(ScopedPlayerPrefs.boxFitMode, _currentMetadata),
         initialZoomScale: ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.videoZoom, _currentMetadata),
         initialPlayerSize: initialPlayerSize,
         cropLetterbox: SettingsService.instanceOrNull?.read(SettingsService.cropLetterbox) ?? false,

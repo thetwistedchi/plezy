@@ -62,7 +62,7 @@ class HoverPreview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.isEpisode && item.grandparentTitle != null ? '${item.grandparentTitle} · ${item.title}' : item.title,
+                  item.isEpisode && item.grandparentTitle != null ? '${item.grandparentTitle} · ${item.title ?? ''}' : (item.title ?? ''),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall?.copyWith(

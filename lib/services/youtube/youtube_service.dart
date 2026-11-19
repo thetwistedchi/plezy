@@ -522,8 +522,16 @@ class YouTubeService extends ChangeNotifier {
       final pick = word == null
           ? renderers.first
           : renderers.firstWhere((r) => text(r['title']).toLowerCase().contains(word), orElse: () => renderers.first);
-      final owner = (pick['ownerText']?['runs'] as List?)?.firstOrNull;
-      final channelId = owner is Map ? owner['navigationEndpoint']?['browseEndpoint']?['browseId'] as String? : null;
+      final ownerText = pick['ownerText'];
+      final ownerRuns = ownerText is Map ? ownerText['runs'] : null;
+      final Object? owner = ownerRuns is List && ownerRuns.isNotEmpty ? ownerRuns.first : null;
+      String? channelId;
+      if (owner is Map) {
+        final endpoint = owner['navigationEndpoint'];
+        final browse = endpoint is Map ? endpoint['browseEndpoint'] : null;
+        final browseId = browse is Map ? browse['browseId'] : null;
+        if (browseId is String) channelId = browseId;
+      }
       Duration length = Duration.zero;
       final parts = text(pick['lengthText']).split(':').map(int.tryParse).toList();
       if (parts.isNotEmpty && parts.every((p) => p != null)) {
@@ -538,7 +546,7 @@ class YouTubeService extends ChangeNotifier {
         id: id,
         title: text(pick['title']),
         channelId: channelId ?? '',
-        channelTitle: owner is Map ? (owner['text'] as String? ?? '') : '',
+        channelTitle: owner is Map && owner['text'] is String ? owner['text'] as String : '',
         thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
         publishedAt: DateTime.now(),
         viewCount: 0,

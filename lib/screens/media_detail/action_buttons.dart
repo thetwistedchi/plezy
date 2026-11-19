@@ -22,7 +22,7 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
 
   Future<void> _playYouTubeTrailer(BuildContext context, MediaItem metadata, MediaItem? serverTrailer) async {
     final year = metadata.year;
-    final query = '${metadata.title}${year != null ? ' $year' : ''} trailer';
+    final query = '${metadata.title ?? ''}${year != null ? ' $year' : ''} trailer';
     final video = await YouTubeService.instance.searchFirstVideo(query, preferWord: 'trailer');
     if (!context.mounted || !_canUseDetail) return;
     if (video != null) {
