@@ -21,6 +21,8 @@ Current version: **0.8.1**.
 
 ## What's new in 0.8.1
 #### Android TV (e.g. NVIDIA Shield)
+- The details page shows every fetched score (Letterboxd, Trakt, MDBList, OMDb, MyAnimeList) in its header, and a ★ button in the action row opens the comparison of all scores with their median.
+- The API key dialogs (Settings › Services › Rating sources) explain where the key is kept and that the Google TV app on a phone can type or paste it into the field.
 - The Android app is now called **Plezy Retrowave**, with a retrowave launcher icon and TV home-screen banner.
 - It installs as its own app (`com.thetwistedchi.plezyretrowave`), so it sits next to the official Plezy instead of replacing it. Coming from an earlier Android build of this fork, sign in once again.
 - The quality and language pills under posters now also show on Android TV, and their switch is in Settings › Appearance there too.

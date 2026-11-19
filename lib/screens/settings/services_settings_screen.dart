@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import '../../services/youtube/youtube_webview.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import '../../services/discord_rpc_service.dart';
 import '../../services/ratings/rating_keys.dart';
 import '../../services/settings_service.dart';
 import '../../services/youtube/youtube_settings.dart';
+import '../../utils/platform_detector.dart';
 import '../../widgets/app_icon.dart';
 import '../../widgets/catalog_source_logo.dart';
 import '../../widgets/focused_scroll_scaffold.dart';
@@ -177,9 +179,25 @@ class _ServiceHubRow extends StatelessWidget {
   }
 }
 
+/// Where the key is kept, plus a typing tip on TV devices.
+String get _apiKeyHint {
+  final storage = Platform.isWindows
+      ? (_de
+            ? 'Der Schlüssel wird verschlüsselt auf diesem Gerät gespeichert und nicht mit den Einstellungen exportiert.'
+            : 'The key is stored encrypted on this device and is not part of settings exports.')
+      : (_de
+            ? 'Der Schlüssel wird nur in den App-Daten dieses Geräts gespeichert (unter Android unverschlüsselt) und nicht mit den Einstellungen exportiert.'
+            : 'The key is stored only in this app\'s data on this device (unencrypted on Android) and is not part of settings exports.');
+  if (!PlatformDetector.isTV()) return storage;
+  final tip = _de
+      ? 'Tipp: Mit der Fernbedienung ist das Tippen mühsam. Die Google-TV-App auf dem Smartphone kann als Tastatur in dieses Feld schreiben, auch zum Einfügen eines kopierten Schlüssels. Den Schlüssel am besten am Computer oder Smartphone abrufen.'
+      : 'Tip: typing with the remote is slow. The Google TV app on a phone can act as a keyboard for this field, including pasting a copied key. Get the key on a computer or phone first.';
+  return '$storage\n\n$tip';
+}
+
 /// A rating provider's API key: shows whether one is set and works, edits it
-/// in a dialog that tests it on saving. Keys are stored encrypted and are not
-/// part of settings exports.
+/// in a dialog that tests it on saving. Keys are kept on the device (encrypted
+/// on Windows) and are not part of settings exports.
 class _ApiKeyTile extends StatelessWidget {
   const _ApiKeyTile({required this.name, required this.title, required this.subtitle, required this.keyUrl});
 
@@ -202,6 +220,11 @@ class _ApiKeyTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SelectableText(keyUrl),
+            const SizedBox(height: 8),
+            Text(
+              _apiKeyHint,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).hintColor),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,

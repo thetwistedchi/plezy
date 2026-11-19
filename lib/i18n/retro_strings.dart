@@ -36,6 +36,7 @@ class RetroStrings {
   static String resumeAt(String time) => _t('Resume at $time', 'Fortsetzen bei $time');
   static String get trailer => 'Trailer';
   static String get noTrailer => _t('No trailer found', 'Kein Trailer gefunden');
+  static String allScores(int median) => _t('All scores · median $median', 'Alle Wertungen · Median $median');
   static String get similarInLibrary => _t('Similar in your library', 'Ähnliches in deiner Mediathek');
 
   // Per-title memory

@@ -4960,7 +4960,13 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
         // a hero too short for it keeps them in the strip's pill instead.
         // The Ratings & links row below already shows every score, so the
         // hero only keeps them when that row has nothing to show.
-        final ratings = _titleLinksFor(metadata).isNotEmpty ? const <MediaRatingSource>[] : _titleRatings(metadata);
+        // TV has no Ratings & links row, so its hero shows every fetched score.
+        final linkRatings = [for (final link in _titleLinksFor(metadata)) ?link.rating];
+        final ratings = PlatformDetector.isTV()
+            ? (linkRatings.isNotEmpty ? linkRatings : _titleRatings(metadata))
+            : _titleLinksFor(metadata).isNotEmpty
+            ? const <MediaRatingSource>[]
+            : _titleRatings(metadata);
         final scoresRow = centered && ratings.isNotEmpty && chipsFit && roomForRow(chipHeight);
         // Fitted to a single run each: chips shed by usefulness instead of
         // wrapping onto a second run the height clip below would hide.

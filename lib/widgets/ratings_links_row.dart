@@ -95,6 +95,17 @@ class _MedianCard extends StatelessWidget {
   }
 }
 
+/// Opens the comparison of every score in [links] (used by the Median card
+/// and by the TV details page's scores action). No-op without a median.
+Future<void> showRatingsBreakdown(BuildContext context, List<TitleLink> links) async {
+  final median = ratingMedian([for (final link in links) ?link.rating]);
+  if (median == null) return;
+  await showDialog<void>(
+    context: context,
+    builder: (_) => _MedianBreakdownDialog(score: median.score, links: links),
+  );
+}
+
 /// Every score of the row on 0–100 next to its own scale, with the median
 /// marked, so the spread behind the single number is visible.
 class _MedianBreakdownDialog extends StatelessWidget {
@@ -221,7 +232,9 @@ class _MedianBreakdownDialog extends StatelessWidget {
           ),
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(de ? 'Schließen' : 'Close'))],
+      actions: [
+        TextButton(autofocus: true, onPressed: () => Navigator.pop(context), child: Text(de ? 'Schließen' : 'Close')),
+      ],
     );
   }
 }

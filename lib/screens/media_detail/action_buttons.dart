@@ -364,6 +364,23 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
             ),
           );
 
+    // TV: the details page has no Ratings & links row, so the comparison of
+    // all scores (and their median) opens from the action row.
+    final titleLinks = _titleLinksFor(metadata);
+    final scoresMedian = isTv ? ratingMedian([for (final link in titleLinks) ?link.rating]) : null;
+    final scoresAction = scoresMedian == null
+        ? null
+        : FocusableAction(
+            debugLabel: 'detail_scores',
+            onPressed: () => unawaited(showRatingsBreakdown(context, titleLinks)),
+            builder: (context, state) => iconActionButton(
+              state,
+              onPressed: () => unawaited(showRatingsBreakdown(context, titleLinks)),
+              icon: const AppIcon(Symbols.star_rounded, fill: 1),
+              tooltip: RetroStrings.allScores(scoresMedian.score),
+            ),
+          );
+
     final shuffleAction = (metadata.isShow || metadata.isSeason)
         ? FocusableAction(
             debugLabel: 'detail_shuffle',
@@ -451,6 +468,7 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
       ?restartAction,
       ?versionAction,
       ?trailerAction,
+      ?scoresAction,
       ?shuffleAction,
       ?downloadAction,
       watchedAction,
