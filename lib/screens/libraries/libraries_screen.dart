@@ -35,6 +35,7 @@ import 'library_server_label.dart';
 import 'state_messages.dart';
 import 'tabs/library_browse_tab.dart';
 import 'tabs/library_recommended_tab.dart';
+import 'library_search_field.dart';
 import 'tabs/library_collections_tab.dart';
 import 'tabs/library_genres_tab.dart';
 import 'tabs/library_playlists_tab.dart';
@@ -127,6 +128,26 @@ class _LibrariesScreenState extends State<LibrariesScreen>
         position.jumpTo(0);
       }
     }
+  }
+
+  // Library search (fork): typed text filters Browse by title.
+  final TextEditingController _librarySearchController = TextEditingController();
+  Timer? _librarySearchDebounce;
+  String _librarySearch = '';
+
+  void _onLibrarySearchChanged(String value) {
+    _librarySearchDebounce?.cancel();
+    _librarySearchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      final text = value.trim();
+      if (text == _librarySearch) return;
+      setState(() => _librarySearch = text);
+      // Results show in Browse, so typing jumps there.
+      final browseIndex = _visibleTabs.indexOf(LibraryTabType.browse);
+      if (text.isNotEmpty && browseIndex >= 0 && tabController.index != browseIndex) {
+        tabController.animateTo(browseIndex);
+      }
+    });
   }
 
   /// Override the mixin's [focusTabBar] so we reveal the floating header
@@ -398,6 +419,8 @@ class _LibrariesScreenState extends State<LibrariesScreen>
 
   @override
   void dispose() {
+    _librarySearchDebounce?.cancel();
+    _librarySearchController.dispose();
     _outerScrollController.dispose();
     for (final node in _tabFocusNodes) {
       node.dispose();
@@ -472,6 +495,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
         onBack: focusTabBar,
         onResetScroll: _resetOuterScroll,
         onFiltersActiveChanged: _handleBrowseFiltersActiveChanged,
+        searchText: _librarySearch,
       ),
       LibraryTabType.collections => LibraryCollectionsTab(
         key: _collectionsTabKey,
@@ -522,6 +546,11 @@ class _LibrariesScreenState extends State<LibrariesScreen>
     if (selectedLibrary == null) return;
 
     final isLibraryChange = _selectedLibraryGlobalKey != libraryGlobalKey;
+    if (isLibraryChange) {
+      _librarySearchDebounce?.cancel();
+      _librarySearchController.clear();
+      _librarySearch = '';
+    }
 
     // Update visible tabs and state in the same synchronous block so no
     // intermediate rebuild can see a mismatched controller/key pair.
@@ -742,6 +771,16 @@ class _LibrariesScreenState extends State<LibrariesScreen>
               onSelectWhenActive: _focusCurrentTab,
               onNavigateDown: _focusCurrentTabFromTabBar,
               onNavigateToActions: () => _actionBarKey.currentState?.requestFocusOnFirst(),
+            ),
+          ],
+          // Fork: search within this library (mouse and keyboard; TV keeps
+          // the global search, typing with a remote is slow).
+          if (!PlatformDetector.isTV() && _visibleTabs.contains(LibraryTabType.browse)) ...[
+            const SizedBox(width: 16),
+            LibrarySearchField(
+              controller: _librarySearchController,
+              libraryTitle: selectedLibrary?.title,
+              onChanged: _onLibrarySearchChanged,
             ),
           ],
         ],

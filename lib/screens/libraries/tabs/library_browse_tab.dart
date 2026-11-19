@@ -88,6 +88,9 @@ class LibraryBrowseTab extends BaseLibraryTab<MediaItem> {
   final ValueChanged<bool>? onFiltersActiveChanged;
   final bool canGroupByFolders;
 
+  /// Text from the library search field; narrows the list to matching titles.
+  final String searchText;
+
   const LibraryBrowseTab({
     super.key,
     required super.library,
@@ -100,6 +103,7 @@ class LibraryBrowseTab extends BaseLibraryTab<MediaItem> {
     super.onBack,
     this.onResetScroll,
     this.onFiltersActiveChanged,
+    this.searchText = '',
   });
 
   @override
@@ -412,6 +416,13 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
       _cardMemo.clear();
     }
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.searchText != widget.searchText && oldWidget.library.globalKey == widget.library.globalKey) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_loadItems());
+        unawaited(_loadFirstCharacters());
+      });
+    }
     if (oldWidget.canGroupByFolders != widget.canGroupByFolders) {
       final normalized = _normalizeGrouping(_selectedGrouping);
       if (normalized != _selectedGrouping) {
@@ -927,12 +938,15 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
       offset: offset,
       limit: limit,
     );
-    return (baseQuery.kind == null || baseQuery.kind == MediaKind.folder) &&
+    final query =
+        (baseQuery.kind == null || baseQuery.kind == MediaKind.folder) &&
             baseQuery.includeKinds.isEmpty &&
             _selectedGrouping == browseGroupingAll &&
             widget.library.defaultBrowseKinds.isNotEmpty
         ? baseQuery.copyWith(includeKinds: widget.library.defaultBrowseKinds)
         : baseQuery;
+    final search = widget.searchText.trim();
+    return search.isEmpty || _selectedGrouping == 'folders' ? query : query.copyWith(search: search);
   }
 
   /// Fetch the first flat page. [epoch] is the snapshot of the full load that
