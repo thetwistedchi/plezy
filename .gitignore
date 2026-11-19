@@ -75,3 +75,11 @@ maestro/**/*.png
 
 server/deploy.sh
 server/Caddyfile
+
+# Retrowave release files built into the repo root
+/plezy-retrowave-*.apk
+/plezy-retrowave-*.exe
+/plezy-retrowave-*.7z
+/plezy-retrowave-*.dmg
+/plezy_*_artifacts.zip
+/*.iss
