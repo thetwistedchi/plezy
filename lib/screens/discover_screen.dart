@@ -863,6 +863,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                             Symbols.group_rounded,
                             fill: watchTogether.isInSession ? 1 : 0,
                             color: watchTogether.isInSession ? colorScheme.primary : foregroundColor,
+                            retro: true,
                           ),
                           onPressed: openWatchTogether,
                           tooltip: t.watchTogether.title,

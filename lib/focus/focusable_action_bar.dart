@@ -348,7 +348,13 @@ class FocusableActionBarState extends State<FocusableActionBar> {
                 child:
                     action.child ??
                     IconButton(
-                      icon: AppIcon(action.icon, size: action.iconSize, fill: action.iconFill, color: action.iconColor),
+                      icon: AppIcon(
+                        action.icon,
+                        size: action.iconSize,
+                        fill: action.iconFill,
+                        color: action.iconColor,
+                        retro: true,
+                      ),
                       tooltip: action.tooltip,
                       onPressed: action.onPressed,
                     ),

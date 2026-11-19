@@ -191,6 +191,8 @@ class NavigationRailItem extends StatelessWidget {
         fill: 1,
         size: iconSize,
         color: isSelected ? t.accent : t.textMuted,
+        retro: true,
+        retroOpacity: isSelected ? 1 : 0.7,
       );
 
   static double _collapsedItemWidth(BuildContext context) =>

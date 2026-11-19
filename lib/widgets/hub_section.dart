@@ -548,7 +548,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                   child: Row(
                     mainAxisSize: .min,
                     children: [
-                      AppIcon(widget.icon, fill: 1, size: isTv ? 28 : null, color: retroHeading),
+                      AppIcon(widget.icon, fill: 1, size: isTv ? 28 : null, color: retroHeading, retro: true),
                       SizedBox(width: isTv ? 12 : 8),
                       Flexible(
                         child: Text(

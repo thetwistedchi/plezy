@@ -141,7 +141,7 @@ class MobileNavigationRail extends StatelessWidget {
   }
 
   NavigationRailDestination _destination(BuildContext context, NavigationTab tab) {
-    Widget icon = AppIcon(tab.icon, fill: 1);
+    Widget icon = AppIcon(tab.icon, fill: 1, retro: true);
     final onLongPress = onLibrariesLongPress;
     if (tab.id == NavigationTabId.libraries && onLongPress != null) {
       // Only a long-press recogniser: taps fall through to the rail's own

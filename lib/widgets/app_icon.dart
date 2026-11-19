@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'retro_glyphs.dart';
+
 /// Wrapper around [Icon] that centralizes our Material Symbols defaults.
 /// Defaults: fill=1 (filled) and weight=700 (bold). Update [AppIconDefaults]
 /// to tweak app-wide icon appearance from one place.
@@ -16,6 +18,8 @@ class AppIcon extends StatelessWidget {
     this.shadows,
     this.semanticLabel,
     this.textDirection,
+    this.retro = false,
+    this.retroOpacity,
   });
 
   final IconData? icon;
@@ -29,9 +33,22 @@ class AppIcon extends StatelessWidget {
   final String? semanticLabel;
   final TextDirection? textDirection;
 
+  /// Fork: on the retrowave theme, draw the matching [RetroGlyphs] glyph
+  /// instead (navigation, top bar actions, hub headers).
+  final bool retro;
+
+  /// Opacity of the retro glyph (unselected navigation entries pass < 1).
+  final double? retroOpacity;
+
   @override
   Widget build(BuildContext context) {
     if (icon == null) return const SizedBox.shrink();
+    if (retro) {
+      final paths = RetroGlyph.pathsIfActive(context, icon);
+      if (paths != null) {
+        return RetroGlyph(paths, size: size, opacity: retroOpacity ?? 1, semanticLabel: semanticLabel);
+      }
+    }
     return Icon(
       icon,
       size: size,

@@ -1,5 +1,8 @@
 ## Plezy Retrowave 0.9.4
 
+### Retrowave icons
+- New hand-drawn outrun icons on the Retrowave theme, stroked with the cyan to magenta fade: Home (sunset house), Libraries (VHS tape), Search, Downloads, Settings, Watch party (CRT with antennas), Refresh, and the Continue watching (sunset play) and Recently added (sparkle) hub headers. They appear in the sidebar, the bottom bar, the top bar actions and the hub headers; unselected navigation entries are slightly dimmed. Other themes keep the Material icons.
+
 ### Libraries
 - Tablets in landscape show the filter chip bar above the grid (grouping, filters, sort, quick filters, saved sets, Surprise me) like desktop. Phones and tablets in portrait keep the options sheet.
 
