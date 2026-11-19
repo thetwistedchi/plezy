@@ -245,12 +245,14 @@ class _ApiKeyTile extends StatelessWidget {
     if (result == null) return;
     final status = await keys.save(name, result);
     if (!context.mounted || result.trim().isEmpty) return;
+    final reason = RatingKeys.lastTestError[name];
     final message = switch (status) {
       RatingKeyStatus.working => _de ? '$title: Schlüssel funktioniert' : '$title: key works',
       RatingKeyStatus.rejected => _de ? '$title: Schlüssel abgelehnt' : '$title: key rejected',
       RatingKeyStatus.unknown => _de ? '$title: gespeichert, Test nicht möglich' : '$title: saved, could not be tested',
     };
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(message)));
+    final full = status == RatingKeyStatus.working || reason == null ? message : '$message ($reason)';
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(full)));
   }
 
   @override

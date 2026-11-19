@@ -27,6 +27,10 @@ Current version: **0.9.1**.
   - fewer titles fetched for **Similar in your library**.
 - The tier can also be chosen by hand under Settings › Appearance › Visual effects.
 
+#### Rating sources
+- Saving an MDBList or OMDb key now shows the site's own reason when the test fails, e.g. `key rejected (Invalid API key!)`.
+- OMDb's daily request limit no longer marks a working key as rejected; the key shows as saved and OMDb is asked again later.
+
 ## What's new in 0.9.0
 Everything new since 0.8.0. This release adds an Android and Android TV build (tested on an NVIDIA Shield) and an experimental macOS build.
 

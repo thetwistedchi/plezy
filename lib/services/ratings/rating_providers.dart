@@ -107,6 +107,8 @@ class OmdbProvider {
     if (imdb == null || imdb.isEmpty) return ProviderScores.empty;
     final uri = Uri.https('www.omdbapi.com', '/', {'i': imdb, 'apikey': apiKey});
     final response = await _client.get(uri).timeout(const Duration(seconds: 8));
+    // OMDb answers 401 for its daily limit too; that is no bad key.
+    if (response.statusCode == 401 && response.body.toLowerCase().contains('limit')) throw ProviderUnavailable(429);
     if (response.statusCode != 200) throw ProviderUnavailable(response.statusCode);
     return parse(jsonDecode(response.body));
   }
