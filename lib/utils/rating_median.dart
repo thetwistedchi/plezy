@@ -4,6 +4,9 @@ import '../media/media_rating.dart';
 /// reviews, not an average score, so it runs far above every other source.
 const _excludedFromMedian = {'rottenTomatoesCritic'};
 
+/// Whether a score from [source] counts toward [ratingMedian].
+bool ratingCountsTowardMedian(String source) => !_excludedFromMedian.contains(source);
+
 /// The median of [ratings] on a 0-100 scale, rounded, or null when none
 /// count. Every [MediaRatingSource] is already on 0-10 (IMDb as is,
 /// percentages / 10, Letterboxd stars * 2), so the values compare directly.

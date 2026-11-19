@@ -28,7 +28,7 @@ class RatingsLinksRow extends StatelessWidget {
       children: [
         for (final link in links) _RatingLinkCard(link: link, launcher: launcher),
         if (ratingMedian([for (final link in links) ?link.rating]) case final median?)
-          _MedianCard(score: median.score, sources: median.sources),
+          _MedianCard(score: median.score, sources: median.sources, links: links),
       ],
     );
   }
@@ -37,10 +37,11 @@ class RatingsLinksRow extends StatelessWidget {
 /// The median of the row's scores on 0-100, after the site cards. The
 /// Tomatometer is left out (see [ratingMedian]).
 class _MedianCard extends StatelessWidget {
-  const _MedianCard({required this.score, required this.sources});
+  const _MedianCard({required this.score, required this.sources, required this.links});
 
   final int score;
   final int sources;
+  final List<TitleLink> links;
 
   @override
   Widget build(BuildContext context) {
@@ -50,11 +51,18 @@ class _MedianCard extends StatelessWidget {
     final sourcesLabel = LocaleSettings.currentLocale == AppLocale.de
         ? '$sources ${sources == 1 ? 'Quelle' : 'Quellen'}'
         : '$sources ${sources == 1 ? 'source' : 'sources'}';
+    final de = LocaleSettings.currentLocale == AppLocale.de;
     return Tooltip(
-      message: LocaleSettings.currentLocale == AppLocale.de
-          ? 'Median aller Wertungen auf 0–100, ohne Tomatometer'
-          : 'Median of all scores on 0–100, without the Tomatometer',
-      child: Container(
+      message: de ? 'Alle Wertungen im Vergleich anzeigen' : 'Show every score side by side',
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(mono.radiusMd),
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (_) => _MedianBreakdownDialog(score: score, links: links),
+          ),
+          child: Container(
         constraints: const BoxConstraints(minWidth: 132),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
@@ -81,6 +89,139 @@ class _MedianCard extends StatelessWidget {
           ],
         ),
       ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Every score of the row on 0–100 next to its own scale, with the median
+/// marked, so the spread behind the single number is visible.
+class _MedianBreakdownDialog extends StatelessWidget {
+  const _MedianBreakdownDialog({required this.score, required this.links});
+
+  final int score;
+  final List<TitleLink> links;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mono = tokens(context);
+    final de = LocaleSettings.currentLocale == AppLocale.de;
+    final rows = [
+      for (final link in links)
+        if (link.rating case final rating?)
+          (
+            name: link.siteName,
+            native: ratingInfoForSource(link.source, rating.value)?.formattedValue ?? rating.value.toStringAsFixed(1),
+            normalized: (rating.value * 10).round().clamp(0, 100).toInt(),
+            votes: rating.votes,
+            counted: ratingCountsTowardMedian(rating.source),
+          ),
+    ]..sort((a, b) => b.normalized.compareTo(a.normalized));
+    final counted = [for (final r in rows) if (r.counted) r.normalized];
+    final spread = counted.isEmpty ? null : (counted.reduce((a, b) => a < b ? a : b), counted.reduce((a, b) => a > b ? a : b));
+    final accent = theme.colorScheme.primary;
+
+    return AlertDialog(
+      title: Text(de ? 'Wertungen im Vergleich' : 'All scores'),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                de
+                    ? 'Jede Wertung auf 0–100 umgerechnet. Die Linie markiert den Median ($score).'
+                    : 'Each score converted to 0–100. The line marks the median ($score).',
+                style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted),
+              ),
+              const SizedBox(height: 14),
+              for (final r in rows)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Opacity(
+                    opacity: r.counted ? 1 : 0.55,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 128,
+                          child: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
+                        ),
+                        SizedBox(
+                          width: 64,
+                          child: Text(
+                            r.native,
+                            textAlign: TextAlign.right,
+                            style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, c) => Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: mono.outline.withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                Container(
+                                  height: 8,
+                                  width: c.maxWidth * r.normalized / 100,
+                                  decoration: BoxDecoration(
+                                    color: accent.withValues(alpha: r.counted ? 0.85 : 0.4),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: c.maxWidth * score / 100 - 1,
+                                  top: -3,
+                                  child: Container(width: 2, height: 14, color: mono.text),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 36,
+                          child: Text(
+                            '${r.normalized}',
+                            textAlign: TextAlign.right,
+                            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 14),
+              Text(
+                [
+                  de ? 'Median $score aus ${counted.length} ${counted.length == 1 ? 'Quelle' : 'Quellen'}' : 'Median $score from ${counted.length} ${counted.length == 1 ? 'source' : 'sources'}',
+                  if (spread != null) de ? 'Spanne ${spread.$1}–${spread.$2}' : 'range ${spread.$1}–${spread.$2}',
+                ].join(' · '),
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              if (rows.any((r) => !r.counted)) ...[
+                const SizedBox(height: 4),
+                Text(
+                  de
+                      ? 'Ausgegraut: nicht im Median, der Tomatometer ist der Anteil positiver Kritiken, keine Durchschnittsnote.'
+                      : 'Greyed out: not in the median; the Tomatometer is the share of positive reviews, not an average score.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(de ? 'Schließen' : 'Close'))],
     );
   }
 }

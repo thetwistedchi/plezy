@@ -11,6 +11,7 @@
 - Library filters (quick chips, active pills, saved sets, Surprise me), Play from start, Similar in your library and Startup library already work on Android TV.
 
 ### All platforms
+- Clicking the **Median** card on a details page lists every score side by side: each site's own value, the same score on 0–100 as a bar, a line marking the median, the range of the scores and which ones count (the Tomatometer does not).
 - On narrow posters (TV, dense grids) the pill row no longer cuts off the language pill: quality and HDR merge into one pill (`4K HDR`) and the languages shorten to the first one plus a count (`DE +2`) as far as needed to fit.
 - The quality and language pills under posters now work in every theme, drawn in the theme's own colours (Retrowave keeps its neon look).
 - YouTube appears only where its in-app player exists (Windows): on Android and Android TV there is no YouTube tab, no YouTube entry in Settings › Services and no YouTube startup option. Trailers still open in the device's YouTube app.
