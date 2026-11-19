@@ -45,7 +45,12 @@ abstract final class RetrowaveUpdater {
   static const _universalApk = 'plezy-retrowave-universal.apk';
   static const _keyLastCheck = 'retrowave_update_last_check';
   static const _keySkipped = 'retrowave_update_skipped';
-  static const _cooldown = Duration(hours: 20);
+  /// Startup checks run every launch; this only stops a burst of restarts
+  /// from asking GitHub again within minutes.
+  static const _cooldown = Duration(minutes: 10);
+
+  /// While the app stays open, how often to look again.
+  static const recheckInterval = Duration(hours: 6);
   static const _channel = MethodChannel('com.thetwistedchi.plezyretrowave/update');
 
   static String get currentVersion => retrowaveVersion;

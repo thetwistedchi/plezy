@@ -8,13 +8,23 @@ import '../services/retrowave/retrowave_updater.dart';
 bool get _de => LocaleSettings.currentLocale == AppLocale.de;
 String _t(String en, String de) => _de ? de : en;
 
-/// Shows [release] with its notes and offers to update right away.
-Future<void> showRetrowaveUpdateDialog(BuildContext context, RetrowaveRelease release, {bool showSkip = true}) =>
-    showDialog<void>(
+bool _dialogOpen = false;
+
+/// Shows [release] with its notes and offers to update right away. Does
+/// nothing while an update dialog is already open.
+Future<void> showRetrowaveUpdateDialog(BuildContext context, RetrowaveRelease release, {bool showSkip = true}) async {
+  if (_dialogOpen) return;
+  _dialogOpen = true;
+  try {
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _UpdateDialog(release: release, showSkip: showSkip),
     );
+  } finally {
+    _dialogOpen = false;
+  }
+}
 
 /// Manual check from Settings: says when there is nothing new or the check
 /// failed, else opens the update dialog.

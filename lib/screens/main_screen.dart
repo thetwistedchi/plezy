@@ -890,6 +890,15 @@ class _MainScreenState extends State<MainScreen>
     if (_deepLinkSession case final session?) DeepLinkService.instance.detach(session);
   }
 
+  Timer? _retrowaveRecheck;
+
+  Future<void> _retrowaveCheck() async {
+    final settingsService = await SettingsService.getInstance();
+    if (!settingsService.read(SettingsService.autoCheckUpdatesOnStartup)) return;
+    final release = await RetrowaveUpdater.check();
+    if (release != null && mounted) await showRetrowaveUpdateDialog(context, release);
+  }
+
   Future<void> _checkForUpdatesOnStartup() async {
     if (!mounted) return;
 
@@ -897,9 +906,10 @@ class _MainScreenState extends State<MainScreen>
     if (!settingsService.read(SettingsService.autoCheckUpdatesOnStartup)) return;
 
     // Fork: updates come from the fork's own releases, not upstream Plezy.
+    // Checked on every start and again every few hours while the app is open.
     if (RetrowaveUpdater.isSupported) {
-      final release = await RetrowaveUpdater.check();
-      if (release != null && mounted) await showRetrowaveUpdateDialog(context, release);
+      _retrowaveRecheck ??= Timer.periodic(RetrowaveUpdater.recheckInterval, (_) => unawaited(_retrowaveCheck()));
+      await _retrowaveCheck();
       return;
     }
 
@@ -1069,6 +1079,7 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   void dispose() {
+    _retrowaveRecheck?.cancel();
     ShortcutsOverlay.uninstall();
     if (_watchTogether?.navigatorOpener == _navigateToWatchTogetherMedia) _watchTogether?.navigatorOpener = null;
     WidgetsBinding.instance.removeObserver(this);
