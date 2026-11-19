@@ -35,6 +35,8 @@ import '../mixins/tab_visibility_aware.dart';
 import 'youtube/youtube_screen.dart';
 import '../navigation/navigation_tabs.dart';
 import '../widgets/shortcuts_overlay.dart';
+import '../widgets/retrowave_update_dialog.dart';
+import '../services/retrowave/retrowave_updater.dart';
 import '../navigation/profile_navigation_scope.dart';
 import '../navigation/settings_shortcut.dart';
 import '../profiles/active_profile_binder.dart';
@@ -893,6 +895,13 @@ class _MainScreenState extends State<MainScreen>
 
     final settingsService = await SettingsService.getInstance();
     if (!settingsService.read(SettingsService.autoCheckUpdatesOnStartup)) return;
+
+    // Fork: updates come from the fork's own releases, not upstream Plezy.
+    if (RetrowaveUpdater.isSupported) {
+      final release = await RetrowaveUpdater.check();
+      if (release != null && mounted) await showRetrowaveUpdateDialog(context, release);
+      return;
+    }
 
     // Native updater (Sparkle/WinSparkle) handles everything — skip Flutter dialog
     if (UpdateService.useNativeUpdater) {

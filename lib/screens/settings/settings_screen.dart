@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../../services/retrowave/retrowave_updater.dart';
+import '../../widgets/retrowave_update_dialog.dart';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -234,7 +236,10 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
 
                   _buildAdvancedSection(),
 
-                  if (UpdateService.isUpdateCheckAvailable) ...[_buildUpdateSection()],
+                  if (RetrowaveUpdater.isSupported)
+                    _buildRetrowaveUpdateSection()
+                  else if (UpdateService.isUpdateCheckAvailable)
+                    _buildUpdateSection(),
 
                   // Hidden on Android TV / tvOS (no document picker); desktop in
                   // force-TV mode keeps it — FilePickerService works there.
@@ -654,6 +659,23 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
     title: t.settings.autoCheckUpdatesOnStartup,
     subtitle: t.settings.autoCheckUpdatesOnStartupDescription,
   );
+
+  /// Fork: updates from the fork's own releases.
+  Widget _buildRetrowaveUpdateSection() {
+    return SettingsGroup(
+      title: t.settings.updates,
+      children: [
+        SettingNavigationTile(
+          focusNode: _focusTracker.get(_kCheckForUpdates),
+          icon: Symbols.system_update_rounded,
+          title: t.settings.checkForUpdates,
+          subtitle: 'Plezy Retrowave ${RetrowaveUpdater.currentVersion}',
+          onTap: () => unawaited(checkForRetrowaveUpdate(context)),
+        ),
+        _buildAutoCheckUpdatesOnStartupTile(),
+      ],
+    );
+  }
 
   Widget _buildUpdateSection() {
     if (UpdateService.useNativeUpdater) {

@@ -5,13 +5,22 @@
 
 param(
     [string]$OutputDir = ".",
-    [string]$Version = "0.9.1",
+    # Defaults to retrowaveVersion in lib/retrowave_version.dart.
+    [string]$Version = "",
     [string]$X64BuildDir,
     [string]$Arm64BuildDir,
     # Write setup.iss and stop. Lets the generated script be inspected or
     # checked without 7-Zip, Inno Setup or a populated Flutter build output.
     [switch]$EmitScriptOnly
 )
+
+if (-not $Version) {
+    $versionFile = Join-Path $PSScriptRoot "..\lib\retrowave_version.dart"
+    $match = Select-String -Path $versionFile -Pattern "retrowaveVersion = '([^']+)'" | Select-Object -First 1
+    if (-not $match) { throw "Could not read retrowaveVersion from $versionFile" }
+    $Version = $match.Matches[0].Groups[1].Value
+}
+Write-Host "Plezy Retrowave version $Version"
 
 function New-InnoSetupScript {
     param(

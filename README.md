@@ -8,16 +8,27 @@
 
 A Windows-focused fork of [Plezy](https://github.com/edde746/plezy), with an Android and Android TV build, a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
 
-Current version: **0.9.1**.
+Current version: **0.9.2**.
 
 <p>
-  <a href="#whats-new-in-091">What's new</a> ·
+  <a href="#whats-new-in-092">What's new</a> ·
   <a href="#download">Download</a> ·
   <a href="#what-this-fork-adds">What this fork adds</a> ·
   <a href="#youtube">YouTube</a> ·
   <a href="https://github.com/edde746/plezy">Upstream Plezy</a> ·
   <a href="LICENSE">License</a>
 </p>
+
+## What's new in 0.9.2
+#### Updates
+- The app now checks this fork's own GitHub releases for updates (at most once a day on startup, and with **Check for updates** in Settings, which also shows the installed version). It no longer looks at upstream Plezy releases.
+- The update dialog shows the release notes and offers, depending on the installation:
+  - **Windows (installed):** **Update and restart** downloads the new installer, installs it quietly and reopens the app. Settings and sign-ins are kept.
+  - **Windows (portable):** **Open download page**, since a portable folder is replaced by hand.
+  - **Android and Android TV:** **Download and install** downloads the matching APK and opens Android's install prompt. The first time, Android asks to allow installing apps from Plezy Retrowave.
+- **Skip this version** hides that release until a newer one comes out; **Later** asks again next time.
+- Automatic checks follow the existing **Check for updates on startup** setting.
+- From this version on, Android updates only install over an existing copy if both were built with the same signing key.
 
 ## What's new in 0.9.1
 #### Android and Android TV

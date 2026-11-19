@@ -132,6 +132,7 @@ class PlezyActivity : FlutterActivity() {
   private var flutterSurfaceReconnectPending = false
   private var activityStarted = false
   private val externalPlayerChannel = ExternalPlayerChannel(this)
+  private val retrowaveUpdateChannel = RetrowaveUpdateChannel(this)
   private val userCertificateChannel = UserCertificateChannel()
   private val appIconChannel = AppIconChannel(this)
   private val exitDiagnosticsRequested = AtomicBoolean(false)
@@ -975,6 +976,7 @@ class PlezyActivity : FlutterActivity() {
     }
 
     externalPlayerChannel.attach(flutterEngine.dartExecutor.binaryMessenger)
+    retrowaveUpdateChannel.attach(flutterEngine.dartExecutor.binaryMessenger)
     userCertificateChannel.attach(flutterEngine.dartExecutor.binaryMessenger)
     appIconChannel.attach(flutterEngine.dartExecutor.binaryMessenger)
 
