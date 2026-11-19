@@ -43,6 +43,9 @@ class HoverPreview extends StatelessWidget {
       waitDuration: Duration(milliseconds: SettingsService.instance.read(SettingsService.hoverPreviewDelayMs)),
       showDuration: const Duration(seconds: 30),
       excludeFromSemantics: true,
+      // A rich tooltip catches the pointer by default, which swallowed the
+      // mouse wheel over the preview; let events pass through to the list.
+      ignorePointer: true,
       preferBelow: false,
       padding: EdgeInsets.zero,
       decoration: BoxDecoration(
