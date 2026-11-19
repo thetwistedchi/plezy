@@ -3,6 +3,9 @@
   Plezy Retrowave
 </h1>
 
+> [!WARNING]
+> **Disclaimer:** This fork is 100% vibecoded (written entirely with AI assistance) and is intended only for my personal use and preferences. It comes with no support, no guarantees and no promise of stability. Use it at your own risk; for a maintained client, use the original [Plezy](https://github.com/edde746/plezy).
+
 A Windows-focused fork of [Plezy](https://github.com/edde746/plezy) with a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
 
 Current version: **0.8.0**.
