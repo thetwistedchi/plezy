@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import '../../../media/ids.dart';
 
 import 'package:flutter/foundation.dart';
@@ -32,6 +33,7 @@ import '../library_browse_grouping.dart';
 import '../library_alpha_bar_strategy.dart';
 import '../library_alpha_scroll_metrics.dart';
 import '../../../widgets/anchored_option_menus.dart';
+import '../../../widgets/app_menu.dart';
 import '../../../widgets/focusable_media_card.dart';
 import '../../../widgets/options_chips_bar.dart';
 import '../../../widgets/listenable_selector.dart';
@@ -46,6 +48,10 @@ import '../../../mixins/library_tab_focus_mixin.dart';
 import '../folder_tree_view.dart';
 import '../filters_bottom_sheet.dart';
 import '../filters/filter_summary.dart';
+import '../filters/quick_filters.dart';
+import '../../../utils/dialogs.dart';
+import '../../../utils/media_navigation_helper.dart';
+import '../../../utils/snackbar_helper.dart';
 import '../sort_bottom_sheet.dart';
 import '../../../widgets/app_icon.dart';
 import '../../../widgets/focusable_list_tile.dart';
@@ -434,6 +440,16 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
   final GlobalKey _filtersChipKey = GlobalKey();
   final GlobalKey _sortChipKey = GlobalKey();
 
+  // Quick filters, saved sets and Surprise me, plus the active-filter pills.
+  List<QuickFilter> _quickFilters = const [];
+  int _quickFiltersGeneration = 0;
+  final List<FocusNode> _quickChipFocusNodes = [];
+  final List<FocusNode> _pillFocusNodes = [];
+  final FocusNode _savedChipFocusNode = FocusNode(debugLabel: 'saved_filters_chip');
+  final FocusNode _surpriseChipFocusNode = FocusNode(debugLabel: 'surprise_chip');
+  final GlobalKey _savedChipKey = GlobalKey();
+  bool _surpriseBusy = false;
+
   // The inner CustomScrollView attaches its position to NestedScrollView's
   // shared inner controller (via PrimaryScrollController), which has one
   // position per kept-alive tab — making `controller.position` ambiguous and
@@ -464,6 +480,11 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
     _groupingChipFocusNode.dispose();
     _filtersChipFocusNode.dispose();
     _sortChipFocusNode.dispose();
+    _savedChipFocusNode.dispose();
+    _surpriseChipFocusNode.dispose();
+    for (final node in [..._quickChipFocusNodes, ..._pillFocusNodes]) {
+      node.dispose();
+    }
     _alphaJumpBarFocusNode.dispose();
     _currentFirstVisibleIndex.dispose();
     _isScrollActive.dispose();
@@ -564,6 +585,13 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
 
   /// Height of the chips bar — see [optionsChipsBarHeight].
   static const double _chipsBarHeight = optionsChipsBarHeight;
+
+  /// Extra row under the chips listing the active filters as removable pills.
+  static const double _pillsRowHeight = 32.0;
+
+  bool get _showsFilterPills => _selectedFilters.isNotEmpty && _selectedGrouping != 'folders';
+
+  double get _chipsHeaderHeight => _chipsBarHeight + (_showsFilterPills ? _pillsRowHeight : 0);
 
   /// Focus the chips bar (for navigating from tab bar to content).
   /// Called by libraries screen when pressing DOWN on tab bar.
@@ -700,6 +728,7 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
         }
       });
       _notifyFiltersActive();
+      _resolveQuickFilters();
 
       if (library.backend.usesMediaBrowserApi) {
         _loadMediaBrowserFiltersInBackground(generation, libraryGlobalKey, library);
@@ -793,6 +822,7 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
               _filters = result.filters;
               _mediaBrowserFilterValues = result.cachedValues;
             });
+            _resolveQuickFilters();
           })
           .catchError((Object e, StackTrace st) {
             if (!isCurrentLibraryLoad(generation, libraryGlobalKey)) return;
@@ -828,6 +858,8 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
       items = [];
       resetPaginationState();
       _filters = [];
+      _quickFilters = const [];
+      _quickFiltersGeneration++;
       _sortOptions = [];
       _mediaBrowserFilterValues = const {};
       _mediaBrowserAlphaPrefix = null;
@@ -1606,7 +1638,7 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
     );
   }
 
-  double get _contentStartScrollOffset => (_usesMobileBrowseOptions ? 0.0 : _chipsBarHeight) + _effectiveTopPadding;
+  double get _contentStartScrollOffset => (_usesMobileBrowseOptions ? 0.0 : _chipsHeaderHeight) + _effectiveTopPadding;
 
   /// Handle a tap on the letter at [targetIndex] in the alpha bar. The
   /// active [LibraryAlphaBarStrategy] owns the per-backend behaviour and
@@ -1802,7 +1834,7 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
               SliverPersistentHeader(
                 floating: true,
                 pinned: false,
-                delegate: OptionsChipsBarDelegate(builder: (_) => _buildChipsBar()),
+                delegate: OptionsChipsBarDelegate(height: _chipsHeaderHeight, builder: (_) => _buildChipsHeader()),
               ),
             ..._buildContentSlivers(),
           ],
@@ -1971,12 +2003,259 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
             label: _selectedSort?.title ?? t.libraries.sort,
             onPressed: _showSortBottomSheet,
           ),
+        if (_selectedGrouping != 'folders') ...[
+          for (var i = 0; i < _quickFilters.length; i++)
+            OptionsChipDescriptor(
+              focusNode: _quickChipFocusNode(i),
+              icon: _quickFilters[i].icon,
+              label: _quickFilters[i].label,
+              selected: _quickFilters[i].isActive(_selectedFilters),
+              onPressed: () => _toggleQuickFilter(_quickFilters[i]),
+            ),
+          if (_isFiltersChipVisible || _isSortChipVisible)
+            OptionsChipDescriptor(
+              anchorKey: _savedChipKey,
+              focusNode: _savedChipFocusNode,
+              icon: Symbols.bookmarks_rounded,
+              label: FilterStrings.saved,
+              onPressed: () => unawaited(_showSavedSetsMenu()),
+            ),
+          OptionsChipDescriptor(
+            focusNode: _surpriseChipFocusNode,
+            icon: Symbols.casino_rounded,
+            label: FilterStrings.surprise,
+            onPressed: () => unawaited(_surpriseMe()),
+          ),
+        ],
       ],
-      onNavigateDown: _navigateToGrid,
+      onNavigateDown: _showsFilterPills ? _focusFirstPill : _navigateToGrid,
       onNavigateUp: widget.onBack,
       onNavigateLeftEdge: _navigateToSidebar,
       onBack: widget.onBack,
     );
+  }
+
+  /// Chips bar plus, when filters are active, a row of removable pills.
+  Widget _buildChipsHeader() {
+    if (!_showsFilterPills) return _buildChipsBar();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(height: _chipsBarHeight, child: _buildChipsBar()),
+        SizedBox(height: _pillsRowHeight, child: _buildFilterPills()),
+      ],
+    );
+  }
+
+  FocusNode _quickChipFocusNode(int index) {
+    while (_quickChipFocusNodes.length <= index) {
+      _quickChipFocusNodes.add(FocusNode(debugLabel: 'quick_filter_chip_${_quickChipFocusNodes.length}'));
+    }
+    return _quickChipFocusNodes[index];
+  }
+
+  FocusNode _pillFocusNode(int index) {
+    while (_pillFocusNodes.length <= index) {
+      _pillFocusNodes.add(FocusNode(debugLabel: 'filter_pill_${_pillFocusNodes.length}'));
+    }
+    return _pillFocusNodes[index];
+  }
+
+  void _focusFirstPill() => _pillFocusNode(0).requestFocus();
+
+  /// One pill per filtered field, labelled like the filter editor's summary.
+  /// Selecting a pill clears that field.
+  Widget _buildFilterPills() {
+    final fields = <String>[];
+    for (final clause in _selectedFilters) {
+      if (!fields.contains(clause.field)) fields.add(clause.field);
+    }
+    return OptionsChipsBar(
+      chips: [
+        for (var i = 0; i < fields.length; i++)
+          OptionsChipDescriptor(
+            focusNode: _pillFocusNode(i),
+            icon: Symbols.close_rounded,
+            label: _pillLabel(fields[i]),
+            selected: true,
+            onPressed: () => unawaited(_applyFilters(_selectedFilters.where((c) => c.field != fields[i]).toList())),
+          ),
+      ],
+      onNavigateDown: _navigateToGrid,
+      onNavigateUp: _groupingChipFocusNode.requestFocus,
+      onNavigateLeftEdge: _navigateToSidebar,
+      onBack: widget.onBack,
+    );
+  }
+
+  String _pillLabel(String field) {
+    final filter = _filters.where((f) => f.filter == field).firstOrNull;
+    if (filter == null) {
+      return '$field: ${_selectedFilters.where((c) => c.field == field).expand((c) => c.values).join(', ')}';
+    }
+    final summary = filterFieldSummary(
+      filter: filter,
+      clauses: _selectedFilters,
+      serverId: widget.library.serverId ?? '',
+      libraryKey: widget.library.globalKey,
+    );
+    return summary == null ? filter.title : '${filter.title}: $summary';
+  }
+
+  /// Works out which quick filters this library supports. Value lists are
+  /// read once here, so the chips only show when a match exists.
+  void _resolveQuickFilters() {
+    final generation = ++_quickFiltersGeneration;
+    final filters = _filters;
+    if (filters.isEmpty) {
+      if (_quickFilters.isNotEmpty) setState(() => _quickFilters = const []);
+      return;
+    }
+    final cached = _mediaBrowserFilterValues;
+    unawaited(
+      resolveQuickFilters(filters, (field) async => cached[field.filter] ?? await _loadFilterValues(field)).then((
+        quick,
+      ) {
+        if (!mounted || generation != _quickFiltersGeneration) return;
+        setState(() => _quickFilters = quick);
+      }),
+    );
+  }
+
+  void _toggleQuickFilter(QuickFilter quick) {
+    if (quick.valueTitle case final title?) {
+      FilterValueNames.remember(
+        serverId: widget.library.serverId ?? '',
+        libraryKey: widget.library.globalKey,
+        field: quick.field.filter,
+        value: quick.value,
+        title: title,
+      );
+    }
+    unawaited(_applyFilters(quick.toggle(_selectedFilters)));
+  }
+
+  static final Object _saveSetValue = Object();
+  static final Object _deleteSetValue = Object();
+
+  Future<void> _showSavedSetsMenu() async {
+    final libraryKey = widget.library.globalKey;
+    final sets = await SavedFilterSets.load(libraryKey);
+    if (!mounted) return;
+    final anchor = chipAnchorRect(_savedChipKey);
+    if (anchor == null) return;
+    final choice = await showAppMenu<Object>(
+      context,
+      anchorRect: anchor,
+      focusFirstItem: InputModeTracker.isKeyboardMode(context, listen: false),
+      entries: [
+        if (sets.isEmpty) AppMenuItem<Object>(value: const Object(), label: FilterStrings.noSaved, enabled: false),
+        for (final set in sets)
+          AppMenuItem<Object>(
+            value: set,
+            label: set.name,
+            icon: Symbols.bookmark_rounded,
+            selected:
+                listEquals(set.filters, _selectedFilters) &&
+                set.sortKey == _selectedSort?.key &&
+                (set.sortKey == null || set.descending == _isSortDescending),
+          ),
+        const AppMenuDivider(),
+        AppMenuItem<Object>(value: _saveSetValue, label: FilterStrings.saveCurrent, icon: Symbols.bookmark_add_rounded),
+        if (sets.isNotEmpty)
+          AppMenuItem<Object>(value: _deleteSetValue, label: FilterStrings.deleteSaved, icon: Symbols.delete_rounded),
+      ],
+    );
+    if (!mounted || choice == null) return;
+    if (choice is SavedFilterSet) {
+      _applySavedSet(choice);
+    } else if (identical(choice, _saveSetValue)) {
+      await _saveCurrentSet();
+    } else if (identical(choice, _deleteSetValue)) {
+      final victim = await showAppMenu<SavedFilterSet>(
+        context,
+        anchorRect: anchor,
+        focusFirstItem: InputModeTracker.isKeyboardMode(context, listen: false),
+        entries: [
+          for (final set in sets)
+            AppMenuItem<SavedFilterSet>(value: set, label: FilterStrings.deleteNamed(set.name), destructive: true),
+        ],
+      );
+      if (victim != null) await SavedFilterSets.remove(libraryKey, victim.name);
+    }
+  }
+
+  Future<void> _saveCurrentSet() async {
+    if (_selectedFilters.isEmpty && _selectedSort == null) {
+      showAppSnackBar(context, FilterStrings.nothingToSave);
+      return;
+    }
+    final name = await showTextInputDialog(
+      context,
+      title: FilterStrings.nameTitle,
+      labelText: FilterStrings.nameLabel,
+    );
+    final trimmed = name?.trim();
+    if (!mounted || trimmed == null || trimmed.isEmpty) return;
+    await SavedFilterSets.upsert(
+      widget.library.globalKey,
+      SavedFilterSet(
+        name: trimmed,
+        filters: _selectedFilters,
+        sortKey: _selectedSort?.key,
+        descending: _isSortDescending,
+      ),
+    );
+    if (mounted) showAppSnackBar(context, FilterStrings.savedAs(trimmed));
+  }
+
+  /// Applies a saved set's sort without its own reload, then its filters,
+  /// which reload once for both.
+  void _applySavedSet(SavedFilterSet set) {
+    final sort = set.sortKey == null ? null : _sortOptions.where((s) => s.key == set.sortKey).firstOrNull;
+    setState(() {
+      _selectedSort = sort;
+      _isSortDescending = sort == null ? false : set.descending;
+    });
+    unawaited(
+      StorageService.getInstance().then((storage) {
+        if (sort == null) return storage.clearLibrarySort(widget.library.globalKey);
+        return storage.saveLibrarySort(widget.library.globalKey, sort.key, descending: set.descending);
+      }),
+    );
+    unawaited(_applyFilters(set.filters));
+  }
+
+  /// Opens a random title from the current filtered result.
+  Future<void> _surpriseMe() async {
+    if (_surpriseBusy) return;
+    _surpriseBusy = true;
+    try {
+      final total = totalSize;
+      if (total <= 0 && !isLoading) {
+        showAppSnackBar(context, FilterStrings.surpriseEmpty);
+        return;
+      }
+      MediaItem? pick;
+      final offset = total > 0 ? math.Random().nextInt(total) : 0;
+      final loaded = loadedItems[offset];
+      if (loaded != null) {
+        pick = loaded;
+      } else {
+        final page = await fetchPage(offset, 1, null);
+        pick = page.items.firstOrNull;
+      }
+      if (!mounted) return;
+      if (pick == null) {
+        showAppSnackBar(context, FilterStrings.surpriseEmpty);
+        return;
+      }
+      await navigateToMediaItem(context, pick, onRefresh: updateItem);
+    } catch (e, st) {
+      appLogger.w('Surprise me failed', error: e, stackTrace: st);
+    } finally {
+      _surpriseBusy = false;
+    }
   }
 
   /// Builds content as slivers for the CustomScrollView

@@ -21,6 +21,9 @@ class OptionsChipDescriptor {
   /// Invoked on tap or D-pad select.
   final VoidCallback onPressed;
 
+  /// Draws the chip in its "on" state.
+  final bool selected;
+
   /// External focus node for programmatic focus control (focus handoff,
   /// restoration). Owned and disposed by the caller.
   final FocusNode focusNode;
@@ -51,6 +54,7 @@ class OptionsChipDescriptor {
     required this.label,
     required this.onPressed,
     required this.focusNode,
+    this.selected = false,
     this.anchorKey,
     this.onNavigateLeft,
     this.onNavigateRight,
@@ -100,11 +104,16 @@ class OptionsChipsBar extends StatelessWidget {
       color: Theme.of(context).pageColor,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       alignment: .centerLeft,
-      child: Row(
-        mainAxisSize: .min,
-        children: [
-          for (var i = 0; i < chips.length; i++) ...[if (i > 0) const SizedBox(width: 8), _buildChip(i)],
-        ],
+      // Scrolls sideways once quick filters and pills outgrow the width.
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        child: Row(
+          mainAxisSize: .min,
+          children: [
+            for (var i = 0; i < chips.length; i++) ...[if (i > 0) const SizedBox(width: 8), _buildChip(i)],
+          ],
+        ),
       ),
     );
   }
@@ -113,17 +122,34 @@ class OptionsChipsBar extends StatelessWidget {
     final chip = chips[index];
     final previous = index > 0 ? chips[index - 1] : null;
     final next = index + 1 < chips.length ? chips[index + 1] : null;
-    return FocusableFilterChip(
+    final chipWidget = FocusableFilterChip(
       key: chip.anchorKey,
       focusNode: chip.focusNode,
       icon: chip.icon,
       label: chip.label,
+      selected: chip.selected,
       onPressed: chip.onPressed,
       onNavigateDown: chip.onNavigateDown ?? onNavigateDown,
       onNavigateUp: chip.onNavigateUp ?? onNavigateUp,
       onNavigateLeft: chip.onNavigateLeft ?? previous?.focusNode.requestFocus ?? onNavigateLeftEdge,
       onNavigateRight: chip.onNavigateRight ?? next?.focusNode.requestFocus,
       onBack: chip.onBack ?? onBack,
+    );
+    // Reveal a D-pad focused chip inside the horizontal scroller only; the
+    // page's own vertical scroll must not move.
+    return Builder(
+      builder: (context) => Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onFocusChange: (focused) {
+          if (!focused) return;
+          final box = context.findRenderObject();
+          final position = Scrollable.maybeOf(context)?.position;
+          if (box == null || position == null) return;
+          position.ensureVisible(box, alignment: 0.5, duration: const Duration(milliseconds: 150));
+        },
+        child: chipWidget,
+      ),
     );
   }
 }

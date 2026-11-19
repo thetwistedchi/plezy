@@ -5,16 +5,24 @@
 
 A Windows-focused fork of [Plezy](https://github.com/edde746/plezy) with a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
 
-Current version: **0.7.1**.
+Current version: **0.7.2**.
 
 <p>
-  <a href="#whats-new-in-071">What's new</a> ·
+  <a href="#whats-new-in-072">What's new</a> ·
   <a href="#download">Download</a> ·
   <a href="#what-this-fork-adds">What this fork adds</a> ·
   <a href="#youtube">YouTube</a> ·
   <a href="https://github.com/edde746/plezy">Upstream Plezy</a> ·
   <a href="LICENSE">License</a>
 </p>
+
+## What's new in 0.7.2
+#### Library filters
+- **Quick filters** next to Filters and Sort toggle common filters with one click: **Unwatched**, **4K**, **HDR**, **Audio** in the app's language (e.g. `Audio: EN`) and **Added recently** (last 30 days). Each chip only appears when the library's server offers that filter, and it sets the same filter the Filters panel shows.
+- **Active filters as pills**: a second row under the bar lists every active filter (e.g. `Genre: Action`). Clicking a pill removes that filter.
+- **Saved filter sets**: the **Saved** chip stores the current filters and sort under a name, per library. Picking a set applies it again; sets can be deleted from the same menu.
+- **Surprise me** opens a random title from the current filtered list.
+- The chip bar scrolls sideways when it no longer fits, and follows the D-pad.
 
 ## What's new in 0.7.1
 #### Posters

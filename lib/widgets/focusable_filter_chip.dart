@@ -14,6 +14,9 @@ class FocusableFilterChip extends StatefulWidget {
   final String label;
   final VoidCallback onPressed;
 
+  /// Draws the chip in its "on" state (quick filter toggles).
+  final bool selected;
+
   /// Optional external focus node for programmatic focus control.
   final FocusNode? focusNode;
 
@@ -37,6 +40,7 @@ class FocusableFilterChip extends StatefulWidget {
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.selected = false,
     this.focusNode,
     this.onNavigateDown,
     this.onNavigateUp,
@@ -78,15 +82,23 @@ class _FocusableFilterChipState extends State<FocusableFilterChip> with Focusabl
     final showFocus = isFocused && InputModeTracker.isKeyboardMode(context);
 
     // Use primary color when focused, surface color when not
-    final backgroundColor = showFocus ? colorScheme.primary : colorScheme.surfaceContainerHighest;
-    final foregroundColor = showFocus ? colorScheme.onPrimary : colorScheme.onSurfaceVariant;
+    final backgroundColor = showFocus
+        ? colorScheme.primary
+        : widget.selected
+        ? colorScheme.secondaryContainer
+        : colorScheme.surfaceContainerHighest;
+    final foregroundColor = showFocus
+        ? colorScheme.onPrimary
+        : widget.selected
+        ? colorScheme.onSecondaryContainer
+        : colorScheme.onSurfaceVariant;
 
     return FocusBuilders.buildFocusableChip(
       context: context,
       focusNode: focusNode,
       onKeyEvent: _handleKeyEvent,
       onTap: widget.onPressed,
-      semanticLabel: widget.label,
+      semanticLabel: widget.selected ? '${widget.label} ✓' : widget.label,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       backgroundColor: backgroundColor,
       child: Row(
