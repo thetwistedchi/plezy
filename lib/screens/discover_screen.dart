@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:plezy/widgets/app_icon.dart';
 import '../widgets/server_activities_button.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../i18n/retro_strings.dart';
+import '../widgets/media_context_menu.dart' show MediaMenuExtraEntry;
 import 'package:provider/provider.dart';
 import '../focus/focusable_action_bar.dart';
 import '../focus/hub_vertical_navigation.dart';
@@ -181,16 +183,26 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   // rebuilds hand TvBrowseRail the same hubs list and its didUpdateWidget
   // fast path — and the cached rail widget below — kick in.
   List<MediaHub>? _tvBrowseHubsCache;
-  (List<MediaItem>, List<MediaHub>, bool, String)? _tvBrowseHubsCacheKey;
+  (List<MediaItem>, List<MediaHub>, bool, String, String)? _tvBrowseHubsCacheKey;
 
   List<MediaHub> get _tvBrowseHubs {
-    final key = (_onDeck, _hubs, _hasMoreContinueWatching, t.discover.continueWatching);
+    final hidden = SettingsService.instance.read(SettingsService.homeRowsHideWatched);
+    final key = (_onDeck, _hubs, _hasMoreContinueWatching, t.discover.continueWatching, hidden.join('|'));
     if (_tvBrowseHubsCache != null && key == _tvBrowseHubsCacheKey) return _tvBrowseHubsCache!;
     final hubs = <MediaHub>[];
     if (_onDeck.isNotEmpty) {
       hubs.add(_continueWatchingHub);
     }
-    hubs.addAll(_hubs.where((hub) => hub.items.isNotEmpty));
+    for (final hub in _hubs) {
+      final shown = hidden.contains(_homeRowKey(hub))
+          ? hub.copyWith(items: [
+              for (final item in hub.items)
+                if (!context.readFreshWatchState(item).isWatched) item,
+            ])
+          : hub;
+      // A row stays while hiding empties it, so its menu can show it again.
+      if (hub.items.isNotEmpty && (shown.items.isNotEmpty || hidden.contains(_homeRowKey(hub)))) hubs.add(shown);
+    }
     _tvBrowseHubsCache = hubs;
     _tvBrowseHubsCacheKey = key;
     return hubs;
@@ -350,6 +362,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _heroFocusNode = FocusNode(debugLabel: 'hero_section');
+    _hideWatchedListenable = SettingsService.instance.listenable(SettingsService.homeRowsHideWatched)
+      ..addListener(_onHideWatchedChanged);
     _heroFocusNode.addListener(_onHeroFocusChanged);
     _discover = context.read<DiscoverProvider>();
     _seenLoadGeneration = _discover.loadGeneration;
@@ -471,6 +485,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     _autoScrollTimer?.cancel();
     _indicatorTimer?.cancel();
     _spotlight.dispose();
+    _hideWatchedListenable?.removeListener(_onHideWatchedChanged);
     _indicatorProgress.dispose();
     _heroIndex.dispose();
     _heroController.dispose();
@@ -932,6 +947,12 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   /// Stable key of a Home row for the per-row "hide watched" toggle.
   static String _homeRowKey(MediaHub hub) => '${hub.serverId ?? ''}:${hub.identifier ?? hub.id}';
 
+  ValueNotifier<List<String>>? _hideWatchedListenable;
+
+  void _onHideWatchedChanged() {
+    if (mounted) setState(() {});
+  }
+
   void _toggleHideWatched(String rowKey) {
     final settings = SettingsService.instance;
     final current = settings.read(SettingsService.homeRowsHideWatched);
@@ -1133,6 +1154,18 @@ class _DiscoverScreenState extends State<DiscoverScreen>
       onNavigateUp: _focusTopActions,
       onNavigateToSidebar: _navigateToSidebar,
       tallPosterScale: TvBrowseRailLayout.compactTallPosterScale,
+      menuExtraEntriesFor: (hub) {
+        if (hub.isContinueWatchingHub) return const [];
+        final rowKey = _homeRowKey(hub);
+        final hidden = SettingsService.instance.read(SettingsService.homeRowsHideWatched).contains(rowKey);
+        return [
+          MediaMenuExtraEntry(
+            icon: hidden ? Symbols.visibility_rounded : Symbols.visibility_off_rounded,
+            label: hidden ? RetroStrings.showWatchedInRow : RetroStrings.hideWatchedInRow,
+            onSelected: () => _toggleHideWatched(rowKey),
+          ),
+        ];
+      },
       widePosterScale: TvBrowseRailLayout.compactEpisodeThumbnailScale,
     );
   }

@@ -14,6 +14,7 @@ import '../utils/formatters.dart';
 import '../utils/layout_constants.dart';
 import '../utils/media_image_helper.dart';
 import '../services/settings_service.dart';
+import '../services/ratings/rating_median_cache.dart';
 import '../utils/tone_mapped_logo_image.dart';
 import 'cycling_media_backdrop.dart';
 import 'fitting_title_text.dart';
@@ -343,6 +344,10 @@ class TvSpotlightBackground extends StatelessWidget {
     // shows every score the shelf request already returned — no per-item
     // hydration to lengthen it.
     final ratings = mediaRatingsFor(media);
+    // Fork: the cached rating median, like the poster badge.
+    if (RatingMedianCache.instance.medianFor(media) case final median?) {
+      parts.add(MetadataLineText('★ ${median.score}', dropPriority: 1));
+    }
     if (ratings.isNotEmpty) parts.add(MetadataLineRatings(ratings, dropPriority: 4));
     if (media.contentRating != null) {
       parts.add(MetadataLineText(formatContentRating(media.contentRating!), dropPriority: 2));

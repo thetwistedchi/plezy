@@ -243,6 +243,9 @@ class MediaCard extends StatefulWidget {
   /// their host reserves [infoPillsBand] for it. Grid cells get it whenever
   /// [showsInfoPills] holds, through [gridCaptionBandHeight].
   final bool infoPills;
+
+  /// Extra entries for the card's context menu (e.g. a row's hide-watched toggle).
+  final List<MediaMenuExtraEntry> menuExtraEntries;
   final bool fullBleedImage;
 
   /// The card sits inside its own show, as in the TV detail rail. The show
@@ -263,6 +266,7 @@ class MediaCard extends StatefulWidget {
     super.key,
     required this.item,
     this.infoPills = false,
+    this.menuExtraEntries = const [],
     this.semanticValue,
     this.width,
     this.height,
@@ -300,7 +304,6 @@ class MediaCard extends StatefulWidget {
 
   /// Retrowave on desktop with the setting on: posters get the pill row.
   static bool showsInfoPills(BuildContext context) =>
-      !PlatformDetector.isTV() &&
       RetroColors.isActive(context) &&
       SettingsService.instance.read(SettingsService.posterInfoPills);
 
@@ -566,6 +569,7 @@ class MediaCardState extends State<MediaCard> with ContextMenuTapMixin<MediaCard
       isInContinueWatching: widget.isInContinueWatching,
       collectionId: widget.collectionId,
       isOffline: widget.isOffline,
+      extraEntries: widget.menuExtraEntries,
       child: cardWidget,
     );
   }

@@ -8,16 +8,29 @@
 
 A Windows-focused fork of [Plezy](https://github.com/edde746/plezy) with a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
 
-Current version: **0.8.0**.
+Current version: **0.8.1**.
 
 <p>
-  <a href="#whats-new-in-080">What's new</a> ·
+  <a href="#whats-new-in-081">What's new</a> ·
   <a href="#download">Download</a> ·
   <a href="#what-this-fork-adds">What this fork adds</a> ·
   <a href="#youtube">YouTube</a> ·
   <a href="https://github.com/edde746/plezy">Upstream Plezy</a> ·
   <a href="LICENSE">License</a>
 </p>
+
+## What's new in 0.8.1
+#### Android TV (e.g. NVIDIA Shield)
+- The quality and language pills under posters now also show on Android TV, and their switch is in Settings › Appearance there too.
+- Hide watched per Home row works on TV: long-press (Select held) a title in a Home row and pick **Hide watched in this row** or **Show watched in this row**. A row emptied this way stays visible so it can be shown again.
+- The Home spotlight on TV shows the rating median (★) next to the other scores.
+- The trailer button searches YouTube and opens the trailer in the device's YouTube app. The server's own trailer is the fallback.
+- **Remember tracks per title** is listed in the playback settings on every platform.
+- Library filters (quick chips, active pills, saved sets, Surprise me), Play from start, Similar in your library and Startup library already work on Android TV.
+
+#### All platforms
+- Hide watched per Home row is also in the right-click menu of a title in that row.
+- The hover preview no longer blocks scrolling with the mouse wheel.
 
 ## What's new in 0.8.0
 Everything new since 0.7.1.

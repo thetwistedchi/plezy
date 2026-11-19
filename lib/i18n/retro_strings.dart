@@ -11,6 +11,8 @@ class RetroStrings {
   // Home rows
   static String get hideWatched => _t('Hide watched', 'Gesehenes ausblenden');
   static String get showWatched => _t('Show watched', 'Gesehenes anzeigen');
+  static String get hideWatchedInRow => _t('Hide watched in this row', 'Gesehenes in dieser Reihe ausblenden');
+  static String get showWatchedInRow => _t('Show watched in this row', 'Gesehenes in dieser Reihe anzeigen');
 
   // Startup
   static String get startupLibrary => _t('Startup library', 'Mediathek beim Start');

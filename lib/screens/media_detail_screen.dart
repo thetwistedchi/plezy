@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'package:url_launcher/url_launcher.dart' show launchUrl, LaunchMode;
 import '../services/ratings/rating_median_cache.dart';
 import '../utils/rating_median.dart';
 import '../theme/page_backdrop.dart';

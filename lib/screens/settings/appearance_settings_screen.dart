@@ -171,8 +171,7 @@ class AppearanceSettingsScreen extends StatelessWidget {
               title: t.settings.showUnwatchedCount,
               subtitle: t.settings.showUnwatchedCountDescription,
             ),
-            if (!PlatformDetector.isTV())
-              SettingSwitchTile(
+            SettingSwitchTile(
                 pref: SettingsService.posterInfoPills,
                 icon: Symbols.hd_rounded,
                 title: YtStrings.posterInfoPills,

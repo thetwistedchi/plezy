@@ -25,6 +25,7 @@ import '../utils/media_navigation_helper.dart';
 import 'card_inflation_budget.dart';
 import 'focus_builders.dart';
 import 'media_card.dart';
+import 'media_context_menu.dart' show MediaMenuExtraEntry;
 import 'media_grid_delegate.dart';
 import 'skeleton_media_card.dart';
 import 'sliver_child_memo.dart';
@@ -688,7 +689,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                         ? EdgeInsets.only(right: cardGap)
                         : EdgeInsets.symmetric(horizontal: cardGap / 2);
 
-                    final infoPills = !isTv && MediaCard.showsInfoPills(context);
+                    final infoPills = MediaCard.showsInfoPills(context);
                     final containerHeight =
                         posterHeight + (isTv ? 48 : 33) + (infoPills ? MediaCard.infoPillsBand : 0);
                     final focusBorderWidth = FocusTheme.focusBorderWidth;
@@ -708,6 +709,8 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                       widget.inset,
                       widget.isInContinueWatching,
                       widget.usesContinueWatchingAction,
+                      widget.hidesWatched,
+                      infoPills,
                     );
 
                     return SizedBox(
@@ -846,6 +849,19 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                                     mixedHubContext: isMixedHub,
                                     episodePosterModeOverride: episodePosterMode,
                                     infoPills: infoPills,
+                                    // Long-press / right-click route to the row toggle (TV has no header hover).
+                                    menuExtraEntries: [
+                                      if (widget.onToggleHideWatched case final toggle?)
+                                        MediaMenuExtraEntry(
+                                          icon: widget.hidesWatched
+                                              ? Symbols.visibility_rounded
+                                              : Symbols.visibility_off_rounded,
+                                          label: widget.hidesWatched
+                                              ? RetroStrings.showWatchedInRow
+                                              : RetroStrings.hideWatchedInRow,
+                                          onSelected: toggle,
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ),

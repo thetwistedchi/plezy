@@ -367,6 +367,9 @@ class TvBrowseRail extends StatefulWidget {
   /// (Continue Watching, catalog rows) need one.
   final Future<List<MediaItem>> Function()? Function(MediaHub hub)? loadMoreItems;
 
+  /// Extra context-menu entries for a hub's cards (e.g. hide watched in row).
+  final List<MediaMenuExtraEntry> Function(MediaHub hub)? menuExtraEntriesFor;
+
   /// Optional per-hub trailing-slot state (loading/error/viewAll). When null the
   /// rail keeps the legacy "[MediaHub.more] → View All" behavior.
   final TvRailTrailing Function(MediaHub hub)? trailingForHub;
@@ -425,6 +428,7 @@ class TvBrowseRail extends StatefulWidget {
     this.onBack,
     this.onActivateItem,
     this.tallPosterScale = 1.0,
+    this.menuExtraEntriesFor,
     this.widePosterScale = 1.0,
     this.initialHubId,
     this.initialItemId,
@@ -1899,6 +1903,7 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
             mixedHubContext: metrics.isMixedHub,
             episodePosterModeOverride: episodePosterMode,
             showTitleImplied: widget.showTitleImpliedForHub?.call(hub) ?? false,
+            menuExtraEntries: widget.menuExtraEntriesFor?.call(hub) ?? const [],
           );
   }
 

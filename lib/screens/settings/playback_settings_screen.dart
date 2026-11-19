@@ -289,8 +289,7 @@ class PlaybackSettingsScreen extends StatelessWidget {
           subtitle: t.settings.clickVideoTogglesPlaybackDescription,
         ),
       if (Platform.isWindows) const _HdrBrightnessTile(),
-      if (PlatformDetector.isDesktopOS())
-        SettingSwitchTile(
+      SettingSwitchTile(
           pref: SettingsService.rememberTitleTracks,
           icon: Symbols.audiotrack_rounded,
           title: RetroStrings.rememberTracks,

@@ -26,8 +26,16 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
     final video = await YouTubeService.instance.searchFirstVideo(query, preferWord: 'trailer');
     if (!context.mounted || !_canUseDetail) return;
     if (video != null) {
-      await YouTubePlayerScreen.open(context, [video]);
-      return;
+      if (YouTubeWebView.isSupported) {
+        await YouTubePlayerScreen.open(context, [video]);
+        return;
+      }
+      try {
+        if (await launchUrl(video.watchUrl, mode: LaunchMode.externalApplication)) return;
+      } catch (e) {
+        appLogger.w('Could not open the YouTube app', error: e);
+      }
+      if (!context.mounted) return;
     }
     if (serverTrailer != null) {
       await navigateToVideoPlayer(context, metadata: serverTrailer, isLaunchCurrent: () => _canUseDetail);
@@ -199,8 +207,9 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
     // ⋮ menu item so the trailer stays reachable when the row hides its button.
     // Windows: trailers come from YouTube and play in the YouTube player
     // (mini player, queue); the server's own trailer is the fallback.
+    // Android TV: the trailer opens in the device's YouTube app.
     final youTubeTrailers =
-        YouTubeWebView.isSupported && !widget.isOffline && (metadata.isMovie || metadata.isShow);
+        (YouTubeWebView.isSupported || Platform.isAndroid) && !widget.isOffline && (metadata.isMovie || metadata.isShow);
     final VoidCallback? onPlayTrailer = youTubeTrailers
         ? () => unawaited(_playYouTubeTrailer(context, metadata, primaryTrailer))
         : primaryTrailer == null
