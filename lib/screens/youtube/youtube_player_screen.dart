@@ -981,6 +981,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   void _onEnded() {
     if (_sleepAfterVideo && _minimized) {
+      // Finished all the same: off the watchlist before the bar closes.
+      if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(_video.id));
       _stopMinimized();
       return;
     }

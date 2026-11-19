@@ -30,6 +30,9 @@ Current version: **0.9.2**.
 - Automatic checks follow the existing **Check for updates on startup** setting.
 - From this version on, Android updates only install over an existing copy if both were built with the same signing key.
 
+#### YouTube
+- A watchlist video that ends while the sleep timer ("after this video") is set and the player is minimized is now also taken off the watchlist.
+
 ## What's new in 0.9.1
 #### Android and Android TV
 - Lighter on weak devices (TV sticks such as Fire TV or Chromecast with Google TV): when the app runs in its reduced visual-effects tier, which it chooses on its own for 32-bit or low-memory devices, the fork's extras hold back as well:

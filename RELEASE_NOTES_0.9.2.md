@@ -9,3 +9,6 @@
 - **Skip this version** hides that release until a newer one comes out; **Later** asks again next time.
 - Automatic checks follow the existing **Check for updates on startup** setting.
 - From this version on, Android updates only install over an existing copy if both were built with the same signing key.
+
+### YouTube
+- A watchlist video that ends while the sleep timer ("after this video") is set and the player is minimized is now also taken off the watchlist.
