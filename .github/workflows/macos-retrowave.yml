@@ -1,0 +1,74 @@
+name: macOS build (Plezy Retrowave)
+
+# Builds an unsigned macOS app on GitHub's Mac runners, packs it into a DMG
+# and keeps it as a workflow artifact. With a tag it is also attached to that
+# release. Start it under Actions › "macOS build (Plezy Retrowave)" › Run workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to attach the DMG to (e.g. v0.9.0); leave empty for an artifact only
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: "3.47.1"
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            macos/Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-retrowave-pods-${{ hashFiles('**/Podfile.lock') }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build
+        # No update check: the upstream appcast would offer upstream Plezy.
+        run: flutter build macos --release --dart-define=GIT_COMMIT=${{ github.sha }} --dart-define=SUPPORTER_MODE=unlocked
+
+      - name: Package DMG
+        run: |
+          set -euo pipefail
+          BUILT="build/macos/Build/Products/Release/Plezy.app"
+          STAGE="$RUNNER_TEMP/dmg"
+          mkdir -p "$STAGE"
+          cp -R "$BUILT" "$STAGE/Plezy Retrowave.app"
+          # Ad-hoc signature so Apple Silicon runs it; there is no Developer ID.
+          codesign --force --deep --sign - "$STAGE/Plezy Retrowave.app"
+          ln -s /Applications "$STAGE/Applications"
+          VERSION="${{ inputs.release_tag }}"
+          VERSION="${VERSION:-dev-${GITHUB_SHA::7}}"
+          hdiutil create -volname "Plezy Retrowave" -srcfolder "$STAGE" -ov -format UDZO "plezy-retrowave-macos.dmg"
+          echo "DMG_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plezy-retrowave-macos-${{ env.DMG_VERSION }}
+          path: plezy-retrowave-macos.dmg
+
+      - name: Attach to release
+        if: ${{ inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ inputs.release_tag }}" plezy-retrowave-macos.dmg --clobber --repo "${{ github.repository }}"

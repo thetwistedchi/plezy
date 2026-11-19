@@ -4,8 +4,12 @@ part of '../../video_player_screen.dart';
 /// playing; it only stops covering the pages ([MinimizableRoute]) and the
 /// native video moves into the bar.
 extension _VideoPlayerMiniMethods on VideoPlayerScreenState {
+  /// Not on macOS yet: its video layer is untested with the bar.
   bool get _canMinimize =>
-      PlatformDetector.isDesktopOS() && !PlatformDetector.isTV() && ModalRoute.of(context) is MinimizableRoute;
+      PlatformDetector.isDesktopOS() &&
+      !Platform.isMacOS &&
+      !PlatformDetector.isTV() &&
+      ModalRoute.of(context) is MinimizableRoute;
 
   void _minimizePlayer() {
     final route = ModalRoute.of(context);

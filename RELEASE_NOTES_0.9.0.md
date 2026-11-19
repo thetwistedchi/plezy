@@ -1,6 +1,6 @@
 ## Plezy Retrowave 0.9.0
 
-Everything new since 0.8.0. This release adds an Android and Android TV build (tested on an NVIDIA Shield).
+Everything new since 0.8.0. This release adds an Android and Android TV build (tested on an NVIDIA Shield) and an experimental macOS build.
 
 ### Android and Android TV
 - The Android app is called **Plezy Retrowave**, with a retrowave launcher icon and TV home-screen banner.
@@ -13,6 +13,12 @@ Everything new since 0.8.0. This release adds an Android and Android TV build (t
 - The trailer button searches YouTube and opens the trailer in the device's YouTube app. The server's own trailer is the fallback.
 - The API key dialogs (Settings › Services › Rating sources) explain where the key is kept and, on TV, that the Google TV app on a phone can type or paste it into the field.
 - YouTube subscriptions and the in-app YouTube player stay Windows-only: Android has no YouTube tab, no YouTube entry in Settings › Services and no YouTube startup option.
+
+### macOS (experimental)
+- A macOS build (`plezy-retrowave-macos.dmg`), made on GitHub's Mac runners. It has not been tested on a Mac yet.
+- It installs as its own app (**Plezy Retrowave**, `com.thetwistedchi.plezyretrowave`) next to the official Plezy, with a retrowave icon.
+- It is not signed with an Apple Developer ID, so macOS blocks the first launch: right-click the app and choose **Open**, or run `xattr -dr com.apple.quarantine "/Applications/Plezy Retrowave.app"` once.
+- Not on macOS: the YouTube tab, the mini player bar, the HDR brightness boost, fit height and letterbox detection, and the coloured title bar.
 
 ### Library and Home
 - The **Audio** quick filter opens a list of every audio language in the library (German first, then English, then the rest alphabetically, plus "Any language") and shows the chosen one on the chip, e.g. `Audio: German`. Like all filters, the choice is kept per library until changed.
