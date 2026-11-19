@@ -6,12 +6,12 @@
 > [!WARNING]
 > **Disclaimer:** This fork is 100% vibecoded (written entirely with AI assistance) and is intended only for my personal use and preferences. It comes with no support, no guarantees and no promise of stability. Use it at your own risk; for a maintained client, use the original [Plezy](https://github.com/edde746/plezy).
 
-A Windows-focused fork of [Plezy](https://github.com/edde746/plezy) with a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
+A Windows-focused fork of [Plezy](https://github.com/edde746/plezy), with an Android and Android TV build, a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
 
-Current version: **0.8.1**.
+Current version: **0.9.0**.
 
 <p>
-  <a href="#whats-new-in-081">What's new</a> ·
+  <a href="#whats-new-in-090">What's new</a> ·
   <a href="#download">Download</a> ·
   <a href="#what-this-fork-adds">What this fork adds</a> ·
   <a href="#youtube">YouTube</a> ·
@@ -19,32 +19,40 @@ Current version: **0.8.1**.
   <a href="LICENSE">License</a>
 </p>
 
-## What's new in 0.8.1
-#### Android TV (e.g. NVIDIA Shield)
-- The details page shows every fetched score (Letterboxd, Trakt, MDBList, OMDb, MyAnimeList) in its header, and a ★ button in the action row opens the comparison of all scores with their median.
-- The API key dialogs (Settings › Services › Rating sources) explain where the key is kept and that the Google TV app on a phone can type or paste it into the field.
-- The Android app is now called **Plezy Retrowave**, with a retrowave launcher icon and TV home-screen banner.
-- It installs as its own app (`com.thetwistedchi.plezyretrowave`), so it sits next to the official Plezy instead of replacing it. Coming from an earlier Android build of this fork, sign in once again.
-- The quality and language pills under posters now also show on Android TV, including the Home rows, and their switch is in Settings › Appearance there too.
-- Hide watched per Home row works on TV: long-press (Select held) a title in a Home row and pick **Hide watched in this row** or **Show watched in this row**. A row emptied this way stays visible so it can be shown again.
-- The Home spotlight on TV shows the rating median (★) next to the other scores.
-- The trailer button searches YouTube and opens the trailer in the device's YouTube app. The server's own trailer is the fallback.
-- **Remember tracks per title** is listed in the playback settings on every platform.
-- Library filters (quick chips, active pills, saved sets, Surprise me), Play from start, Similar in your library and Startup library already work on Android TV.
+## What's new in 0.9.0
+Everything new since 0.8.0. This release adds an Android and Android TV build (tested on an NVIDIA Shield).
 
-#### All platforms
-- The **Audio** quick filter now opens a list of every audio language in the library (the app's language first, plus "Any language") and shows the chosen one on the chip, e.g. `Audio: German`.
-- The watched check mark on posters is 25 % smaller.
-- Desktop player: the title in the top bar links to details pages. For an episode, the series name opens the series (on that episode's season) and the `S1 · E3 · Title` line opens the episode; for a movie, the title opens the movie. The player moves into the mini player bar and keeps playing.
-- Clicking the **Median** card on a details page lists every score side by side: each site's own value, the same score on 0–100 as a bar, a line marking the median, the range of the scores and which ones count (the Tomatometer does not).
-- On narrow posters (TV, dense grids) the pill row no longer cuts off the language pill: quality and HDR merge into one pill (`4K HDR`) and the languages shorten to the first one plus a count (`DE +2`) as far as needed to fit.
-- The quality and language pills under posters now work in every theme, drawn in the theme's own colours (Retrowave keeps its neon look).
-- YouTube appears only where its in-app player exists (Windows): on Android and Android TV there is no YouTube tab, no YouTube entry in Settings › Services and no YouTube startup option. Trailers still open in the device's YouTube app.
-- New installs start with the Retrowave theme on every platform (Android TV used to start with OLED). An already chosen theme is kept.
-- Manage Libraries marks the focused library clearly: it is tinted and outlined in the accent colour, more strongly while the row itself has focus.
-- Smoother browsing: the background lookups for poster pills and rating medians use a lighter server request that skips chapters and markers, and run one at a time on TV devices. The page background is no longer repainted while scrolling. Quick filters and **Similar in your library** remember what they looked up per library, so reopening a library or another details page needs fewer requests.
+#### Android and Android TV
+- The Android app is called **Plezy Retrowave**, with a retrowave launcher icon and TV home-screen banner.
+- It installs as its own app (`com.thetwistedchi.plezyretrowave`), next to the official Plezy instead of replacing it.
+- Rating medians, the quality and language pills, library filters (quick chips, active pills, saved sets, Surprise me), Play from start, Similar in your library, Startup library and per-title track memory all work on Android.
+- On TV, the details page shows every fetched score (Letterboxd, Trakt, MDBList, OMDb, MyAnimeList) in its header, and a ★ button in the action row opens the comparison of all scores with their median.
+- On TV, the quality and language pills also show in the Home rows.
+- On TV, the Home spotlight shows the rating median (★) next to the other scores.
+- Hide watched per Home row works on TV: long-press (Select held) a title in a Home row and pick **Hide watched in this row** or **Show watched in this row**. A row emptied this way stays visible so it can be shown again.
+- The trailer button searches YouTube and opens the trailer in the device's YouTube app. The server's own trailer is the fallback.
+- The API key dialogs (Settings › Services › Rating sources) explain where the key is kept and, on TV, that the Google TV app on a phone can type or paste it into the field.
+- YouTube subscriptions and the in-app YouTube player stay Windows-only: Android has no YouTube tab, no YouTube entry in Settings › Services and no YouTube startup option.
+
+#### Library and Home
+- The **Audio** quick filter opens a list of every audio language in the library (the app's language first, plus "Any language") and shows the chosen one on the chip, e.g. `Audio: German`. Like all filters, the choice is kept per library until changed.
 - Hide watched per Home row is also in the right-click menu of a title in that row.
+- Manage Libraries marks the focused library clearly: it is tinted and outlined in the accent colour, more strongly while the row itself has focus.
+
+#### Posters
+- The quality and language pills work in every theme, drawn in the theme's own colours (Retrowave keeps its neon look).
+- On narrow posters (TV, dense grids) the pill row no longer cuts off the language pill: quality and HDR merge into one pill (`4K HDR`) and the languages shorten to the first one plus a count (`DE +2`) as far as needed to fit.
+- The watched check mark is 25 % smaller.
 - The hover preview no longer blocks scrolling with the mouse wheel.
+
+#### Details page and player
+- Clicking the **Median** card lists every score side by side: each site's own value, the same score on 0–100 as a bar, a line marking the median, the range of the scores and which ones count (the Tomatometer does not).
+- Desktop player: the title in the top bar links to details pages. For an episode, the series name opens the series (on that episode's season) and the `S1 · E3 · Title` line opens the episode; for a movie, the title opens the movie. The player moves into the mini player bar and keeps playing.
+
+#### General
+- New installs start with the Retrowave theme on every platform. An already chosen theme is kept.
+- Smoother browsing: the background lookups for poster pills and rating medians use a lighter server request that skips chapters and markers, and run one at a time on TV devices. The page background is no longer repainted while scrolling. Quick filters and **Similar in your library** remember what they looked up per library, so reopening a library or another details page needs fewer requests.
+- **Remember tracks per title** is listed in the playback settings on every platform.
 
 ## What's new in 0.8.0
 Everything new since 0.7.1.
@@ -181,12 +189,15 @@ Everything new since 0.7.1.
 
 ## Download
 
-Get the latest Windows build from the [Releases page](https://github.com/thetwistedchi/plezy/releases):
+Get the latest build from the [Releases page](https://github.com/thetwistedchi/plezy/releases):
 
 | File | What it is |
 | --- | --- |
-| `plezy-retrowave-installer.exe` | Installer (x64). Installs as **Plezy Retrowave**, next to a regular Plezy install. |
-| `plezy-retrowave-x64-portable.7z` | Portable build, unzip and run `plezy.exe`. |
+| `plezy-retrowave-installer.exe` | Windows installer (x64). Installs as **Plezy Retrowave**, next to a regular Plezy install. |
+| `plezy-retrowave-x64-portable.7z` | Windows portable build, unzip and run `plezy.exe`. |
+| `plezy-retrowave-arm64.apk` | Android and Android TV (e.g. NVIDIA Shield, most current phones). Installs as its own app next to the official Plezy. |
+
+The Android build is installed by sideloading, e.g. over the network with `adb install plezy-retrowave-arm64.apk` after turning on network debugging in the device's developer options. YouTube subscriptions are not part of the Android build.
 
 The builds are not code-signed, so Windows SmartScreen warns on first launch: click **More info**, then **Run anyway**.
 
