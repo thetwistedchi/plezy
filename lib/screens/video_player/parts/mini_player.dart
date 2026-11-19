@@ -163,7 +163,7 @@ class _PlexMiniSession implements VideoMiniSession {
     final p = _screen.player;
     if (p is! VideoRectSupport) return;
     unawaited(
-      (p as VideoRectSupport)
+      p
           .setVideoRect(left: left, top: top, right: right, bottom: bottom, devicePixelRatio: dpr)
           .catchError((Object e) => appLogger.d('Mini player video rect failed: $e')),
     );

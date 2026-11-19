@@ -1263,7 +1263,7 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
     final libraryKey = widget.library.globalKey;
     final sets = await SavedFilterSets.load(libraryKey);
     if (!mounted) return;
-    controller.push<void>(
+    unawaited(controller.push<void>(
       builder: (_) => BottomSheetPageScaffold(
         title: FilterStrings.saved,
         icon: Symbols.bookmarks_rounded,
@@ -1303,7 +1303,7 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
           ],
         ),
       ),
-    );
+    ));
   }
 
   void _showGroupingBottomSheet() {

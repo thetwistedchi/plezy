@@ -11,6 +11,8 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # Vendored plugin sources (their own tests and pigeon specs need dev deps).
+    - packages/**
     # Nested git worktrees (other branches' full checkouts), when present.
     - worktrees/**
 
