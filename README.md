@@ -8,16 +8,24 @@
 
 A Windows-focused fork of [Plezy](https://github.com/edde746/plezy), with an Android and Android TV build, a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
 
-Current version: **0.9.0**.
+Current version: **0.9.1**.
 
 <p>
-  <a href="#whats-new-in-090">What's new</a> ·
+  <a href="#whats-new-in-091">What's new</a> ·
   <a href="#download">Download</a> ·
   <a href="#what-this-fork-adds">What this fork adds</a> ·
   <a href="#youtube">YouTube</a> ·
   <a href="https://github.com/edde746/plezy">Upstream Plezy</a> ·
   <a href="LICENSE">License</a>
 </p>
+
+## What's new in 0.9.1
+#### Android and Android TV
+- Lighter on weak devices (TV sticks such as Fire TV or Chromecast with Google TV): when the app runs in its reduced visual-effects tier, which it chooses on its own for 32-bit or low-memory devices, the fork's extras hold back as well:
+  - no background lookups for the language pills and rating medians (the pills still show quality and HDR, and medians appear once a title's details page was opened),
+  - a flat page colour instead of the Retrowave gradient,
+  - fewer titles fetched for **Similar in your library**.
+- The tier can also be chosen by hand under Settings › Appearance › Visual effects.
 
 ## What's new in 0.9.0
 Everything new since 0.8.0. This release adds an Android and Android TV build (tested on an NVIDIA Shield) and an experimental macOS build.
@@ -201,7 +209,8 @@ Get the latest build from the [Releases page](https://github.com/thetwistedchi/p
 | --- | --- |
 | `plezy-retrowave-installer.exe` | Windows installer (x64). Installs as **Plezy Retrowave**, next to a regular Plezy install. |
 | `plezy-retrowave-x64-portable.7z` | Windows portable build, unzip and run `plezy.exe`. |
-| `plezy-retrowave-arm64.apk` | Android and Android TV (e.g. NVIDIA Shield, most current phones). Installs as its own app next to the official Plezy. |
+| `plezy-retrowave-arm64.apk` | Android and Android TV with 64-bit Android (e.g. NVIDIA Shield, most current phones). Installs as its own app next to the official Plezy. |
+| `plezy-retrowave-universal.apk` | Android for any device, including TV sticks that run 32-bit Android (most Fire TV sticks, Chromecast with Google TV). Larger download. |
 | `plezy-retrowave-macos.dmg` | macOS, experimental and untested. Not signed: on first launch right-click the app and choose **Open**. |
 
 The Android build is installed by sideloading, e.g. over the network with `adb install plezy-retrowave-arm64.apk` after turning on network debugging in the device's developer options. YouTube subscriptions are not part of the Android build.

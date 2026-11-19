@@ -15,6 +15,7 @@ import '../../media/media_server_client.dart';
 import '../../utils/app_logger.dart';
 import '../poster_info_cache.dart' show fetchItemLight;
 import '../../utils/platform_detector.dart';
+import '../device_performance.dart';
 import '../../utils/rating_median.dart';
 import 'rating_keys.dart';
 import 'rating_providers.dart';
@@ -107,6 +108,9 @@ class RatingMedianCache extends ChangeNotifier {
   /// Asks [client] for [item]'s scores when no median is cached yet and the
   /// listing's own scores are too few ([listingSources]).
   void request(MediaItem item, MediaServerClient client, {required int listingSources}) {
+    // Reduced effects tier (weak TV sticks): no background lookups; posters
+    // use the listing's scores and medians stored from details pages.
+    if (DevicePerformance.isReduced) return;
     final target = _Target.of(item);
     // A season's or episode's own listing scores are not the series'.
     if (listingSources >= 2 && !target.isSeries) return;

@@ -5,7 +5,7 @@
 
 param(
     [string]$OutputDir = ".",
-    [string]$Version = "0.9.0",
+    [string]$Version = "0.9.1",
     [string]$X64BuildDir,
     [string]$Arm64BuildDir,
     # Write setup.iss and stop. Lets the generated script be inspected or

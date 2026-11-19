@@ -12,6 +12,7 @@ import '../media/media_server_client.dart';
 import '../media/media_stream.dart';
 import '../utils/app_logger.dart';
 import '../utils/platform_detector.dart';
+import 'device_performance.dart';
 import 'plex_client.dart';
 
 /// Quality and audio languages of a title, for the pills under a poster.
@@ -163,6 +164,9 @@ class PosterInfoCache extends ChangeNotifier {
   }
 
   void _request(String key, MediaItem item, MediaServerClient client) {
+    // Reduced effects tier (weak TV sticks): no background lookups; the pills
+    // show what the listing carries (quality, HDR).
+    if (DevicePerformance.isReduced) return;
     if (_pending.contains(key)) return;
     unawaited(
       _load().then((_) {

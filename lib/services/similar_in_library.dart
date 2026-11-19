@@ -6,6 +6,7 @@ import '../media/media_item.dart';
 import '../media/media_item_types.dart';
 import '../media/media_server_client.dart';
 import '../utils/app_logger.dart';
+import 'device_performance.dart';
 import 'plex_client.dart';
 import 'ratings/rating_median_cache.dart';
 
@@ -54,7 +55,8 @@ Future<MediaHub?> similarInLibraryHub(MediaServerClient client, MediaItem item) 
       libraryKind: item.kind,
       query: LibraryQuery(
         kind: item.kind,
-        limit: 80,
+        // Fewer titles to decode on weak TV sticks.
+        limit: DevicePerformance.isReduced ? 40 : 80,
         // Values inside one clause OR: anything sharing at least one genre.
         filters: [LibraryFilter(field: genreIds.field, values: ids)],
         sort: const LibrarySort(field: 'audienceRating'),

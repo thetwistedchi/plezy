@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/device_performance.dart';
+
 /// A gradient painted behind every page in place of the solid scaffold colour.
 @immutable
 class PageBackdropStyle extends ThemeExtension<PageBackdropStyle> {
@@ -47,7 +49,8 @@ class PageBackdrop extends StatelessWidget {
     if (style == null || theme.scaffoldBackgroundColor.a == 0) return child;
     final inner = _transparentThemes[theme] ??= theme.copyWith(scaffoldBackgroundColor: Colors.transparent);
     return DecoratedBox(
-      decoration: BoxDecoration(gradient: style.gradient),
+      // Reduced effects tier: the flat page colour instead of the gradient.
+      decoration: DevicePerformance.isReduced ? BoxDecoration(color: style.color) : BoxDecoration(gradient: style.gradient),
       // Own layer for the page, so scrolling does not repaint the gradient.
       child: RepaintBoundary(child: Theme(data: inner, child: child)),
     );
