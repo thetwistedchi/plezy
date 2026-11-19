@@ -7,6 +7,7 @@ import '../services/ratings/rating_median_cache.dart';
 import '../theme/retrowave_colors.dart';
 import '../utils/rating_median.dart';
 import 'dart:ui';
+import 'dart:ui' as ui show TextDirection;
 import '../media/ids.dart';
 
 import 'package:flutter/material.dart';
@@ -1619,7 +1620,7 @@ class _InfoPills extends StatelessWidget {
   static const double _gap = 4;
 
   /// Width of a [RetroPill] with [label] at its default size.
-  static double _pillWidth(String label, TextDirection direction) {
+  static double _pillWidth(String label, ui.TextDirection direction) {
     final painter = TextPainter(
       text: TextSpan(
         text: label,
@@ -1637,7 +1638,7 @@ class _InfoPills extends StatelessWidget {
   /// dense grids) quality and HDR merge into one pill and the languages
   /// shorten to the first one plus a count, instead of the last pill being
   /// cut off.
-  static List<(String, RetroPillTone)> _fit(PosterInfo info, double maxWidth, TextDirection direction) {
+  static List<(String, RetroPillTone)> _fit(PosterInfo info, double maxWidth, ui.TextDirection direction) {
     final quality = info.quality;
     final langs = info.languages;
     String? langsFull;
