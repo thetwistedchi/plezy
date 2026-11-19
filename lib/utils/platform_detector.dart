@@ -364,4 +364,11 @@ class PlatformDetector {
   static bool isPhone(BuildContext context) {
     return isMobile(context) && !isTablet(context);
   }
+
+  /// Fork: library browse options live in a bottom sheet on phones and
+  /// portrait tablets; landscape tablets get the inline chip bar.
+  static bool usesBrowseOptionsSheet(BuildContext context) {
+    if (!isMobile(context)) return false;
+    return !(isTablet(context) && MediaQuery.orientationOf(context) == Orientation.landscape);
+  }
 }

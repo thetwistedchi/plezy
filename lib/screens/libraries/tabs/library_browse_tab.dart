@@ -1703,8 +1703,9 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
   /// Whether the device is a phone (not tablet/desktop/TV).
   bool _isPhone(BuildContext context) => PlatformDetector.isPhone(context);
 
-  /// Mobile uses a top-bar options action instead of inline browse chips.
-  bool get _usesMobileBrowseOptions => PlatformDetector.isMobile(context);
+  /// Phones and portrait tablets use a top-bar options action instead of
+  /// inline browse chips.
+  bool get _usesMobileBrowseOptions => PlatformDetector.usesBrowseOptionsSheet(context);
 
   /// The letter currently visible at the top of the grid, determined by
   /// how many items we've scrolled past relative to the API's cumulative
