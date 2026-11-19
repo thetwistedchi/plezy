@@ -35,7 +35,7 @@ Everything new since 0.8.0. This release adds an Android and Android TV build (t
 - YouTube subscriptions and the in-app YouTube player stay Windows-only: Android has no YouTube tab, no YouTube entry in Settings › Services and no YouTube startup option.
 
 #### Library and Home
-- The **Audio** quick filter opens a list of every audio language in the library (the app's language first, plus "Any language") and shows the chosen one on the chip, e.g. `Audio: German`. Like all filters, the choice is kept per library until changed.
+- The **Audio** quick filter opens a list of every audio language in the library (German first, then English, then the rest alphabetically, plus "Any language") and shows the chosen one on the chip, e.g. `Audio: German`. Like all filters, the choice is kept per library until changed.
 - Hide watched per Home row is also in the right-click menu of a title in that row.
 - Manage Libraries marks the focused library clearly: it is tinted and outlined in the accent colour, more strongly while the row itself has focus.
 

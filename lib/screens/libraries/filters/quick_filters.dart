@@ -243,9 +243,7 @@ Future<List<QuickFilter>> _resolveQuickFilters(
     );
   }
 
-  // Audio: a chooser of every language the library has, the app's language
-  // listed first.
-  final aliases = _languageAliases[lang] ?? [lang];
+  // Audio: a chooser of every language the library has.
   final audio = _findField(filters, const ['audioLanguage'], where: (f) => f.hasValueList);
   if (audio != null) {
     List<MediaFilterValue> values = const [];
@@ -258,12 +256,19 @@ Future<List<QuickFilter>> _resolveQuickFilters(
       for (final v in values)
         if (v.title.trim().isNotEmpty) (id: libraryFilterValueId(v.key, _bareField(audio)), title: v.title.trim()),
     ];
-    bool isAppLanguage(({String id, String title}) c) =>
-        aliases.contains(c.id.toLowerCase()) || aliases.contains(c.title.toLowerCase());
+    // German first, then English, then the rest alphabetically.
+    final german = _languageAliases['de']!;
+    final english = _languageAliases['en']!;
+    int rank(({String id, String title}) c) {
+      final id = c.id.toLowerCase();
+      final title = c.title.toLowerCase();
+      if (german.contains(id) || german.contains(title)) return 0;
+      if (english.contains(id) || english.contains(title)) return 1;
+      return 2;
+    }
     choices.sort((a, b) {
-      final pa = isAppLanguage(a) ? 0 : 1;
-      final pb = isAppLanguage(b) ? 0 : 1;
-      return pa != pb ? pa - pb : a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      final byRank = rank(a) - rank(b);
+      return byRank != 0 ? byRank : a.title.toLowerCase().compareTo(b.title.toLowerCase());
     });
     if (choices.isNotEmpty) {
       result.add(
