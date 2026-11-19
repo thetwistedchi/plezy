@@ -19,14 +19,12 @@ import 'package:window_manager/window_manager.dart';
 import '../i18n/strings.g.dart';
 import '../services/app_exit_service.dart';
 import '../services/tvos_system_navigation_service.dart';
-import '../services/update_service.dart';
 import '../utils/app_logger.dart';
 import '../widgets/auth_error_banner.dart';
 import '../widgets/app_icon.dart';
 import '../utils/iphone_duo.dart';
 import '../utils/platform_detector.dart';
 import '../utils/snackbar_helper.dart';
-import '../utils/update_dialog.dart';
 import '../utils/video_player_navigation.dart';
 import '../mixins/mounted_set_state_mixin.dart';
 import '../mixins/refreshable.dart';
@@ -899,44 +897,17 @@ class _MainScreenState extends State<MainScreen>
     if (release != null && mounted) await showRetrowaveUpdateDialog(context, release);
   }
 
+  /// Fork: "what's new" once after an update, then the update check, again
+  /// every few hours while the app stays open. Updates come from the fork's
+  /// own releases; upstream Plezy's updater is not used.
   Future<void> _checkForUpdatesOnStartup() async {
+    if (!mounted || !RetrowaveUpdater.isSupported) return;
+    final whatsNew = await RetrowaveUpdater.whatsNewAfterUpdate();
+    if (whatsNew != null && mounted) await showRetrowaveWhatsNewDialog(context, whatsNew);
     if (!mounted) return;
-
-    final settingsService = await SettingsService.getInstance();
-    if (!settingsService.read(SettingsService.autoCheckUpdatesOnStartup)) return;
-
-    // Fork: updates come from the fork's own releases, not upstream Plezy.
-    // Checked on every start and again every few hours while the app is open.
-    if (RetrowaveUpdater.isSupported) {
-      _retrowaveRecheck ??= Timer.periodic(RetrowaveUpdater.recheckInterval, (_) => unawaited(_retrowaveCheck()));
-      await _retrowaveCheck();
-      return;
-    }
-
-    // Native updater (Sparkle/WinSparkle) handles everything — skip Flutter dialog
-    if (UpdateService.useNativeUpdater) {
-      await UpdateService.checkForUpdatesNative(inBackground: true);
-      return;
-    }
-
-    try {
-      final updateInfo = await UpdateService.checkForUpdatesOnStartup();
-
-      if (updateInfo != null && updateInfo['hasUpdate'] == true && mounted) {
-        await _showUpdateDialog(updateInfo);
-      }
-    } catch (e) {
-      appLogger.e('Error checking for updates', error: e);
-    }
+    _retrowaveRecheck ??= Timer.periodic(RetrowaveUpdater.recheckInterval, (_) => unawaited(_retrowaveCheck()));
+    await _retrowaveCheck();
   }
-
-  Future<void> _showUpdateDialog(Map<String, dynamic> updateInfo) => showUpdateAvailableDialog(
-    context,
-    updateInfo,
-    title: t.update.available,
-    dismissLabel: t.common.later,
-    showSkipVersion: true,
-  );
 
   /// Lets the Watch Together room open its file when no player is open.
   void _setupWatchTogetherCallback() {

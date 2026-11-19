@@ -4,11 +4,20 @@ import 'package:flutter/material.dart';
 
 import '../i18n/strings.g.dart';
 import '../services/retrowave/retrowave_updater.dart';
+import 'simple_markdown.dart';
 
 bool get _de => LocaleSettings.currentLocale == AppLocale.de;
 String _t(String en, String de) => _de ? de : en;
 
 bool _dialogOpen = false;
+
+/// Release bodies start with the release's own title line, which the dialog
+/// already shows.
+String _withoutTitle(String notes) {
+  final lines = notes.trim().split('\n');
+  if (lines.isNotEmpty && lines.first.startsWith('## Plezy Retrowave')) lines.removeAt(0);
+  return lines.join('\n').trim();
+}
 
 /// Shows [release] with its notes and offers to update right away. Does
 /// nothing while an update dialog is already open.
@@ -25,6 +34,21 @@ Future<void> showRetrowaveUpdateDialog(BuildContext context, RetrowaveRelease re
     _dialogOpen = false;
   }
 }
+
+/// Once after an update: what this version brought.
+Future<void> showRetrowaveWhatsNewDialog(BuildContext context, RetrowaveRelease release) => showDialog<void>(
+  context: context,
+  builder: (context) => AlertDialog(
+    title: Text(_t("What's new in ${release.version}", 'Neu in ${release.version}')),
+    content: SizedBox(
+      width: 520,
+      child: SingleChildScrollView(child: SimpleMarkdown(_withoutTitle(release.notes))),
+    ),
+    actions: [
+      FilledButton(autofocus: true, onPressed: () => Navigator.pop(context), child: Text(_t('Close', 'Schließen'))),
+    ],
+  ),
+);
 
 /// Manual check from Settings: says when there is nothing new or the check
 /// failed, else opens the update dialog.
@@ -136,10 +160,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             const SizedBox(height: 12),
             Flexible(
               child: SingleChildScrollView(
-                child: SelectableText(
-                  release.notes.trim().isEmpty ? '–' : release.notes.trim(),
-                  style: theme.textTheme.bodySmall,
-                ),
+                child: SimpleMarkdown(release.notes.trim().isEmpty ? '–' : _withoutTitle(release.notes)),
               ),
             ),
             if (_busy) ...[

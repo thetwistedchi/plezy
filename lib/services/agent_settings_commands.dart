@@ -25,7 +25,7 @@ import 'scoped_player_prefs.dart';
 import 'settings_mutation_service.dart';
 import 'settings_service.dart';
 import 'shortcut_action.dart';
-import 'update_service.dart';
+import 'retrowave/retrowave_updater.dart';
 
 /// Typed app configuration over the existing preferences and resource owners.
 /// Discovery never reads user-authored documents, paths or integration endpoints.
@@ -190,7 +190,7 @@ class AgentSettingsCommands {
       case 'enable_discord_rpc':
         if (!DiscordRPCService.isAvailable) return 'Discord rich presence is unavailable on this platform.';
       case 'auto_check_updates_on_startup':
-        if (!UpdateService.isUpdateCheckAvailable) return 'Updates are managed externally on this platform.';
+        if (!RetrowaveUpdater.isSupported) return 'Updates are managed externally on this platform.';
       case 'force_tv_mode':
         if (!desktop && !Platform.isAndroid) return 'Forced TV mode requires Android or a desktop platform.';
       case 'visual_effects':

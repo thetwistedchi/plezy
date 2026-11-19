@@ -1077,6 +1077,15 @@ class _LibrariesScreenState extends State<LibrariesScreen>
                                   onNavigateToActions: () => _actionBarKey.currentState?.requestFocusOnFirst(),
                                 ),
                               ],
+                              // Fork: the library search on phones, after the tabs.
+                              if (!PlatformDetector.isTV() && _visibleTabs.contains(LibraryTabType.browse)) ...[
+                                const SizedBox(width: 12),
+                                LibrarySearchField(
+                                  controller: _librarySearchController,
+                                  libraryTitle: selectedLibrary.title,
+                                  onChanged: _onLibrarySearchChanged,
+                                ),
+                              ],
                             ],
                           ),
                         ),

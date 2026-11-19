@@ -93,25 +93,55 @@ abstract final class RetrowaveUpdater {
           )
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) throw StateError('GitHub answered ${response.statusCode}');
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final tag = (data['tag_name'] as String? ?? '').trim();
-      final version = tag.startsWith('v') ? tag.substring(1) : tag;
-      if (!isNewer(version, currentVersion)) return null;
-      if (!manual && prefs.getString(_keySkipped) == version) return null;
-      return RetrowaveRelease(
-        version: version,
-        name: data['name'] as String? ?? 'Plezy Retrowave $version',
-        notes: data['body'] as String? ?? '',
-        pageUrl: data['html_url'] as String? ?? 'https://github.com/$_repo/releases/latest',
-        assets: {
-          for (final a in (data['assets'] as List? ?? const []))
-            if (a is Map && a['name'] is String && a['browser_download_url'] is String)
-              a['name'] as String: a['browser_download_url'] as String,
-        },
-      );
+      final release = _parse(jsonDecode(response.body) as Map<String, dynamic>);
+      if (!isNewer(release.version, currentVersion)) return null;
+      if (!manual && prefs.getString(_keySkipped) == release.version) return null;
+      return release;
     } catch (e, st) {
       appLogger.w('Update check failed', error: e, stackTrace: st);
       if (manual) rethrow;
+      return null;
+    }
+  }
+
+  static RetrowaveRelease _parse(Map<String, dynamic> data) {
+    final tag = (data['tag_name'] as String? ?? '').trim();
+    final version = tag.startsWith('v') ? tag.substring(1) : tag;
+    return RetrowaveRelease(
+      version: version,
+      name: data['name'] as String? ?? 'Plezy Retrowave $version',
+      notes: data['body'] as String? ?? '',
+      pageUrl: data['html_url'] as String? ?? 'https://github.com/$_repo/releases/latest',
+      assets: {
+        for (final a in (data['assets'] as List? ?? const []))
+          if (a is Map && a['name'] is String && a['browser_download_url'] is String)
+            a['name'] as String: a['browser_download_url'] as String,
+      },
+    );
+  }
+
+  static const _keyLastRunVersion = 'retrowave_last_run_version';
+
+  /// Once after the app was updated: this version's release (for its notes).
+  /// Null on a fresh install, on later starts, or when GitHub has no release
+  /// for this version.
+  static Future<RetrowaveRelease?> whatsNewAfterUpdate() async {
+    final prefs = await BaseSharedPreferencesService.sharedCache();
+    final last = prefs.getString(_keyLastRunVersion);
+    if (last == currentVersion) return null;
+    await prefs.setString(_keyLastRunVersion, currentVersion);
+    if (last == null) return null;
+    try {
+      final response = await http
+          .get(
+            Uri.https('api.github.com', '/repos/$_repo/releases/tags/v$currentVersion'),
+            headers: {'Accept': 'application/vnd.github+json'},
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return null;
+      return _parse(jsonDecode(response.body) as Map<String, dynamic>);
+    } catch (e) {
+      appLogger.d('What\'s new lookup failed', error: e);
       return null;
     }
   }

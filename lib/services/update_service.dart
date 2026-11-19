@@ -27,9 +27,10 @@ class UpdateService {
   static bool _nativeUpdaterInitialized = false;
 
   /// Check if update checking is enabled via build flag
-  static bool get isUpdateCheckEnabled {
-    return const bool.fromEnvironment('ENABLE_UPDATE_CHECK', defaultValue: false);
-  }
+  /// Fork: always off. This upstream updater follows upstream Plezy's
+  /// releases (and its WinSparkle appcast), which would replace the fork;
+  /// the fork updates through RetrowaveUpdater instead.
+  static bool get isUpdateCheckEnabled => false;
 
   /// Whether any in-app update path applies to this install.
   /// False inside a packaged (MSIX/Store) install: the Store owns updates and
