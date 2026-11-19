@@ -409,7 +409,7 @@ class ServerActivitiesButtonState extends State<ServerActivitiesButton> {
   Widget build(BuildContext context) {
     return IconButton(
       key: _buttonKey,
-      icon: const AppIcon(Symbols.monitor_heart_rounded, color: Colors.white),
+      icon: const AppIcon.retro(Symbols.monitor_heart_rounded, color: Colors.white),
       onPressed: togglePanel,
       tooltip: t.serverTasks.title,
     );

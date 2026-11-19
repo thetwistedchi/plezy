@@ -786,6 +786,7 @@ class _LiveTvScreenState extends State<LiveTvScreen>
         title: useSideNav ? TabChipStrip(children: _buildTabChipItems()) : Text(t.liveTv.title),
         actions: DesktopAppBarHelper.buildAdjustedActions([
           FocusableActionBar(
+            retroGlyphs: true,
             key: _actionBarKey,
             onNavigateLeft: () => getTabChipFocusNode(tabCount - 1).requestFocus(),
             onNavigateDown: _focusCurrentTab,

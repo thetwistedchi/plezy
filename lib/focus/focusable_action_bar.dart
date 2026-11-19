@@ -77,6 +77,9 @@ class FocusableActionBar extends StatefulWidget {
 
   final double spacing;
 
+  /// Fork: draw the actions' icons as retrowave glyphs (main tabs' top bars).
+  final bool retroGlyphs;
+
   const FocusableActionBar({
     super.key,
     required this.actions,
@@ -87,6 +90,7 @@ class FocusableActionBar extends StatefulWidget {
     this.onBack,
     this.onFocusChange,
     this.spacing = 0,
+    this.retroGlyphs = false,
   });
 
   @override
@@ -353,7 +357,7 @@ class FocusableActionBarState extends State<FocusableActionBar> {
                         size: action.iconSize,
                         fill: action.iconFill,
                         color: action.iconColor,
-                        retro: true,
+                        retro: widget.retroGlyphs,
                       ),
                       tooltip: action.tooltip,
                       onPressed: action.onPressed,

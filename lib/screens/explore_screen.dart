@@ -238,7 +238,7 @@ class ExploreScreenState extends State<ExploreScreen>
           const SizedBox(width: 8),
           Text(active.displayName, style: textStyle ?? Theme.of(context).textTheme.titleLarge),
           const SizedBox(width: 4),
-          const AppIcon(Symbols.arrow_drop_down_rounded, fill: 1, size: 24),
+          const AppIcon.retro(Symbols.arrow_drop_down_rounded, fill: 1, size: 24),
         ],
       ),
     );
@@ -311,6 +311,7 @@ class ExploreScreenState extends State<ExploreScreen>
       scrolledUnderElevation: 0,
       actions: [
         FocusableActionBar(
+          retroGlyphs: true,
           key: _actionBarKey,
           onNavigateDown: searchFocusNode.requestFocus,
           actions: [
@@ -456,6 +457,7 @@ class ExploreScreenState extends State<ExploreScreen>
         children: [
           const Spacer(),
           FocusableActionBar(
+            retroGlyphs: true,
             key: _actionBarKey,
             onNavigateLeft: _navigateToSidebar,
             onNavigateDown: _tvBrowseRailKey.currentState?.requestFocus,

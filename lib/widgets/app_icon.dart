@@ -22,6 +22,22 @@ class AppIcon extends StatelessWidget {
     this.retroOpacity,
   });
 
+  /// Same as [AppIcon] with [retro] on.
+  const AppIcon.retro(
+    this.icon, {
+    super.key,
+    this.size,
+    this.color,
+    this.fill,
+    this.weight,
+    this.grade,
+    this.opticalSize,
+    this.shadows,
+    this.semanticLabel,
+    this.textDirection,
+    this.retroOpacity,
+  }) : retro = true;
+
   final IconData? icon;
   final double? size;
   final Color? color;
@@ -37,7 +53,8 @@ class AppIcon extends StatelessWidget {
   /// instead (navigation, top bar actions, hub headers).
   final bool retro;
 
-  /// Opacity of the retro glyph (unselected navigation entries pass < 1).
+  /// Opacity of the retro glyph; defaults to [color]'s alpha, so faded
+  /// icons stay faded.
   final double? retroOpacity;
 
   @override
@@ -46,7 +63,7 @@ class AppIcon extends StatelessWidget {
     if (retro) {
       final paths = RetroGlyph.pathsIfActive(context, icon);
       if (paths != null) {
-        return RetroGlyph(paths, size: size, opacity: retroOpacity ?? 1, semanticLabel: semanticLabel);
+        return RetroGlyph(paths, size: size, opacity: retroOpacity ?? (color?.a ?? 1), semanticLabel: semanticLabel);
       }
     }
     return Icon(

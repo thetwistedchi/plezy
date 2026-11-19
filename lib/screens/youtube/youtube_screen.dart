@@ -237,22 +237,22 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                         onPressed: _service.isLoading ? null : () => unawaited(_service.refresh(reloadSubscriptions: true)),
                         icon: _service.isLoading
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const AppIcon(Symbols.refresh_rounded),
+                            : const AppIcon.retro(Symbols.refresh_rounded),
                       ),
                       IconButton(
                         tooltip: YtStrings.channels,
                         onPressed: _openChannels,
-                        icon: const AppIcon(Symbols.subscriptions_rounded),
+                        icon: const AppIcon.retro(Symbols.subscriptions_rounded),
                       ),
                       IconButton(
                         tooltip: YtStrings.guide,
                         onPressed: _openGuide,
-                        icon: const AppIcon(Symbols.help_rounded),
+                        icon: const AppIcon.retro(Symbols.help_rounded),
                       ),
                       IconButton(
                         tooltip: YtStrings.settings,
                         onPressed: _openSettings,
-                        icon: const AppIcon(Symbols.settings_rounded),
+                        icon: const AppIcon.retro(Symbols.settings_rounded),
                       ),
                     ],
                   ),

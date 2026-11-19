@@ -742,7 +742,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         enabled: !_switchingProfile,
         icon: active != null
             ? ProfileAvatar(profile: active, size: 32, avatarUrl: activeProvider.avatarUrlFor(active.id))
-            : const AppIcon(Symbols.account_circle_rounded, fill: 1, size: 32, color: Colors.white),
+            : const AppIcon.retro(Symbols.account_circle_rounded, fill: 1, size: 32, color: Colors.white),
         tooltip: t.profiles.sectionTitle,
         adaptiveSheet: true,
         anchorAlignment: AppMenuAnchorAlignment.end,
@@ -848,6 +848,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
               }
 
               return FocusableActionBar(
+                retroGlyphs: true,
                 key: _actionBarKey,
                 onNavigateLeft: _navigateToSidebar,
                 onNavigateDown: _focusContentFromAppBar,
@@ -897,7 +898,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                     child: Stack(
                       children: [
                         IconButton(
-                          icon: AppIcon(
+                          icon: AppIcon.retro(
                             Symbols.phone_android_rounded,
                             fill: companionRemote.isConnected ? 1 : 0,
                             color: companionRemote.isConnected ? colorScheme.primary : foregroundColor,

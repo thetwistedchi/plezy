@@ -548,7 +548,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                   child: Row(
                     mainAxisSize: .min,
                     children: [
-                      AppIcon(widget.icon, fill: 1, size: isTv ? 28 : null, color: retroHeading, retro: true),
+                      AppIcon.retro(widget.icon, fill: 1, size: isTv ? 28 : null, color: retroHeading),
                       SizedBox(width: isTv ? 12 : 8),
                       Flexible(
                         child: Text(
@@ -588,7 +588,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                       ],
                       if (widget.hub.more && !isKeyboardMode) ...[
                         const SizedBox(width: 4),
-                        AppIcon(Symbols.chevron_right_rounded, fill: 1, size: isTv ? 26 : 20, color: retroHeading),
+                        AppIcon.retro(Symbols.chevron_right_rounded, fill: 1, size: isTv ? 26 : 20, color: retroHeading),
                       ],
                       if (widget.onToggleHideWatched case final toggle?
                           when !isTv && !isKeyboardMode && (_headerHovered || widget.hidesWatched)) ...[
@@ -598,7 +598,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                           child: InkResponse(
                             onTap: toggle,
                             radius: 16,
-                            child: AppIcon(
+                            child: AppIcon.retro(
                               widget.hidesWatched ? Symbols.visibility_off_rounded : Symbols.visibility_rounded,
                               fill: 1,
                               size: 18,
@@ -764,7 +764,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                                       child: Column(
                                         mainAxisSize: .min,
                                         children: [
-                                          AppIcon(
+                                          AppIcon.retro(
                                             Symbols.arrow_forward_rounded,
                                             size: isTv ? 42 : 32,
                                             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),

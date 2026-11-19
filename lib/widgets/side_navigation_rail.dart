@@ -186,12 +186,11 @@ class NavigationRailItem extends StatelessWidget {
 
   Widget _leadingIcon(MonoTokens t) =>
       iconWidget ??
-      AppIcon(
+      AppIcon.retro(
         isSelected && selectedIcon != null ? selectedIcon! : icon,
         fill: 1,
         size: iconSize,
         color: isSelected ? t.accent : t.textMuted,
-        retro: true,
         retroOpacity: isSelected ? 1 : 0.7,
       );
 
@@ -1289,7 +1288,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
     final headerLabelColor = isLibrariesTabSelected ? t.text : t.textMuted;
 
     Widget buildChevron(double opacity) {
-      return AppIcon(
+      return AppIcon.retro(
         _librariesExpanded ? Symbols.expand_less_rounded : Symbols.expand_more_rounded,
         fill: 1,
         size: 18,
@@ -1497,12 +1496,12 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                     padding: .symmetric(vertical: verticalPadding, horizontal: 17),
                     child: Row(
                       children: [
-                        leading ?? AppIcon(icon, fill: 1, size: iconSize, color: t.textMuted),
+                        leading ?? AppIcon.retro(icon, fill: 1, size: iconSize, color: t.textMuted),
                         const SizedBox(width: 11),
                         Expanded(
                           child: Text(label, style: labelStyle, overflow: .ellipsis),
                         ),
-                        AppIcon(
+                        AppIcon.retro(
                           isExpanded ? Symbols.expand_less_rounded : Symbols.expand_more_rounded,
                           fill: 1,
                           size: 16,

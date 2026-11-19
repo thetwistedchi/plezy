@@ -188,6 +188,7 @@ class DownloadsScreenState extends State<DownloadsScreen>
                     });
                   }
                   return FocusableActionBar(
+                    retroGlyphs: true,
                     key: _actionBarKey,
                     onNavigateLeft: () => getTabChipFocusNode(tabCount - 1).requestFocus(),
                     onNavigateDown: _focusCurrentTab,

@@ -810,7 +810,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
         child: Row(
           mainAxisSize: .min,
           children: [
-            AppIcon(ContentTypeHelper.getLibraryIcon(selectedLibrary.kind.id), fill: 1, size: 20),
+            AppIcon.retro(ContentTypeHelper.getLibraryIcon(selectedLibrary.kind.id), fill: 1, size: 20),
             const SizedBox(width: 8),
             if (librariesSpanMultipleServers(visibleLibraries) && selectedLibrary.serverName != null)
               Column(
@@ -830,7 +830,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
             else
               Text(selectedLibrary.title, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(width: 4),
-            const AppIcon(Symbols.arrow_drop_down_rounded, fill: 1, size: 24),
+            const AppIcon.retro(Symbols.arrow_drop_down_rounded, fill: 1, size: 24),
           ],
         ),
       ),
@@ -900,7 +900,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
                   icon: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      const AppIcon(Symbols.tune_rounded, fill: 1),
+                      const AppIcon.retro(Symbols.tune_rounded, fill: 1),
                       Positioned(
                         top: -2,
                         right: -2,
@@ -941,6 +941,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
       scrolledUnderElevation: 0,
       actions: [
         FocusableActionBar(
+          retroGlyphs: true,
           key: _actionBarKey,
           onNavigateLeft: () => getTabChipFocusNode(_visibleTabs.length - 1).requestFocus(),
           onNavigateDown: _focusCurrentTab,
@@ -972,6 +973,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
           title: _buildAppBarTitle(visibleLibraries, selectedLibrary, groupByServer: groupByServerSetting),
           actions: [
             FocusableActionBar(
+              retroGlyphs: true,
               key: _actionBarKey,
               onNavigateLeft: () => getTabChipFocusNode(_visibleTabs.length - 1).requestFocus(),
               onNavigateDown: _focusCurrentTab,

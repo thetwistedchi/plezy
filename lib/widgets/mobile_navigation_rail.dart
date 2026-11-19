@@ -135,13 +135,13 @@ class MobileNavigationRail extends StatelessWidget {
         onPressed: isReconnecting ? null : onReconnect,
         icon: isReconnecting
             ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: primary))
-            : AppIcon(Symbols.wifi_rounded, size: 18, color: primary),
+            : AppIcon.retro(Symbols.wifi_rounded, size: 18, color: primary),
       ),
     );
   }
 
   NavigationRailDestination _destination(BuildContext context, NavigationTab tab) {
-    Widget icon = AppIcon(tab.icon, fill: 1, retro: true);
+    Widget icon = AppIcon.retro(tab.icon, fill: 1);
     final onLongPress = onLibrariesLongPress;
     if (tab.id == NavigationTabId.libraries && onLongPress != null) {
       // Only a long-press recogniser: taps fall through to the rail's own
