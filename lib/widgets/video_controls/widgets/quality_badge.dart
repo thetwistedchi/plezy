@@ -7,13 +7,17 @@ import '../../../theme/player_style.dart';
 /// from the playing version's display criteria. Shows nothing when the
 /// server reported neither a size nor a dynamic range.
 class QualityBadge extends StatelessWidget {
-  const QualityBadge({super.key, required this.criteria, this.isTranscoding = false});
+  const QualityBadge({super.key, required this.criteria, this.isTranscoding = false, this.onTap, this.tooltip});
 
   final MediaDisplayCriteria? criteria;
 
   /// A transcode is re-encoded to SDR at the chosen quality, so the source's
   /// labels would be wrong; the badge hides.
   final bool isTranscoding;
+
+  /// Fork: makes the badge a button (opens the file info).
+  final VoidCallback? onTap;
+  final String? tooltip;
 
   /// "4K", "1440p", "1080p", "720p", "SD" from the frame size.
   static String? resolutionLabel(int? width, int? height) {
@@ -49,7 +53,7 @@ class QualityBadge extends StatelessWidget {
     if (labels.isEmpty) return const SizedBox.shrink();
     final style = PlayerStyle.of(context);
     final color = style.badge ?? Colors.white;
-    return Container(
+    final badge = Container(
       height: 22,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -65,6 +69,14 @@ class QualityBadge extends StatelessWidget {
           applyHeightToLastDescent: false,
         ),
         style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6, height: 1.0),
+      ),
+    );
+    if (onTap == null) return badge;
+    return Tooltip(
+      message: tooltip ?? '',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: onTap, child: badge),
       ),
     );
   }

@@ -1630,6 +1630,23 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
   }
 }
 
+/// Fork: opens the playing item's file info on its own, from the player's
+/// quality badge, as the same page the settings sheet pushes. Returns false
+/// (and opens nothing) when there is nothing to describe.
+bool showPlayerFileInfo(BuildContext context, TrackControlsState state) {
+  final item = state.metadata;
+  if (state.isLive || item == null || !item.kind.hasFileInfo) return false;
+  final client = context.tryGetMediaClientForServer(serverIdOrNull(state.serverId));
+  if (client == null) return false;
+  state.onCancelAutoHide?.call();
+  unawaited(
+    OverlaySheetController.of(context)
+        .show<void>(builder: (_) => _FileInfoPage(client: client, item: item))
+        .whenComplete(() => state.onStartAutoHide?.call()),
+  );
+  return true;
+}
+
 /// The playing item's file info as a nested page of the settings sheet. Holds
 /// a fixed-height spinner while the server answers, then shows the library's
 /// [FileInfoBottomSheet] or why there is nothing to show.

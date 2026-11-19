@@ -20,6 +20,7 @@ import '../../utils/desktop_window_padding.dart';
 import '../../utils/platform_detector.dart';
 import '../../utils/formatters.dart';
 import '../../i18n/strings.g.dart';
+import 'sheets/video_settings_sheet.dart' show showPlayerFileInfo;
 import '../../theme/player_style.dart';
 import '../../models/livetv_capture_buffer.dart';
 import 'models/track_controls_state.dart';
@@ -955,7 +956,12 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                 if (!_isLive)
                   Padding(
                     padding: const EdgeInsets.only(right: 12),
-                    child: QualityBadge(criteria: widget.displayCriteria, isTranscoding: widget.isTranscoding),
+                    child: QualityBadge(
+                      criteria: widget.displayCriteria,
+                      isTranscoding: widget.isTranscoding,
+                      tooltip: t.mediaMenu.fileInfo,
+                      onTap: () => showPlayerFileInfo(context, _trackControlsState),
+                    ),
                   ),
                 // Volume control (hidden on TV — hardware handles volume)
                 if (!PlatformDetector.isTV()) ...[
