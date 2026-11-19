@@ -75,6 +75,9 @@ class DesktopVideoControls extends StatefulWidget {
   final TrackControlsState trackControlsState;
   final VoidCallback? onBack;
 
+  /// Header title links: series (true) or the playing item (false).
+  final void Function(bool series)? onOpenDetails;
+
   /// Notifier for whether first video frame has rendered (shows loading state when false).
   final ValueNotifier<bool>? hasFirstFrame;
 
@@ -148,6 +151,7 @@ class DesktopVideoControls extends StatefulWidget {
     this.onHideControls,
     this.trackControlsState = const TrackControlsState(),
     this.onBack,
+    this.onOpenDetails,
     this.hasFirstFrame,
     this.thumbnailDataBuilder,
     this.liveChannelName,
@@ -710,6 +714,7 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
               onBack: widget.onBack,
               onCancelAutoHide: widget.onCancelAutoHide,
               onStartAutoHide: widget.onStartAutoHide,
+              onOpenDetails: widget.onOpenDetails,
             ),
           ),
           if (_isLive && (widget.captureBuffer == null || widget.isAtLiveEdge)) ...[

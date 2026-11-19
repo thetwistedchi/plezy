@@ -39,6 +39,7 @@ extension _PlexVideoControlsNavigationMethods on _PlexVideoControlsState {
         onHideControls: _hideControlsFromKeyboard,
         trackControlsState: trackControlsState,
         onBack: widget.onBack,
+        onOpenDetails: widget.onOpenDetails,
         hasFirstFrame: widget.hasFirstFrame,
         thumbnailDataBuilder: widget.thumbnailDataBuilder,
         liveChannelName: widget.liveChannelName,

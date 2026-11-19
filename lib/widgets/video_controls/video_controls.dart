@@ -589,6 +589,10 @@ class PlexVideoControls extends StatefulWidget {
 
   /// Minimizes the player into the bottom bar (desktop).
   final VoidCallback? onMinimize;
+
+  /// Opens a details page from the header title (desktop): the series when
+  /// [series] is true, otherwise the playing movie or episode.
+  final void Function(bool series)? onOpenDetails;
   final VoidCallback? onCycleBoxFitMode;
   final ValueChanged<double>? onVideoZoomChanged;
   final VoidCallback? onZoomIn;
@@ -733,6 +737,7 @@ class PlexVideoControls extends StatefulWidget {
     this.videoZoomScale = 1.0,
     this.onTogglePIPMode,
     this.onMinimize,
+    this.onOpenDetails,
     this.onCycleBoxFitMode,
     this.onVideoZoomChanged,
     this.onZoomIn,

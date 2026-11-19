@@ -97,6 +97,8 @@ import '../utils/player_utils.dart';
 import '../utils/orientation_helper.dart';
 import '../utils/platform_detector.dart';
 import '../utils/provider_extensions.dart';
+import '../utils/media_navigation_helper.dart' show mediaDetailNavigationTargetFor, navigateToMediaItemDetails;
+import 'media_detail_screen.dart' show mediaDetailRoute;
 import '../utils/snackbar_helper.dart';
 import '../utils/stream_buffer_sizing.dart';
 import '../utils/video_player_navigation.dart';

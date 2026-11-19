@@ -18,6 +18,38 @@ extension _VideoPlayerMiniMethods on VideoPlayerScreenState {
     VideoMiniPlayer.instance.show(session);
   }
 
+  /// Header title links: minimizes into the bar and opens the series (for an
+  /// episode, landing on its season and episode) or the playing item itself.
+  Future<void> _openDetailsFromPlayer({required bool series}) async {
+    if (!_canMinimize) return;
+    final item = _currentMetadata;
+    final serverId = serverIdOrNull(item.serverId);
+    final client = serverId == null ? null : context.tryGetMediaClientForServer(serverId);
+    if (client == null) return;
+    _minimizePlayer();
+    try {
+      final seriesId = item.isEpisode ? item.grandparentId : (item.isSeason ? item.parentId : null);
+      if (series && seriesId != null) {
+        final show = await client.fetchItem(seriesId);
+        if (show == null || !mounted) return;
+        final target = mediaDetailNavigationTargetFor(item, metadataOverride: show);
+        await Navigator.of(context).push(
+          mediaDetailRoute(
+            metadata: target.metadata,
+            initialSeasonIndex: target.initialSeasonIndex,
+            initialSeasonId: target.initialSeasonId,
+            initialEpisodeId: target.initialEpisodeId,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        await navigateToMediaItemDetails(context, item);
+      }
+    } catch (e, st) {
+      appLogger.w('Could not open details from the player', error: e, stackTrace: st);
+    }
+  }
+
   void _expandPlayer() {
     if (!mounted || !_minimized) return;
     final route = ModalRoute.of(context);

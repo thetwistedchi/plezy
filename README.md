@@ -33,6 +33,7 @@ Current version: **0.8.1**.
 - Library filters (quick chips, active pills, saved sets, Surprise me), Play from start, Similar in your library and Startup library already work on Android TV.
 
 #### All platforms
+- Desktop player: the title in the top bar links to details pages. For an episode, the series name opens the series (on that episode's season) and the `S1 · E3 · Title` line opens the episode; for a movie, the title opens the movie. The player moves into the mini player bar and keeps playing.
 - Clicking the **Median** card on a details page lists every score side by side: each site's own value, the same score on 0–100 as a bar, a line marking the median, the range of the scores and which ones count (the Tomatometer does not).
 - On narrow posters (TV, dense grids) the pill row no longer cuts off the language pill: quality and HDR merge into one pill (`4K HDR`) and the languages shorten to the first one plus a count (`DE +2`) as far as needed to fit.
 - The quality and language pills under posters now work in every theme, drawn in the theme's own colours (Retrowave keeps its neon look).

@@ -300,6 +300,9 @@ extension _VideoPlayerBuildMethods on VideoPlayerScreenState {
                         onPlaybackSourceChanged: _switchPlaybackSource,
                         onTogglePIPMode: _togglePIPMode,
                         onMinimize: _canMinimize ? _minimizePlayer : null,
+                        onOpenDetails: _canMinimize && !widget.isLive
+                            ? (series) => unawaited(_openDetailsFromPlayer(series: series))
+                            : null,
                         boxFitMode: _videoFilterManager?.boxFitMode ?? 0,
                         videoZoomScale: _videoFilterManager?.zoomScale ?? 1.0,
                         onCycleBoxFitMode: _visualEffects.cycleBoxFitMode,

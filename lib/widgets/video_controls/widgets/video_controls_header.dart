@@ -39,6 +39,10 @@ class VideoControlsHeader extends StatelessWidget {
   /// controls.
   final bool showClock;
 
+  /// Makes the title clickable (desktop): the series name opens the series
+  /// (`true`), the episode part or a movie's title opens the item (`false`).
+  final void Function(bool series)? onOpenDetails;
+
   const VideoControlsHeader({
     super.key,
     required this.metadata,
@@ -48,6 +52,7 @@ class VideoControlsHeader extends StatelessWidget {
     this.onCancelAutoHide,
     this.onStartAutoHide,
     this.showClock = true,
+    this.onOpenDetails,
   });
 
   @override
@@ -107,35 +112,87 @@ class VideoControlsHeader extends StatelessWidget {
   }
 
   Widget _buildMultiLineTitle(String itemTitle) {
-    final List<String> secondLineParts = [];
-
-    if (metadata.parentIndex != null && metadata.index != null) {
-      secondLineParts.add('S${metadata.parentIndex}');
-      secondLineParts.add('E${metadata.index}');
-      secondLineParts.add(itemTitle);
-    }
-
-    if (metadata.durationMs != null) {
-      secondLineParts.add(formatDurationTextual(metadata.durationMs!));
-    }
+    final hasEpisodeInfo = metadata.parentIndex != null && metadata.index != null;
+    final episodeParts = [
+      if (hasEpisodeInfo) ...['S${metadata.parentIndex}', 'E${metadata.index}', itemTitle],
+    ];
+    final duration = metadata.durationMs == null ? null : formatDurationTextual(metadata.durationMs!);
+    final open = onOpenDetails;
+    final hasSeries = metadata.grandparentTitle != null;
+    const secondStyle = TextStyle(color: Colors.white70, fontSize: 14);
 
     return Column(
       crossAxisAlignment: .start,
       children: [
-        Text(
-          metadata.grandparentTitle ?? itemTitle,
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: .bold),
-          maxLines: 1,
-          overflow: .ellipsis,
-        ),
-        if (secondLineParts.isNotEmpty)
-          Text(
-            toBulletedString(secondLineParts),
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+        _HeaderLink(
+          onTap: open == null ? null : () => open(hasSeries),
+          child: Text(
+            metadata.grandparentTitle ?? itemTitle,
+            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: .bold),
             maxLines: 1,
             overflow: .ellipsis,
           ),
+        ),
+        if (episodeParts.isNotEmpty || duration != null)
+          Row(
+            children: [
+              if (episodeParts.isNotEmpty)
+                Flexible(
+                  child: _HeaderLink(
+                    onTap: open == null ? null : () => open(false),
+                    child: Text(toBulletedString(episodeParts), style: secondStyle, maxLines: 1, overflow: .ellipsis),
+                  ),
+                ),
+              if (duration != null)
+                Text(
+                  episodeParts.isEmpty ? duration : ' · $duration',
+                  style: secondStyle,
+                  maxLines: 1,
+                ),
+            ],
+          ),
       ],
+    );
+  }
+}
+
+/// A title part that opens a details page: pointer cursor and an underline
+/// while hovered. Plain text when [onTap] is null.
+class _HeaderLink extends StatefulWidget {
+  const _HeaderLink({required this.child, this.onTap});
+
+  final Text child;
+  final VoidCallback? onTap;
+
+  @override
+  State<_HeaderLink> createState() => _HeaderLinkState();
+}
+
+class _HeaderLinkState extends State<_HeaderLink> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final onTap = widget.onTap;
+    if (onTap == null) return widget.child;
+    final text = widget.child;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Text(
+          text.data ?? '',
+          style: (text.style ?? const TextStyle()).copyWith(
+            decoration: _hovered ? TextDecoration.underline : TextDecoration.none,
+            decorationColor: text.style?.color,
+          ),
+          maxLines: text.maxLines,
+          overflow: text.overflow,
+        ),
+      ),
     );
   }
 }
