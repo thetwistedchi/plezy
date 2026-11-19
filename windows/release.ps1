@@ -52,7 +52,11 @@ $files = @()
 
 if (-not $SkipWindows) {
     Step "Windows build"
-    Get-Process plezy -ErrorAction SilentlyContinue | Stop-Process -Force
+    # Only a copy running from the build folder locks files; the installed app is left alone.
+    $buildDir = (Join-Path (Get-Location) "build")
+    Get-Process plezy -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith($buildDir, [StringComparison]::OrdinalIgnoreCase) } |
+        Stop-Process -Force
     Run flutter @("build", "windows", "--release")
     Run powershell @("-ExecutionPolicy", "Bypass", "-File", ".\windows\build-installer.ps1")
     $files += "plezy-retrowave-installer.exe", "plezy-retrowave-x64-portable.7z"
