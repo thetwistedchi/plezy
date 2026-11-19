@@ -185,6 +185,17 @@ class AppearanceSettingsScreen extends StatelessWidget {
                 title: RetroStrings.hoverPreview,
                 subtitle: RetroStrings.hoverPreviewDescription,
               ),
+            if (PlatformDetector.isDesktopOS() && !PlatformDetector.isTV())
+              SettingSelectionTile<int>(
+                pref: SettingsService.hoverPreviewDelayMs,
+                icon: Symbols.timer_rounded,
+                title: RetroStrings.hoverPreviewDelay,
+                subtitleBuilder: RetroStrings.delayLabel,
+                options: [
+                  for (final ms in const [250, 400, 650, 1000, 1500, 2500])
+                    DialogOption(value: ms, title: RetroStrings.delayLabel(ms)),
+                ],
+              ),
           ],
         ),
 

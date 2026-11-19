@@ -23,6 +23,12 @@ class RetroStrings {
     'Zeigt Handlung, Laufzeit und Genres, wenn die Maus kurz auf einem Poster ruht',
   );
 
+  static String get hoverPreviewDelay => _t('Hover preview delay', 'Verzögerung der Vorschau');
+  static String delayLabel(int ms) {
+    final seconds = (ms / 1000).toStringAsFixed(ms % 1000 == 0 ? 0 : (ms % 100 == 0 ? 1 : 2));
+    return _de ? '${seconds.replaceAll('.', ',')} s' : '$seconds s';
+  }
+
   // Details page
   static String get playFromStart => _t('Play from start', 'Von vorne abspielen');
   static String resumeAt(String time) => _t('Resume at $time', 'Fortsetzen bei $time');

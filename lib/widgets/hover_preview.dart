@@ -20,7 +20,6 @@ class HoverPreview extends StatelessWidget {
   static bool appliesTo(MediaItem item) {
     if (!PlatformDetector.isDesktopOS() || PlatformDetector.isTV()) return false;
     if (!(item.isMovie || item.isShow || item.isSeason || item.isEpisode)) return false;
-    if ((item.summary ?? '').trim().isEmpty) return false;
     return SettingsService.instance.read(SettingsService.hoverPreview);
   }
 
@@ -41,7 +40,7 @@ class HoverPreview extends StatelessWidget {
     if (median != null) facts.add('★ ${median.score}');
 
     return Tooltip(
-      waitDuration: const Duration(milliseconds: 650),
+      waitDuration: Duration(milliseconds: SettingsService.instance.read(SettingsService.hoverPreviewDelayMs)),
       showDuration: const Duration(seconds: 30),
       excludeFromSemantics: true,
       preferBelow: false,
@@ -74,13 +73,16 @@ class HoverPreview extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(facts.join(' · '), style: theme.textTheme.labelMedium?.copyWith(color: muted)),
                 ],
-                const SizedBox(height: 8),
-                Text(
-                  item.summary!.trim(),
-                  maxLines: 7,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(color: textColor, height: 1.35),
-                ),
+                // Seasons and some episodes carry no plot in lists.
+                if ((item.summary ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    item.summary!.trim(),
+                    maxLines: 7,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(color: textColor, height: 1.35),
+                  ),
+                ],
               ],
             ),
           ),

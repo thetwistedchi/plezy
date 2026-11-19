@@ -8,7 +8,7 @@
 - Settings › General › **Startup library** picks the library the Libraries section opens on after starting the app. "Last used" keeps the previous behaviour.
 
 ### Posters
-- Resting the mouse on a poster shows a preview with the plot, year, runtime, genres and the rating median. It uses only what the list already loaded. Can be turned off under Settings › Appearance.
+- Resting the mouse on a poster shows a preview with the plot, year, runtime, genres and the rating median. It uses only what the list already loaded. The delay before it appears and the preview itself can be set under Settings › Appearance.
 
 ### Details page
 - When a title can be resumed, a **Play from start** segment (↻) sits next to Resume.

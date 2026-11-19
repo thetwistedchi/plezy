@@ -1040,6 +1040,9 @@ class SettingsService extends BaseSharedPreferencesService {
   /// Poster hover preview with plot, runtime and genres (desktop).
   static const hoverPreview = BoolPref('hover_preview', defaultValue: true);
 
+  /// Delay before the poster hover preview appears, in milliseconds.
+  static const hoverPreviewDelayMs = IntPref('hover_preview_delay_ms', defaultValue: 650);
+
   /// Per-title memory of audio/subtitle track and zoom mode (desktop mpv).
   static const rememberTitleTracks = BoolPref('remember_title_tracks', defaultValue: true);
 
@@ -1665,6 +1668,7 @@ class SettingsService extends BaseSharedPreferencesService {
     homeRowsHideWatched,
     startupLibrary,
     hoverPreview,
+    hoverPreviewDelayMs,
     rememberTitleTracks,
   ];
 

@@ -1017,8 +1017,14 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                         final hidden = SettingsService.instance
                             .read(SettingsService.homeRowsHideWatched)
                             .contains(rowKey);
+                        // Same watch state the cards draw (local marks included).
                         final hub = hidden
-                            ? _hubs[i].copyWith(items: _hubs[i].items.where((item) => !item.isWatched).toList())
+                            ? _hubs[i].copyWith(
+                                items: [
+                                  for (final item in _hubs[i].items)
+                                    if (!context.withFreshWatchState(item).isWatched) item,
+                                ],
+                              )
                             : _hubs[i];
                         return HubSection(
                       key: i < _orderedHubKeys.length ? _orderedHubKeys[i] : null,
