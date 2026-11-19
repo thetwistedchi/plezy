@@ -45,7 +45,6 @@ abstract final class RetroGlyphs {
   static const _edit = '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>';
   static const _shuffle = '<path d="M3 7h4l10 10h4"/><path d="M3 17h4l3-3"/><path d="M14 10l3-3h4"/><path d="M18 4l3 3-3 3"/><path d="M18 14l3 3-3 3"/>';
   static const _star = '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" fill="url(#g)"/>';
-  static const _starOutline = '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>';
   static const _swapVert = '<path d="M8 20V4M4 8l4-4 4 4"/><path d="M16 4v16M12 16l4 4 4-4"/>';
   static const _bolt = '<path d="M13 2 5 13.5h6L10 22l9-12.5h-6z"/>';
   static const _help = '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2-2.4 3.8"/><path d="M12 17h.01"/>';
@@ -108,7 +107,6 @@ abstract final class RetroGlyphs {
     Symbols.edit_rounded: _edit,
     Symbols.shuffle_rounded: _shuffle,
     Symbols.star_rounded: _star,
-    Symbols.star_outline_rounded: _starOutline,
     Symbols.swap_vert_rounded: _swapVert,
     Symbols.bolt_rounded: _bolt,
     Symbols.flash_on_rounded: _bolt,
