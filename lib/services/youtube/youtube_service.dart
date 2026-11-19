@@ -42,6 +42,7 @@ class YouTubeVideo {
     this.isLive = false,
     this.hasDetails = false,
     this.description,
+    this.categoryId,
   });
 
   final String id;
@@ -68,6 +69,9 @@ class YouTubeVideo {
   /// From the RSS feed; kept in memory only (for chapters without the API).
   String? description;
 
+  /// YouTube's category id (e.g. `10` Music), from the API details.
+  String? categoryId;
+
   Uri get watchUrl => Uri.https('www.youtube.com', '/watch', {'v': id});
 
   Map<String, dynamic> toJson() => {
@@ -83,6 +87,7 @@ class YouTubeVideo {
     'upcoming': isUpcoming,
     'live': isLive,
     'details': hasDetails,
+    'cat': ?categoryId,
   };
 
   static YouTubeVideo? fromJson(Map<String, dynamic> json) {
@@ -102,6 +107,7 @@ class YouTubeVideo {
       isUpcoming: json['upcoming'] as bool? ?? false,
       isLive: json['live'] as bool? ?? false,
       hasDetails: json['details'] as bool? ?? false,
+      categoryId: json['cat'] as String?,
     );
   }
 }
@@ -652,7 +658,7 @@ class YouTubeService extends ChangeNotifier {
     final cutoff = DateTime.now().subtract(_detailsWindow);
     final ids = [
       for (final v in _videos)
-        if (v.publishedAt.isAfter(cutoff) && (!v.hasDetails || v.isUpcoming || v.isLive)) v.id,
+        if (v.publishedAt.isAfter(cutoff) && (!v.hasDetails || v.categoryId == null || v.isUpcoming || v.isLive)) v.id,
     ];
     for (var i = 0; i < ids.length; i += 50) {
       final json = await _get('videos', {
@@ -671,6 +677,7 @@ class YouTubeService extends ChangeNotifier {
           ..duration = parseIsoDuration(item['contentDetails']?['duration'] as String? ?? '')
           ..isUpcoming = broadcast == 'upcoming'
           ..isLive = broadcast == 'live' || startedNotEnded
+          ..categoryId = item['snippet']?['categoryId'] as String? ?? video.categoryId
           ..hasDetails = true;
       }
       if (i % 500 == 0) notifyListeners();

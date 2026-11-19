@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import '../../services/youtube/youtube_categories.dart';
 import '../../services/youtube/youtube_channel_groups.dart';
 import '../../widgets/app_icon.dart';
 import 'youtube_strings.dart';
@@ -10,7 +11,13 @@ import 'youtube_strings.dart';
 /// Chips for the user's channel groups above the subscriptions feed. Picking
 /// one shows only videos from its channels; right-click or long-press edits it.
 class YouTubeChannelGroupsBar extends StatelessWidget {
-  const YouTubeChannelGroupsBar({super.key, required this.selected, required this.onSelected, required this.channels});
+  const YouTubeChannelGroupsBar({
+    super.key,
+    required this.selected,
+    required this.onSelected,
+    required this.channels,
+    this.channelCategories = const {},
+  });
 
   /// Name of the active group, or null for all channels.
   final String? selected;
@@ -18,6 +25,9 @@ class YouTubeChannelGroupsBar extends StatelessWidget {
 
   /// Channels to choose from when editing: id → title.
   final Map<String, String> channels;
+
+  /// Each channel's most common YouTube category id (signed-in feeds only).
+  final Map<String, String> channelCategories;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +61,11 @@ class YouTubeChannelGroupsBar extends StatelessWidget {
               label: Text(YtStrings.newGroup),
               onPressed: () => unawaited(_edit(context, null)),
             ),
+            ActionChip(
+              avatar: const AppIcon(Symbols.auto_awesome_rounded, size: 18),
+              label: Text(YtStrings.suggestGroups),
+              onPressed: () => unawaited(_suggest(context)),
+            ),
           ],
         );
       },
@@ -60,7 +75,7 @@ class YouTubeChannelGroupsBar extends StatelessWidget {
   Future<void> _edit(BuildContext context, YouTubeChannelGroup? group) async {
     final result = await showDialog<_GroupEdit>(
       context: context,
-      builder: (_) => _GroupDialog(group: group, channels: channels),
+      builder: (_) => _GroupDialog(group: group, channels: channels, categories: channelCategories),
     );
     if (result == null) return;
     final store = YouTubeChannelGroups.instance;
@@ -74,6 +89,102 @@ class YouTubeChannelGroupsBar extends StatelessWidget {
   }
 }
 
+extension on YouTubeChannelGroupsBar {
+  /// Offers one group per category found among the feed's channels and
+  /// creates (or extends) the ones picked.
+  Future<void> _suggest(BuildContext context) async {
+    final byCategory = <String, Set<String>>{};
+    for (final entry in channelCategories.entries) {
+      if (!channels.containsKey(entry.key)) continue;
+      byCategory.putIfAbsent(entry.value, () => {}).add(entry.key);
+    }
+    final suggestions = byCategory.entries.toList()..sort((a, b) => b.value.length.compareTo(a.value.length));
+    final picked = await showDialog<List<MapEntry<String, Set<String>>>>(
+      context: context,
+      builder: (_) => _SuggestDialog(suggestions: suggestions),
+    );
+    if (picked == null || picked.isEmpty) return;
+    final store = YouTubeChannelGroups.instance;
+    await store.load();
+    for (final entry in picked) {
+      final name = YouTubeCategories.name(entry.key) ?? entry.key;
+      final existing = store.byName(name);
+      await store.put(name, {...?existing?.channelIds, ...entry.value});
+    }
+  }
+}
+
+class _SuggestDialog extends StatefulWidget {
+  const _SuggestDialog({required this.suggestions});
+  final List<MapEntry<String, Set<String>>> suggestions;
+
+  @override
+  State<_SuggestDialog> createState() => _SuggestDialogState();
+}
+
+class _SuggestDialogState extends State<_SuggestDialog> {
+  // Categories with a single channel start unticked: a group of one rarely helps.
+  late final Set<String> _picked = {
+    for (final s in widget.suggestions)
+      if (s.value.length > 1) s.key,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final empty = widget.suggestions.isEmpty;
+    return AlertDialog(
+      title: Text(YtStrings.suggestGroups),
+      content: SizedBox(
+        width: 420,
+        child: empty
+            ? Text(YtStrings.noCategoryData)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(YtStrings.suggestGroupsHint, style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final s in widget.suggestions)
+                          CheckboxListTile(
+                            dense: true,
+                            value: _picked.contains(s.key),
+                            title: Text(YouTubeCategories.name(s.key) ?? s.key),
+                            subtitle: Text(YtStrings.channelCount(s.value.length)),
+                            onChanged: (on) => setState(() {
+                              if (on == true) {
+                                _picked.add(s.key);
+                              } else {
+                                _picked.remove(s.key);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(YtStrings.cancel)),
+        if (!empty)
+          FilledButton(
+            onPressed: _picked.isEmpty
+                ? null
+                : () => Navigator.pop(context, [
+                    for (final s in widget.suggestions)
+                      if (_picked.contains(s.key)) s,
+                  ]),
+            child: Text(YtStrings.create),
+          ),
+      ],
+    );
+  }
+}
+
 class _GroupEdit {
   const _GroupEdit(this.name, this.channelIds, {this.delete = false});
   final String name;
@@ -82,9 +193,10 @@ class _GroupEdit {
 }
 
 class _GroupDialog extends StatefulWidget {
-  const _GroupDialog({required this.group, required this.channels});
+  const _GroupDialog({required this.group, required this.channels, required this.categories});
   final YouTubeChannelGroup? group;
   final Map<String, String> channels;
+  final Map<String, String> categories;
 
   @override
   State<_GroupDialog> createState() => _GroupDialogState();
@@ -108,7 +220,18 @@ class _GroupDialogState extends State<_GroupDialog> {
       for (final id in _picked)
         if (!widget.channels.containsKey(id)) id: id,
     }.entries.toList()
-      ..sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
+      // By category, then name, so related channels sit together.
+      ..sort((a, b) {
+        final ca = YouTubeCategories.name(widget.categories[a.key]) ?? '\uffff';
+        final cb = YouTubeCategories.name(widget.categories[b.key]) ?? '\uffff';
+        final byCategory = ca.compareTo(cb);
+        return byCategory != 0 ? byCategory : a.value.toLowerCase().compareTo(b.value.toLowerCase());
+      });
+    final categoriesPresent = {
+      for (final e in entries)
+        if (widget.categories[e.key] case final id?) id,
+    }.toList()
+      ..sort((a, b) => (YouTubeCategories.name(a) ?? a).compareTo(YouTubeCategories.name(b) ?? b));
     final canSave = _name.text.trim().isNotEmpty && _picked.isNotEmpty;
     return AlertDialog(
       title: Text(widget.group == null ? YtStrings.newGroup : YtStrings.editGroup),
@@ -126,6 +249,28 @@ class _GroupDialogState extends State<_GroupDialog> {
             ),
             const SizedBox(height: 16),
             Text(YtStrings.groupChannels, style: Theme.of(context).textTheme.labelLarge),
+            if (categoriesPresent.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              // Ticks every channel of a category at once.
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final id in categoriesPresent)
+                    ActionChip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text(YouTubeCategories.name(id) ?? id),
+                      onPressed: () => setState(() {
+                        _picked.addAll([
+                          for (final e in entries)
+                            if (widget.categories[e.key] == id) e.key,
+                        ]);
+                        if (_name.text.trim().isEmpty) _name.text = YouTubeCategories.name(id) ?? id;
+                      }),
+                    ),
+                ],
+              ),
+            ],
             const SizedBox(height: 4),
             Expanded(
               child: entries.isEmpty
@@ -137,6 +282,10 @@ class _GroupDialogState extends State<_GroupDialog> {
                             dense: true,
                             value: _picked.contains(e.key),
                             title: Text(e.value, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: switch (YouTubeCategories.name(widget.categories[e.key])) {
+                              final name? => Text(name),
+                              null => null,
+                            },
                             onChanged: (on) => setState(() => on == true ? _picked.add(e.key) : _picked.remove(e.key)),
                           ),
                       ],

@@ -40,6 +40,7 @@ Current version: **0.8.0**.
 
 #### YouTube
 - **Channel groups** on the subscriptions page: **New group** creates a named set of channels (e.g. Music, Tech). Selecting a group shows only videos from its channels. Right-click or long-press a group to rename, change or delete it.
+- **Suggest groups** proposes one group per YouTube category (Music, Gaming, Science & Technology and so on), based on each channel's most common video category, and creates the ones picked. The category comes with the video details the app already loads for a signed-in account, so it costs no extra requests. When editing a group, channels are sorted by category, and a category chip ticks all its channels at once. Channels followed without a Google account have no category and are picked by hand.
 - YouTube can be chosen as the startup section under Settings › General.
 
 #### General

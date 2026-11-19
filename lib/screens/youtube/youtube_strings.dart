@@ -474,4 +474,16 @@ class YtStrings {
   static String get noChannelsYet =>
       _t('Channels appear here once their videos are in the feed.', 'Kanäle erscheinen hier, sobald ihre Videos im Feed sind.');
   static String get emptyGroup => _t('No videos from this group yet.', 'Noch keine Videos aus dieser Gruppe.');
+  static String get suggestGroups => _t('Suggest groups', 'Gruppen vorschlagen');
+  static String get suggestGroupsHint => _t(
+    'Groups by each channel\'s most common video category. Existing groups with the same name get the channels added.',
+    'Gruppiert nach der häufigsten Videokategorie jedes Kanals. Bestehende Gruppen mit gleichem Namen erhalten die Kanäle zusätzlich.',
+  );
+  static String channelCount(int n) => _t(n == 1 ? '1 channel' : '$n channels', n == 1 ? '1 Kanal' : '$n Kanäle');
+  static String get create => _t('Create', 'Erstellen');
+  static String get noCategoryData => _t(
+    'Categories come from the YouTube account. Sign in and refresh to get suggestions.',
+    'Kategorien kommen vom YouTube-Konto. Anmelden und aktualisieren, um Vorschläge zu erhalten.',
+  );
+  static String get uncategorized => _t('Other', 'Sonstige');
 }

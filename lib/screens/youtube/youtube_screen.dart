@@ -22,6 +22,7 @@ import 'youtube_resume.dart';
 import 'youtube_settings_screen.dart';
 import 'youtube_strings.dart';
 import 'youtube_channel_groups_bar.dart';
+import '../../services/youtube/youtube_categories.dart';
 import '../../services/youtube/youtube_channel_groups.dart';
 import 'youtube_routes.dart';
 import '../../theme/retrowave_colors.dart';
@@ -265,6 +266,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               child: YouTubeChannelGroupsBar(
                 selected: group?.name,
                 channels: feedChannels,
+                channelCategories: YouTubeCategories.ofChannels([
+                  for (final v in _service.videos) (channelId: v.channelId, categoryId: v.categoryId),
+                ]),
                 onSelected: (name) => setState(() => _group = name),
               ),
             ),
