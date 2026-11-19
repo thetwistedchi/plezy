@@ -32,7 +32,7 @@ enum RetrowaveUpdateMode {
   /// Android: download the APK and open the system install prompt.
   androidApk,
 
-  /// Anything else (portable Windows, macOS): open the release page.
+  /// Portable Windows: open the release page.
   releasePage,
 }
 
@@ -51,7 +51,7 @@ abstract final class RetrowaveUpdater {
   static String get currentVersion => retrowaveVersion;
 
   /// Whether this platform gets update checks at all.
-  static bool get isSupported => Platform.isWindows || Platform.isAndroid || Platform.isMacOS;
+  static bool get isSupported => Platform.isWindows || Platform.isAndroid;
 
   static RetrowaveUpdateMode get mode {
     if (Platform.isAndroid) return RetrowaveUpdateMode.androidApk;
