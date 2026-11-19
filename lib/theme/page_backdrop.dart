@@ -48,7 +48,8 @@ class PageBackdrop extends StatelessWidget {
     final inner = _transparentThemes[theme] ??= theme.copyWith(scaffoldBackgroundColor: Colors.transparent);
     return DecoratedBox(
       decoration: BoxDecoration(gradient: style.gradient),
-      child: Theme(data: inner, child: child),
+      // Own layer for the page, so scrolling does not repaint the gradient.
+      child: RepaintBoundary(child: Theme(data: inner, child: child)),
     );
   }
 }

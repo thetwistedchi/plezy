@@ -2140,7 +2140,11 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
     }
     final cached = _mediaBrowserFilterValues;
     unawaited(
-      resolveQuickFilters(filters, (field) async => cached[field.filter] ?? await _loadFilterValues(field)).then((
+      resolveQuickFilters(
+        filters,
+        (field) async => cached[field.filter] ?? await _loadFilterValues(field),
+        cacheKey: widget.library.globalKey,
+      ).then((
         quick,
       ) {
         if (!mounted || generation != _quickFiltersGeneration) return;

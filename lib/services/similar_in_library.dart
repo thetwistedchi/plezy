@@ -13,21 +13,39 @@ import 'ratings/rating_median_cache.dart';
 /// with [item], ranked by how many genres they share and then by score
 /// (the cached rating median, else the server's own rating). Null when the
 /// item has no genres or nothing matches.
+/// Genre name (lower case) → filter value id, per library, for this session.
+/// The filter schema and genre list rarely change and cost two requests.
+final Map<String, ({String field, Map<String, String> ids})> _genreIdsByLibrary = {};
+
+Future<({String field, Map<String, String> ids})?> _genreIds(MediaServerClient client, MediaItem item) async {
+  final libraryId = item.libraryId!;
+  final cacheKey = '${item.serverId}:$libraryId';
+  if (_genreIdsByLibrary[cacheKey] case final cached?) return cached;
+  final filterResult = await client.fetchLibraryFiltersWithValues(libraryId, libraryKind: item.kind);
+  final genreField = filterResult.filters
+      .where((f) => f.filter == MediaFilterField.genre && f.hasValueList)
+      .firstOrNull;
+  if (genreField == null) return null;
+  var values = filterResult.cachedValues[genreField.filter] ?? const <MediaFilterValue>[];
+  if (values.isEmpty && client is PlexClient) values = await client.getFilterValues(genreField.key);
+  final result = (
+    field: genreField.filter,
+    ids: {for (final v in values) v.title.toLowerCase(): libraryFilterValueId(v.key, MediaFilterField.genre)},
+  );
+  if (_genreIdsByLibrary.length > 50) _genreIdsByLibrary.clear();
+  return _genreIdsByLibrary[cacheKey] = result;
+}
+
 Future<MediaHub?> similarInLibraryHub(MediaServerClient client, MediaItem item) async {
   final libraryId = item.libraryId;
   final genres = {for (final g in item.genres ?? const <String>[]) g.toLowerCase()};
   if (libraryId == null || genres.isEmpty || !(item.isMovie || item.isShow)) return null;
   try {
-    final filterResult = await client.fetchLibraryFiltersWithValues(libraryId, libraryKind: item.kind);
-    final genreField = filterResult.filters
-        .where((f) => f.filter == MediaFilterField.genre && f.hasValueList)
-        .firstOrNull;
-    if (genreField == null) return null;
-    var values = filterResult.cachedValues[genreField.filter] ?? const <MediaFilterValue>[];
-    if (values.isEmpty && client is PlexClient) values = await client.getFilterValues(genreField.key);
+    final genreIds = await _genreIds(client, item);
+    if (genreIds == null) return null;
     final ids = [
-      for (final v in values)
-        if (genres.contains(v.title.toLowerCase())) libraryFilterValueId(v.key, MediaFilterField.genre),
+      for (final g in genres)
+        if (genreIds.ids[g] case final id?) id,
     ];
     if (ids.isEmpty) return null;
 
@@ -36,9 +54,9 @@ Future<MediaHub?> similarInLibraryHub(MediaServerClient client, MediaItem item) 
       libraryKind: item.kind,
       query: LibraryQuery(
         kind: item.kind,
-        limit: 150,
+        limit: 80,
         // Values inside one clause OR: anything sharing at least one genre.
-        filters: [LibraryFilter(field: genreField.filter, values: ids)],
+        filters: [LibraryFilter(field: genreIds.field, values: ids)],
         sort: const LibrarySort(field: 'audienceRating'),
       ),
     );

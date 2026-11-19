@@ -519,11 +519,24 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
     final isHidden = hiddenLibraryKeys.contains(library.globalKey);
     final colorScheme = Theme.of(context).colorScheme;
 
+    // The focused row is tinted and outlined in the accent colour (stronger
+    // while the row itself, not one of its buttons, has focus), so it stays
+    // visible on dark and OLED themes.
     Color? tileColor;
+    ShapeBorder? tileShape;
     if (isMoving) {
       tileColor = colorScheme.primaryContainer;
-    } else if (isFocused && focusedColumn == 0) {
-      tileColor = colorScheme.surfaceContainerHighest;
+      tileShape = RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colorScheme.primary, width: 2),
+      );
+    } else if (isFocused) {
+      final rowFocused = focusedColumn == 0;
+      tileColor = colorScheme.primary.withValues(alpha: rowFocused ? 0.22 : 0.10);
+      tileShape = RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: rowFocused ? 1 : 0.5), width: rowFocused ? 2 : 1),
+      );
     }
 
     final isVisibilityButtonFocused = isFocused && focusedColumn == 1;
@@ -534,6 +547,7 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
       opacity: isHidden ? 0.5 : 1.0,
       child: ListTile(
         tileColor: tileColor,
+        shape: tileShape,
         leading: Row(
           mainAxisSize: .min,
           children: [

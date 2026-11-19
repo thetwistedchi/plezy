@@ -11,6 +11,8 @@ import '../media/media_kind.dart';
 import '../media/media_server_client.dart';
 import '../media/media_stream.dart';
 import '../utils/app_logger.dart';
+import '../utils/platform_detector.dart';
+import 'plex_client.dart';
 
 /// Quality and audio languages of a title, for the pills under a poster.
 @immutable
@@ -111,7 +113,8 @@ class PosterInfoCache extends ChangeNotifier {
 
   static const _ttl = Duration(days: 30);
   static const _maxEntries = 8000;
-  static const _maxConcurrent = 2;
+  /// One at a time on TV boxes, whose CPU also decodes every response.
+  static int get _maxConcurrent => PlatformDetector.isTV() ? 1 : 2;
   static const _maxQueued = 120;
 
   final Map<String, ({PosterInfo info, DateTime at})> _entries = {};
@@ -202,7 +205,7 @@ class PosterInfoCache extends ChangeNotifier {
         }
         playableId = page.items.first.id;
       }
-      final full = await client.fetchItem(playableId).timeout(const Duration(seconds: 10));
+      final full = await fetchItemLight(client, playableId).timeout(const Duration(seconds: 10));
       _put(key, full == null ? const PosterInfo() : PosterInfo.of(full));
     } catch (e) {
       appLogger.d('Poster info for ${item.id} unavailable: $e');
@@ -243,3 +246,9 @@ class PosterInfoCache extends ChangeNotifier {
     }
   }
 }
+
+/// Item metadata for background lookups (poster pills, rating medians): on
+/// Plex the plain metadata request, without chapters and markers and without
+/// writing the offline API cache, which the details page's request does.
+Future<MediaItem?> fetchItemLight(MediaServerClient client, String id) =>
+    client is PlexClient ? client.fetchEditableItem(id) : client.fetchItem(id);

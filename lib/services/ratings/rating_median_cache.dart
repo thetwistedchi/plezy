@@ -13,6 +13,8 @@ import '../../media/media_kind.dart';
 import '../../media/media_rating.dart';
 import '../../media/media_server_client.dart';
 import '../../utils/app_logger.dart';
+import '../poster_info_cache.dart' show fetchItemLight;
+import '../../utils/platform_detector.dart';
 import '../../utils/rating_median.dart';
 import 'rating_keys.dart';
 import 'rating_providers.dart';
@@ -31,7 +33,8 @@ class RatingMedianCache extends ChangeNotifier {
   static final instance = RatingMedianCache._();
 
   static const _maxEntries = 8000;
-  static const _maxConcurrent = 3;
+  /// One at a time on TV boxes, whose CPU also decodes every response.
+  static int get _maxConcurrent => PlatformDetector.isTV() ? 1 : 3;
   static const _maxQueued = 120;
 
   /// A median from a details page is kept longer than one from the server
@@ -144,7 +147,7 @@ class RatingMedianCache extends ChangeNotifier {
   Future<void> _fetch(_Target item, MediaServerClient client) async {
     final key = item.key;
     try {
-      final full = await client.fetchItem(item.id).timeout(const Duration(seconds: 10));
+      final full = await fetchItemLight(client, item.id).timeout(const Duration(seconds: 10));
       final ratings = <String, MediaRatingSource>{
         for (final rating in [...?full?.ratings, ...item.listingRatings]) rating.source: rating,
       };

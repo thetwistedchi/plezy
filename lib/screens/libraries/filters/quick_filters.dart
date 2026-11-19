@@ -134,9 +134,31 @@ const Map<String, List<String>> _languageAliases = {
 /// Builds the quick filters this library supports. Value-list fields need
 /// their values to know whether a match exists, so those are fetched through
 /// [valuesOf]; a chip whose field or value is missing is left out.
+/// Resolved quick filters per library for this session, so reopening a
+/// library does not fetch the resolution and language lists again.
+final Map<String, List<QuickFilter>> _quickFiltersByLibrary = {};
+
 Future<List<QuickFilter>> resolveQuickFilters(
   List<MediaFilter> filters,
+  Future<List<MediaFilterValue>> Function(MediaFilter field) valuesOf, {
+  String? cacheKey,
+}) async {
+  final lang = LocaleSettings.currentLocale.languageCode;
+  final key = cacheKey == null ? null : '$cacheKey:$lang:${filters.length}';
+  final cached = key == null ? null : _quickFiltersByLibrary[key];
+  if (cached != null) return cached;
+  final result = await _resolveQuickFilters(filters, valuesOf, lang);
+  if (key != null) {
+    if (_quickFiltersByLibrary.length > 50) _quickFiltersByLibrary.clear();
+    _quickFiltersByLibrary[key] = result;
+  }
+  return result;
+}
+
+Future<List<QuickFilter>> _resolveQuickFilters(
+  List<MediaFilter> filters,
   Future<List<MediaFilterValue>> Function(MediaFilter field) valuesOf,
+  String lang,
 ) async {
   final result = <QuickFilter>[];
 
@@ -189,7 +211,6 @@ Future<List<QuickFilter>> resolveQuickFilters(
     );
   }
 
-  final lang = LocaleSettings.currentLocale.languageCode;
   final aliases = _languageAliases[lang];
   final audio = aliases == null ? null : _findField(filters, const ['audioLanguage'], where: (f) => f.hasValueList);
   if (audio != null && aliases != null) {
