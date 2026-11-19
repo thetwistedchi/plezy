@@ -28,6 +28,7 @@ Current version: **0.9.3**.
 
 #### Libraries
 - The library search is now also on phones, at the end of the tab strip.
+- On phones, the library options sheet now has the quick filters (with the audio language list), the active filters (tap one to remove it), saved filter sets and **Surprise me**, like the chip bar on desktop and TV.
 
 ## What's new in 0.9.2.1
 #### YouTube

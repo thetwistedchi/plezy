@@ -1140,7 +1140,168 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
               trailing: const AppIcon(Symbols.chevron_right_rounded, fill: 1),
               onTap: () => _showSortOptionsPage(controller),
             ),
+          if (_selectedGrouping != 'folders') ..._buildSheetExtras(controller),
         ],
+      ),
+    );
+  }
+
+  /// Fork: the chip bar's extras for the phone options sheet: quick filters,
+  /// active filters (tap to remove), saved sets and Surprise me. A choice
+  /// applies and closes the sheet.
+  List<Widget> _buildSheetExtras(OverlaySheetController controller) {
+    final theme = Theme.of(context);
+    Widget header(String text) => Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Text(text, style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
+    );
+    final fields = <String>[];
+    for (final clause in _selectedFilters) {
+      if (!fields.contains(clause.field)) fields.add(clause.field);
+    }
+    return [
+      if (_quickFilters.isNotEmpty) ...[
+        header(FilterStrings.quickFilters),
+        for (final quick in _quickFilters)
+          quick.isChooser
+              ? FocusableListTile(
+                  leading: AppIcon(quick.icon, fill: 1),
+                  title: Text(quick.labelFor(_selectedFilters)),
+                  trailing: const AppIcon(Symbols.chevron_right_rounded, fill: 1),
+                  onTap: () => _showAudioChooserPage(controller, quick),
+                )
+              : FocusableListTile(
+                  leading: AppIcon(quick.icon, fill: 1),
+                  title: Text(quick.label),
+                  trailing: AppIcon(
+                    quick.isActive(_selectedFilters) ? Symbols.check_box_rounded : Symbols.check_box_outline_blank_rounded,
+                    fill: 1,
+                  ),
+                  onTap: () {
+                    controller.close();
+                    _toggleQuickFilter(quick);
+                  },
+                ),
+      ],
+      if (fields.isNotEmpty) ...[
+        header(FilterStrings.activeFilters),
+        for (final field in fields)
+          FocusableListTile(
+            leading: const AppIcon(Symbols.filter_alt_rounded, fill: 1),
+            title: Text(_pillLabel(field), maxLines: 2, overflow: TextOverflow.ellipsis),
+            trailing: Tooltip(
+              message: FilterStrings.removeFilter(_pillLabel(field)),
+              child: const AppIcon(Symbols.close_rounded, fill: 1),
+            ),
+            onTap: () {
+              controller.close();
+              unawaited(_applyFilters(_selectedFilters.where((c) => c.field != field).toList()));
+            },
+          ),
+      ],
+      header(FilterStrings.more),
+      if (_isFiltersChipVisible || _isSortChipVisible)
+        FocusableListTile(
+          leading: const AppIcon(Symbols.bookmarks_rounded, fill: 1),
+          title: Text(FilterStrings.saved),
+          trailing: const AppIcon(Symbols.chevron_right_rounded, fill: 1),
+          onTap: () => unawaited(_showSavedSetsPage(controller)),
+        ),
+      FocusableListTile(
+        leading: const AppIcon(Symbols.casino_rounded, fill: 1),
+        title: Text(FilterStrings.surprise),
+        onTap: () {
+          controller.close();
+          unawaited(_surpriseMe());
+        },
+      ),
+    ];
+  }
+
+  void _showAudioChooserPage(OverlaySheetController controller, QuickFilter quick) {
+    final current = quick.selectedChoice(_selectedFilters);
+    Widget tile(String? id, String title) => FocusableListTile(
+      dense: true,
+      leading: AppIcon(
+        id == current ? Symbols.radio_button_checked_rounded : Symbols.radio_button_unchecked_rounded,
+        fill: 1,
+      ),
+      title: Text(title),
+      onTap: () {
+        controller.close();
+        if (id != null) {
+          FilterValueNames.remember(
+            serverId: widget.library.serverId ?? '',
+            libraryKey: widget.library.globalKey,
+            field: quick.field.filter,
+            value: id,
+            title: title,
+          );
+        }
+        unawaited(_applyFilters(quick.choose(_selectedFilters, id)));
+      },
+    );
+    controller.push<void>(
+      builder: (_) => BottomSheetPageScaffold(
+        title: FilterStrings.audioAny,
+        icon: quick.icon,
+        onBack: () => controller.pop(),
+        child: ListView(
+          primary: false,
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            tile(null, FilterStrings.anyLanguage),
+            for (final c in quick.choices) tile(c.id, c.title),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSavedSetsPage(OverlaySheetController controller) async {
+    final libraryKey = widget.library.globalKey;
+    final sets = await SavedFilterSets.load(libraryKey);
+    if (!mounted) return;
+    controller.push<void>(
+      builder: (_) => BottomSheetPageScaffold(
+        title: FilterStrings.saved,
+        icon: Symbols.bookmarks_rounded,
+        onBack: () => controller.pop(),
+        child: ListView(
+          primary: false,
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            if (sets.isEmpty)
+              Padding(padding: const EdgeInsets.all(16), child: Text(FilterStrings.noSaved)),
+            for (final set in sets)
+              FocusableListTile(
+                leading: const AppIcon(Symbols.bookmark_rounded, fill: 1),
+                title: Text(set.name),
+                trailing: IconButton(
+                  tooltip: FilterStrings.deleteNamed(set.name),
+                  icon: const AppIcon(Symbols.delete_rounded, fill: 1),
+                  onPressed: () {
+                    controller.close();
+                    unawaited(SavedFilterSets.remove(libraryKey, set.name));
+                  },
+                ),
+                onTap: () {
+                  controller.close();
+                  _applySavedSet(set);
+                },
+              ),
+            FocusableListTile(
+              leading: const AppIcon(Symbols.bookmark_add_rounded, fill: 1),
+              title: Text(FilterStrings.saveCurrent),
+              onTap: () {
+                controller.close();
+                unawaited(_saveCurrentSet());
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

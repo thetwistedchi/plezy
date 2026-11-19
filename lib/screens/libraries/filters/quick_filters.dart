@@ -26,6 +26,9 @@ class FilterStrings {
   static String get anyLanguage => _t('Any language', 'Alle Sprachen');
   static String get recent => _t('Added recently', 'Neu hinzugefügt');
   static String get saved => _t('Saved', 'Gespeichert');
+  static String get quickFilters => _t('Quick filters', 'Schnellfilter');
+  static String get activeFilters => _t('Active filters (tap to remove)', 'Aktive Filter (tippen zum Entfernen)');
+  static String get more => _t('More', 'Mehr');
   static String get saveCurrent => _t('Save current filters…', 'Aktuelle Filter speichern…');
   static String get deleteSaved => _t('Delete a saved set…', 'Gespeichertes Set löschen…');
   static String deleteNamed(String name) => _t('Delete "$name"', '"$name" löschen');
