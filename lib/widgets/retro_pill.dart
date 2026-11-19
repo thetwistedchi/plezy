@@ -98,9 +98,10 @@ class RetroPill extends StatelessWidget {
   }
 }
 
-/// Periwinkle: row headings, their icons and card titles in the retrowave
-/// theme. No other text uses it.
-const retroHeadingColor = Color(0xFF9DB4FF);
+/// Soft lavender: row headings and card titles in the retrowave theme, a
+/// plain colour between the glyphs' cyan and magenta (was periwinkle
+/// 0xFF9DB4FF). No other text uses it.
+const retroHeadingColor = Color(0xFFC4B8FF);
 
 /// Whether the retrowave look applies (its page backdrop is installed).
 bool isRetrowave(BuildContext context) => RetroColors.isActive(context);
