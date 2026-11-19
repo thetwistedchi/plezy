@@ -3,6 +3,7 @@ import 'package:plezy/widgets/app_icon.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../i18n/strings.g.dart';
+import '../services/youtube/youtube_webview.dart';
 import '../utils/platform_detector.dart';
 
 /// Navigation tab identifiers
@@ -51,7 +52,7 @@ class NavigationTab {
       if (tab.id == NavigationTabId.liveTv && !hasLiveTv) return false;
       if (tab.id == NavigationTabId.explore && !hasExplore) return false;
       if (tab.id == NavigationTabId.downloads && PlatformDetector.isAppleTV()) return false;
-      if (tab.id == NavigationTabId.youtube && PlatformDetector.isTV()) return false;
+      if (tab.id == NavigationTabId.youtube && !YouTubeWebView.isSupported) return false;
       return true;
     }).toList();
   }

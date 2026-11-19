@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import '../../services/youtube/youtube_webview.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
@@ -106,7 +107,10 @@ class GeneralSettingsScreen extends StatelessWidget {
     icon: Symbols.start_rounded,
     title: t.settings.startupSection,
     subtitleBuilder: _startupSectionLabel,
-    options: startupSectionTabs.map((id) => DialogOption(value: id, title: _startupSectionLabel(id))).toList(),
+    options: startupSectionTabs
+        .where((id) => id != NavigationTabId.youtube || YouTubeWebView.isSupported)
+        .map((id) => DialogOption(value: id, title: _startupSectionLabel(id)))
+        .toList(),
   );
 
   Widget _startupLibrarySelector(BuildContext context) {

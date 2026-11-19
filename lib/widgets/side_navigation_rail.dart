@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../services/youtube/youtube_webview.dart';
 import 'dart:ui' show lerpDouble;
 import '../media/ids.dart';
 import 'dart:io' show Platform;
@@ -1077,7 +1078,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                                         isCollapsed: isCollapsed,
                                       ),
                                       const SizedBox(height: _itemGap),
-                                      if (!PlatformDetector.isTV()) ...[
+                                      if (YouTubeWebView.isSupported) ...[
                                         _buildNavItem(
                                           icon: Symbols.smart_display_rounded,
                                           selectedIcon: Symbols.smart_display_rounded,

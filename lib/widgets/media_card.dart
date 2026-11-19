@@ -303,9 +303,7 @@ class MediaCard extends StatefulWidget {
   static const double infoPillsBand = 22;
 
   /// Retrowave on desktop with the setting on: posters get the pill row.
-  static bool showsInfoPills(BuildContext context) =>
-      RetroColors.isActive(context) &&
-      SettingsService.instance.read(SettingsService.posterInfoPills);
+  static bool showsInfoPills(BuildContext context) => SettingsService.instance.read(SettingsService.posterInfoPills);
 
   /// Height a captioned grid card spends outside its artwork: the vertical
   /// [gridCardPadding], the poster→title gap, and one title plus one caption

@@ -55,8 +55,8 @@ class YtStrings {
   static String get miniPlayer => _t('Mini player', 'Mini-Player');
   static String get posterInfoPills => _t('Quality and languages under posters', 'Qualität und Sprachen unter Postern');
   static String get posterInfoPillsDescription => _t(
-    'Retrowave theme: small pills with resolution, HDR and audio languages below each poster.',
-    'Retrowave-Theme: kleine Pillen mit Auflösung, HDR und Tonsprachen unter jedem Poster.',
+    'Small pills with resolution, HDR and audio languages below each poster.',
+    'Kleine Pillen mit Auflösung, HDR und Tonsprachen unter jedem Poster.',
   );
   static String get resumeWatching => _t('Continue where you left off', 'Weiterschauen, wo du aufgehört hast');
   static String resumeAt(String time) => _t('Resume at $time', 'Bei $time fortsetzen');

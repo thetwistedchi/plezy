@@ -35,16 +35,34 @@ class RetroPill extends StatelessWidget {
 
   static const background = Color(0xE01D0333);
 
+  /// Other themes: the same pill in the theme's own colours (primary,
+  /// secondary and tertiary stand in for violet, cyan and magenta).
+  static ({Color background, Color rim, Color text}) _colors(BuildContext context, RetroPillTone tone) {
+    if (RetroColors.isActive(context)) return (background: background, rim: tone.rim, text: tone.text);
+    final scheme = Theme.of(context).colorScheme;
+    final accent = switch (tone) {
+      RetroPillTone.violet => scheme.primary,
+      RetroPillTone.cyan => scheme.secondary,
+      RetroPillTone.magenta => scheme.tertiary,
+    };
+    return (
+      background: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+      rim: accent.withValues(alpha: 0.6),
+      text: Color.lerp(accent, scheme.onSurface, 0.35)!,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colors = _colors(context, tone);
     return Container(
       height: height,
       constraints: BoxConstraints(minWidth: height),
       padding: EdgeInsets.symmetric(horizontal: height * 0.38),
       decoration: BoxDecoration(
-        color: background,
+        color: colors.background,
         borderRadius: BorderRadius.circular(height / 2),
-        border: Border.all(color: tone.rim, width: 1),
+        border: Border.all(color: colors.rim, width: 1),
       ),
       // Centred, but only as wide as the label: Container's own alignment
       // would stretch the pill across any loose width (the language pill in
@@ -56,7 +74,7 @@ class RetroPill extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (icon != null) ...[
-            AppIcon(icon!, fill: 1, size: fontSize, color: tone.text),
+            AppIcon(icon!, fill: 1, size: fontSize, color: colors.text),
             const SizedBox(width: 3),
           ],
           Text(
@@ -65,7 +83,7 @@ class RetroPill extends StatelessWidget {
             softWrap: false,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: tone.text,
+              color: colors.text,
               fontSize: fontSize,
               fontWeight: FontWeight.w700,
               height: 1,

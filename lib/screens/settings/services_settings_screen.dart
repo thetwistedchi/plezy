@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../services/youtube/youtube_webview.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
@@ -48,7 +49,7 @@ class ServicesSettingsScreen extends StatelessWidget {
               ),
             ),
             SettingsGroup(
-              children: [for (final info in TrackerServiceInfo.all) _TrackerHubRow(info), _seerr(), _youtube()],
+              children: [for (final info in TrackerServiceInfo.all) _TrackerHubRow(info), _seerr(), if (YouTubeWebView.isSupported) _youtube()],
             ),
             SettingsGroup(
               title: _de ? 'Bewertungsquellen' : 'Rating sources',
