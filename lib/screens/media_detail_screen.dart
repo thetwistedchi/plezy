@@ -49,6 +49,7 @@ import '../widgets/ratings_links_row.dart';
 import '../services/ratings/title_links_service.dart';
 import '../utils/external_ids.dart';
 import '../widgets/fitted_metadata_line.dart';
+import '../i18n/retro_strings.dart';
 import '../i18n/strings.g.dart';
 import '../theme/mono_tokens.dart';
 import '../widgets/cycling_media_backdrop.dart';
@@ -80,6 +81,10 @@ import '../utils/formatters.dart';
 import '../utils/scroll_utils.dart';
 import '../utils/dialogs.dart';
 import '../utils/snackbar_helper.dart';
+import '../services/similar_in_library.dart';
+import '../services/youtube/youtube_service.dart';
+import '../services/youtube/youtube_webview.dart';
+import 'youtube/youtube_player_screen.dart';
 import '../utils/video_player_navigation.dart';
 import '../widgets/app_bar_back_button.dart';
 import '../utils/desktop_window_padding.dart';
@@ -2458,7 +2463,14 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
         final serverId = _metadata.serverId;
         return serverId == null ? null : context.tryGetMediaClientForServer(ServerId(serverId));
       },
-      fetch: (client) => client.fetchRelatedHubs(_metadata.id),
+      fetch: (client) async {
+        final metadata = _metadata;
+        final results = await Future.wait([
+          client.fetchRelatedHubs(metadata.id),
+          similarInLibraryHub(client, metadata).then((hub) => [?hub]),
+        ]);
+        return [...results[0], ...results[1]];
+      },
       apply: (relatedHubs) {
         _relatedHubs = relatedHubs;
         _relatedHubKeys = List.generate(relatedHubs.length, (_) => GlobalKey<HubSectionState>());

@@ -20,6 +20,22 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
     return Builder(builder: (context) => _buildAvailableActionButtons(context, metadata));
   }
 
+  Future<void> _playYouTubeTrailer(BuildContext context, MediaItem metadata, MediaItem? serverTrailer) async {
+    final year = metadata.year;
+    final query = '${metadata.title}${year != null ? ' $year' : ''} trailer';
+    final video = await YouTubeService.instance.searchFirstVideo(query, preferWord: 'trailer');
+    if (!context.mounted || !_canUseDetail) return;
+    if (video != null) {
+      await YouTubePlayerScreen.open(context, [video]);
+      return;
+    }
+    if (serverTrailer != null) {
+      await navigateToVideoPlayer(context, metadata: serverTrailer, isLaunchCurrent: () => _canUseDetail);
+      return;
+    }
+    showAppSnackBar(context, RetroStrings.noTrailer);
+  }
+
   Widget _buildAvailableActionButtons(BuildContext context, MediaItem metadata) {
     final isTv = PlatformDetector.isTV();
     final tvScale = TvLayoutConstants.scaleOf(context);
@@ -54,7 +70,12 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
     final versionSegmentWidth = actionSize * 0.75;
     final splitInnerRadius = Radius.circular(isTv ? 8.0 * tvScale : 8.0);
     final splitOuterRadius = Radius.circular(actionSize / 2);
-    final playShape = showVersionSplit
+    // Resume shows a "from start" segment beside Play (desktop and TV).
+    final restartTarget = playIcon == Symbols.resume_rounded
+        ? (metadata.isShow ? _showPlayEpisode() : (metadata.isMovie || metadata.isEpisode ? metadata : null))
+        : null;
+    final showRestartSplit = restartTarget != null;
+    final playShape = showVersionSplit || showRestartSplit
         ? RoundedRectangleBorder(
             borderRadius: BorderRadiusDirectional.horizontal(start: splitOuterRadius, end: splitInnerRadius),
           )
@@ -102,6 +123,19 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
           isLaunchCurrent: () => _canUseDetail,
         );
       }
+    }
+
+    Future<void> onRestartPressed() async {
+      final target = restartTarget;
+      if (!_canUseDetail || target == null) return;
+      final result = await navigateToVideoPlayer(
+        context,
+        metadata: target,
+        isOffline: widget.isOffline,
+        initialPosition: Duration.zero,
+        isLaunchCurrent: () => _canUseDetail,
+      );
+      if (result == true && mounted) unawaited(_refreshWatchState());
     }
 
     Future<void> onPlayVersionPressed() async {
@@ -163,7 +197,13 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
 
     // Plays the resolved trailer. Shared by the row's trailer button and the
     // ⋮ menu item so the trailer stays reachable when the row hides its button.
-    final VoidCallback? onPlayTrailer = primaryTrailer == null
+    // Windows: trailers come from YouTube and play in the YouTube player
+    // (mini player, queue); the server's own trailer is the fallback.
+    final youTubeTrailers =
+        YouTubeWebView.isSupported && !widget.isOffline && (metadata.isMovie || metadata.isShow);
+    final VoidCallback? onPlayTrailer = youTubeTrailers
+        ? () => unawaited(_playYouTubeTrailer(context, metadata, primaryTrailer))
+        : primaryTrailer == null
         ? null
         : () =>
               unawaited(navigateToVideoPlayer(context, metadata: primaryTrailer, isLaunchCurrent: () => _canUseDetail));
@@ -229,6 +269,37 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
       );
     }
 
+    // Middle or trailing segment: plays the resumable item from 0:00.
+    Widget restartButton(FocusableActionBuildState state) {
+      return Semantics(
+        label: RetroStrings.playFromStart,
+        button: true,
+        onTap: onRestartPressed,
+        excludeSemantics: true,
+        child: Tooltip(
+          message: RetroStrings.playFromStart,
+          child: SizedBox(
+            width: versionSegmentWidth,
+            height: actionSize,
+            child: FilledButton(
+              onPressed: onRestartPressed,
+              style: actionButtonStyle(
+                showFocus: state.showFocus,
+                padding: .zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusDirectional.horizontal(
+                    start: splitInnerRadius,
+                    end: showVersionSplit ? splitInnerRadius : splitOuterRadius,
+                  ),
+                ),
+              ),
+              child: AppIcon(Symbols.replay_rounded, fill: 1, size: playIconSize),
+            ),
+          ),
+        ),
+      );
+    }
+
     Widget iconActionButton(
       FocusableActionBuildState state, {
       required Widget icon,
@@ -253,6 +324,15 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
       builder: (context, state) => playButton(state),
     );
 
+    final restartAction = showRestartSplit
+        ? FocusableAction(
+            debugLabel: 'detail_play_from_start',
+            spacingBefore: splitGap,
+            onPressed: onRestartPressed,
+            builder: (context, state) => restartButton(state),
+          )
+        : null;
+
     final versionAction = showVersionSplit
         ? FocusableAction(
             debugLabel: 'detail_play_version',
@@ -262,7 +342,7 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
           )
         : null;
 
-    final trailerAction = primaryTrailer == null
+    final trailerAction = onPlayTrailer == null
         ? null
         : FocusableAction(
             debugLabel: 'detail_trailer',
@@ -359,6 +439,7 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
 
     final allActions = <FocusableAction>[
       playAction,
+      ?restartAction,
       ?versionAction,
       ?trailerAction,
       ?shuffleAction,
@@ -387,7 +468,8 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
       if (actions.isEmpty) return 0;
       var width = estimatedPlayWidth;
       for (var i = 1; i < actions.length; i++) {
-        final actionWidth = identical(actions[i], versionAction) ? versionSegmentWidth : actionSize;
+        final actionWidth = identical(actions[i], versionAction) || identical(actions[i], restartAction)
+            ? versionSegmentWidth : actionSize;
         width += (actions[i].spacingBefore ?? gap) + actionWidth;
       }
       return width;
@@ -400,13 +482,13 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
         return compact;
       }
 
-      final medium = <FocusableAction>[playAction, ?versionAction, ?downloadAction, watchedAction, ?moreActionsAction];
+      final medium = <FocusableAction>[playAction, ?restartAction, ?versionAction, ?downloadAction, watchedAction, ?moreActionsAction];
       if (!maxWidth.isFinite || estimatedRowWidth(medium) <= maxWidth) return medium;
 
-      final compact = <FocusableAction>[playAction, ?versionAction, watchedAction, ?moreActionsAction];
+      final compact = <FocusableAction>[playAction, ?restartAction, ?versionAction, watchedAction, ?moreActionsAction];
       if (estimatedRowWidth(compact) <= maxWidth) return compact;
 
-      return [playAction, ?versionAction, ?moreActionsAction];
+      return [playAction, ?restartAction, ?versionAction, ?moreActionsAction];
     }
 
     Widget actionBar(List<FocusableAction> actions) {

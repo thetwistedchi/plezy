@@ -929,6 +929,16 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     );
   }
 
+  /// Stable key of a Home row for the per-row "hide watched" toggle.
+  static String _homeRowKey(MediaHub hub) => '${hub.serverId ?? ''}:${hub.identifier ?? hub.id}';
+
+  void _toggleHideWatched(String rowKey) {
+    final settings = SettingsService.instance;
+    final current = settings.read(SettingsService.homeRowsHideWatched);
+    final next = current.contains(rowKey) ? current.where((k) => k != rowKey).toList() : [...current, rowKey];
+    unawaited(settings.write(SettingsService.homeRowsHideWatched, next));
+  }
+
   @override
   Widget build(BuildContext context) {
     return SettingsBuilder(
@@ -1000,9 +1010,21 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                 // Recommendation Hubs (Trending, Top in Genre, etc.)
                 for (int i = 0; i < _hubs.length; i++)
                   SliverToBoxAdapter(
-                    child: HubSection(
+                    child: SettingsBuilder(
+                      prefs: const [SettingsService.homeRowsHideWatched],
+                      builder: (context) {
+                        final rowKey = _homeRowKey(_hubs[i]);
+                        final hidden = SettingsService.instance
+                            .read(SettingsService.homeRowsHideWatched)
+                            .contains(rowKey);
+                        final hub = hidden
+                            ? _hubs[i].copyWith(items: _hubs[i].items.where((item) => !item.isWatched).toList())
+                            : _hubs[i];
+                        return HubSection(
                       key: i < _orderedHubKeys.length ? _orderedHubKeys[i] : null,
-                      hub: _hubs[i],
+                      hub: hub,
+                      hidesWatched: hidden,
+                      onToggleHideWatched: () => _toggleHideWatched(rowKey),
                       focusMemory: _hubFocusMemory,
                       icon: hubIconFor(_hubs[i]),
                       showServerName: showServerNameOnHubs || hubsSpanMultipleServers,
@@ -1011,6 +1033,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                       onVerticalNavigation: (isUp) => _handleVerticalNavigation(_onDeck.isNotEmpty ? i + 1 : i, isUp),
                       onNavigateUp: (i == 0 && _onDeck.isEmpty) ? _focusTopBoundary : null,
                       onNavigateToSidebar: _navigateToSidebar,
+                    );
+                      },
                     ),
                   ),
 

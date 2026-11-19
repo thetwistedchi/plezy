@@ -87,6 +87,7 @@ const startupSectionTabs = [
   NavigationTabId.liveTv,
   NavigationTabId.explore,
   NavigationTabId.search,
+  NavigationTabId.youtube,
 ];
 
 // Label getters (must be top-level for const constructor)

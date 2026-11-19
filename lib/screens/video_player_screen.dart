@@ -77,6 +77,7 @@ import '../services/scoped_player_prefs.dart';
 import '../services/settings_service.dart';
 import '../services/sleep_timer_service.dart';
 import '../services/subtitle_preference.dart';
+import '../services/title_track_memory.dart';
 import '../services/track_manager.dart';
 import '../services/track_selection_service.dart';
 import '../services/ambient_lighting_service.dart';
@@ -1490,8 +1491,11 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
     _playbackSessionIdentifier = generateSessionIdentifier();
     _playbackTranscodeSessionId = generateSessionIdentifier();
     _selectedAudioStreamId = widget.selectedAudioStreamId;
-    _preferredAudioTrack = widget.preferredAudioTrack;
-    _preferredSubtitleTrack = SubtitlePreference.trackOrNull(widget.preferredSubtitleTrack);
+    // A track carried in from the caller wins; otherwise the title's own
+    // remembered pick (series-wide for episodes).
+    _preferredAudioTrack = widget.preferredAudioTrack ?? TitleTrackMemory.audioFor(widget.metadata);
+    _preferredSubtitleTrack =
+        SubtitlePreference.trackOrNull(widget.preferredSubtitleTrack) ?? TitleTrackMemory.subtitleFor(widget.metadata);
     _preferredSecondarySubtitleTrack = SubtitlePreference.trackOrNull(widget.preferredSecondarySubtitleTrack);
     _selectedQualityPreset = widget.selectedQualityPreset ?? TranscodeQualityPreset.original;
     _qualityPresetExplicit = widget.selectedQualityPreset != null;
@@ -2864,11 +2868,13 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (track.id != AudioTrack.auto.id && track.id != AudioTrack.off.id) {
       _sessionAudioPreference = track;
     }
+    TitleTrackMemory.saveAudio(_currentMetadata, track);
     await _trackManager?.onAudioTrackSelectedByUser(track);
   }
 
   Future<void> _onSubtitleTrackChanged(SubtitleTrack track, {int? sourceStreamId}) async {
     _rememberNativeSubtitleSelection(track, sourceStreamId: sourceStreamId);
+    TitleTrackMemory.saveSubtitle(_currentMetadata, track);
     await _trackManager?.onSubtitleTrackSelectedByUser(track, sourceStreamId: sourceStreamId);
   }
 

@@ -1030,6 +1030,19 @@ class SettingsService extends BaseSharedPreferencesService {
   /// Retrowave: quality and language pills under posters (desktop).
   static const posterInfoPills = BoolPref('poster_info_pills', defaultValue: true);
 
+  /// Retrowave: Home rows (by [homeRowKey]) that hide titles already watched.
+  static const homeRowsHideWatched = StringListPref('home_rows_hide_watched');
+
+  /// Library (global key) the Libraries section opens on at startup; empty
+  /// keeps the last one used.
+  static const startupLibrary = StringPref('startup_library', defaultValue: '');
+
+  /// Poster hover preview with plot, runtime and genres (desktop).
+  static const hoverPreview = BoolPref('hover_preview', defaultValue: true);
+
+  /// Per-title memory of audio/subtitle track and zoom mode (desktop mpv).
+  static const rememberTitleTracks = BoolPref('remember_title_tracks', defaultValue: true);
+
   static const playbackBufferTier = EnumPref<PlaybackBufferTier>(
     'playback_buffer_tier',
     values: PlaybackBufferTier.values,
@@ -1649,6 +1662,10 @@ class SettingsService extends BaseSharedPreferencesService {
     hdrBrightness,
     jikanRatings,
     posterInfoPills,
+    homeRowsHideWatched,
+    startupLibrary,
+    hoverPreview,
+    rememberTitleTracks,
   ];
 
   /// Group three: reset but *not* exported — device-local paths, endpoints and

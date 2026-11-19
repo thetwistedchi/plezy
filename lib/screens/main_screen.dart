@@ -34,6 +34,7 @@ import '../widgets/overlay_sheet.dart';
 import '../mixins/tab_visibility_aware.dart';
 import 'youtube/youtube_screen.dart';
 import '../navigation/navigation_tabs.dart';
+import '../widgets/shortcuts_overlay.dart';
 import '../navigation/profile_navigation_scope.dart';
 import '../navigation/settings_shortcut.dart';
 import '../profiles/active_profile_binder.dart';
@@ -541,6 +542,7 @@ class _MainScreenState extends State<MainScreen>
   @override
   void initState() {
     super.initState();
+    ShortcutsOverlay.install(() => context);
     _isOffline = widget.isOfflineMode;
     _offlineUntilConnected = widget.isOfflineMode;
 
@@ -1058,6 +1060,7 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   void dispose() {
+    ShortcutsOverlay.uninstall();
     if (_watchTogether?.navigatorOpener == _navigateToWatchTogetherMedia) _watchTogether?.navigatorOpener = null;
     WidgetsBinding.instance.removeObserver(this);
     _profileRouteObserver?.unsubscribe(this);

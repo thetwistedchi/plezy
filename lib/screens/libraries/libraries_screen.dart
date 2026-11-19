@@ -73,6 +73,8 @@ class _LibrariesScreenState extends State<LibrariesScreen>
         TickerProviderStateMixin,
         TabNavigationMixin,
         TabVisibilityAware {
+  static bool _startupLibraryApplied = false;
+
   final _recommendedTabKey = GlobalKey();
   final _browseTabKey = GlobalKey();
   final _collectionsTabKey = GlobalKey();
@@ -190,7 +192,13 @@ class _LibrariesScreenState extends State<LibrariesScreen>
 
     final storage = await StorageService.getInstance();
     if (!mounted || _selectedLibraryGlobalKey != null) return;
-    final savedLibraryKey = storage.getSelectedLibraryKey();
+    // The startup library wins once per app start; later visits keep the
+    // last library used.
+    final startupKey = _startupLibraryApplied ? '' : SettingsService.instance.read(SettingsService.startupLibrary);
+    _startupLibraryApplied = true;
+    final savedLibraryKey = startupKey.isNotEmpty && visibleLibraries.any((lib) => lib.globalKey == startupKey)
+        ? startupKey
+        : storage.getSelectedLibraryKey();
 
     String? libraryGlobalKeyToLoad;
     if (savedLibraryKey != null) {

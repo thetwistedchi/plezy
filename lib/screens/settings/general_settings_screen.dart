@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
+import '../../i18n/retro_strings.dart';
 import '../../i18n/strings.g.dart';
+import '../../providers/libraries_provider.dart';
+import '../../providers/hidden_libraries_provider.dart';
 import '../../navigation/navigation_tabs.dart';
 import '../../profiles/active_profile_provider.dart';
 import '../../services/settings_service.dart';
@@ -36,6 +39,7 @@ class GeneralSettingsScreen extends StatelessWidget {
           title: t.settings.startup,
           children: [
             _startupSectionSelector(),
+            _startupLibrarySelector(context),
             if (hasMultipleProfiles)
               SettingSwitchTile(
                 pref: SettingsService.requireProfileSelectionOnOpen,
@@ -104,6 +108,30 @@ class GeneralSettingsScreen extends StatelessWidget {
     subtitleBuilder: _startupSectionLabel,
     options: startupSectionTabs.map((id) => DialogOption(value: id, title: _startupSectionLabel(id))).toList(),
   );
+
+  Widget _startupLibrarySelector(BuildContext context) {
+    final hidden = context.watch<HiddenLibrariesProvider>().hiddenLibraryKeys;
+    final libraries = context
+        .watch<LibrariesProvider>()
+        .libraries
+        .where((lib) => !hidden.contains(lib.globalKey))
+        .toList();
+    String labelOf(String key) {
+      if (key.isEmpty) return RetroStrings.lastUsedLibrary;
+      return libraries.where((lib) => lib.globalKey == key).firstOrNull?.title ?? RetroStrings.lastUsedLibrary;
+    }
+
+    return SettingSelectionTile<String>(
+      pref: SettingsService.startupLibrary,
+      icon: Symbols.video_library_rounded,
+      title: RetroStrings.startupLibrary,
+      subtitleBuilder: labelOf,
+      options: [
+        DialogOption(value: '', title: RetroStrings.lastUsedLibrary),
+        for (final lib in libraries) DialogOption(value: lib.globalKey, title: lib.title),
+      ],
+    );
+  }
 
   String _getLanguageDisplayName(AppLocale locale) {
     switch (locale) {

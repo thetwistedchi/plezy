@@ -475,6 +475,82 @@ class YouTubeService extends ChangeNotifier {
     }
   }
 
+  /// First video of a public YouTube search (no quota, no account). Prefers
+  /// a result whose title contains [preferWord]. Used for movie trailers.
+  Future<YouTubeVideo?> searchFirstVideo(String query, {String? preferWord}) async {
+    try {
+      final response = await _client
+          .get(
+            Uri.https('www.youtube.com', '/results', {'search_query': query, 'hl': 'en'}),
+            headers: {'Cookie': 'SOCS=CAI; CONSENT=YES+cb', 'Accept-Language': 'en'},
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return null;
+      final data = _extractJsonObject(response.body, 'var ytInitialData');
+      if (data == null) return null;
+      final renderers = <Map<String, dynamic>>[];
+      void walk(Object? node) {
+        if (renderers.length >= 8) return;
+        if (node is Map) {
+          final video = node['videoRenderer'];
+          if (video is Map<String, dynamic> && video['videoId'] is String) {
+            renderers.add(video);
+            return;
+          }
+          for (final value in node.values) {
+            walk(value);
+          }
+        } else if (node is List) {
+          for (final value in node) {
+            walk(value);
+          }
+        }
+      }
+
+      walk(data);
+      if (renderers.isEmpty) return null;
+      String text(Object? node) {
+        if (node is Map) {
+          if (node['simpleText'] is String) return node['simpleText'] as String;
+          final runs = node['runs'];
+          if (runs is List) return runs.map((r) => r is Map ? (r['text'] ?? '') : '').join();
+        }
+        return '';
+      }
+
+      final word = preferWord?.toLowerCase();
+      final pick = word == null
+          ? renderers.first
+          : renderers.firstWhere((r) => text(r['title']).toLowerCase().contains(word), orElse: () => renderers.first);
+      final owner = (pick['ownerText']?['runs'] as List?)?.firstOrNull;
+      final channelId = owner is Map ? owner['navigationEndpoint']?['browseEndpoint']?['browseId'] as String? : null;
+      Duration length = Duration.zero;
+      final parts = text(pick['lengthText']).split(':').map(int.tryParse).toList();
+      if (parts.isNotEmpty && parts.every((p) => p != null)) {
+        var seconds = 0;
+        for (final p in parts) {
+          seconds = seconds * 60 + p!;
+        }
+        length = Duration(seconds: seconds);
+      }
+      final id = pick['videoId'] as String;
+      return YouTubeVideo(
+        id: id,
+        title: text(pick['title']),
+        channelId: channelId ?? '',
+        channelTitle: owner is Map ? (owner['text'] as String? ?? '') : '',
+        thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
+        publishedAt: DateTime.now(),
+        viewCount: 0,
+        isShort: false,
+        duration: length,
+      );
+    } catch (e) {
+      appLogger.d('YouTube search failed for "$query"', error: e);
+      return null;
+    }
+  }
+
   /// Finds `name = {...}` in a page and decodes the object by matching braces.
   static Map<String, dynamic>? _extractJsonObject(String html, String name) {
     final marker = html.indexOf(name);

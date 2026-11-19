@@ -5,6 +5,7 @@ import '../youtube/youtube_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import '../../i18n/retro_strings.dart';
 import '../../i18n/strings.g.dart';
 import '../../models/audio_channel_limit.dart';
 import '../../models/audio_quality_preset.dart';
@@ -288,6 +289,13 @@ class PlaybackSettingsScreen extends StatelessWidget {
           subtitle: t.settings.clickVideoTogglesPlaybackDescription,
         ),
       if (Platform.isWindows) const _HdrBrightnessTile(),
+      if (PlatformDetector.isDesktopOS())
+        SettingSwitchTile(
+          pref: SettingsService.rememberTitleTracks,
+          icon: Symbols.audiotrack_rounded,
+          title: RetroStrings.rememberTracks,
+          subtitle: RetroStrings.rememberTracksDescription,
+        ),
       if (Platform.isWindows || Platform.isLinux)
         SettingSwitchTile(
           pref: SettingsService.cropLetterbox,

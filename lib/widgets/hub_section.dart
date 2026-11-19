@@ -31,6 +31,7 @@ import 'sliver_child_memo.dart';
 import '../utils/scroll_utils.dart';
 import 'horizontal_scroll_with_arrows.dart';
 import 'tv_browse_rail.dart';
+import '../i18n/retro_strings.dart';
 import '../i18n/strings.g.dart';
 
 enum HubCardSizing {
@@ -61,6 +62,11 @@ class HubSection extends StatefulWidget {
   /// the row's cards. Shown in pointer mode; keyboard/TV navigation keeps the
   /// row's own items only.
   final Widget Function(BuildContext context, double width, double posterHeight)? leadingCard;
+
+  /// Shows an eye toggle in the header (on hover, or always while active)
+  /// that hides titles already watched in this row.
+  final VoidCallback? onToggleHideWatched;
+  final bool hidesWatched;
   final bool usesContinueWatchingAction;
   final bool showServerName;
   final Future<List<MediaItem>> Function()? loadMoreItems;
@@ -107,6 +113,8 @@ class HubSection extends StatefulWidget {
 
   const HubSection({
     this.leadingCard,
+    this.onToggleHideWatched,
+    this.hidesWatched = false,
     super.key,
     required this.hub,
     required this.focusMemory,
@@ -137,6 +145,7 @@ class HubSection extends StatefulWidget {
 
 class HubSectionState extends State<HubSection> with MountedSetStateMixin, SkeletonUpgradeScheduler {
   late FocusNode _hubFocusNode;
+  bool _headerHovered = false;
   final ScrollController _scrollController = ScrollController();
 
   /// Current visual focus index (not tied to Flutter's focus system)
@@ -523,7 +532,10 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
             padding: widget.inset
                 ? EdgeInsets.symmetric(vertical: isTv ? 6 : 2)
                 : EdgeInsets.fromLTRB(leadingPadding - 4, isTv ? 6 : 2, 8, isTv ? 8 : 2),
-            child: ExcludeFocus(
+            child: MouseRegion(
+              onEnter: widget.onToggleHideWatched == null ? null : (_) => setState(() => _headerHovered = true),
+              onExit: widget.onToggleHideWatched == null ? null : (_) => setState(() => _headerHovered = false),
+              child: ExcludeFocus(
               child: InkWell(
                 mouseCursor: widget.hub.more ? SystemMouseCursors.click : MouseCursor.defer,
                 onTap: widget.hub.more ? () => _navigateToHubDetail(context) : null,
@@ -577,10 +589,30 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                         const SizedBox(width: 4),
                         AppIcon(Symbols.chevron_right_rounded, fill: 1, size: isTv ? 26 : 20, color: retroHeading),
                       ],
+                      if (widget.onToggleHideWatched case final toggle?
+                          when !isTv && !isKeyboardMode && (_headerHovered || widget.hidesWatched)) ...[
+                        const SizedBox(width: 6),
+                        Tooltip(
+                          message: widget.hidesWatched ? RetroStrings.showWatched : RetroStrings.hideWatched,
+                          child: InkResponse(
+                            onTap: toggle,
+                            radius: 16,
+                            child: AppIcon(
+                              widget.hidesWatched ? Symbols.visibility_off_rounded : Symbols.visibility_rounded,
+                              fill: 1,
+                              size: 18,
+                              color: (retroHeading ?? Theme.of(context).colorScheme.onSurface).withValues(
+                                alpha: widget.hidesWatched ? 0.9 : 0.55,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
+            ),
             ),
           ),
 

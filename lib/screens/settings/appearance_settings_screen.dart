@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
+import '../../i18n/retro_strings.dart';
 import '../../i18n/strings.g.dart';
 import '../../providers/catalog_sources_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -176,6 +177,13 @@ class AppearanceSettingsScreen extends StatelessWidget {
                 icon: Symbols.hd_rounded,
                 title: YtStrings.posterInfoPills,
                 subtitle: YtStrings.posterInfoPillsDescription,
+              ),
+            if (PlatformDetector.isDesktopOS() && !PlatformDetector.isTV())
+              SettingSwitchTile(
+                pref: SettingsService.hoverPreview,
+                icon: Symbols.info_rounded,
+                title: RetroStrings.hoverPreview,
+                subtitle: RetroStrings.hoverPreviewDescription,
               ),
           ],
         ),

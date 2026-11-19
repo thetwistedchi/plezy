@@ -21,6 +21,8 @@ import 'youtube_player_screen.dart';
 import 'youtube_resume.dart';
 import 'youtube_settings_screen.dart';
 import 'youtube_strings.dart';
+import 'youtube_channel_groups_bar.dart';
+import '../../services/youtube/youtube_channel_groups.dart';
 import 'youtube_routes.dart';
 import '../../theme/retrowave_colors.dart';
 
@@ -41,6 +43,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   _YtView _view = _YtView.subscriptions;
   YouTubeSort _sort = YouTubeSort.newest;
   YouTubeFilter _filter = YouTubeFilter.all;
+  String? _group;
   bool _wasSignedIn = false;
 
   @override
@@ -48,6 +51,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     super.initState();
     _settings.addListener(_onSettingsChanged);
     YouTubeChannels.instance.addListener(_onSettingsChanged);
+    YouTubeChannelGroups.instance.addListener(_onGroupsChanged);
     unawaited(
       Future.wait([_settings.load(), YouTubeChannels.instance.load()]).then((_) => _onSettingsChanged()),
     );
@@ -61,10 +65,15 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   void dispose() {
     _settings.removeListener(_onSettingsChanged);
     YouTubeChannels.instance.removeListener(_onSettingsChanged);
+    YouTubeChannelGroups.instance.removeListener(_onGroupsChanged);
     super.dispose();
   }
 
   int _channelCount = 0;
+
+  void _onGroupsChanged() {
+    if (mounted) setState(() {});
+  }
 
   void _onSettingsChanged() {
     if (!_settings.isLoaded || !YouTubeChannels.instance.isLoaded) return;
@@ -143,7 +152,13 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   Widget _buildFeed(BuildContext context) {
     final theme = Theme.of(context);
     final mono = tokens(context);
-    final videos = _service.visibleVideos(sort: _sort, filter: _filter);
+    final group = YouTubeChannelGroups.instance.byName(_group);
+    final allVideos = _service.visibleVideos(sort: _sort, filter: _filter);
+    final videos = group == null ? allVideos : allVideos.where((v) => group.channelIds.contains(v.channelId)).toList();
+    final feedChannels = <String, String>{
+      for (final v in _service.videos)
+        if (v.channelId.isNotEmpty) v.channelId: v.channelTitle,
+    };
     final error = _service.error;
     final updated = _service.lastUpdated;
     final subtitle = _sort == YouTubeSort.relevant ? YtStrings.relevantSubtitle : YtStrings.newestSubtitle;
@@ -244,6 +259,16 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               ),
             ),
           ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
+            sliver: SliverToBoxAdapter(
+              child: YouTubeChannelGroupsBar(
+                selected: group?.name,
+                channels: feedChannels,
+                onSelected: (name) => setState(() => _group = name),
+              ),
+            ),
+          ),
           if (_resumeVideo() case final resume?)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(32, 20, 32, 0),
@@ -311,7 +336,11 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               hasScrollBody: false,
               child: Center(
                 child: Text(
-                  _service.isLoading ? YtStrings.loading : YtStrings.empty,
+                  _service.isLoading
+                      ? YtStrings.loading
+                      : group != null
+                      ? YtStrings.emptyGroup
+                      : YtStrings.empty,
                   style: theme.textTheme.bodyLarge?.copyWith(color: mono.textMuted),
                 ),
               ),

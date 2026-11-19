@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'retro_pill.dart';
+import 'hover_preview.dart';
 import '../services/poster_info_cache.dart';
 import '../services/ratings/rating_median_cache.dart';
 import '../theme/retrowave_colors.dart';
@@ -531,6 +532,10 @@ class MediaCardState extends State<MediaCard> with ContextMenuTapMixin<MediaCard
             catalogItem: _catalogItem,
             enableDetailLinks: enableDetailLinks,
           );
+
+    if (viewMode == ViewMode.grid && item is MediaItem && HoverPreview.appliesTo(item)) {
+      cardWidget = HoverPreview(item: item, child: cardWidget);
+    }
 
     cardWidget = Semantics(
       container: preserveDetailSemantics,

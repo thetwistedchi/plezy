@@ -917,8 +917,11 @@ extension _VideoPlayerReloadMethods on VideoPlayerScreenState {
     try {
       await PlayerSyncOffsets.of(currentPlayer).applyFor(metadata);
 
-      final previousBoxFit = ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.boxFitMode, previousMetadata);
-      final boxFit = ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.boxFitMode, metadata);
+      final previousBoxFit =
+          TitleTrackMemory.zoomFor(previousMetadata) ??
+          ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.boxFitMode, previousMetadata);
+      final boxFit =
+          TitleTrackMemory.zoomFor(metadata) ?? ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.boxFitMode, metadata);
       if (boxFit != previousBoxFit) {
         _videoFilterManager?.setBoxFitMode(boxFit);
       }

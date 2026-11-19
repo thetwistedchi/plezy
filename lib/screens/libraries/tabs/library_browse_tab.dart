@@ -617,6 +617,27 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
     controller.show(builder: (sheetContext) => _buildBrowseOptionsSheet(sheetContext));
   }
 
+  /// Last scroll position per library for this app session, so switching
+  /// back to a library returns to where it was left (pointer mode; D-pad
+  /// focus restores its own position).
+  static final Map<String, double> _savedScrollOffsets = {};
+  bool _restoringScroll = false;
+
+  void _restoreScrollOffset(double? offset, int generation, String libraryGlobalKey) {
+    if (offset == null || offset <= 0) return;
+    if (_selectedGrouping == 'folders' || InputModeTracker.isKeyboardMode(context, listen: false)) return;
+    _restoringScroll = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _restoringScroll = false;
+        if (!mounted || !isCurrentLibraryLoad(generation, libraryGlobalKey)) return;
+        final pos = _innerPosition;
+        if (pos == null || !pos.hasContentDimensions) return;
+        pos.jumpTo(math.min(offset, pos.maxScrollExtent));
+      });
+    });
+  }
+
   /// Reset transient browse state before loading a different library.
   void _resetForFullReload() {
     _scrollActivityTimer?.cancel();
@@ -659,6 +680,8 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
     final libraryGlobalKey = library.globalKey;
     final (:generation, :epoch) = beginLibraryLoad();
     final firstCharactersGeneration = ++_firstCharactersRequestId;
+    // Read before the reset below scrolls this tab back to the top.
+    final restoreOffset = _savedScrollOffsets[libraryGlobalKey];
 
     _resetForFullReload();
     _resetTopOfPageState();
@@ -746,6 +769,7 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
         _loadItems(loadGeneration: generation, libraryGlobalKey: libraryGlobalKey, epoch: epoch),
         _loadFirstCharacters(requestId: firstCharactersGeneration),
       ]);
+      _restoreScrollOffset(restoreOffset, generation, libraryGlobalKey);
     } catch (e, stackTrace) {
       if (!isCurrentLibraryLoad(generation, libraryGlobalKey)) return;
       releaseLibraryContentEpoch();
@@ -1562,6 +1586,9 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
     // Skip if this tab isn't active so we don't react to a sibling tab's
     // scroll events.
     if (!widget.isActive) return;
+    if (_innerPosition case final pos? when pos.hasPixels && !_restoringScroll) {
+      _savedScrollOffsets[widget.library.globalKey] = pos.pixels;
+    }
 
     // Debounced scroll-idle handler: load visible range when scrolling settles
     _scrollIdleTimer?.cancel();

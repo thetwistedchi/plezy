@@ -464,4 +464,14 @@ class YtStrings {
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
+
+  // Channel groups
+  static String get allChannels => _t('All channels', 'Alle Kanäle');
+  static String get newGroup => _t('New group', 'Neue Gruppe');
+  static String get editGroup => _t('Edit group', 'Gruppe bearbeiten');
+  static String get groupName => _t('Group name', 'Gruppenname');
+  static String get groupChannels => _t('Channels in this group', 'Kanäle in dieser Gruppe');
+  static String get noChannelsYet =>
+      _t('Channels appear here once their videos are in the feed.', 'Kanäle erscheinen hier, sobald ihre Videos im Feed sind.');
+  static String get emptyGroup => _t('No videos from this group yet.', 'Noch keine Videos aus dieser Gruppe.');
 }

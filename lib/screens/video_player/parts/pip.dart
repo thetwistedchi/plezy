@@ -40,14 +40,18 @@ extension _VideoPlayerPipMethods on VideoPlayerScreenState {
         // would force vo_avfoundation's Core Image path and kill HDR/DV
         // passthrough.
         nativeVideoZoom: Platform.isIOS || Platform.isMacOS,
-        initialBoxFitMode: ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.boxFitMode, _currentMetadata),
+        initialBoxFitMode:
+            TitleTrackMemory.zoomFor(_currentMetadata) ??
+            ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.boxFitMode, _currentMetadata),
         initialZoomScale: ScopedPlayerPrefs.resolve(ScopedPlayerPrefs.videoZoom, _currentMetadata),
         initialPlayerSize: initialPlayerSize,
         cropLetterbox: SettingsService.instanceOrNull?.read(SettingsService.cropLetterbox) ?? false,
         // Reads _currentMetadata at invocation time so a cycle after an
         // in-place episode swap keys against the item actually on screen.
-        onBoxFitModeChanged: (mode) =>
-            unawaited(ScopedPlayerPrefs.write(ScopedPlayerPrefs.boxFitMode, _currentMetadata, mode)),
+        onBoxFitModeChanged: (mode) {
+          TitleTrackMemory.saveZoom(_currentMetadata, mode);
+          unawaited(ScopedPlayerPrefs.write(ScopedPlayerPrefs.boxFitMode, _currentMetadata, mode));
+        },
       );
       unawaited(_videoFilterManager!.updateVideoFilter());
     }
