@@ -10,6 +10,7 @@ add_executable(${BINARY_NAME} WIN32
   "mpv/mpv_player.cpp"
   "mpv/mpv_plugin.cpp"
   "youtube/youtube_web_plugin.cpp"
+  "browser/browser_web_plugin.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
   "Runner.rc"
   "runner.exe.manifest"

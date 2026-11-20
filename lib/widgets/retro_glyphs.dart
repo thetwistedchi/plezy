@@ -71,6 +71,17 @@ abstract final class RetroGlyphs {
   static const _category = '<path d="M12 3l4.5 7.5h-9z"/><circle cx="17" cy="17" r="3.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/>';
   static const _awesome = '<path d="M10 4l1.6 4.4L16 10l-4.4 1.6L10 16l-1.6-4.4L4 10l4.4-1.6z"/><path d="M18 3v4M16 5h4M18 15v4M16 17h4"/>';
 
+  // In-app browser (AI-generated like the rest).
+  static const _globe = '<circle cx="12" cy="12" r="9"/><path d="M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/><path d="M3 12h18M4.6 7.5h14.8M4.6 16.5h14.8"/>';
+  static const _lock = '<rect x="5" y="10.5" width="14" height="10.5" rx="2"/><path d="M8 10.5v-3a4 4 0 0 1 8 0v3"/><path d="M8.5 15h7M10 18h4"/>';
+  static const _lockOpen = '<rect x="5" y="10.5" width="14" height="10.5" rx="2"/><path d="M8 10.5v-3a4 4 0 0 1 7.6-1.7"/><path d="M12 14v3.5"/>';
+  static const _bookmark = '<path d="M6 3.5h12v17l-6-4-6 4z" fill="url(#g)"/>';
+  static const _bookmarkAdd = '<path d="M13 3.5H6v17l6-4 6 4V11"/><path d="M18 2.5v6M15 5.5h6"/>';
+  static const _bookmarks = '<path d="M8 6.5h11v14l-5.5-3.5L8 20.5z"/><path d="M5 17V3.5h10"/>';
+  static const _arrowBack = '<path d="M20 12H4M10 6l-6 6 6 6"/>';
+  static const _add = '<path d="M12 5v14M5 12h14"/>';
+  static const _close = '<path d="M6 6l12 12M18 6 6 18"/>';
+
   static final Map<IconData, String> _byIcon = {
     Symbols.home_rounded: _home,
     Symbols.video_library_rounded: _libraries,
@@ -135,6 +146,15 @@ abstract final class RetroGlyphs {
     Symbols.thumb_up_rounded: _thumbUp,
     Symbols.category_rounded: _category,
     Symbols.auto_awesome_rounded: _awesome,
+    Symbols.public_rounded: _globe,
+    Symbols.lock_rounded: _lock,
+    Symbols.lock_open_rounded: _lockOpen,
+    Symbols.bookmark_rounded: _bookmark,
+    Symbols.bookmark_add_rounded: _bookmarkAdd,
+    Symbols.bookmarks_rounded: _bookmarks,
+    Symbols.arrow_back_rounded: _arrowBack,
+    Symbols.add_rounded: _add,
+    Symbols.close_rounded: _close,
   };
 
   static String? pathsFor(IconData icon) => _byIcon[icon];

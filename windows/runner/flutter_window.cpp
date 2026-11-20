@@ -5,6 +5,7 @@
 #include "flutter/generated_plugin_registrant.h"
 #include "mpv/display_mode_manager.h"
 #include "mpv/mpv_plugin.h"
+#include "browser/browser_web_plugin.h"
 #include "youtube/youtube_web_plugin.h"
 
 static constexpr wchar_t kWindowPlacementKey[] = L"Software\\Plezy";
@@ -163,6 +164,7 @@ bool FlutterWindow::OnCreate() {
 
   MpvPlayerPluginRegisterWithRegistrar(flutter_controller_->engine()->GetRegistrarForPlugin("MpvPlayerPlugin"));
   YouTubeWebPluginRegisterWithRegistrar(flutter_controller_->engine()->GetRegistrarForPlugin("YouTubeWebPlugin"));
+  BrowserWebPluginRegisterWithRegistrar(flutter_controller_->engine()->GetRegistrarForPlugin("BrowserWebPlugin"));
   MpvAudioPlayerPluginRegisterWithRegistrar(
       flutter_controller_->engine()->GetRegistrarForPlugin("MpvAudioPlayerPlugin"));
 

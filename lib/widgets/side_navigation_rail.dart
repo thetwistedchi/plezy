@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../services/browser/browser_native.dart';
+import '../screens/browser/browser_screen.dart';
 import '../services/youtube/youtube_webview.dart';
 import 'dart:ui' show lerpDouble;
 import '../media/ids.dart';
@@ -1089,6 +1091,19 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                                           isSelected: widget.selectedTab == NavigationTabId.youtube,
                                           onTap: () => widget.onDestinationSelected(NavigationTabId.youtube),
                                           focusNode: _focusTracker.get('youtube'),
+                                          isCollapsed: isCollapsed,
+                                        ),
+                                        const SizedBox(height: _itemGap),
+                                      ],
+                                      // Fork: the in-app browser opens as its own page.
+                                      if (BrowserNative.isSupported) ...[
+                                        _buildNavItem(
+                                          icon: Symbols.public_rounded,
+                                          selectedIcon: Symbols.public_rounded,
+                                          label: RetroStrings.browser,
+                                          isSelected: false,
+                                          onTap: () => unawaited(BrowserScreen.open(context)),
+                                          focusNode: _focusTracker.get('browser'),
                                           isCollapsed: isCollapsed,
                                         ),
                                         const SizedBox(height: _itemGap),

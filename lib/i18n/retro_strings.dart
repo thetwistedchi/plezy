@@ -69,4 +69,86 @@ class RetroStrings {
   static String get moveFocus => _t('Move between items', 'Zwischen Einträgen wechseln');
   static String get openSelect => _t('Open or select', 'Öffnen oder auswählen');
   static String get goBack => _t('Back', 'Zurück');
+
+  // In-app browser
+  static String get browser => _t('Browser', 'Browser');
+  static String get newTab => _t('New tab', 'Neuer Tab');
+  static String get closeTab => _t('Close tab', 'Tab schließen');
+  static String get forward => _t('Forward', 'Vorwärts');
+  static String get reload => _t('Reload', 'Neu laden');
+  static String get stopLoading => _t('Stop', 'Stopp');
+  static String get leaveBrowser => _t('Leave browser', 'Browser verlassen');
+  static String addressHint(String engine) =>
+      _t('Search with $engine or enter an address', 'Mit $engine suchen oder Adresse eingeben');
+  static String get secureConnection => _t('Secure connection', 'Sichere Verbindung');
+  static String get insecureConnection =>
+      _t('Not secure: this page is not encrypted', 'Nicht sicher: Diese Seite ist nicht verschlüsselt');
+  static String get addBookmark => _t('Add bookmark', 'Lesezeichen hinzufügen');
+  static String get removeBookmark => _t('Remove bookmark', 'Lesezeichen entfernen');
+  static String get bookmarks => _t('Bookmarks', 'Lesezeichen');
+  static String get noBookmarks =>
+      _t('No bookmarks yet. Use the star in the address bar to add one.', 'Noch keine Lesezeichen. Mit dem Stern in der Adressleiste fügst du eins hinzu.');
+  static String get renameBookmark => _t('Rename', 'Umbenennen');
+  static String get delete => _t('Delete', 'Löschen');
+  static String get cancel => _t('Cancel', 'Abbrechen');
+  static String get save => _t('Save', 'Speichern');
+  static String get allow => _t('Allow', 'Erlauben');
+  static String get block => _t('Block', 'Blockieren');
+  static String get popupBlocked => _t('Pop-up blocked', 'Pop-up blockiert');
+  static String get openAnyway => _t('Open anyway', 'Trotzdem öffnen');
+  static String get httpsFailed =>
+      _t('This site could not be loaded securely.', 'Diese Seite konnte nicht sicher geladen werden.');
+  static String get loadOverHttp => _t('Load without encryption', 'Unverschlüsselt laden');
+  static String get schemeBlocked =>
+      _t('Local files and scripts in the address bar are blocked.', 'Lokale Dateien und Skripte in der Adressleiste sind blockiert.');
+  static String get tabCrashed => _t('This tab stopped working.', 'Dieser Tab funktioniert nicht mehr.');
+  static String permissionAsk(String host, String what) =>
+      _t('$host wants to use your $what.', '$host möchte $what verwenden.');
+  static String get permCamera => _t('camera', 'deine Kamera');
+  static String get permMicrophone => _t('microphone', 'dein Mikrofon');
+  static String get permLocation => _t('location', 'deinen Standort');
+  static String get permClipboard => _t('clipboard', 'deine Zwischenablage');
+  static String get permSensors => _t('motion sensors', 'Bewegungssensoren');
+  static String get permOther => _t('device features', 'Gerätefunktionen');
+  static String get downloadTitle => _t('Download file?', 'Datei herunterladen?');
+  static String downloadFrom(String host) => _t('From $host', 'Von $host');
+  static String get downloadRisky => _t(
+    'This file type can run programs on your PC. Only download it if you trust the site.',
+    'Dieser Dateityp kann Programme auf deinem PC ausführen. Lade ihn nur herunter, wenn du der Seite vertraust.',
+  );
+  static String get download => _t('Download', 'Herunterladen');
+  static String get downloadsFolder => _t('Saved to your Downloads folder.', 'Wird in deinem Download-Ordner gespeichert.');
+
+  // Browser settings
+  static String get browserSettings => _t('Browser settings', 'Browser-Einstellungen');
+  static String get searchEngine => _t('Search engine', 'Suchmaschine');
+  static String get customSearchEngine => _t('Custom', 'Eigene');
+  static String get customSearchHint =>
+      _t('Address with %s for the search words', 'Adresse mit %s für die Suchbegriffe');
+  static String get newTabPageSetting => _t('New tab page', 'Neuer-Tab-Seite');
+  static String get newTabBookmarks => _t('Bookmarks', 'Lesezeichen');
+  static String get newTabBlank => _t('Empty', 'Leer');
+  static String get newTabCustom => _t('Custom address', 'Eigene Adresse');
+  static String get suspendTabs => _t('Pause tabs in the background', 'Tabs im Hintergrund pausieren');
+  static String suspendAfter(int minutes) => minutes <= 0
+      ? _t('Never', 'Nie')
+      : _t('After $minutes ${minutes == 1 ? 'minute' : 'minutes'}', 'Nach $minutes ${minutes == 1 ? 'Minute' : 'Minuten'}');
+  static String get suspendDescription => _t(
+    'Only the tab on screen keeps running. Others pause after this time and continue when you open them. When memory runs low, they pause right away.',
+    'Nur der sichtbare Tab läuft weiter. Andere pausieren nach dieser Zeit und laufen weiter, sobald du sie öffnest. Bei knappem Arbeitsspeicher pausieren sie sofort.',
+  );
+  static String get keepPlayingAwake => _t('Keep tabs playing audio running', 'Tabs mit Ton weiterlaufen lassen');
+  static String get restoreTabs => _t('Restore tabs', 'Tabs wiederherstellen');
+  static String get restoreTabsDescription =>
+      _t('Open the last tabs again after a restart', 'Nach einem Neustart die letzten Tabs wieder öffnen');
+  static String get httpsUpgrade => _t('Always use HTTPS', 'Immer HTTPS verwenden');
+  static String get httpsUpgradeDescription => _t(
+    'Loads pages encrypted when possible. Addresses in your home network are left as they are.',
+    'Lädt Seiten wenn möglich verschlüsselt. Adressen im Heimnetz bleiben unverändert.',
+  );
+  static String get browserProtection => _t('Built-in protection', 'Eingebauter Schutz');
+  static String get browserProtectionDescription => _t(
+    'Pop-ups only open after a click, notification requests are declined, passwords and form data are not saved, and Microsoft Defender SmartScreen warns about known dangerous sites and downloads.',
+    'Pop-ups öffnen sich nur nach einem Klick, Benachrichtigungsanfragen werden abgelehnt, Passwörter und Formulardaten werden nicht gespeichert und Microsoft Defender SmartScreen warnt vor bekannten gefährlichen Seiten und Downloads.',
+  );
 }

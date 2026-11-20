@@ -62,6 +62,7 @@ A feature overview. What changed in each version is in the [release notes](https
 - Libraries remember their scroll position; a **startup library** can be set under Settings › General.
 - Each Home row can **hide watched** titles.
 - **Free on Plex** (desktop) under the libraries lists Plex's free, ad-supported Movies & Shows; titles open in Plex Web to play, since that service's copy protection and ads only work in Plex's own apps.
+- **Browser** (Windows) in the sidebar: tabs, bookmarks, Ecosia search by default, background tabs that pause to save resources, and a pop-up blocker with HTTPS upgrades.
 
 ### Posters
 
