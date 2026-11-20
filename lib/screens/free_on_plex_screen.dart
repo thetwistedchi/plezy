@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -21,8 +22,12 @@ import '../widgets/hub_section.dart';
 import '../widgets/loading_indicator_box.dart';
 import 'libraries/state_messages.dart';
 
-/// Whether a Plex server is connected (the free catalog needs a Plex account).
-bool hasPlexServer(BuildContext context) => context
+/// Whether to offer the free catalog: a Plex server is connected (it needs
+/// a Plex account). Not on Android: phones would only reach the titles
+/// through a browser and most TVs have none.
+bool hasPlexServer(BuildContext context) =>
+    !Platform.isAndroid &&
+    context
     .read<MultiServerProvider>()
     .serverManager
     .onlineClients

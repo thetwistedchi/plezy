@@ -61,7 +61,7 @@ A feature overview. What changed in each version is in the [release notes](https
 - A **search box** next to the library tabs that narrows the current library.
 - Libraries remember their scroll position; a **startup library** can be set under Settings › General.
 - Each Home row can **hide watched** titles.
-- **Free on Plex** under the libraries lists Plex's free, ad-supported Movies & Shows; titles open in Plex Web to play, since that service's copy protection and ads only work in Plex's own apps.
+- **Free on Plex** (desktop) under the libraries lists Plex's free, ad-supported Movies & Shows; titles open in Plex Web to play, since that service's copy protection and ads only work in Plex's own apps.
 
 ### Posters
 
