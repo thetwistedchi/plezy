@@ -23,6 +23,7 @@ import '../../widgets/settings_builder.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/platform_detector.dart';
 import '../../utils/content_utils.dart';
+import '../../i18n/retro_strings.dart';
 import '../../widgets/app_menu.dart';
 import '../../widgets/desktop_app_bar.dart';
 import '../../widgets/focusable_tab_chip.dart';
@@ -35,6 +36,7 @@ import 'library_server_label.dart';
 import 'state_messages.dart';
 import 'tabs/library_browse_tab.dart';
 import 'tabs/library_recommended_tab.dart';
+import '../free_on_plex_screen.dart' show FreeOnPlexScreen, hasPlexServer;
 import 'filters/quick_filters.dart' show LibraryJump;
 import 'library_search_field.dart';
 import 'tabs/library_collections_tab.dart';
@@ -795,6 +797,8 @@ class _LibrariesScreenState extends State<LibrariesScreen>
     return _buildLibraryDropdownTitle(visibleLibraries, groupByServer: groupByServer);
   }
 
+  static const _freeOnPlexValue = '__free_on_plex__';
+
   Widget _buildLibraryDropdownTitle(List<MediaLibrary> visibleLibraries, {required bool groupByServer}) {
     final selectedLibrary =
         visibleLibraries.where((lib) => lib.globalKey == _selectedLibraryGlobalKey).firstOrNull ??
@@ -806,9 +810,24 @@ class _LibrariesScreenState extends State<LibrariesScreen>
       tooltip: t.libraries.selectLibrary,
       adaptiveSheet: true,
       onSelected: (libraryGlobalKey) {
+        if (libraryGlobalKey == _freeOnPlexValue) {
+          unawaited(Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FreeOnPlexScreen())));
+          return;
+        }
         _loadLibraryContent(libraryGlobalKey);
       },
-      entriesBuilder: (context) => _buildGroupedLibraryMenuItems(visibleLibraries, groupByServer: groupByServer),
+      entriesBuilder: (context) => [
+        ..._buildGroupedLibraryMenuItems(visibleLibraries, groupByServer: groupByServer),
+        // Fork: Plex's free catalog, when a Plex server is connected.
+        if (hasPlexServer(context)) ...[
+          const AppMenuDivider<String>(),
+          AppMenuItem<String>(
+            value: _freeOnPlexValue,
+            icon: Symbols.live_tv_rounded,
+            label: RetroStrings.freeOnPlex,
+          ),
+        ],
+      ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Row(

@@ -99,6 +99,9 @@ class _CatalogSourceBinding<Client extends Object, Source extends CatalogSource>
 class CatalogSourcesProvider extends ChangeNotifier with DisposableChangeNotifierMixin {
   CatalogSourcesProvider({this.plexSessionSupplier});
 
+  /// Fork: the active profile's Plex credentials, for the free catalog.
+  Future<PlexDiscoverSession?> resolvePlexSession() async => plexSessionSupplier?.call();
+
   final PlexDiscoverSessionSupplier? plexSessionSupplier;
   final _CatalogSourceBinding<PlexDiscoverSession, PlexCatalogSource> _plex = _CatalogSourceBinding(
     // Widened hub artwork (`excludeElements=Media` instead of `Media,Image`)

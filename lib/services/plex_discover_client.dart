@@ -77,6 +77,13 @@ class PlexDiscoverException implements Exception {
 class PlexDiscoverClient {
   static final Uri _baseUri = Uri.parse('https://discover.provider.plex.tv');
 
+  /// Fork: Plex's free, ad-supported Movies & Shows provider. Same API shape
+  /// and token as Discover; its titles share Discover's rating keys.
+  static final Uri vodBaseUri = Uri.parse('https://vod.provider.plex.tv');
+
+  /// The provider host this client talks to ([_baseUri] unless given).
+  final Uri _base;
+
   /// Home shelf types whose entries never become a catalog item: `directory`
   /// shelves list browse categories, `clip` shelves list trailers.
   static const Set<String> _unrenderableHubTypes = {'directory', 'clip'};
@@ -85,8 +92,13 @@ class PlexDiscoverClient {
   final http.Client _http;
   final Duration requestTimeout;
 
-  PlexDiscoverClient(this.session, {http.Client? httpClient, this.requestTimeout = const Duration(seconds: 20)})
-    : _http = httpClient ?? http.Client();
+  PlexDiscoverClient(
+    this.session, {
+    http.Client? httpClient,
+    this.requestTimeout = const Duration(seconds: 20),
+    Uri? baseUri,
+  }) : _http = httpClient ?? http.Client(),
+       _base = baseUri ?? _baseUri;
 
   /// Largest container size field-proven against Discover's request
   /// validation: the Explore row fetch uses it on every load. Oversized
@@ -148,9 +160,10 @@ class PlexDiscoverClient {
     int limit = 25,
     int concurrency = 6,
     bool includeImageVariants = false,
+    String section = '/hubs/sections/home',
   }) async {
     final safeLimit = limit.clamp(1, 100);
-    final data = await _request('GET', '/hubs/sections/home', query: {'includeMeta': 1});
+    final data = await _request('GET', section, query: {'includeMeta': 1});
     final container = _mediaContainer(data!);
     final candidates = <({String id, String key, String title, String? type, String? style})>[];
     final seen = <String>{};
@@ -238,6 +251,31 @@ class PlexDiscoverClient {
     return PlexDiscoverPage(
       items: rawItems.take(safeLimit).toList(),
       totalResults: flexibleInt(container['totalSize']),
+    );
+  }
+
+  /// Fork: one page of a provider list (e.g. the free catalog's
+  /// `/library/sections/movies/all`), [offset] items in.
+  Future<PlexDiscoverPage> getPage(String key, {int offset = 0, int limit = 50}) async {
+    final safeLimit = limit.clamp(1, 100);
+    final data = await _request(
+      'GET',
+      key,
+      query: {
+        'X-Plex-Container-Start': offset < 0 ? 0 : offset,
+        'X-Plex-Container-Size': safeLimit,
+        'includeGuids': 1,
+        'includeMeta': 1,
+        'excludeElements': 'Media,Image',
+      },
+    );
+    final container = _mediaContainer(data!);
+    final items = flexibleMapList(container['Metadata']);
+    final total = flexibleInt(container['totalSize']);
+    return PlexDiscoverPage(
+      items: items,
+      totalResults: total,
+      hasMore: total != null ? offset + items.length < total : items.length >= safeLimit,
     );
   }
 
@@ -334,7 +372,7 @@ class PlexDiscoverClient {
     if (relative.hasScheme || relative.host.isNotEmpty || !relative.path.startsWith('/')) {
       throw ArgumentError.value(path, 'path', 'Plex Discover paths must stay on the provider host');
     }
-    final uri = _baseUri.replace(
+    final uri = _base.replace(
       path: relative.path,
       queryParameters: {
         ...relative.queryParameters,

@@ -10,6 +10,20 @@ class RetroStrings {
 
   // Home rows
   static String get hideWatched => _t('Hide watched', 'Gesehenes ausblenden');
+
+  // Free on Plex (Plex's ad-supported Movies & Shows)
+  static String get freeOnPlex => _t('Free on Plex', 'Kostenlos auf Plex');
+  static String get freeOnPlexAll => _t('All titles', 'Alle Titel');
+  static String get freeOnPlexWatch => _t('Plex (free, with ads)', 'Plex (kostenlos, mit Werbung)');
+  static String get freeOnPlexHint => _t(
+    'Plex\'s free, ad-supported movies and shows. They play in Plex\'s own app or Plex Web: open a title and use the Plex button.',
+    'Die kostenlosen, werbefinanzierten Filme und Serien von Plex. Sie laufen in der Plex-App oder Plex Web: Titel öffnen und den Plex-Knopf nutzen.',
+  );
+  static String get freeOnPlexNoAccount =>
+      _t('Sign in with a Plex account to see Plex\'s free titles.', 'Melde dich mit einem Plex-Konto an, um die kostenlosen Titel von Plex zu sehen.');
+  static String get freeOnPlexEmpty => _t('Plex offers no free titles here right now.', 'Plex bietet hier gerade keine kostenlosen Titel an.');
+  static String get freeOnPlexFailed =>
+      _t('Plex\'s free catalog could not be loaded.', 'Der kostenlose Katalog von Plex konnte nicht geladen werden.');
   static String get showWatched => _t('Show watched', 'Gesehenes anzeigen');
   static String get hideWatchedInRow => _t('Hide watched in this row', 'Gesehenes in dieser Reihe ausblenden');
   static String get showWatchedInRow => _t('Show watched in this row', 'Gesehenes in dieser Reihe anzeigen');

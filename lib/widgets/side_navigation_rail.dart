@@ -33,7 +33,9 @@ import '../providers/multi_server_provider.dart';
 import '../services/fullscreen_state_manager.dart';
 import '../theme/mono_tokens.dart';
 import '../widgets/backend_badge.dart';
+import '../i18n/retro_strings.dart';
 import '../i18n/strings.g.dart';
+import '../screens/free_on_plex_screen.dart' show FreeOnPlexScreen, hasPlexServer;
 
 enum _LibraryNavSection { visible, hidden }
 
@@ -1368,6 +1370,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                     _buildHiddenLibrariesHeader(hiddenLibraryCount, t),
                     if (_hiddenLibrariesExpanded) _buildLibraryGroupedColumn(hiddenRows, t),
                   ],
+                  if (hasPlexServer(context)) _buildFreeOnPlexItem(t),
                 ],
               ],
             ),
@@ -1516,6 +1519,28 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
           ),
         ),
       ),
+    );
+  }
+
+  /// Fork: Plex's free catalog as an entry under the libraries.
+  Widget _buildFreeOnPlexItem(dynamic t) {
+    return NavigationRailItem(
+      icon: Symbols.live_tv_rounded,
+      selectedIcon: Symbols.live_tv_rounded,
+      label: Text(
+        RetroStrings.freeOnPlex,
+        style: TextStyle(fontSize: 13, color: t.textMuted),
+        overflow: .ellipsis,
+      ),
+      isSelected: false,
+      onTap: () => unawaited(
+        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FreeOnPlexScreen())),
+      ),
+      focusNode: _focusTracker.get('free_on_plex'),
+      iconSize: 18,
+      expandedHeight: 40,
+      suppressSelectedBackground: widget.isSidebarFocused,
+      onNavigateRight: widget.onNavigateToContent,
     );
   }
 

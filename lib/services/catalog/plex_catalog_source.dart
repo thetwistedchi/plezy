@@ -221,6 +221,9 @@ class PlexCatalogSource with CatalogWatchlistMachinery implements CatalogSource,
     return items;
   }
 
+  /// Fork: maps a Plex provider entry (Discover or the free catalog).
+  CatalogItem? toCatalogItem(Map<String, dynamic> metadata) => _toCatalogItem(metadata);
+
   CatalogItem? _toCatalogItem(Map<String, dynamic> metadata) {
     final kind = _kindFor(metadata['type']);
     final title = _nonEmptyString(metadata['title']);
