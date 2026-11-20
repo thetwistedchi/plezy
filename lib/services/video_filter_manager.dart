@@ -104,6 +104,7 @@ class VideoFilterManager {
     this.onBoxFitModeChanged,
     bool cropLetterbox = false,
   }) : _boxFitMode = _keepAspect(initialBoxFitMode),
+       // ignore: prefer_initializing_formals, a public name for the private field
        _cropLetterbox = cropLetterbox,
        _canCrop = Platform.isWindows || Platform.isLinux,
        _zoomScale = normalizeZoomScale(initialZoomScale),
@@ -147,7 +148,7 @@ class VideoFilterManager {
       final aspect = double.tryParse(await player.getProperty('video-params/aspect') ?? '');
       if (aspect == null || !aspect.isFinite || aspect <= 0 || aspect == _videoAspect) return;
       _videoAspect = aspect;
-      if (_boxFitMode == 1) updateVideoFilter();
+      if (_boxFitMode == 1) unawaited(updateVideoFilter());
     } catch (_) {}
   }
 
@@ -185,7 +186,7 @@ class VideoFilterManager {
       final hdr = gamma == 'pq' || gamma == 'hlg';
       if (hdr == _isHdr) return;
       _isHdr = hdr;
-      updateVideoFilter();
+      unawaited(updateVideoFilter());
     } catch (_) {}
   }
 
@@ -297,7 +298,7 @@ class VideoFilterManager {
       );
       if (crop != _letterboxCrop) {
         _letterboxCrop = crop;
-        updateVideoFilter();
+        unawaited(updateVideoFilter());
       }
     } catch (e) {
       appLogger.w('Letterbox detection failed', error: e);

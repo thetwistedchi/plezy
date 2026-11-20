@@ -525,7 +525,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
             padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
             sliver: SliverReorderableList(
               itemCount: items.length,
-              onReorder: (a, b) => unawaited(_watchlist.reorder(a, b)),
+              onReorderItem: (a, b) => unawaited(_watchlist.reorder(a, b)),
               itemBuilder: (context, i) => _WatchlistRow(
                 key: ValueKey(items[i].id),
                 index: i,
@@ -634,7 +634,7 @@ class _VideoCardState extends State<_VideoCard> {
                           imageUrl: thumb,
                           fit: BoxFit.cover,
                           memCacheWidth: 480,
-                          errorWidget: (_, _, _) => video.thumbnailUrl == null || video.thumbnailUrl == thumb
+                          errorBuilder: (_, _, _) => video.thumbnailUrl == null || video.thumbnailUrl == thumb
                               ? const SizedBox.shrink()
                               : CachedNetworkImage(imageUrl: video.thumbnailUrl!, fit: BoxFit.cover),
                         ),
@@ -934,7 +934,7 @@ class _WatchlistRow extends StatelessWidget {
                             imageUrl: video.thumbnailUrl!,
                             fit: BoxFit.cover,
                           memCacheWidth: 480,
-                            errorWidget: (_, _, _) => const SizedBox.shrink(),
+                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
                           ),
                         if (video.duration > Duration.zero)
                           Positioned(right: 6, bottom: 6, child: _Chip(text: YtStrings.duration(video.duration))),

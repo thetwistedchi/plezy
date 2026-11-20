@@ -857,8 +857,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     if (widget.fromWatchlist) unawaited(YouTubeWatchlist.instance.remove(removed.id));
   }
 
+  /// [newIndex] is already adjusted for the removed item (onReorderItem).
   void _reorderQueue(int oldIndex, int newIndex) {
-    if (newIndex > oldIndex) newIndex -= 1;
     if (oldIndex == newIndex) return;
     final currentId = _video.id;
     setState(() {
@@ -1353,10 +1353,10 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                       imageUrl: 'https://i.ytimg.com/vi/${_video.id}/maxresdefault.jpg',
                       fit: BoxFit.contain,
                       fadeInDuration: const Duration(milliseconds: 150),
-                      errorWidget: (_, _, _) => CachedNetworkImage(
+                      errorBuilder: (_, _, _) => CachedNetworkImage(
                         imageUrl: 'https://i.ytimg.com/vi/${_video.id}/hqdefault.jpg',
                         fit: BoxFit.contain,
-                        errorWidget: (_, _, _) => const SizedBox.shrink(),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                     const ColoredBox(color: Color(0x66000000)),
@@ -2488,7 +2488,7 @@ class _ChannelStrip extends StatelessWidget {
                                   imageUrl: video.thumbnailUrl!,
                                   fit: BoxFit.cover,
                           memCacheWidth: 480,
-                                  errorWidget: (_, _, _) => const SizedBox.shrink(),
+                                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
                                 ),
                               if (video.duration > Duration.zero)
                                 Positioned(
@@ -2636,7 +2636,7 @@ class _StoryboardFrame extends StatelessWidget {
               alignment: Alignment.topLeft,
               fadeInDuration: Duration.zero,
               placeholder: (_, _) => ColoredBox(color: PlayerChrome.of(context).surface),
-              errorWidget: (_, _, _) => ColoredBox(color: PlayerChrome.of(context).surface),
+              errorBuilder: (_, _, _) => ColoredBox(color: PlayerChrome.of(context).surface),
             ),
           ),
         ),

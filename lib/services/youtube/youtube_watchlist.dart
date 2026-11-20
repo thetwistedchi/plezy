@@ -33,7 +33,7 @@ class YouTubeWatchlist extends ChangeNotifier {
       final list = raw == null ? const [] : jsonDecode(raw) as List;
       _items = [
         for (final e in list)
-          if (YouTubeVideo.fromJson(e as Map<String, dynamic>) case final video?) video,
+          ?YouTubeVideo.fromJson(e as Map<String, dynamic>),
       ];
     } catch (_) {
       _items = [];
@@ -86,10 +86,10 @@ class YouTubeWatchlist extends ChangeNotifier {
     await _save();
   }
 
-  /// Moves the entry at [oldIndex] to [newIndex] (ReorderableList indices).
+  /// Moves the entry at [oldIndex] to [newIndex], already adjusted for the
+  /// removed entry (onReorderItem indices).
   Future<void> reorder(int oldIndex, int newIndex) async {
     await load();
-    if (newIndex > oldIndex) newIndex -= 1;
     final item = _items.removeAt(oldIndex);
     _items.insert(newIndex, item);
     await _save();

@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import '../widgets/mini_player/video_mini_player.dart' show MinimizableRoute;
+
 /// Keeps a subtree from taking focus while the [ModalRoute] it lives in is
 /// covered by another route, and hands focus back when it is uncovered.
 ///
@@ -115,7 +117,20 @@ class _CoveredRouteFocusBoundaryState extends State<CoveredRouteFocusBoundary> {
   final _heldRequests = <FocusNode>[];
 
   @override
+  void initState() {
+    super.initState();
+    MinimizableRoute.minimizedRevision.addListener(_onMinimizedChanged);
+  }
+
+  /// Fork: a player minimizing above this route uncovers it (and expanding
+  /// covers it again) without the route itself changing.
+  void _onMinimizedChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    MinimizableRoute.minimizedRevision.removeListener(_onMinimizedChanged);
     _scope.dispose();
     super.dispose();
   }
@@ -168,7 +183,8 @@ class _CoveredRouteFocusBoundaryState extends State<CoveredRouteFocusBoundary> {
     // ModalRoute.of subscribes to the route's status, so this rebuilds on
     // every isCurrent flip. Outside any route the subtree is never covered.
     final route = ModalRoute.of(context);
-    final covered = !(route?.isCurrent ?? true);
+    // Fork: a page under a minimized player counts as uncovered.
+    final covered = route != null && !MinimizableRoute.isCurrentOrUnderMinimized(route);
     if (!_covered && covered) {
       // This build runs before any descendant rebuilt in the same frame can
       // unmount the focused node, so the path is still whole here.

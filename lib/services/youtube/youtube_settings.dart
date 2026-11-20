@@ -112,7 +112,7 @@ class YouTubeSettings extends ChangeNotifier {
   String _refreshToken = '';
   Set<String>? _watched;
   Map<String, int>? _channelOpens;
-  Map<String, SegmentMode> _sbModes = Map.of(sponsorBlockDefaults);
+  final Map<String, SegmentMode> _sbModes = Map.of(sponsorBlockDefaults);
 
   Set<String> _hiddenVideos = {};
 

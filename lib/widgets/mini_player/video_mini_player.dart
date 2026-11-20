@@ -127,6 +127,10 @@ mixin MinimizableRoute<T> on ModalRoute<T> {
 
   static final Set<MinimizableRoute<dynamic>> _minimizedRoutes = {};
 
+  /// Fork: bumps whenever a player minimizes or expands, so a page's
+  /// "covered" state ([isCurrentOrUnderMinimized]) can be rebuilt.
+  static final ValueNotifier<int> minimizedRevision = ValueNotifier(0);
+
   /// Fork: [route] is the top route, or only a minimized player sits above it.
   /// Back buttons and back keys use this in place of [Route.isCurrent], which
   /// stays false for the page under the mini player.
@@ -160,9 +164,18 @@ mixin MinimizableRoute<T> on ModalRoute<T> {
     _minimized = value;
     if (value) {
       _minimizedRoutes.add(this);
+      // Keyboard focus goes to the page under the bar instead of nowhere.
+      final below = _below;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_minimized && below is ModalRoute && below.isActive) {
+          final scope = below.focusScopeNode;
+          if (!scope.hasFocus) scope.requestFocus();
+        }
+      });
     } else {
       _minimizedRoutes.remove(this);
     }
+    minimizedRevision.value++;
     final entries = overlayEntries;
     if (entries.isNotEmpty) entries.first.opaque = opaque;
     changedInternalState();
@@ -170,7 +183,7 @@ mixin MinimizableRoute<T> on ModalRoute<T> {
 
   @override
   void dispose() {
-    _minimizedRoutes.remove(this);
+    if (_minimizedRoutes.remove(this)) minimizedRevision.value++;
     super.dispose();
   }
 

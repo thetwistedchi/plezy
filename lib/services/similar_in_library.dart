@@ -46,7 +46,7 @@ Future<MediaHub?> similarInLibraryHub(MediaServerClient client, MediaItem item) 
     if (genreIds == null) return null;
     final ids = [
       for (final g in genres)
-        if (genreIds.ids[g] case final id?) id,
+        ?genreIds.ids[g],
     ];
     if (ids.isEmpty) return null;
 

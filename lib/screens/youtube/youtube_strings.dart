@@ -246,7 +246,7 @@ class YtStrings {
     'openChannel' => openChannel,
     'share' => share,
     'openOnYouTube' => openOnYouTube,
-    'rating' => '${like} / ${dislike}',
+    'rating' => '$like / $dislike',
     'back10' => back10,
     'forward10' => forward10,
     'previousNext' => _t('Previous / next video', 'Vorheriges / nächstes Video'),

@@ -172,7 +172,7 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
                   child: CachedNetworkImage(
                     imageUrl: info!.bannerUrl!,
                     fit: BoxFit.cover,
-                    errorWidget: (_, _, _) => const SizedBox.shrink(),
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
                 ),
               ),
@@ -309,7 +309,7 @@ class _ChannelCard extends StatelessWidget {
                         imageUrl: video.thumbnailUrl!,
                         fit: BoxFit.cover,
                           memCacheWidth: 480,
-                        errorWidget: (_, _, _) => const SizedBox.shrink(),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     if (video.duration > Duration.zero)
                       Positioned(

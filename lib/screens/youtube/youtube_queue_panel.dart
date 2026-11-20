@@ -27,6 +27,7 @@ class YouTubeQueuePanel extends StatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onJump;
   final ValueChanged<int> onRemove;
+  /// [newIndex] is already adjusted for the removed item (onReorderItem).
   final void Function(int oldIndex, int newIndex) onReorder;
   final ValueChanged<YouTubeVideo> onAdd;
   final VoidCallback onClose;
@@ -103,7 +104,7 @@ class _YouTubeQueuePanelState extends State<YouTubeQueuePanel> {
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
       buildDefaultDragHandles: false,
       itemCount: widget.queue.length,
-      onReorder: widget.onReorder,
+      onReorderItem: widget.onReorder,
       itemBuilder: (context, i) {
         final video = widget.queue[i];
         final current = i == widget.currentIndex;
@@ -234,7 +235,7 @@ class _VideoRow extends StatelessWidget {
                           imageUrl: video.thumbnailUrl!,
                           fit: BoxFit.cover,
                           memCacheWidth: 480,
-                          errorWidget: (_, _, _) => const SizedBox.shrink(),
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         ),
                       if (video.duration > Duration.zero)
                         Positioned(

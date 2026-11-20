@@ -229,7 +229,7 @@ class _GroupDialogState extends State<_GroupDialog> {
       });
     final categoriesPresent = {
       for (final e in entries)
-        if (widget.categories[e.key] case final id?) id,
+        ?widget.categories[e.key],
     }.toList()
       ..sort((a, b) => (YouTubeCategories.name(a) ?? a).compareTo(YouTubeCategories.name(b) ?? b));
     final canSave = _name.text.trim().isNotEmpty && _picked.isNotEmpty;

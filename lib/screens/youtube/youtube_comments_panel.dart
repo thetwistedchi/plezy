@@ -48,7 +48,6 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
 
   /// Comment being edited, with its parent when it is a reply.
   YtComment? _editing;
-  String? _editingParent;
 
   @override
   void initState() {
@@ -128,7 +127,6 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
     setState(() {
       _replyTo = comment;
       _editing = null;
-      _editingParent = null;
       _input.text = '';
     });
   }
@@ -136,7 +134,6 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
   void _startEdit(YtComment comment, {String? parentId}) {
     setState(() {
       _editing = comment;
-      _editingParent = parentId;
       _replyTo = null;
       _input.text = comment.text;
     });
@@ -146,7 +143,6 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
     setState(() {
       _replyTo = null;
       _editing = null;
-      _editingParent = null;
       _input.clear();
     });
   }
@@ -180,7 +176,6 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
         _input.clear();
         _replyTo = null;
         _editing = null;
-        _editingParent = null;
       });
     } catch (e) {
       appLogger.w('YouTube comment failed', error: e);
@@ -492,7 +487,7 @@ class _CommentTile extends StatelessWidget {
                   : CachedNetworkImage(
                       imageUrl: comment.avatarUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => ColoredBox(color: PlayerChrome.of(context).surface),
+                      errorBuilder: (_, _, _) => ColoredBox(color: PlayerChrome.of(context).surface),
                     ),
             ),
           ),
