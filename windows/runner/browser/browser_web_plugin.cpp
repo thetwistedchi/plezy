@@ -119,14 +119,18 @@ std::wstring SiteOf(const std::wstring& host) {
   return site;
 }
 
-// Remembers the link the user last clicked (or middle-clicked) in the top
-// page, so a new window can be told apart from a script's pop-up. Only read
-// by the app; the page gets nothing from it.
+// Reports the link the user clicked (or middle-clicked) in the top page to
+// the app, so a new window can be told apart from a script's pop-up. It must
+// not be asked for while the page waits on window.open (that deadlocks the
+// page), so the page sends it on the click, before any script reacts.
 constexpr wchar_t kLinkScript[] =
-    L"(()=>{if(window.top!==window)return;const r=e=>{const p=e.composedPath?e.composedPath():[];"
+    L"(()=>{if(window.top!==window||!window.chrome||!chrome.webview)return;"
+    L"const r=e=>{const p=e.composedPath?e.composedPath():[];"
     L"const a=p.find(n=>n&&n.tagName==='A'&&n.href);"
-    L"Object.defineProperty(window,'__plezyLink',{value:a?{h:a.href,t:Date.now()}:null,configurable:true,enumerable:false});};"
+    L"try{chrome.webview.postMessage('plezy-link:'+(a?a.href:''));}catch(_){}};"
     L"addEventListener('click',r,true);addEventListener('auxclick',r,true);})();";
+
+constexpr wchar_t kLinkPrefix[] = L"plezy-link:";
 
 // Addresses that usually only exist over http: this machine, the local
 // network (router, NAS) and single-label names. They are never upgraded.
@@ -470,8 +474,8 @@ void BrowserWebPlugin::CreateTab(int id, const std::wstring& url, Result result)
 
             ComPtr<ICoreWebView2Settings> settings;
             if (SUCCEEDED(tab->webview->get_Settings(&settings))) {
-              // No bridge between web pages and the app.
-              settings->put_IsWebMessageEnabled(FALSE);
+              // Only the link reports of kLinkScript; nothing goes to the page.
+              settings->put_IsWebMessageEnabled(TRUE);
               settings->put_AreHostObjectsAllowed(FALSE);
               settings->put_AreDevToolsEnabled(FALSE);
               settings->put_IsStatusBarEnabled(TRUE);
@@ -648,47 +652,45 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
               return S_OK;
             }
             // Another site: open it only if it is the link the user clicked.
-            ComPtr<ICoreWebView2Deferral> deferral;
-            args->GetDeferral(&deferral);
-            ComPtr<ICoreWebView2NewWindowRequestedEventArgs> keep(args);
-            const HRESULT hr = sender->ExecuteScript(
-                L"(()=>{const l=window.__plezyLink;return l&&Date.now()-l.t<3000?l.h:'';})()",
-                Callback<ICoreWebView2ExecuteScriptCompletedHandler>(
-                    [this, id, uri, opener_site, deferral, keep](HRESULT hr, LPCWSTR json) -> HRESULT {
-                      std::wstring clicked = (SUCCEEDED(hr) && json) ? json : L"";
-                      // A JSON string: strip the quotes, undo escaped slashes.
-                      if (clicked.size() >= 2 && clicked.front() == L'"') clicked = clicked.substr(1, clicked.size() - 2);
-                      std::wstring unescaped;
-                      for (size_t i = 0; i < clicked.size(); ++i) {
-                        if (clicked[i] == L'\\' && i + 1 < clicked.size()) ++i;
-                        unescaped += clicked[i];
-                      }
-                      auto trim = [](std::wstring u) {
-                        while (!u.empty() && u.back() == L'/') u.pop_back();
-                        return u;
-                      };
-                      if (!unescaped.empty() && trim(unescaped) == trim(uri)) {
-                        OpenPopup(id, uri, true);
-                      } else {
-                        Send(id, "popupBlocked",
-                             {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))},
-                              {flutter::EncodableValue("site"), flutter::EncodableValue(ToUtf8(opener_site.c_str()))}});
-                      }
-                      if (deferral) deferral->Complete();
-                      return S_OK;
-                    })
-                    .Get());
-            if (FAILED(hr)) {
+            auto trim = [](std::wstring u) {
+              while (!u.empty() && u.back() == L'/') u.pop_back();
+              return u;
+            };
+            BrowserTab* t = Find(id);
+            const bool clicked_link = t && !t->last_link.empty() && ::GetTickCount64() - t->link_at < 3000 &&
+                                      trim(t->last_link) == trim(uri);
+            if (clicked_link) {
+              t->last_link.clear();
+              OpenPopup(id, uri, true);
+            } else {
               Send(id, "popupBlocked",
                    {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))},
                     {flutter::EncodableValue("site"), flutter::EncodableValue(ToUtf8(opener_site.c_str()))}});
-              if (deferral) deferral->Complete();
             }
             return S_OK;
           })
           .Get(),
       &token);
   tab.tokens.push_back({5, token});
+
+  webview->add_WebMessageReceived(
+      Callback<ICoreWebView2WebMessageReceivedEventHandler>(
+          [this, id](ICoreWebView2*, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
+            LPWSTR raw = nullptr;
+            if (FAILED(args->TryGetWebMessageAsString(&raw)) || !raw) return S_OK;
+            const std::wstring message = raw;
+            ::CoTaskMemFree(raw);
+            const std::wstring prefix = kLinkPrefix;
+            if (message.size() > 4096 || !StartsWith(message, prefix)) return S_OK;
+            if (auto* t = Find(id)) {
+              t->last_link = message.substr(prefix.size());
+              t->link_at = ::GetTickCount64();
+            }
+            return S_OK;
+          })
+          .Get(),
+      &token);
+  tab.tokens.push_back({11, token});
 
   webview->add_PermissionRequested(
       Callback<ICoreWebView2PermissionRequestedEventHandler>(
@@ -859,6 +861,7 @@ void BrowserWebPlugin::CloseTab(int id) {
         case 8: tab.webview->remove_ContainsFullScreenElementChanged(token); break;
         case 9: tab.webview->remove_ProcessFailed(token); break;
         case 10: if (webview8) webview8->remove_IsDocumentPlayingAudioChanged(token); break;
+        case 11: tab.webview->remove_WebMessageReceived(token); break;
         default: break;
       }
     }

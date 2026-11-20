@@ -44,6 +44,9 @@ struct BrowserTab {
   bool placed_once = false;
   // When this tab last opened a pop-up (GetTickCount64), for the tab-under check.
   ULONGLONG popup_at = 0;
+  // The link the user last clicked in the top page, reported by kLinkScript.
+  std::wstring last_link;
+  ULONGLONG link_at = 0;
 };
 
 class BrowserWebPlugin : public flutter::Plugin {
