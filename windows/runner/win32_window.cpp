@@ -170,11 +170,27 @@ Win32Window::MessageHandler(HWND hwnd, UINT const message, WPARAM const wparam, 
 
     case WM_DPICHANGED: {
       auto newRectSize = reinterpret_cast<RECT*>(lparam);
+      LONG newLeft = newRectSize->left;
+      LONG newTop = newRectSize->top;
       LONG newWidth = newRectSize->right - newRectSize->left;
       LONG newHeight = newRectSize->bottom - newRectSize->top;
 
-      SetWindowPos(
-          hwnd, nullptr, newRectSize->left, newRectSize->top, newWidth, newHeight, SWP_NOZORDER | SWP_NOACTIVATE);
+      // Fork: Windows scales the window by the new monitor's DPI, which can
+      // make it larger than that monitor (a 3440 px wide window became 3997 x
+      // 2374 on the other screen, and the video with it). Keep it within the
+      // monitor's work area.
+      if (HMONITOR monitor = MonitorFromRect(newRectSize, MONITOR_DEFAULTTONEAREST)) {
+        MONITORINFO info{sizeof(info)};
+        if (GetMonitorInfo(monitor, &info)) {
+          const RECT& work = info.rcWork;
+          newWidth = (std::min)(newWidth, work.right - work.left);
+          newHeight = (std::min)(newHeight, work.bottom - work.top);
+          newLeft = (std::max)(work.left, (std::min)(newLeft, work.right - newWidth));
+          newTop = (std::max)(work.top, (std::min)(newTop, work.bottom - newHeight));
+        }
+      }
+
+      SetWindowPos(hwnd, nullptr, newLeft, newTop, newWidth, newHeight, SWP_NOZORDER | SWP_NOACTIVATE);
 
       return 0;
     }
