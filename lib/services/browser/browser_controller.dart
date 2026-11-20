@@ -171,6 +171,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setShown(bool shown) async {
     if (_shown == shown) return;
     _shown = shown;
+    appLogger.d('Browser: ${shown ? 'shown' : 'hidden'} (${tabs.length} tabs, ${tabs.where((t) => t.live).length} running)');
     if (shown) {
       _hiddenSince = null;
       _release?.cancel();
@@ -196,14 +197,25 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
     try {
+      final started = DateTime.now();
+      final fresh = _native.activeCacheLimitMb == null;
       await _native.ensureReady(httpsUpgrade: _settings.httpsUpgrade, cacheLimitMb: _settings.cacheLimitMb);
+      if (fresh) {
+        appLogger.i(
+          'Browser: engine started in ${DateTime.now().difference(started).inMilliseconds} ms '
+          '(cache limit ${_settings.cacheLimitMb} MB)',
+        );
+      }
       await _native.setPopupSites(_settings.popupSites);
       if (!tab.live) {
         tab.live = true;
         tab.loading = true;
         notifyListeners();
+        final created = DateTime.now();
         await _native.createTab(tab.id, url);
+        appLogger.d('Browser tab ${tab.id}: created in ${DateTime.now().difference(created).inMilliseconds} ms');
       } else if (tab.suspended) {
+        appLogger.d('Browser tab ${tab.id}: resumed');
         await _native.resume(tab.id);
       }
       tab.suspended = false;
@@ -331,9 +343,47 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> answerPermission(int request, bool allow) => _native.answerPermission(request, allow);
   Future<void> answerDownload(int request, bool allow) => _native.answerDownload(request, allow);
 
+  /// Only the host goes into the log, not the full address.
+  static String _host(String? url) => Uri.tryParse(url ?? '')?.host ?? '';
+
+  void _log(BrowserEvent e) {
+    final t = 'Browser tab ${e.tab}';
+    switch (e.type) {
+      case 'loading':
+        appLogger.d('$t: loading ${_host(e.str('url'))}');
+      case 'loaded':
+        if (e.flag('ok')) {
+          appLogger.d('$t: loaded');
+        } else if (e.integer('error') != 14) {
+          appLogger.i('$t: load failed (WebView2 error ${e.integer('error')})');
+        }
+      case 'upgraded':
+        appLogger.d('$t: upgraded ${_host(e.str('url'))} to https');
+      case 'blockedScheme':
+        appLogger.i('$t: blocked a local file or script address');
+      case 'openTab':
+        appLogger.d('$t: opens ${_host(e.str('url'))} in a new tab');
+      case 'popupBlocked':
+        appLogger.i(
+          '$t: ${e.flag('redirect') ? 'tab-under' : 'pop-up'} from ${e.str('site')} to ${_host(e.str('url'))} blocked',
+        );
+      case 'permission':
+        appLogger.d('$t: permission ${e.integer('kind')} requested by ${_host(e.str('url'))}');
+      case 'download':
+        final name = (e.str('path') ?? '').split(RegExp(r'[\\/]')).last;
+        final ext = name.contains('.') ? name.split('.').last : '?';
+        appLogger.d('$t: download requested (.$ext, ${e.integer('size')} bytes)');
+      case 'crashed':
+        appLogger.w('$t: browser process failed');
+      case 'fullscreen':
+        appLogger.d('$t: fullscreen ${e.flag('value')}');
+    }
+  }
+
   void _onEvent(BrowserEvent e) {
     final tab = _byId(e.tab);
     if (tab == null) return;
+    _log(e);
     switch (e.type) {
       case 'state':
         final url = e.str('url');
