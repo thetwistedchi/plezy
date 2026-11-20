@@ -221,6 +221,23 @@ LRESULT CALLBACK MpvInnerSubclassProc(
     return ::DefSubclassProc(hwnd, message, wparam, lparam);
   }
 
+  // Fork: mpv's window always exactly fills our video window, whatever size
+  // mpv itself asks for (it tried 5998x3564 after a DPI change).
+  if (message == WM_WINDOWPOSCHANGING) {
+    auto* pos = reinterpret_cast<WINDOWPOS*>(lparam);
+    RECT host{};
+    if (pos && ::GetClientRect(::GetParent(hwnd), &host)) {
+      if (!(pos->flags & SWP_NOSIZE)) {
+        pos->cx = host.right - host.left;
+        pos->cy = host.bottom - host.top;
+      }
+      if (!(pos->flags & SWP_NOMOVE)) {
+        pos->x = 0;
+        pos->y = 0;
+      }
+    }
+  }
+
   const bool active = state->active.load(std::memory_order_acquire);
   HWND view = active ? state->forward_target.load(std::memory_order_acquire) : nullptr;
   if (active && view && ForwardPointerAsMouse(*state, view, message, wparam, lparam)) {
@@ -597,6 +614,12 @@ bool MpvPlayer::Initialize(HWND view) {
 
     mpv_set_option_string(mpv_, "vo", "gpu-next");
     mpv_set_option_string(mpv_, "gpu-api", "auto");
+    // Fork: the window is embedded and sized by the app. mpv must not scale
+    // it for the monitor's DPI or resize it for the video: on a move between
+    // monitors with different scaling it grew to 5998x3564 on a 3440x1440
+    // screen and the player's controls stopped working.
+    mpv_set_option_string(mpv_, "hidpi-window-scale", "no");
+    mpv_set_option_string(mpv_, "auto-window-resize", "no");
     // hwdec is set from Flutter via setProperty based on user preference
   }
 
