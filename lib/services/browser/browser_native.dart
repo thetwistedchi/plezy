@@ -100,6 +100,7 @@ class BrowserNative {
   Future<void> createTab(int id, String url, {bool private = false}) =>
       _channel.invokeMethod<bool>('createTab', {'id': id, 'url': url, 'private': private});
   Future<void> setMuted(int id, bool value) => _call('setMuted', {'id': id, 'value': value});
+  Future<void> setCutouts(List<int> rects) => _call('setCutouts', {'rects': rects});
   Future<void> adblockLoad(String config) => _call('adblockLoad', {'config': config});
   Future<void> adblockSetEnabled(bool value) => _call('adblockSetEnabled', {'value': value});
   Future<void> adblockSetOffSites(List<String> sites) => _call('adblockSetOffSites', {'sites': sites});

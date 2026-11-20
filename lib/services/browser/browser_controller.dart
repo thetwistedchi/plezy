@@ -148,6 +148,36 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
 
   Stream<BrowserPrompt> get prompts => _prompts.stream;
 
+  final StreamController<void> _pageFocus = StreamController<void>.broadcast();
+
+  /// The user clicked into the page (it took the keyboard focus).
+  Stream<void> get pageFocused => _pageFocus.stream;
+
+  final Map<int, Rect> _cutouts = {};
+  bool _cutoutsQueued = false;
+
+  /// Marks where Flutter content (a popup) lies over the page, in physical
+  /// pixels; null removes it. The page gets a hole there, so the popup takes
+  /// the clicks while the page stays visible around it.
+  void setCutout(int id, Rect? rect) {
+    if (rect == null) {
+      if (_cutouts.remove(id) == null) return;
+    } else {
+      if (_cutouts[id] == rect) return;
+      _cutouts[id] = rect;
+    }
+    if (_cutoutsQueued) return;
+    _cutoutsQueued = true;
+    scheduleMicrotask(() {
+      _cutoutsQueued = false;
+      unawaited(
+        _native.setCutouts([
+          for (final r in _cutouts.values) ...[r.left.floor(), r.top.floor(), r.right.ceil(), r.bottom.ceil()],
+        ]),
+      );
+    });
+  }
+
   /// Ctrl+T, Ctrl+W, Ctrl+L, Ctrl+Tab, Alt+arrows pressed inside a page.
   Stream<String> get shortcuts => _shortcuts.stream;
 
@@ -618,6 +648,10 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   };
 
   void _onEvent(BrowserEvent e) {
+    if (e.type == 'pageFocus') {
+      _pageFocus.add(null);
+      return;
+    }
     if (e.type == 'adblockReady') {
       AdblockManager.instance.onReady(e.flag('ok'), e.integer('ms'));
       return;

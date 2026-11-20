@@ -60,7 +60,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   final _address = TextEditingController();
   final _addressFocus = FocusNode(debugLabel: 'browser-address');
   final _keys = FocusNode(debugLabel: 'browser');
-  final List<StreamSubscription<Object>> _subs = [];
+  final List<StreamSubscription<Object?>> _subs = [];
   _Notice? _notice;
   int _overlays = 0;
   final _addressLink = LayerLink();
@@ -79,6 +79,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
     AdblockManager.instance.addListener(_onChanged);
     _subs.add(_controller.prompts.listen(_onPrompt));
     _subs.add(_controller.shortcuts.listen(_onShortcut));
+    _subs.add(
+      _controller.pageFocused.listen((_) {
+        // A click into the page: close what lies over it.
+        final popup = _popupContext;
+        if (popup != null && popup.mounted) Navigator.pop(popup);
+        if (_addressFocus.hasFocus) _addressFocus.unfocus();
+      }),
+    );
     _addressFocus.addListener(_onAddressFocus);
     _address.addListener(_onAddressText);
     unawaited(_bookmarks.load());
@@ -163,16 +171,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
-  /// Flutter content over the page (a menu, the suggestions) hides the page
-  /// while it shows: clicks there would otherwise reach the page.
-  void _overlayActive(bool active) {
-    _overlays += active ? 1 : -1;
-    _syncVisibility();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() {});
-    });
-  }
-
   // ---- Suggestions ----
 
   void _onAddressText() {
@@ -212,11 +210,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _suggestions = list;
     _highlighted = -1;
     if (list.isNotEmpty) {
-      _suggestPortal.show();
-      if (!wasShown) _overlayActive(true);
+      if (!wasShown) _suggestPortal.show();
     } else {
       _suggestPortal.hide();
-      if (wasShown) _overlayActive(false);
     }
     if (mounted) setState(() {});
   }
@@ -251,7 +247,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
       child: Align(
         alignment: Alignment.topLeft,
         child: TextFieldTapRegion(
-          child: SizedBox(
+          child: _Cutout(
+            child: SizedBox(
             width: box?.width ?? 600,
             child: Material(
               color: t.surface,
@@ -302,6 +299,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 ],
               ),
             ),
+          ),
           ),
         ),
       ),
@@ -519,100 +517,145 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   Future<void> _openSettings() => _controller.openInternal(BrowserController.settingsPage);
 
-  Future<void> _editBookmark(Bookmark bookmark, {bool nested = false}) async {
-    final name = TextEditingController(text: bookmark.title);
-    Future<String?> ask() => showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(RetroStrings.renameBookmark),
-          content: TextField(controller: name, autofocus: true, onSubmitted: (v) => Navigator.pop(context, v)),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, '\u0000delete'), child: Text(RetroStrings.delete)),
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(RetroStrings.cancel)),
-            FilledButton(onPressed: () => Navigator.pop(context, name.text), child: Text(RetroStrings.save)),
-          ],
-        ),
-      );
-    final result = nested ? await ask() : await _overlay(ask);
-    name.dispose();
-    if (result == null) return;
-    if (result == '\u0000delete') {
-      await _bookmarks.remove(bookmark.url);
-    } else {
-      await _bookmarks.rename(bookmark.url, result);
-    }
+  Rect? _rectOf(BuildContext anchor) {
+    final box = anchor.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
-  Future<void> _showBookmarks() async {
-    final url = await _overlay(
-      () => showDialog<String>(
-        context: context,
-        builder: (context) => ListenableBuilder(
+  Future<void> _showBookmarks(Rect anchor) async {
+    String? editing;
+    final name = TextEditingController();
+    final url = await _popup<String>(
+      anchor,
+      width: 380,
+      (context) => StatefulBuilder(
+        builder: (context, setPanel) => ListenableBuilder(
           listenable: _bookmarks,
           builder: (context, _) {
             final t = tokens(context);
             final items = _bookmarks.items;
-            return AlertDialog(
-              title: Text(RetroStrings.bookmarks),
-              contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
-              content: SizedBox(
-                width: 520,
-                child: items.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(RetroStrings.noBookmarks, style: TextStyle(color: t.textMuted)),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: items.length,
-                        itemBuilder: (context, i) {
-                          final b = items[i];
-                          return ListTile(
-                            leading: const AppIcon.retro(Symbols.bookmark_rounded, size: 20),
-                            title: Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: Text(b.host, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            onTap: () => Navigator.pop(context, b.url),
-                            trailing: IconButton(
-                              icon: const AppIcon.retro(Symbols.edit_rounded, size: 18),
-                              tooltip: RetroStrings.renameBookmark,
-                              onPressed: () => unawaited(_editBookmark(b, nested: true)),
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _popupHeader(Symbols.bookmarks_rounded, RetroStrings.bookmarks),
+                if (items.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    child: Text(RetroStrings.noBookmarks, style: TextStyle(color: t.textMuted)),
+                  ),
+                for (final b in items)
+                  if (editing == b.url)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: name,
+                              autofocus: true,
+                              decoration: const InputDecoration(isDense: true),
+                              onSubmitted: (v) {
+                                unawaited(_bookmarks.rename(b.url, v));
+                                setPanel(() => editing = null);
+                              },
                             ),
-                          );
-                        },
+                          ),
+                          IconButton(
+                            icon: const AppIcon.retro(Symbols.check_rounded, size: 18),
+                            tooltip: RetroStrings.save,
+                            onPressed: () {
+                              unawaited(_bookmarks.rename(b.url, name.text));
+                              setPanel(() => editing = null);
+                            },
+                          ),
+                          IconButton(
+                            icon: const AppIcon.retro(Symbols.delete_rounded, size: 18),
+                            tooltip: RetroStrings.delete,
+                            onPressed: () {
+                              unawaited(_bookmarks.remove(b.url));
+                              setPanel(() => editing = null);
+                            },
+                          ),
+                        ],
                       ),
-              ),
-              actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(RetroStrings.close))],
+                    )
+                  else
+                    ListTile(
+                      dense: true,
+                      leading: const AppIcon.retro(Symbols.bookmark_rounded, size: 18),
+                      title: Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(b.host, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      onTap: () => Navigator.pop(context, b.url),
+                      trailing: IconButton(
+                        icon: const AppIcon.retro(Symbols.edit_rounded, size: 16),
+                        tooltip: RetroStrings.renameBookmark,
+                        onPressed: () => setPanel(() {
+                          editing = b.url;
+                          name.text = b.title;
+                        }),
+                      ),
+                    ),
+                const SizedBox(height: 6),
+              ],
             );
           },
         ),
       ),
     );
+    name.dispose();
     if (url != null) await _submit(url);
   }
 
-  Future<String?> _menu(Offset position, List<PopupMenuEntry<String>> items) => _overlay(() {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    return showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
-      items: items,
-    );
-  });
-
-  PopupMenuItem<String> _menuItem(String value, IconData icon, String label, {bool enabled = true}) => PopupMenuItem(
-    value: value,
-    enabled: enabled,
-    child: Row(
-      children: [
-        AppIcon.retro(icon, size: 18, retroOpacity: enabled ? 1 : 0.4),
-        const SizedBox(width: 12),
-        Text(label),
-      ],
+  Future<String?> _menu(Rect anchor, List<_MenuEntry> items, {bool alignLeft = false}) => _popup<String>(
+    anchor,
+    width: 280,
+    alignLeft: alignLeft,
+    (context) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final item in items)
+            if (item.value == null)
+              const Divider(height: 9)
+            else
+              InkWell(
+                onTap: item.enabled ? () => Navigator.pop(context, item.value) : null,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      AppIcon.retro(item.icon, size: 18, retroOpacity: item.enabled ? 1 : 0.4),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          item.label,
+                          style: TextStyle(color: item.enabled ? null : tokens(context).textMuted),
+                        ),
+                      ),
+                      if (item.checked != null)
+                        AppIcon(
+                          item.checked! ? Symbols.check_box_rounded : Symbols.check_box_outline_blank_rounded,
+                          size: 18,
+                          color: tokens(context).accent,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+        ],
+      ),
     ),
   );
 
+  _MenuEntry _menuItem(String value, IconData icon, String label, {bool enabled = true, bool? checked}) =>
+      _MenuEntry(value, icon, label, enabled: enabled, checked: checked);
+
   Future<void> _tabMenu(BrowserTabState tab, Offset position) async {
-    final picked = await _menu(position, [
+    final picked = await _menu(position & const Size(1, 1), alignLeft: true, [
       _menuItem('reload', Symbols.refresh_rounded, RetroStrings.reload, enabled: tab.url != null),
       _menuItem('duplicate', Symbols.add_rounded, RetroStrings.duplicateTab),
       _menuItem(
@@ -620,7 +663,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         tab.muted ? Symbols.volume_up_rounded : Symbols.volume_off_rounded,
         tab.muted ? RetroStrings.unmuteTab : RetroStrings.muteTab,
       ),
-      const PopupMenuDivider(),
+      _MenuEntry.divider,
       _menuItem('reopen', Symbols.history_rounded, RetroStrings.reopenClosedTab, enabled: _controller.canReopen),
       _menuItem('others', Symbols.close_rounded, RetroStrings.closeOtherTabs, enabled: _controller.tabs.length > 1),
       _menuItem('close', Symbols.close_rounded, RetroStrings.closeTab),
@@ -642,25 +685,32 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
-  Future<void> _moreMenu(Offset position) async {
+  Future<void> _moreMenu(Rect anchor) async {
     final url = _controller.active?.url;
-    final site = (_controller.active?.host ?? '').replaceFirst(RegExp(r'^www\.'), '');
-    final picked = await _menu(position, [
+    final internal = _controller.active?.isInternal ?? false;
+    final site = _siteOf(_controller.active);
+    final picked = await _menu(anchor, [
       _menuItem('new', Symbols.add_rounded, RetroStrings.newTab),
       _menuItem('private', Symbols.visibility_off_rounded, RetroStrings.newPrivateTab),
       _menuItem('reopen', Symbols.history_rounded, RetroStrings.reopenClosedTab, enabled: _controller.canReopen),
-      const PopupMenuDivider(),
-      CheckedPopupMenuItem(value: 'dark', checked: _settings.darkMode, child: Text(RetroStrings.darkMode)),
-      if (_settings.darkMode && site.isNotEmpty)
-        CheckedPopupMenuItem(
-          value: 'darkSite',
+      _MenuEntry.divider,
+      _menuItem('dark', Symbols.dark_mode_rounded, RetroStrings.darkMode, checked: _settings.darkMode),
+      if (_settings.darkMode && site.isNotEmpty && !internal)
+        _menuItem(
+          'darkSite',
+          Symbols.dark_mode_rounded,
+          RetroStrings.darkOnSite(site),
           checked: !_settings.isDarkExcluded(site),
-          child: Text(RetroStrings.darkOnSite(site)),
         ),
-      const PopupMenuDivider(),
+      _MenuEntry.divider,
       _menuItem('downloads', Symbols.download_rounded, RetroStrings.downloads),
-      _menuItem('external', Symbols.open_in_new_rounded, RetroStrings.openInDefaultBrowser, enabled: url != null),
-      const PopupMenuDivider(),
+      _menuItem(
+        'external',
+        Symbols.open_in_new_rounded,
+        RetroStrings.openInDefaultBrowser,
+        enabled: url != null && !internal,
+      ),
+      _MenuEntry.divider,
       _menuItem('settings', Symbols.settings_rounded, RetroStrings.browserSettings),
     ]);
     switch (picked) {
@@ -675,7 +725,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       case 'darkSite':
         await _controller.setDarkExcluded(site, !_settings.isDarkExcluded(site));
       case 'downloads':
-        await _showDownloads();
+        await _showDownloads(anchor);
       case 'external':
         final uri = Uri.tryParse(url ?? '');
         if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -705,7 +755,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
           builder: (anchor) => IconButton(
             icon: AppIcon.retro(Symbols.shield_rounded, size: 20, retroOpacity: active ? 1 : 0.35),
             tooltip: RetroStrings.adblock,
-            onPressed: () => unawaited(_showShield(anchor)),
+            onPressed: () {
+              final rect = _rectOf(anchor);
+              if (rect != null) unawaited(_showShield(rect));
+            },
             visualDensity: VisualDensity.compact,
           ),
         ),
@@ -728,46 +781,51 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  /// A small panel under [anchor] (a toolbar button), like a browser's
-  /// extension popup. The page is hidden meanwhile: it would take the clicks.
-  Future<void> _popup(BuildContext anchor, WidgetBuilder builder, {double width = 340}) async {
-    final box = anchor.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final rect = box.localToGlobal(Offset.zero) & box.size;
-    await _overlay(
-      () => showGeneralDialog<void>(
-        context: context,
-        barrierDismissible: true,
-        barrierLabel: RetroStrings.close,
-        barrierColor: Colors.transparent,
-        transitionDuration: const Duration(milliseconds: 120),
-        pageBuilder: (context, _, _) {
-          final screen = MediaQuery.sizeOf(context);
-          final t = tokens(context);
-          final left = (rect.right - width).clamp(8.0, screen.width - width - 8);
-          return Stack(
-            children: [
-              Positioned(
-                left: left,
-                top: rect.bottom + 4,
-                width: width,
+  /// The open popup's context, to close it when the user clicks the page.
+  BuildContext? _popupContext;
+
+  /// A small panel under [anchor] (a toolbar button, global coordinates),
+  /// like a browser's extension popup. It lies over the live page: the page
+  /// gets a hole under it ([_Cutout]), so the panel takes the clicks.
+  Future<T?> _popup<T>(Rect anchor, WidgetBuilder builder, {double width = 340, bool alignLeft = false}) async {
+    if (_popupContext != null) Navigator.pop(_popupContext!);
+    final result = await showGeneralDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: RetroStrings.close,
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 120),
+      pageBuilder: (context, _, _) {
+        _popupContext = context;
+        final screen = MediaQuery.sizeOf(context);
+        final t = tokens(context);
+        final left = (alignLeft ? anchor.left : anchor.right - width).clamp(8.0, screen.width - width - 8);
+        return Stack(
+          children: [
+            Positioned(
+              left: left,
+              top: anchor.bottom + 4,
+              width: width,
+              child: _Cutout(
                 child: Material(
                   color: t.surface,
                   elevation: 12,
                   borderRadius: BorderRadius.circular(t.radiusMd),
                   clipBehavior: Clip.antiAlias,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: screen.height - rect.bottom - 24),
+                    constraints: BoxConstraints(maxHeight: screen.height - anchor.bottom - 24),
                     child: SingleChildScrollView(child: builder(context)),
                   ),
                 ),
               ),
-            ],
-          );
-        },
-        transitionBuilder: (context, animation, _, child) => FadeTransition(opacity: animation, child: child),
-      ),
+            ),
+          ],
+        );
+      },
+      transitionBuilder: (context, animation, _, child) => FadeTransition(opacity: animation, child: child),
     );
+    _popupContext = null;
+    return result;
   }
 
   Widget _popupHeader(IconData icon, String title) => Padding(
@@ -795,9 +853,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
     ),
   );
 
-  Future<void> _showShield(BuildContext anchor) async {
+  Future<void> _showShield(Rect anchor) async {
     final adblock = AdblockManager.instance;
-    await _popup(
+    await _popup<void>(
       anchor,
       (context) => ListenableBuilder(
         listenable: Listenable.merge([adblock, _controller]),
@@ -835,8 +893,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  Future<void> _showDark(BuildContext anchor) async {
-    await _popup(
+  Future<void> _showDark(Rect anchor) async {
+    await _popup<void>(
       anchor,
       (context) => ListenableBuilder(
         listenable: Listenable.merge([_settings, _controller]),
@@ -888,7 +946,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        _iconButton(Symbols.download_rounded, RetroStrings.downloads, () => unawaited(_showDownloads())),
+        Builder(
+          builder: (anchor) => _iconButton(Symbols.download_rounded, RetroStrings.downloads, () {
+            final rect = _rectOf(anchor);
+            if (rect != null) unawaited(_showDownloads(rect));
+          }),
+        ),
         if (active.isNotEmpty)
           IgnorePointer(
             child: SizedBox(
@@ -905,39 +968,38 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  Future<void> _showDownloads() async {
-    await _overlay(
-      () => showDialog<void>(
-        context: context,
-        builder: (context) => ListenableBuilder(
-          listenable: _controller,
-          builder: (context, _) {
-            final t = tokens(context);
-            final items = _controller.downloads;
-            return AlertDialog(
-              title: Text(RetroStrings.downloads),
-              contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
-              content: SizedBox(
-                width: 560,
-                child: items.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(RetroStrings.noDownloads, style: TextStyle(color: t.textMuted)),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: items.length,
-                        itemBuilder: (context, i) => _DownloadRow(download: items[i]),
-                      ),
-              ),
-              actions: [
-                if (items.any((d) => !d.active))
-                  TextButton(onPressed: _controller.clearFinishedDownloads, child: Text(RetroStrings.clearList)),
-                TextButton(onPressed: () => Navigator.pop(context), child: Text(RetroStrings.close)),
-              ],
-            );
-          },
-        ),
+  Future<void> _showDownloads(Rect anchor) async {
+    await _popup<void>(
+      anchor,
+      width: 460,
+      (context) => ListenableBuilder(
+        listenable: _controller,
+        builder: (context, _) {
+          final t = tokens(context);
+          final items = _controller.downloads;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _popupHeader(Symbols.download_rounded, RetroStrings.downloads),
+              if (items.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  child: Text(RetroStrings.noDownloads, style: TextStyle(color: t.textMuted)),
+                )
+              else
+                for (final d in items) _DownloadRow(download: d),
+              if (items.any((d) => !d.active))
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    child: TextButton(onPressed: _controller.clearFinishedDownloads, child: Text(RetroStrings.clearList)),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1191,9 +1253,25 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 focusNode: _addressFocus,
                 onSubmitted: (v) => unawaited(_submit(_highlighted >= 0 && _highlighted < _suggestions.length ? _suggestions[_highlighted].url : v)),
                 onTap: _onAddressTap,
-                contextMenuBuilder: (context, editable) => _OverlayGuard(
-                  onChange: _overlayActive,
-                  child: AdaptiveTextSelectionToolbar.editableText(editableTextState: editable),
+                // The menu's own buttons sit in a cutout, so it lies over the
+                // live page and takes the clicks.
+                contextMenuBuilder: (context, editable) => DesktopTextSelectionToolbar(
+                  anchor: editable.contextMenuAnchors.primaryAnchor,
+                  children: [
+                    _Cutout(
+                      margin: 12,
+                      child: IntrinsicWidth(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: AdaptiveTextSelectionToolbar.getAdaptiveButtons(
+                            context,
+                            editable.contextMenuButtonItems,
+                          ).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 onTapOutside: (_) => _addressFocus.unfocus(),
                 keyboardType: TextInputType.url,
@@ -1255,17 +1333,24 @@ class _BrowserScreenState extends State<BrowserScreen> {
             builder: (anchor) => IconButton(
               icon: AppIcon.retro(Symbols.dark_mode_rounded, size: 20, retroOpacity: _settings.darkMode ? 1 : 0.45),
               tooltip: RetroStrings.darkMode,
-              onPressed: () => unawaited(_showDark(anchor)),
+              onPressed: () {
+                final rect = _rectOf(anchor);
+                if (rect != null) unawaited(_showDark(rect));
+              },
               visualDensity: VisualDensity.compact,
             ),
           ),
-          _iconButton(Symbols.bookmarks_rounded, RetroStrings.bookmarks, () => unawaited(_showBookmarks())),
+          Builder(
+            builder: (anchor) => _iconButton(Symbols.bookmarks_rounded, RetroStrings.bookmarks, () {
+              final rect = _rectOf(anchor);
+              if (rect != null) unawaited(_showBookmarks(rect));
+            }),
+          ),
           if (_controller.downloads.isNotEmpty) _buildDownloadsButton(t),
           Builder(
-            builder: (context) => _iconButton(Symbols.more_vert_rounded, RetroStrings.moreActions, () {
-              final box = context.findRenderObject() as RenderBox?;
-              final position = box == null ? Offset.zero : box.localToGlobal(box.size.bottomLeft(Offset.zero));
-              unawaited(_moreMenu(position));
+            builder: (anchor) => _iconButton(Symbols.more_vert_rounded, RetroStrings.moreActions, () {
+              final rect = _rectOf(anchor);
+              if (rect != null) unawaited(_moreMenu(rect));
             }),
           ),
         ],
@@ -1314,32 +1399,66 @@ class _Suggestion {
   final bool bookmark;
 }
 
-/// Reports while its child (a context menu) is on screen.
-class _OverlayGuard extends StatefulWidget {
-  const _OverlayGuard({required this.onChange, required this.child});
+/// Flutter content lying over the native page (a popup, a menu, the
+/// suggestions). Reports its area, so the page gets a hole there and this
+/// content takes the clicks while the page stays visible around it.
+class _Cutout extends StatefulWidget {
+  const _Cutout({required this.child, this.margin = 6});
 
-  final ValueChanged<bool> onChange;
   final Widget child;
 
+  /// Extra room around the child, for shadows and borders.
+  final double margin;
+
   @override
-  State<_OverlayGuard> createState() => _OverlayGuardState();
+  State<_Cutout> createState() => _CutoutState();
 }
 
-class _OverlayGuardState extends State<_OverlayGuard> {
-  @override
-  void initState() {
-    super.initState();
-    widget.onChange(true);
+class _CutoutState extends State<_Cutout> {
+  static int _next = 0;
+  final int _id = _next++;
+
+  void _report() {
+    if (!mounted) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize || !box.attached) return;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final rect = (box.localToGlobal(Offset.zero) & box.size).inflate(widget.margin);
+    BrowserController.instance.setCutout(
+      _id,
+      Rect.fromLTRB(rect.left * dpr, rect.top * dpr, rect.right * dpr, rect.bottom * dpr),
+    );
   }
 
   @override
   void dispose() {
-    widget.onChange(false);
+    BrowserController.instance.setCutout(_id, null);
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _report());
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _report());
+        return false;
+      },
+      child: SizeChangedLayoutNotifier(child: widget.child),
+    );
+  }
+}
+
+class _MenuEntry {
+  const _MenuEntry(this.value, this.icon, this.label, {this.enabled = true, this.checked});
+
+  static const divider = _MenuEntry(null, Symbols.close_rounded, '');
+
+  final String? value;
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final bool? checked;
 }
 
 class _TabChip extends StatelessWidget {

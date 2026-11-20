@@ -38,6 +38,9 @@ struct BrowserTab {
   Microsoft::WRL::ComPtr<ICoreWebView2> webview;
   std::vector<std::pair<int, EventRegistrationToken>> tokens;
   EventRegistrationToken accelerator_token{};
+  EventRegistrationToken focus_token{};
+  // A window region with holes where Flutter popups lie over the page.
+  bool has_region = false;
   // Hosts the user chose to open over plain http (no https upgrade).
   std::vector<std::wstring> http_hosts;
   // Last layout applied, so unchanged layouts don't touch the windows again.
@@ -90,6 +93,7 @@ class BrowserWebPlugin : public flutter::Plugin {
   void CloseTab(int id);
   void DisposeAll();
   void ApplyLayout();
+  void ApplyRegion(BrowserTab& tab);
   BrowserTab* Find(int id);
   void Send(int tab, const std::string& type, const flutter::EncodableMap& data = {});
   void SendState(BrowserTab& tab);
@@ -143,6 +147,9 @@ class BrowserWebPlugin : public flutter::Plugin {
   std::map<int, Microsoft::WRL::ComPtr<ICoreWebView2DownloadOperation>> pending_downloads_;
   std::map<int, int> pending_download_tabs_;
   RECT rect_{0, 0, 0, 0};
+  // Flutter popups over the page, in the same coordinates as rect_. The page
+  // gets holes there, so the popups take the clicks and the page stays live.
+  std::vector<RECT> cutouts_;
   int generation_ = 0;
 
   // Permission and download requests waiting for the Dart side's answer.

@@ -449,6 +449,32 @@ void BrowserWebPlugin::ApplyLayout() {
       if (tab->controller) tab->controller->put_IsVisible(TRUE);
       tab->shown = true;
     }
+    if (moved || !cutouts_.empty() || tab->has_region) ApplyRegion(*tab);
+  }
+}
+
+void BrowserWebPlugin::ApplyRegion(BrowserTab& tab) {
+  if (!tab.host) return;
+  if (cutouts_.empty()) {
+    if (tab.has_region) {
+      ::SetWindowRgn(tab.host, nullptr, TRUE);
+      tab.has_region = false;
+    }
+    return;
+  }
+  const int width = (std::max)(0, static_cast<int>(rect_.right - rect_.left));
+  const int height = (std::max)(0, static_cast<int>(rect_.bottom - rect_.top));
+  HRGN region = ::CreateRectRgn(0, 0, width, height);
+  for (const RECT& cut : cutouts_) {
+    HRGN hole = ::CreateRectRgn(cut.left - rect_.left, cut.top - rect_.top, cut.right - rect_.left, cut.bottom - rect_.top);
+    ::CombineRgn(region, region, hole, RGN_DIFF);
+    ::DeleteObject(hole);
+  }
+  // The window owns the region from here on.
+  if (::SetWindowRgn(tab.host, region, TRUE)) {
+    tab.has_region = true;
+  } else {
+    ::DeleteObject(region);
   }
 }
 
@@ -473,6 +499,27 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     const int top = GetInt(args, "top");
     rect_ = RECT{left, top, (std::max)(left, GetInt(args, "right")), (std::max)(top, GetInt(args, "bottom"))};
     ApplyLayout();
+    result->Success();
+    return;
+  }
+  if (method == "setCutouts") {
+    cutouts_.clear();
+    const auto it = args.find(flutter::EncodableValue("rects"));
+    if (it != args.end() && std::holds_alternative<flutter::EncodableList>(it->second)) {
+      const auto& list = std::get<flutter::EncodableList>(it->second);
+      auto num = [](const flutter::EncodableValue& v) -> LONG {
+        if (std::holds_alternative<int32_t>(v)) return std::get<int32_t>(v);
+        if (std::holds_alternative<int64_t>(v)) return static_cast<LONG>(std::get<int64_t>(v));
+        if (std::holds_alternative<double>(v)) return static_cast<LONG>(std::get<double>(v));
+        return 0;
+      };
+      for (size_t i = 0; i + 3 < list.size(); i += 4) {
+        cutouts_.push_back(RECT{num(list[i]), num(list[i + 1]), num(list[i + 2]), num(list[i + 3])});
+      }
+    }
+    for (auto& [tab_id, tab] : tabs_) {
+      if (tab->shown || tab->has_region) ApplyRegion(*tab);
+    }
     result->Success();
     return;
   }
@@ -1321,6 +1368,15 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
     tab.tokens.push_back({10, token});
   }
 
+  // A click into the page closes Flutter popups lying over it.
+  tab.controller->add_GotFocus(Callback<ICoreWebView2FocusChangedEventHandler>(
+                                   [this, id](ICoreWebView2Controller*, IUnknown*) -> HRESULT {
+                                     Send(id, "pageFocus");
+                                     return S_OK;
+                                   })
+                                   .Get(),
+                               &tab.focus_token);
+
   // Browser shortcuts keep working while the page has the keyboard.
   tab.controller->add_AcceleratorKeyPressed(
       Callback<ICoreWebView2AcceleratorKeyPressedEventHandler>(
@@ -1386,6 +1442,7 @@ void BrowserWebPlugin::CloseTab(int id) {
   }
   if (tab.controller) {
     tab.controller->remove_AcceleratorKeyPressed(tab.accelerator_token);
+    tab.controller->remove_GotFocus(tab.focus_token);
     tab.controller->Close();
   }
   tab.webview.Reset();
