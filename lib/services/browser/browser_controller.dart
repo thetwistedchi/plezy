@@ -361,7 +361,10 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         appLogger.d('Browser tab ${tab.id}: resumed');
         await _native.resume(tab.id);
       }
-      tab.suspended = false;
+      if (tab.suspended) {
+        tab.suspended = false;
+        notifyListeners();
+      }
       if (_activeId != tab.id) return;
       await _native.setActive(tab.id);
       await _applyVisibility();
