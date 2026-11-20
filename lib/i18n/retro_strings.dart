@@ -169,6 +169,56 @@ class RetroStrings {
   static String get downloadFailed => _t('Failed', 'Fehlgeschlagen');
   static String get downloadPaused => _t('Paused', 'Pausiert');
 
+  // Ad blocker
+  static String get adblock => _t('Ad blocker', 'Werbeblocker');
+  static String adblockCount(int n) => _t(
+    n == 1 ? '1 request blocked on this page' : '$n requests blocked on this page',
+    n == 1 ? '1 Anfrage auf dieser Seite blockiert' : '$n Anfragen auf dieser Seite blockiert',
+  );
+  static String adblockOnSite(String site) => _t('Blocking on $site', 'Blockieren auf $site');
+  static String get adblockOffEverywhere => _t('The ad blocker is switched off.', 'Der Werbeblocker ist ausgeschaltet.');
+  static String get filterLists => _t('Filter lists', 'Filterlisten');
+  static String get adblockDescription => _t(
+    'Blocks ads, trackers and known malware sites with the filter lists below. Uses Brave\'s open-source adblock engine and uBlock Origin\'s filter syntax.',
+    'Blockiert Werbung, Tracker und bekannte Schadseiten mit den Filterlisten unten. Nutzt Braves Open-Source-Werbeblocker und die Filtersyntax von uBlock Origin.',
+  );
+  static String get updateLists => _t('Update now', 'Jetzt aktualisieren');
+  static String get updatingLists => _t('Updating…', 'Wird aktualisiert…');
+  static String listsUpdated(String when) => _t('Last checked $when', 'Zuletzt geprüft $when');
+  static String listRules(int n) => _t('$n rules', '$n Regeln');
+  static String get listNotLoaded => _t('Not downloaded yet', 'Noch nicht heruntergeladen');
+  static String get listFailed => _t('Download failed', 'Download fehlgeschlagen');
+  static String get customLists => _t('Your lists', 'Eigene Listen');
+  static String get addListUrl => _t('Add a list by its address', 'Liste über ihre Adresse hinzufügen');
+  static String get addList => _t('Add', 'Hinzufügen');
+  static String get myFilters => _t('My filters', 'Meine Filter');
+  static String get myFiltersHint => _t(
+    'One filter per line, in uBlock Origin / Adblock Plus syntax, e.g. ||ads.example.com^ or example.com##.banner',
+    'Ein Filter pro Zeile, in uBlock-Origin-/Adblock-Plus-Syntax, z. B. ||ads.example.com^ oder example.com##.banner',
+  );
+  static String get apply => _t('Apply', 'Übernehmen');
+  static String get adblockOffSites => _t('Sites without blocking', 'Seiten ohne Blockieren');
+  static String get adblockOffSitesEmpty => _t(
+    'Sites you switch blocking off for (shield button) appear here.',
+    'Seiten, auf denen du das Blockieren ausschaltest (Schild-Knopf), erscheinen hier.',
+  );
+  static String filterGroup(String group) => switch (group) {
+    'builtin' => 'uBlock Origin',
+    'ads' => _t('Ads', 'Werbung'),
+    'privacy' => _t('Privacy', 'Privatsphäre'),
+    'malware' => _t('Malware protection, security', 'Schutz vor Schadsoftware, Sicherheit'),
+    'annoyances' => _t('Annoyances (cookie notices, pop-ups)', 'Störendes (Cookie-Hinweise, Pop-ups)'),
+    'multipurpose' => _t('Multipurpose', 'Mehrzweck'),
+    'regional' => _t('Regions, languages', 'Regionen, Sprachen'),
+    _ => _t('Your lists', 'Eigene Listen'),
+  };
+  static String get pageBlockedTitle => _t('Page blocked', 'Seite blockiert');
+  static String pageBlockedText(String host) => _t(
+    '$host is on one of your filter lists, for example as a known malware, phishing, tracking or ad site. The ad blocker kept it from opening.',
+    '$host steht auf einer deiner Filterlisten, zum Beispiel als bekannte Schad-, Phishing-, Tracking- oder Werbeseite. Der Werbeblocker hat das Öffnen verhindert.',
+  );
+  static String get proceedOnce => _t('Open anyway', 'Trotzdem öffnen');
+
   // Browser settings
   static String get browserSettings => _t('Browser settings', 'Browser-Einstellungen');
   static String get searchEngine => _t('Search engine', 'Suchmaschine');

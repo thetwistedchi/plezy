@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import 'adblock_lists_screen.dart';
+
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/browser_controller.dart';
 import '../../services/browser/browser_history.dart';
@@ -109,6 +111,21 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      _SectionTitle(RetroStrings.adblock),
+                      _Card(
+                        children: [
+                          ListTile(
+                            leading: const AppIcon.retro(Symbols.shield_rounded, size: 22),
+                            title: Text(RetroStrings.filterLists),
+                            subtitle: Text(RetroStrings.adblockDescription),
+                            trailing: const AppIcon.retro(Symbols.chevron_right_rounded, size: 20),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).push(MaterialPageRoute<void>(builder: (_) => const AdblockListsScreen())),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                       _SectionTitle(RetroStrings.searchEngine),
                       _Card(
                         children: [

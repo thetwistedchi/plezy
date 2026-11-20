@@ -1206,6 +1206,7 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint _) {
 /// them here loads nothing until a reader runs.
 void _registerAppLicenses() {
   _registerDarkReaderLicense();
+  _registerAdblockLicenses();
   _registerShaderLicenses();
   // iOS covers iPhone, iPad, and Apple TV; mpv-build links SpatialAudioBridge
   // into libmpv there and not on macOS.
@@ -1218,6 +1219,27 @@ void _registerSpatialAudioLicenses() {
   LicenseRegistry.addLicense(() async* {
     final notices = await rootBundle.loadString('assets/licenses/SpatialAudioBridge.txt');
     yield LicenseEntryWithLineBreaks(const ['SpatialAudioBridge'], notices);
+  });
+}
+
+/// The in-app browser's ad blocker: Brave's adblock-rust engine (compiled
+/// into the app) and uBlock Origin's scriptlets and redirect resources.
+void _registerAdblockLicenses() {
+  LicenseRegistry.addLicense(() async* {
+    yield const LicenseEntryWithLineBreaks(
+      ['adblock-rust'],
+      'adblock-rust by Brave Software, Mozilla Public License 2.0.\n'
+      'Source: https://github.com/brave/adblock-rust\n'
+      'License text: https://mozilla.org/MPL/2.0/',
+    );
+    yield const LicenseEntryWithLineBreaks(
+      ['uBlock Origin (scriptlets and resources)'],
+      'uBlock Origin - a comprehensive, efficient content blocker\n'
+      'Copyright (C) 2014-present Raymond Hill\n\n'
+      'Scriptlets and web accessible resources from uBlock Origin are included in the in-app browser. '
+      'They are licensed under the GNU General Public License, version 3 or later.\n'
+      'Source: https://github.com/gorhill/uBlock',
+    );
   });
 }
 

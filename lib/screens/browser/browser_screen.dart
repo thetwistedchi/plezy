@@ -8,6 +8,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../i18n/retro_strings.dart';
+import '../../services/browser/adblock_lists.dart';
 import '../../services/browser/browser_bookmarks.dart';
 import '../../services/browser/browser_controller.dart';
 import '../../services/browser/browser_history.dart';
@@ -15,6 +16,7 @@ import '../../services/browser/browser_settings.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/page_backdrop.dart';
 import '../../widgets/app_icon.dart';
+import 'adblock_lists_screen.dart';
 import 'browser_settings_screen.dart';
 
 /// The in-app browser: tabs, address bar, bookmarks. Each tab's page is a
@@ -74,6 +76,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _bookmarks.addListener(_onChanged);
     _settings.addListener(_onChanged);
     BrowserHistory.instance.addListener(_onChanged);
+    AdblockManager.instance.addListener(_onChanged);
     _subs.add(_controller.prompts.listen(_onPrompt));
     _subs.add(_controller.shortcuts.listen(_onShortcut));
     _addressFocus.addListener(_onAddressFocus);
@@ -94,6 +97,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _bookmarks.removeListener(_onChanged);
     _settings.removeListener(_onChanged);
     BrowserHistory.instance.removeListener(_onChanged);
+    AdblockManager.instance.removeListener(_onChanged);
     unawaited(_controller.setShown(false));
     _address.dispose();
     _addressFocus.dispose();
@@ -682,6 +686,112 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
+  String _siteOf(BrowserTabState? tab) {
+    final host = (tab?.host ?? '').toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
+    final labels = host.split('.');
+    if (labels.length <= 2) return host;
+    final keep = labels.last.length == 2 && labels[labels.length - 2].length <= 3 ? 3 : 2;
+    return labels.length <= keep ? host : labels.sublist(labels.length - keep).join('.');
+  }
+
+  Widget _buildShieldButton(MonoTokens t, BrowserTabState? tab) {
+    final adblock = AdblockManager.instance;
+    final site = _siteOf(tab);
+    final active = adblock.enabled && (site.isEmpty || !adblock.isOffFor(site));
+    final count = tab?.blockedCount ?? 0;
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: AppIcon.retro(Symbols.shield_rounded, size: 20, retroOpacity: active ? 1 : 0.35),
+          tooltip: RetroStrings.adblock,
+          onPressed: () => unawaited(_showShield()),
+          visualDensity: VisualDensity.compact,
+        ),
+        if (active && count > 0)
+          Positioned(
+            right: 2,
+            bottom: 4,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(color: t.accent, borderRadius: BorderRadius.circular(8)),
+                child: Text(
+                  count > 999 ? '999+' : '$count',
+                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _showShield() async {
+    final adblock = AdblockManager.instance;
+    await _overlay(
+      () => showDialog<void>(
+        context: context,
+        builder: (context) => ListenableBuilder(
+          listenable: Listenable.merge([adblock, _controller]),
+          builder: (context, _) {
+            final t = tokens(context);
+            final tab = _controller.active;
+            final site = _siteOf(tab);
+            return AlertDialog(
+              title: Row(
+                children: [
+                  const AppIcon.retro(Symbols.shield_rounded, size: 22),
+                  const SizedBox(width: 10),
+                  Text(RetroStrings.adblock),
+                ],
+              ),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!adblock.enabled)
+                      Text(RetroStrings.adblockOffEverywhere, style: TextStyle(color: t.textMuted))
+                    else ...[
+                      Text(RetroStrings.adblockCount(tab?.blockedCount ?? 0)),
+                      if (site.isNotEmpty)
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(RetroStrings.adblockOnSite(site)),
+                          value: !adblock.isOffFor(site),
+                          onChanged: (v) async {
+                            await adblock.setOffForSite(site, !v);
+                            await _controller.reload();
+                          },
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    unawaited(
+                      Navigator.of(
+                        this.context,
+                      ).push(MaterialPageRoute<void>(builder: (_) => const AdblockListsScreen())),
+                    );
+                  },
+                  child: Text(RetroStrings.filterLists),
+                ),
+                TextButton(onPressed: () => Navigator.pop(context), child: Text(RetroStrings.close)),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildDownloadsButton(MonoTokens t) {
     final active = _controller.downloads.where((d) => d.active).toList();
     final total = active.fold<int>(0, (sum, d) => sum + d.total);
@@ -810,6 +920,54 @@ class _BrowserScreenState extends State<BrowserScreen> {
       return DecoratedBox(
         decoration: pageDecoration(Theme.of(context)),
         child: _NewTabPage(onOpen: (url) => unawaited(_submit(url)), isPrivate: tab?.isPrivate ?? false),
+      );
+    }
+    if (tab.blockedPage case final blocked?) {
+      final t = tokens(context);
+      return DecoratedBox(
+        decoration: pageDecoration(Theme.of(context)),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const AppIcon.retro(Symbols.shield_rounded, size: 64),
+                  const SizedBox(height: 20),
+                  Text(RetroStrings.pageBlockedTitle, style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Text(
+                    RetroStrings.pageBlockedText(Uri.tryParse(blocked)?.host ?? blocked),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: t.textMuted),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    blocked,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: t.textMuted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    spacing: 12,
+                    children: [
+                      FilledButton(
+                        onPressed: () => unawaited(_controller.leaveBlocked(tab)),
+                        child: Text(RetroStrings.goBack),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => unawaited(_controller.proceedBlocked(tab)),
+                        child: Text(RetroStrings.proceedOnce),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
     }
     if (tab.crashed) {
@@ -984,6 +1142,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               ),
             ),
           const SizedBox(width: 4),
+          _buildShieldButton(t, tab),
           _iconButton(Symbols.bookmarks_rounded, RetroStrings.bookmarks, () => unawaited(_showBookmarks())),
           if (_controller.downloads.isNotEmpty) _buildDownloadsButton(t),
           Builder(

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/app_logger.dart';
 import '../fullscreen_state_manager.dart';
+import 'adblock_lists.dart';
 import 'browser_history.dart';
 import 'browser_native.dart';
 import 'browser_settings.dart';
@@ -20,6 +21,12 @@ class BrowserTabState {
   /// InPrivate: no cookies, history or saved tab once it closes.
   final bool isPrivate;
   bool muted = false;
+
+  /// Requests the ad blocker stopped on the current page.
+  int blockedCount = 0;
+
+  /// A page the ad blocker kept from opening (on a filter list).
+  String? blockedPage;
 
   /// The site's icon as PNG, when it has one.
   Uint8List? favicon;
@@ -233,8 +240,32 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       _release?.cancel();
       _release = Timer(releaseAfter, _releaseAll);
     }
-    await _native.setVisible(shown && (active?.live ?? false));
+    await _applyVisibility();
     notifyListeners();
+  }
+
+  /// The native page shows only for a live tab without a blocked-page warning.
+  Future<void> _applyVisibility() {
+    final tab = active;
+    return _native.setVisible(_shown && tab != null && tab.live && tab.url != null && tab.blockedPage == null);
+  }
+
+  /// Opens the page the ad blocker kept closed, once, in [tab].
+  Future<void> proceedBlocked(BrowserTabState tab) async {
+    final url = tab.blockedPage;
+    if (url == null) return;
+    tab.blockedPage = null;
+    notifyListeners();
+    if (tab.live) await _native.proceedBlocked(tab.id, url);
+    await _applyVisibility();
+  }
+
+  /// Leaves the warning: back to the page before, or the new tab page.
+  Future<void> leaveBlocked(BrowserTabState tab) async {
+    tab.blockedPage = null;
+    if (!tab.canGoBack) tab.url = null;
+    notifyListeners();
+    await _applyVisibility();
   }
 
   /// Creates or wakes the WebView of [tab] and makes it the shown one.
@@ -260,7 +291,10 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         );
       }
       await _native.setPopupSites(_settings.popupSites);
-      if (fresh) await _syncDark();
+      if (fresh) {
+        await _syncDark();
+        unawaited(AdblockManager.instance.start());
+      }
       if (!tab.live) {
         tab.live = true;
         tab.loading = true;
@@ -276,7 +310,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       tab.suspended = false;
       if (_activeId != tab.id) return;
       await _native.setActive(tab.id);
-      await _native.setVisible(_shown);
+      await _applyVisibility();
     } catch (e) {
       appLogger.w('Browser tab ${tab.id} could not start', error: e);
       tab.live = false;
@@ -433,7 +467,9 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     final target = tab ?? active;
     final url = allowHttp ? input : resolveInput(input);
     if (target == null || url == null) return;
-    target.crashed = false;
+    target
+      ..crashed = false
+      ..blockedPage = null;
     if (!target.live) {
       target.url = url;
       target.title = '';
@@ -444,6 +480,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     target.loading = true;
     notifyListeners();
     await _native.navigate(target.id, url, allowHttp: allowHttp);
+    await _applyVisibility();
   }
 
   Future<void> back() async {
@@ -547,6 +584,10 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   };
 
   void _onEvent(BrowserEvent e) {
+    if (e.type == 'adblockReady') {
+      AdblockManager.instance.onReady(e.flag('ok'), e.integer('ms'));
+      return;
+    }
     final tab = _byId(e.tab);
     if (tab == null) return;
     _log(e);
@@ -612,6 +653,14 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         tab.favicon = data is Uint8List && data.isNotEmpty ? data : null;
       case 'downloadState':
         _onDownload(e);
+      case 'blocked':
+        tab.blockedCount = e.integer('count');
+      case 'pageBlocked':
+        tab
+          ..blockedPage = e.str('url')
+          ..loading = false;
+        appLogger.i('Browser tab ${tab.id}: page on a filter list kept closed (${_host(e.str('url'))})');
+        unawaited(_applyVisibility());
       case 'audio':
         tab.audio = e.flag('value');
       case 'crashed':

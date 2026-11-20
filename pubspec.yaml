@@ -166,6 +166,7 @@ flutter:
     - assets/licenses/SpatialAudioBridge.txt
     - assets/licenses/DarkReader.txt
     - assets/browser/darkreader.min.js
+    - assets/browser/ubo-resources.json
     - assets/plezy.png
     - assets/plezy_adaptive_foreground.svg
     - assets/plex_chevron.svg

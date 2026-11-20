@@ -47,6 +47,9 @@ class BrowserNative {
   Stream<BrowserEvent> get events => _stream.stream;
 
   Future<void>? _ready;
+
+  /// The browser engine runs (tabs or the ad blocker can be used).
+  bool get isReady => _ready != null;
   Map<String, int>? _rect;
   bool _visible = false;
 
@@ -97,6 +100,10 @@ class BrowserNative {
   Future<void> createTab(int id, String url, {bool private = false}) =>
       _channel.invokeMethod<bool>('createTab', {'id': id, 'url': url, 'private': private});
   Future<void> setMuted(int id, bool value) => _call('setMuted', {'id': id, 'value': value});
+  Future<void> adblockLoad(String config) => _call('adblockLoad', {'config': config});
+  Future<void> adblockSetEnabled(bool value) => _call('adblockSetEnabled', {'value': value});
+  Future<void> adblockSetOffSites(List<String> sites) => _call('adblockSetOffSites', {'sites': sites});
+  Future<void> proceedBlocked(int id, String url) => _call('proceedBlocked', {'id': id, 'url': url});
   Future<void> setDarkScript(String script) => _call('setDarkScript', {'script': script});
   Future<void> setTrackingPrevention(int level) => _call('setTrackingPrevention', {'level': level});
   Future<void> cancelDownload(int download) => _call('cancelDownload', {'download': download});

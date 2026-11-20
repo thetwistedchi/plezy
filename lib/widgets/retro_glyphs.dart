@@ -86,6 +86,7 @@ abstract final class RetroGlyphs {
   static const _more = '<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>';
   static const _volumeUp = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.5a7.5 7.5 0 0 1 0 11"/>';
   static const _volumeOff = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>';
+  static const _shield = '<path d="M12 2.5 4.5 5.5v6c0 4.6 3.2 8.4 7.5 10 4.3-1.6 7.5-5.4 7.5-10v-6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>';
   static const _pause = '<path d="M8 5v14M16 5v14"/>';
 
   static final Map<IconData, String> _byIcon = {
@@ -166,6 +167,7 @@ abstract final class RetroGlyphs {
     Symbols.volume_up_rounded: _volumeUp,
     Symbols.volume_off_rounded: _volumeOff,
     Symbols.pause_rounded: _pause,
+    Symbols.shield_rounded: _shield,
   };
 
   static String? pathsFor(IconData icon) => _byIcon[icon];
