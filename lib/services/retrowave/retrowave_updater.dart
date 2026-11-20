@@ -164,6 +164,24 @@ abstract final class RetrowaveUpdater {
     }
   }
 
+  /// This version's own release, for its notes; null when offline or when
+  /// GitHub has no release for it.
+  static Future<RetrowaveRelease?> currentRelease() async {
+    try {
+      final response = await http
+          .get(
+            Uri.https('api.github.com', '/repos/$_repo/releases/tags/v$currentVersion'),
+            headers: {'Accept': 'application/vnd.github+json'},
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return null;
+      return _parse(jsonDecode(response.body) as Map<String, dynamic>);
+    } catch (e) {
+      appLogger.d('Release notes lookup failed', error: e);
+      return null;
+    }
+  }
+
   /// The notes of every release after [installed] up to [target], newest
   /// first, each under its version as a heading. Only [target]'s own notes
   /// when it is the only one, or when the list cannot be read.

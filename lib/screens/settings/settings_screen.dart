@@ -116,6 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
   static const _kClearImageCache = 'clear_image_cache';
   static const _kResetSettings = 'reset_settings';
   static const _kCheckForUpdates = 'check_for_updates';
+  static const _kReleaseNotes = 'release_notes';
   static const _kAutoCheckUpdatesOnStartup = 'auto_check_updates_on_startup';
   static const _kAbout = 'about';
   static const _kWatchTogetherRelay = 'watch_together_relay';
@@ -663,6 +664,13 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
           title: t.settings.checkForUpdates,
           subtitle: 'Plezy Retrowave ${RetrowaveUpdater.currentVersion}',
           onTap: () => unawaited(checkForRetrowaveUpdate(context)),
+        ),
+        SettingNavigationTile(
+          focusNode: _focusTracker.get(_kReleaseNotes),
+          icon: Symbols.article_rounded,
+          title: retrowaveReleaseNotesTitle,
+          subtitle: retrowaveReleaseNotesSubtitle,
+          onTap: () => unawaited(showRetrowaveReleaseNotes(context)),
         ),
         _buildAutoCheckUpdatesOnStartupTile(),
       ],

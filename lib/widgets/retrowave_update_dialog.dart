@@ -50,6 +50,26 @@ Future<void> showRetrowaveWhatsNewDialog(BuildContext context, RetrowaveRelease 
   ),
 );
 
+String get retrowaveReleaseNotesTitle => _t('Release notes', 'Versionshinweise');
+String get retrowaveReleaseNotesSubtitle => _t("What's new in this version", 'Neuerungen dieser Version');
+
+/// From Settings: this version's notes again, after the dialog shown at the
+/// first start following an update was closed.
+Future<void> showRetrowaveReleaseNotes(BuildContext context) async {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final release = await RetrowaveUpdater.currentRelease();
+  if (!context.mounted) return;
+  if (release == null) {
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(_t('Could not load the release notes.', 'Versionshinweise konnten nicht geladen werden.')),
+      ),
+    );
+    return;
+  }
+  await showRetrowaveWhatsNewDialog(context, release);
+}
+
 /// Manual check from Settings: says when there is nothing new or the check
 /// failed, else opens the update dialog.
 Future<void> checkForRetrowaveUpdate(BuildContext context) async {

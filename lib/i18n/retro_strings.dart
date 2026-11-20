@@ -12,7 +12,7 @@ class RetroStrings {
   static String get hideWatched => _t('Hide watched', 'Gesehenes ausblenden');
 
   // Free on Plex (Plex's ad-supported Movies & Shows)
-  static String get freeOnPlex => _t('Free on Plex', 'Kostenlos auf Plex');
+  static String get freeOnPlex => _t('Free on plex.tv', 'Kostenlos auf plex.tv');
   static String get freeOnPlexAll => _t('All titles', 'Alle Titel');
   static String get freeOnPlexWatch => _t('Plex (free, with ads)', 'Plex (kostenlos, mit Werbung)');
   static String get freeOnPlexHint => _t(
