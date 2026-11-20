@@ -1104,7 +1104,15 @@ class _BrowserScreenState extends State<BrowserScreen> {
       child: Row(
         children: [
           const SizedBox(width: 4),
-          _iconButton(Symbols.home_rounded, RetroStrings.leaveBrowser, () => Navigator.of(context).maybePop()),
+          Tooltip(
+            message: RetroStrings.leaveBrowser,
+            child: TextButton.icon(
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const AppIcon.retro(Symbols.home_rounded, size: 20),
+              label: Text(RetroStrings.home, style: TextStyle(color: t.text)),
+              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            ),
+          ),
           const SizedBox(width: 4),
           Expanded(
             child: LayoutBuilder(

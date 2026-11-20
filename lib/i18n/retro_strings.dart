@@ -72,6 +72,8 @@ class RetroStrings {
 
   // In-app browser
   static String get browser => _t('Browser', 'Browser');
+  /// Same label as the sidebar's Home entry.
+  static String get home => t.common.home;
   static String get newTab => _t('New tab', 'Neuer Tab');
   static String get closeTab => _t('Close tab', 'Tab schließen');
   static String get forward => _t('Forward', 'Vorwärts');
