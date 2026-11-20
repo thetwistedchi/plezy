@@ -143,9 +143,11 @@ abstract final class RetroGlyphs {
     paths,
     () =>
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="url(#g)" '
-        'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'
+        'stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">'
         '<defs><linearGradient id="g" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">'
-        '<stop offset="0" stop-color="#22D2EB"/><stop offset="1" stop-color="#C10093"/></linearGradient></defs>'
+        // Cyan to a lighter magenta: the theme's #C10093 is only about 2.3:1
+        // on the night background, this end about 6:1.
+        '<stop offset="0" stop-color="#3FDDF0"/><stop offset="1" stop-color="#EC4FC4"/></linearGradient></defs>'
         '$paths</svg>',
   );
 }
