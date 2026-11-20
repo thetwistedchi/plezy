@@ -1,12 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/browser_controller.dart';
+import '../../services/browser/browser_native.dart';
 import '../../services/browser/browser_settings.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
+import '../../widgets/app_icon.dart';
 
 /// Options of the in-app browser.
 class BrowserSettingsScreen extends StatefulWidget {
@@ -20,19 +24,54 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
   final _settings = BrowserSettings.instance;
   late final _customSearch = TextEditingController(text: _settings.customSearch);
   late final _customNewTab = TextEditingController(text: _settings.customNewTab);
+  final _cacheLimit = TextEditingController();
+  int? _cacheBytes;
+  bool _clearing = false;
 
   static const _suspendChoices = [1, 2, 5, 10, 15, 30, 60, 0];
 
   @override
   void initState() {
     super.initState();
-    unawaited(_settings.load());
+    unawaited(
+      _settings.load().then((_) {
+        if (mounted) _cacheLimit.text = '${_settings.cacheLimitMb}';
+      }),
+    );
+    unawaited(_loadCacheSize());
+  }
+
+  Future<void> _loadCacheSize() async {
+    final bytes = await BrowserNative.cacheSize();
+    if (mounted) setState(() => _cacheBytes = bytes);
+  }
+
+  Future<void> _saveCacheLimit() async {
+    final value = int.tryParse(_cacheLimit.text.trim());
+    if (value != null) await _settings.update(cacheLimitMb: value);
+    _cacheLimit.text = '${_settings.cacheLimitMb}';
+  }
+
+  Future<void> _clearCache() async {
+    setState(() => _clearing = true);
+    try {
+      await BrowserController.instance.clearCache();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(RetroStrings.browserCacheCleared)));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _clearing = false);
+      await _loadCacheSize();
+    }
   }
 
   @override
   void dispose() {
     _customSearch.dispose();
     _customNewTab.dispose();
+    _cacheLimit.dispose();
     super.dispose();
   }
 
@@ -157,6 +196,44 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                               unawaited(_settings.update(httpsUpgrade: v));
                               unawaited(BrowserController.instance.setHttpsUpgrade(v));
                             },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _SectionTitle(RetroStrings.browserCache),
+                      _Card(
+                        children: [
+                          ListTile(
+                            leading: AppIcon(Symbols.storage_rounded, color: tokens(context).textMuted),
+                            title: Text(RetroStrings.browserCacheLimit),
+                            subtitle: Text(RetroStrings.browserCacheLimitDescription),
+                            trailing: SizedBox(
+                              width: 140,
+                              child: Focus(
+                                onFocusChange: (focused) {
+                                  if (!focused) unawaited(_saveCacheLimit());
+                                },
+                                child: TextField(
+                                  controller: _cacheLimit,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                  textAlign: TextAlign.end,
+                                  decoration: const InputDecoration(isDense: true, suffixText: 'MB'),
+                                  onSubmitted: (_) => unawaited(_saveCacheLimit()),
+                                ),
+                              ),
+                            ),
+                          ),
+                          ListTile(
+                            leading: AppIcon(Symbols.cleaning_services_rounded, color: tokens(context).textMuted),
+                            title: Text(RetroStrings.browserCache),
+                            subtitle: Text(RetroStrings.browserCacheUsed(RetroStrings.fileSize(_cacheBytes ?? 0))),
+                            trailing: OutlinedButton(
+                              onPressed: _clearing ? null : () => unawaited(_clearCache()),
+                              child: _clearing
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : Text(RetroStrings.clearBrowserCache),
+                            ),
                           ),
                         ],
                       ),

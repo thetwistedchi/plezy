@@ -50,19 +50,33 @@ class BrowserNative {
   Map<String, int>? _rect;
   bool _visible = false;
 
-  Future<void> ensureReady({required bool httpsUpgrade}) {
-    final ready = _ready ??= _init(httpsUpgrade);
+  /// The cache limit the running browser was started with, in MB.
+  int? activeCacheLimitMb;
+
+  static const _cacheFolders = {'Cache', 'Code Cache', 'GPUCache', 'Service Worker', 'DawnCache', 'ShaderCache'};
+
+  Future<void> ensureReady({required bool httpsUpgrade, required int cacheLimitMb}) {
+    final ready = _ready ??= _init(httpsUpgrade, cacheLimitMb);
     return ready.catchError((Object e) {
       _ready = null;
       throw e;
     });
   }
 
-  Future<void> _init(bool httpsUpgrade) async {
+  static Future<Directory> _profileDir() async {
     final support = await getApplicationSupportDirectory();
-    final profile = Directory('${support.path}${Platform.pathSeparator}browser_webview');
+    return Directory('${support.path}${Platform.pathSeparator}browser_webview');
+  }
+
+  Future<void> _init(bool httpsUpgrade, int cacheLimitMb) async {
+    final profile = await _profileDir();
     await profile.create(recursive: true);
-    await _channel.invokeMethod<bool>('initialize', {'userDataFolder': profile.path, 'httpsUpgrade': httpsUpgrade});
+    await _channel.invokeMethod<bool>('initialize', {
+      'userDataFolder': profile.path,
+      'httpsUpgrade': httpsUpgrade,
+      'arguments': '--disk-cache-size=${cacheLimitMb * 1024 * 1024}',
+    });
+    activeCacheLimitMb = cacheLimitMb;
     final rect = _rect;
     if (rect != null) await _channel.invokeMethod<void>('setRect', rect);
     await _channel.invokeMethod<void>('setVisible', {'visible': _visible});
@@ -114,5 +128,47 @@ class BrowserNative {
   Future<void> dispose() async {
     await _call('dispose');
     _ready = null;
+    activeCacheLimitMb = null;
+  }
+
+  static Iterable<File> _cacheFiles(List<FileSystemEntity> entities) => entities.whereType<File>().where(
+    (f) => f.path.split(Platform.pathSeparator).any(_cacheFolders.contains),
+  );
+
+  /// Bytes used by the browser's caches (not its cookies or site sign-ins).
+  static Future<int> cacheSize() async {
+    final profile = await _profileDir();
+    if (!await profile.exists()) return 0;
+    var total = 0;
+    try {
+      final entities = await profile.list(recursive: true, followLinks: false).toList();
+      for (final f in _cacheFiles(entities)) {
+        try {
+          total += await f.length();
+        } catch (_) {}
+      }
+    } catch (e) {
+      appLogger.d('Browser cache size: $e');
+    }
+    return total;
+  }
+
+  /// Deletes the cache folders. Only while no browser process uses them.
+  static Future<void> deleteCache() async {
+    final profile = await _profileDir();
+    if (!await profile.exists()) return;
+    final dirs = <Directory>[];
+    await for (final entity in profile.list(recursive: true, followLinks: false)) {
+      if (entity is Directory && _cacheFolders.contains(entity.path.split(Platform.pathSeparator).last)) {
+        dirs.add(entity);
+      }
+    }
+    for (final dir in dirs) {
+      try {
+        if (await dir.exists()) await dir.delete(recursive: true);
+      } catch (e) {
+        appLogger.d('Browser cache delete ${dir.path}: $e');
+      }
+    }
   }
 }

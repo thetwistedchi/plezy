@@ -188,7 +188,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
     try {
-      await _native.ensureReady(httpsUpgrade: _settings.httpsUpgrade);
+      await _native.ensureReady(httpsUpgrade: _settings.httpsUpgrade, cacheLimitMb: _settings.cacheLimitMb);
       if (!tab.live) {
         tab.live = true;
         tab.loading = true;
@@ -409,6 +409,12 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       _release = Timer(releaseAfter, _releaseAll);
       return;
     }
+    await _closeEngine();
+    appLogger.d('Browser: released after ${releaseAfter.inMinutes} minutes closed');
+  }
+
+  /// Ends every WebView and the browser processes; tabs load again when shown.
+  Future<void> _closeEngine() async {
     _sweep?.cancel();
     _sweep = null;
     for (final tab in tabs) {
@@ -418,7 +424,21 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         ..loading = false;
     }
     await _native.dispose();
-    appLogger.d('Browser: released after ${releaseAfter.inMinutes} minutes closed');
+  }
+
+  /// Clears the disk cache and keeps cookies and site sign-ins. Open tabs
+  /// load again; a new cache limit applies from now on.
+  Future<void> clearCache() async {
+    await _closeEngine();
+    // Let the browser processes exit and release their files.
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    await BrowserNative.deleteCache();
+    if (_shown) {
+      _sweep ??= Timer.periodic(const Duration(seconds: 30), (_) => _suspendIdle());
+      final tab = active;
+      if (tab != null) await _show(tab);
+    }
+    notifyListeners();
   }
 
   void _scheduleSave() {

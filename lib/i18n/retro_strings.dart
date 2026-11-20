@@ -146,6 +146,22 @@ class RetroStrings {
     'Loads pages encrypted when possible. Addresses in your home network are left as they are.',
     'Lädt Seiten wenn möglich verschlüsselt. Adressen im Heimnetz bleiben unverändert.',
   );
+  static String get browserCacheLimit => _t('Cache limit', 'Cache-Limit');
+  static String get browserCacheLimitDescription => _t(
+    'Applies after clearing the cache or restarting the app',
+    'Gilt nach dem Leeren des Caches oder einem Neustart der App',
+  );
+  static String get browserCache => _t('Browser cache', 'Browser-Cache');
+  static String browserCacheUsed(String size) =>
+      _t('$size used · clearing keeps you signed in on websites', '$size belegt · Leeren hält dich auf Webseiten angemeldet');
+  static String get clearBrowserCache => _t('Clear cache', 'Cache leeren');
+  static String get browserCacheCleared => _t('Browser cache cleared.', 'Browser-Cache geleert.');
+  static String fileSize(int bytes) {
+    if (bytes >= 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+    if (bytes >= 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(0)} MB';
+    return '${(bytes / 1024).ceil()} KB';
+  }
+
   static String get browserProtection => _t('Built-in protection', 'Eingebauter Schutz');
   static String get browserProtectionDescription => _t(
     'Pop-ups only open after a click, notification requests are declined, passwords and form data are not saved, and Microsoft Defender SmartScreen warns about known dangerous sites and downloads.',

@@ -342,6 +342,8 @@ void BrowserWebPlugin::Initialize(const flutter::EncodableMap& args, Result resu
   };
 
   auto options = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
+  const std::wstring arguments = ToWide(GetString(args, "arguments").value_or(""));
+  if (!arguments.empty()) options->put_AdditionalBrowserArguments(arguments.c_str());
   const HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(
       nullptr, user_data.empty() ? nullptr : user_data.c_str(), options.Get(),
       Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(

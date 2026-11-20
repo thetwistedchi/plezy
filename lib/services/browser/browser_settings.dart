@@ -40,6 +40,12 @@ class BrowserSettings extends ChangeNotifier {
   bool restoreTabs = true;
   bool httpsUpgrade = true;
 
+  /// Disk cache limit in MB, applied when the browser starts.
+  int cacheLimitMb = defaultCacheLimitMb;
+  static const int defaultCacheLimitMb = 200;
+  static const int minCacheLimitMb = 50;
+  static const int maxCacheLimitMb = 20000;
+
   bool get isLoaded => _prefs != null;
 
   Future<void> load() async {
@@ -53,6 +59,7 @@ class BrowserSettings extends ChangeNotifier {
     keepPlayingAwake = p.getBool('${_prefix}keepPlayingAwake') ?? keepPlayingAwake;
     restoreTabs = p.getBool('${_prefix}restoreTabs') ?? restoreTabs;
     httpsUpgrade = p.getBool('${_prefix}httpsUpgrade') ?? httpsUpgrade;
+    cacheLimitMb = p.getInt('${_prefix}cacheLimitMb') ?? cacheLimitMb;
     notifyListeners();
   }
 
@@ -76,6 +83,7 @@ class BrowserSettings extends ChangeNotifier {
     bool? keepPlayingAwake,
     bool? restoreTabs,
     bool? httpsUpgrade,
+    int? cacheLimitMb,
   }) async {
     await load();
     final p = _prefs!;
@@ -110,6 +118,10 @@ class BrowserSettings extends ChangeNotifier {
     if (httpsUpgrade != null) {
       this.httpsUpgrade = httpsUpgrade;
       await p.setBool('${_prefix}httpsUpgrade', httpsUpgrade);
+    }
+    if (cacheLimitMb != null) {
+      this.cacheLimitMb = cacheLimitMb.clamp(minCacheLimitMb, maxCacheLimitMb);
+      await p.setInt('${_prefix}cacheLimitMb', this.cacheLimitMb);
     }
     notifyListeners();
   }
