@@ -130,6 +130,8 @@ abstract final class RetrowaveUpdater {
     final last = prefs.getString(_keyLastRunVersion);
     if (last == currentVersion) return null;
     await prefs.setString(_keyLastRunVersion, currentVersion);
+    // The installer or APK of the update that brought this version is done.
+    unawaited(_deleteDownloads());
     if (last == null) return null;
     try {
       final response = await http
@@ -196,22 +198,40 @@ abstract final class RetrowaveUpdater {
     }
   }
 
+  static Future<void> _deleteDownloads() async {
+    try {
+      final dir = await getTemporaryDirectory();
+      for (final name in [_arm64Apk, _universalApk, _installerAsset]) {
+        final file = File('${dir.path}${Platform.pathSeparator}$name');
+        if (await file.exists()) await file.delete();
+      }
+    } catch (e) {
+      appLogger.d('Could not remove old update downloads', error: e);
+    }
+  }
+
   static Future<File> _download(String url, String name, void Function(double)? onProgress) async {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}${Platform.pathSeparator}$name');
     final client = http.Client();
     try {
-      final response = await client.send(http.Request('GET', Uri.parse(url)));
+      // A stalled connection fails instead of leaving the dialog busy forever.
+      final response = await client.send(http.Request('GET', Uri.parse(url))).timeout(const Duration(seconds: 30));
       if (response.statusCode != 200) throw StateError('Download answered ${response.statusCode}');
       final total = response.contentLength ?? 0;
       var received = 0;
       final sink = file.openWrite();
-      await for (final chunk in response.stream) {
-        sink.add(chunk);
-        received += chunk.length;
-        if (total > 0) onProgress?.call(received / total);
+      try {
+        await for (final chunk in response.stream.timeout(const Duration(seconds: 30))) {
+          sink.add(chunk);
+          received += chunk.length;
+          if (total > 0) onProgress?.call(received / total);
+        }
+      } finally {
+        await sink.close();
       }
-      await sink.close();
+      // A cut-off download must not be handed to the installer.
+      if (total > 0 && received != total) throw StateError('Download incomplete ($received of $total bytes)');
       return file;
     } finally {
       client.close();
