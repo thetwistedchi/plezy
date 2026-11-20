@@ -6,6 +6,7 @@ import 'package:material_symbols_icons/symbols.dart';
 
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/browser_controller.dart';
+import '../../services/browser/browser_history.dart';
 import '../../services/browser/browser_native.dart';
 import '../../services/browser/browser_settings.dart';
 import '../../theme/mono_tokens.dart';
@@ -29,6 +30,7 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
   bool _clearing = false;
 
   static const _suspendChoices = [1, 2, 5, 10, 15, 30, 60, 0];
+  static const _recentChoices = [5, 10, 15, 20, 30];
 
   @override
   void initState() {
@@ -138,13 +140,42 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                               value: newTab,
                               underline: const SizedBox.shrink(),
                               items: [
-                                DropdownMenuItem(value: BrowserNewTabPage.bookmarks, child: Text(RetroStrings.newTabBookmarks)),
+                                DropdownMenuItem(value: BrowserNewTabPage.recent, child: Text(RetroStrings.newTabRecent)),
                                 DropdownMenuItem(value: BrowserNewTabPage.blank, child: Text(RetroStrings.newTabBlank)),
                                 DropdownMenuItem(value: BrowserNewTabPage.custom, child: Text(RetroStrings.newTabCustom)),
                               ],
                               onChanged: (v) {
                                 if (v != null) unawaited(_settings.update(newTabPage: v));
                               },
+                            ),
+                          ),
+                          if (newTab == BrowserNewTabPage.recent)
+                            ListTile(
+                              title: Text(RetroStrings.recentCount),
+                              trailing: DropdownButton<int>(
+                                value: _recentChoices.contains(_settings.recentCount) ? _settings.recentCount : 10,
+                                underline: const SizedBox.shrink(),
+                                items: [
+                                  for (final n in _recentChoices) DropdownMenuItem(value: n, child: Text('$n')),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) unawaited(_settings.update(recentCount: v));
+                                },
+                              ),
+                            ),
+                          ListTile(
+                            title: Text(RetroStrings.clearHistory),
+                            subtitle: Text(RetroStrings.historyDescription),
+                            trailing: OutlinedButton(
+                              onPressed: () async {
+                                await BrowserHistory.instance.clear();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(RetroStrings.historyCleared)),
+                                  );
+                                }
+                              },
+                              child: Text(RetroStrings.clearHistory),
                             ),
                           ),
                           if (newTab == BrowserNewTabPage.custom)

@@ -8,6 +8,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/browser_bookmarks.dart';
 import '../../services/browser/browser_controller.dart';
+import '../../services/browser/browser_history.dart';
 import '../../services/browser/browser_settings.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/page_backdrop.dart';
@@ -64,6 +65,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _controller.addListener(_onChanged);
     _bookmarks.addListener(_onChanged);
     _settings.addListener(_onChanged);
+    BrowserHistory.instance.addListener(_onChanged);
     _subs.add(_controller.prompts.listen(_onPrompt));
     _subs.add(_controller.shortcuts.listen(_onShortcut));
     _addressFocus.addListener(_onAddressFocus);
@@ -82,6 +84,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _controller.removeListener(_onChanged);
     _bookmarks.removeListener(_onChanged);
     _settings.removeListener(_onChanged);
+    BrowserHistory.instance.removeListener(_onChanged);
     unawaited(_controller.setShown(false));
     _address.dispose();
     _addressFocus.dispose();
@@ -302,10 +305,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
     await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const BrowserSettingsScreen()));
   }
 
-  Future<void> _editBookmark(Bookmark bookmark) async {
+  Future<void> _editBookmark(Bookmark bookmark, {bool nested = false}) async {
     final name = TextEditingController(text: bookmark.title);
-    final result = await _overlay(
-      () => showDialog<String>(
+    Future<String?> ask() => showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text(RetroStrings.renameBookmark),
@@ -316,8 +318,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
             FilledButton(onPressed: () => Navigator.pop(context, name.text), child: Text(RetroStrings.save)),
           ],
         ),
-      ),
-    );
+      );
+    final result = nested ? await ask() : await _overlay(ask);
     name.dispose();
     if (result == null) return;
     if (result == '\u0000delete') {
@@ -325,6 +327,53 @@ class _BrowserScreenState extends State<BrowserScreen> {
     } else {
       await _bookmarks.rename(bookmark.url, result);
     }
+  }
+
+  Future<void> _showBookmarks() async {
+    final url = await _overlay(
+      () => showDialog<String>(
+        context: context,
+        builder: (context) => ListenableBuilder(
+          listenable: _bookmarks,
+          builder: (context, _) {
+            final t = tokens(context);
+            final items = _bookmarks.items;
+            return AlertDialog(
+              title: Text(RetroStrings.bookmarks),
+              contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+              content: SizedBox(
+                width: 520,
+                child: items.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(RetroStrings.noBookmarks, style: TextStyle(color: t.textMuted)),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: items.length,
+                        itemBuilder: (context, i) {
+                          final b = items[i];
+                          return ListTile(
+                            leading: const AppIcon.retro(Symbols.bookmark_rounded, size: 20),
+                            title: Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: Text(b.host, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            onTap: () => Navigator.pop(context, b.url),
+                            trailing: IconButton(
+                              icon: const AppIcon.retro(Symbols.edit_rounded, size: 18),
+                              tooltip: RetroStrings.renameBookmark,
+                              onPressed: () => unawaited(_editBookmark(b, nested: true)),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(RetroStrings.close))],
+            );
+          },
+        ),
+      ),
+    );
+    if (url != null) await _submit(url);
   }
 
   // ---- Build ----
@@ -390,7 +439,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     if (tab == null || tab.url == null) {
       return DecoratedBox(
         decoration: pageDecoration(Theme.of(context)),
-        child: _NewTabPage(onOpen: (url) => unawaited(_submit(url)), onEdit: _editBookmark),
+        child: _NewTabPage(onOpen: (url) => unawaited(_submit(url))),
       );
     }
     if (tab.crashed) {
@@ -541,6 +590,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 4),
+          _iconButton(Symbols.bookmarks_rounded, RetroStrings.bookmarks, () => unawaited(_showBookmarks())),
         ],
       ),
     );
@@ -650,19 +701,32 @@ class _TabChip extends StatelessWidget {
   }
 }
 
-/// Bookmarks as tiles, or an empty page, by the new tab setting.
+/// The recently visited pages, or an empty page, by the new tab setting.
 class _NewTabPage extends StatelessWidget {
-  const _NewTabPage({required this.onOpen, required this.onEdit});
+  const _NewTabPage({required this.onOpen});
 
   final ValueChanged<String> onOpen;
-  final ValueChanged<Bookmark> onEdit;
+
+  Future<void> _menu(BuildContext context, VisitedPage page, Offset position) async {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final picked = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
+      items: [
+        PopupMenuItem(value: 'open', child: Text(RetroStrings.open)),
+        PopupMenuItem(value: 'remove', child: Text(RetroStrings.removeFromList)),
+      ],
+    );
+    if (picked == 'open') onOpen(page.url);
+    if (picked == 'remove') await BrowserHistory.instance.remove(page.url);
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = tokens(context);
     final settings = BrowserSettings.instance;
-    final items = BrowserBookmarks.instance.items;
     if (settings.newTabPage == BrowserNewTabPage.blank) return const SizedBox.expand();
+    final pages = BrowserHistory.instance.recent(settings.recentCount);
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
@@ -672,15 +736,21 @@ class _NewTabPage extends StatelessWidget {
           children: [
             const Center(child: AppIcon.retro(Symbols.public_rounded, size: 56)),
             const SizedBox(height: 24),
-            if (items.isEmpty)
-              Text(RetroStrings.noBookmarks, textAlign: TextAlign.center, style: TextStyle(color: t.textMuted))
+            if (pages.isEmpty)
+              Text(RetroStrings.recentEmpty, textAlign: TextAlign.center, style: TextStyle(color: t.textMuted))
             else
               Wrap(
                 alignment: WrapAlignment.center,
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  for (final b in items) _BookmarkTile(bookmark: b, onOpen: () => onOpen(b.url), onEdit: () => onEdit(b)),
+                  for (final p in pages)
+                    _PageTile(
+                      title: p.title.isEmpty ? p.host : p.title,
+                      host: p.host,
+                      onOpen: () => onOpen(p.url),
+                      onMenu: (position) => unawaited(_menu(context, p, position)),
+                    ),
                 ],
               ),
           ],
@@ -690,17 +760,18 @@ class _NewTabPage extends StatelessWidget {
   }
 }
 
-class _BookmarkTile extends StatelessWidget {
-  const _BookmarkTile({required this.bookmark, required this.onOpen, required this.onEdit});
+class _PageTile extends StatelessWidget {
+  const _PageTile({required this.title, required this.host, required this.onOpen, required this.onMenu});
 
-  final Bookmark bookmark;
+  final String title;
+  final String host;
   final VoidCallback onOpen;
-  final VoidCallback onEdit;
+  final ValueChanged<Offset> onMenu;
 
   @override
   Widget build(BuildContext context) {
     final t = tokens(context);
-    final letter = bookmark.host.isEmpty ? '?' : bookmark.host.characters.first.toUpperCase();
+    final letter = host.isEmpty ? '?' : host.characters.first.toUpperCase();
     return SizedBox(
       width: 132,
       child: Material(
@@ -709,8 +780,11 @@ class _BookmarkTile extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(t.radiusMd),
           onTap: onOpen,
-          onLongPress: onEdit,
-          onSecondaryTap: onEdit,
+          onSecondaryTapDown: (d) => onMenu(d.globalPosition),
+          onLongPress: () {
+            final box = context.findRenderObject() as RenderBox?;
+            onMenu(box == null ? Offset.zero : box.localToGlobal(box.size.center(Offset.zero)));
+          },
           child: Padding(
             padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
             child: Column(
@@ -721,13 +795,8 @@ class _BookmarkTile extends StatelessWidget {
                   child: Text(letter, style: TextStyle(color: t.text, fontWeight: FontWeight.w600)),
                 ),
                 const SizedBox(height: 10),
-                Text(bookmark.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-                Text(
-                  bookmark.host,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: t.textMuted),
-                ),
+                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                Text(host, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: t.textMuted)),
               ],
             ),
           ),

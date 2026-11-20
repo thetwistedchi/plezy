@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/app_logger.dart';
+import 'browser_history.dart';
 import 'browser_native.dart';
 import 'browser_settings.dart';
 
@@ -125,6 +126,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     if (_loaded) return;
     _loaded = true;
     await _settings.load();
+    await BrowserHistory.instance.load();
     if (_settings.restoreTabs) {
       try {
         final prefs = await SharedPreferences.getInstance();
@@ -327,6 +329,8 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
           ..title = e.str('title') ?? tab.title
           ..canGoBack = e.flag('canGoBack')
           ..canGoForward = e.flag('canGoForward');
+        // Also catches pages that change their address without loading.
+        if (!tab.loading && tab.url != null) BrowserHistory.instance.visit(tab.url!, tab.title);
         _scheduleSave();
       case 'loading':
         tab.loading = true;
@@ -339,6 +343,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         final from = tab.upgradedFrom;
         tab.upgradedFrom = null;
         if (!e.flag('ok') && from != null) _prompts.add(HttpFallbackNotice(tab.id, from));
+        if (e.flag('ok') && tab.url != null) BrowserHistory.instance.visit(tab.url!, tab.title);
       case 'upgraded':
         tab.upgradedFrom = e.str('url');
       case 'blockedScheme':

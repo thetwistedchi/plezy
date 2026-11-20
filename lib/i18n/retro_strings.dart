@@ -126,7 +126,15 @@ class RetroStrings {
   static String get customSearchHint =>
       _t('Address with %s for the search words', 'Adresse mit %s für die Suchbegriffe');
   static String get newTabPageSetting => _t('New tab page', 'Neuer-Tab-Seite');
-  static String get newTabBookmarks => _t('Bookmarks', 'Lesezeichen');
+  static String get newTabRecent => _t('Recently visited pages', 'Zuletzt besuchte Seiten');
+  static String get recentCount => _t('Pages shown', 'Angezeigte Seiten');
+  static String get recentEmpty => _t('Pages you visit will show up here.', 'Besuchte Seiten erscheinen hier.');
+  static String get removeFromList => _t('Remove from list', 'Aus der Liste entfernen');
+  static String get clearHistory => _t('Clear history', 'Verlauf löschen');
+  static String get historyDescription =>
+      _t('The recently visited pages on the new tab page', 'Die zuletzt besuchten Seiten auf der Neuer-Tab-Seite');
+  static String get historyCleared => _t('History cleared.', 'Verlauf gelöscht.');
+  static String get open => _t('Open', 'Öffnen');
   static String get newTabBlank => _t('Empty', 'Leer');
   static String get newTabCustom => _t('Custom address', 'Eigene Adresse');
   static String get suspendTabs => _t('Pause tabs in the background', 'Tabs im Hintergrund pausieren');

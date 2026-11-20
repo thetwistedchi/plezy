@@ -16,7 +16,7 @@ enum BrowserSearchEngine {
   final String template;
 }
 
-enum BrowserNewTabPage { bookmarks, blank, custom }
+enum BrowserNewTabPage { recent, blank, custom }
 
 /// Options of the in-app browser.
 class BrowserSettings extends ChangeNotifier {
@@ -29,7 +29,10 @@ class BrowserSettings extends ChangeNotifier {
 
   BrowserSearchEngine searchEngine = BrowserSearchEngine.ecosia;
   String customSearch = '';
-  BrowserNewTabPage newTabPage = BrowserNewTabPage.bookmarks;
+  BrowserNewTabPage newTabPage = BrowserNewTabPage.recent;
+
+  /// How many recently visited pages the new tab page lists.
+  int recentCount = 10;
   String customNewTab = '';
 
   /// Tabs not shown for this long are suspended. 0 = never.
@@ -55,6 +58,7 @@ class BrowserSettings extends ChangeNotifier {
     customSearch = p.getString('${_prefix}customSearch') ?? '';
     newTabPage = BrowserNewTabPage.values.asNameMap()[p.getString('${_prefix}newTab')] ?? newTabPage;
     customNewTab = p.getString('${_prefix}customNewTab') ?? '';
+    recentCount = p.getInt('${_prefix}recentCount') ?? recentCount;
     suspendMinutes = p.getInt('${_prefix}suspendMinutes') ?? suspendMinutes;
     keepPlayingAwake = p.getBool('${_prefix}keepPlayingAwake') ?? keepPlayingAwake;
     restoreTabs = p.getBool('${_prefix}restoreTabs') ?? restoreTabs;
@@ -79,6 +83,7 @@ class BrowserSettings extends ChangeNotifier {
     String? customSearch,
     BrowserNewTabPage? newTabPage,
     String? customNewTab,
+    int? recentCount,
     int? suspendMinutes,
     bool? keepPlayingAwake,
     bool? restoreTabs,
@@ -102,6 +107,10 @@ class BrowserSettings extends ChangeNotifier {
     if (customNewTab != null) {
       this.customNewTab = customNewTab;
       await p.setString('${_prefix}customNewTab', customNewTab);
+    }
+    if (recentCount != null) {
+      this.recentCount = recentCount;
+      await p.setInt('${_prefix}recentCount', recentCount);
     }
     if (suspendMinutes != null) {
       this.suspendMinutes = suspendMinutes;
