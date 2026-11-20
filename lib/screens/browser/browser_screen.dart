@@ -424,7 +424,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final tabs = _controller.tabs;
     final activeId = _controller.active?.id;
     return SizedBox(
-      height: 40,
+      height: 44,
       child: Row(
         children: [
           const SizedBox(width: 4),
@@ -467,7 +467,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final bookmarked = _bookmarks.contains(tab?.url);
     final secure = tab?.isSecure ?? true;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 8, 6),
+      padding: const EdgeInsets.fromLTRB(4, 6, 8, 6),
       child: Row(
         children: [
           _iconButton(
@@ -600,7 +600,7 @@ class _TabChip extends StatelessWidget {
         message: tab.url ?? title,
         waitDuration: const Duration(milliseconds: 600),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 2),
+          padding: const EdgeInsets.fromLTRB(2, 6, 2, 4),
           child: Material(
             color: active ? t.surface : Colors.transparent,
             borderRadius: BorderRadius.circular(t.radiusSm),

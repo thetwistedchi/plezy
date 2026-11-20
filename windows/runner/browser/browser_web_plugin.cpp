@@ -176,13 +176,32 @@ void BrowserWebPlugin::ApplyLayout() {
   for (auto& [id, tab] : tabs_) {
     if (!tab->host) continue;
     const bool show = visible_ && id == active_ && width > 0 && height > 0;
-    ::SetWindowPos(tab->host, HWND_TOP, rect_.left, rect_.top, width, height, SWP_NOACTIVATE);
-    ::ShowWindow(tab->host, show ? SW_SHOWNA : SW_HIDE);
-    if (tab->controller) {
-      RECT bounds{0, 0, width, height};
-      tab->controller->put_Bounds(bounds);
-      tab->controller->put_IsVisible(show ? TRUE : FALSE);
-      tab->controller->NotifyParentWindowPositionChanged();
+    const bool moved = !tab->placed_once || !::EqualRect(&tab->placed, &rect_);
+    // Hidden tabs are only hidden; they are placed when they are shown.
+    if (!show) {
+      if (tab->shown || !tab->placed_once) {
+        if (tab->controller) tab->controller->put_IsVisible(FALSE);
+        ::ShowWindow(tab->host, SW_HIDE);
+        tab->shown = false;
+        tab->placed_once = true;
+      }
+      continue;
+    }
+    if (moved) {
+      ::SetWindowPos(tab->host, nullptr, rect_.left, rect_.top, width, height,
+                     SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+      if (tab->controller) {
+        RECT bounds{0, 0, width, height};
+        tab->controller->put_Bounds(bounds);
+        tab->controller->NotifyParentWindowPositionChanged();
+      }
+      tab->placed = rect_;
+      tab->placed_once = true;
+    }
+    if (!tab->shown) {
+      ::ShowWindow(tab->host, SW_SHOWNA);
+      if (tab->controller) tab->controller->put_IsVisible(TRUE);
+      tab->shown = true;
     }
   }
 }
@@ -302,6 +321,7 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     ComPtr<ICoreWebView2_3> webview3;
     if (SUCCEEDED(tab->webview.As(&webview3))) {
       if (tab->controller) tab->controller->put_IsVisible(FALSE);
+      tab->shown = false;
       webview3->TrySuspend(nullptr);
     }
     result->Success();
@@ -418,6 +438,9 @@ void BrowserWebPlugin::CreateTab(int id, const std::wstring& url, Result result)
               }
             }
             Wire(*tab);
+            // The host may have been placed before the WebView existed.
+            tab->placed_once = false;
+            tab->shown = false;
             ApplyLayout();
             if (!url.empty()) tab->webview->Navigate(url.c_str());
             shared->Success(flutter::EncodableValue(true));

@@ -38,6 +38,10 @@ struct BrowserTab {
   EventRegistrationToken accelerator_token{};
   // Hosts the user chose to open over plain http (no https upgrade).
   std::vector<std::wstring> http_hosts;
+  // Last layout applied, so unchanged layouts don't touch the windows again.
+  RECT placed{0, 0, 0, 0};
+  bool shown = false;
+  bool placed_once = false;
 };
 
 class BrowserWebPlugin : public flutter::Plugin {
