@@ -18,6 +18,7 @@ import '../../theme/mono_tokens.dart';
 import '../../theme/page_backdrop.dart';
 import '../../theme/retrowave_colors.dart';
 import '../../widgets/app_icon.dart';
+import '../../widgets/mini_player/video_mini_player.dart' show MinimizableRoute;
 import 'browser_icon.dart';
 import 'adblock_lists_screen.dart';
 import 'browser_history_page.dart';
@@ -81,6 +82,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _settings.addListener(_onChanged);
     BrowserHistory.instance.addListener(_onChanged);
     AdblockManager.instance.addListener(_onChanged);
+    MinimizableRoute.minimizedRevision.addListener(_onChanged);
     _subs.add(_controller.prompts.listen(_onPrompt));
     _subs.add(_controller.shortcuts.listen(_onShortcut));
     _subs.add(
@@ -110,6 +112,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _settings.removeListener(_onChanged);
     BrowserHistory.instance.removeListener(_onChanged);
     AdblockManager.instance.removeListener(_onChanged);
+    MinimizableRoute.minimizedRevision.removeListener(_onChanged);
     unawaited(_controller.setShown(false));
     _address.dispose();
     _addressFocus.dispose();
@@ -1062,7 +1065,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final current = ModalRoute.of(context)?.isCurrent ?? true;
+    // A minimized player above the browser sits in its own bar below the
+    // pages, so the browser stays shown (and usable) beside it.
+    final route = ModalRoute.of(context);
+    final current = route == null || MinimizableRoute.isCurrentOrUnderMinimized(route);
     if (current != _routeCurrent) {
       _routeCurrent = current;
       WidgetsBinding.instance.addPostFrameCallback((_) => _syncVisibility());
