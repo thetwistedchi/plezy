@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'fullscreen_state_manager.dart';
 
@@ -14,6 +15,10 @@ class NativeWindowService {
   static const _channel = MethodChannel('plezy/window');
   static bool _initialized = false;
 
+  /// True while the user drags or resizes the window (Windows' move/size
+  /// loop). Pointer holds started then are not gestures on the app.
+  static final ValueNotifier<bool> movingOrSizing = ValueNotifier(false);
+
   /// Hook the native → Dart callback that keeps [FullscreenStateManager] in
   /// sync with OS-driven fullscreen transitions. Safe to call more than once.
   static void initialize() {
@@ -28,6 +33,9 @@ class NativeWindowService {
       if (value is bool) {
         FullscreenStateManager().setFullscreen(value);
       }
+    } else if (call.method == 'onMoveSize') {
+      final value = call.arguments;
+      if (value is bool) movingOrSizing.value = value;
     }
   }
 

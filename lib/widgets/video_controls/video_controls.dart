@@ -20,6 +20,7 @@ import 'package:flutter/services.dart'
     show LogicalKeyboardKey, PhysicalKeyboardKey, KeyEvent, KeyDownEvent, KeyUpEvent, KeyRepeatEvent, HardwareKeyboard;
 import '../../services/fullscreen_state_manager.dart';
 import '../../services/macos_window_service.dart';
+import '../../services/native_window_service.dart';
 import '../../services/pip_service.dart';
 import '../../services/playback_initialization_types.dart';
 import '../../services/playback_subtitle_resolver.dart';
@@ -939,6 +940,7 @@ class _PlexVideoControlsState extends State<PlexVideoControls>
   @override
   void initState() {
     super.initState();
+    NativeWindowService.movingOrSizing.addListener(_onWindowMoveSize);
     _lastControlsVisible = widget.chromeController.controlsVisible;
     _controlsMounted = _lastControlsVisible;
     _controlsOpaque = _lastControlsVisible;
@@ -1119,6 +1121,7 @@ class _PlexVideoControlsState extends State<PlexVideoControls>
 
   @override
   void dispose() {
+    NativeWindowService.movingOrSizing.removeListener(_onWindowMoveSize);
     ++_subtitleVisibilityWriteGeneration;
     _feedbackTimer?.cancel();
     _feedbackHideTimer?.cancel();
@@ -1269,7 +1272,7 @@ class _PlexVideoControlsState extends State<PlexVideoControls>
                       child: GestureDetector(
                         excludeFromSemantics: true,
                         onTap: _handleOuterTap,
-                        onLongPressStart: (_) => _handleLongPressStart(),
+                        onLongPressStart: (d) => _handleLongPressStart(d.globalPosition),
                         onLongPressEnd: (_) => _handleLongPressEnd(),
                         onLongPressCancel: _handleLongPressCancel,
                         behavior: HitTestBehavior.opaque,
@@ -1281,7 +1284,7 @@ class _PlexVideoControlsState extends State<PlexVideoControls>
                   if (isMobile)
                     MobileSkipZones(
                       onTapInSkipZone: (isForward) => _handleTapInSkipZone(isForward: isForward),
-                      onLongPressStart: (_) => _handleLongPressStart(),
+                      onLongPressStart: (d) => _handleLongPressStart(d.globalPosition),
                       onLongPressEnd: (_) => _handleLongPressEnd(),
                       onLongPressCancel: _handleLongPressCancel,
                     ),
@@ -1323,7 +1326,7 @@ class _PlexVideoControlsState extends State<PlexVideoControls>
                                     return GestureDetector(
                                       onTapUp: (details) =>
                                           _handleControlsOverlayTap(details, renderBoxSizeOf(context)),
-                                      onLongPressStart: (_) => _handleLongPressStart(),
+                                      onLongPressStart: (d) => _handleLongPressStart(d.globalPosition),
                                       onLongPressEnd: (_) => _handleLongPressEnd(),
                                       onLongPressCancel: _handleLongPressCancel,
                                       behavior: HitTestBehavior.deferToChild,

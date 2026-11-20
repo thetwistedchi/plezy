@@ -1,5 +1,6 @@
 #include "flutter_window.h"
 
+#include <algorithm>
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
@@ -212,6 +213,43 @@ void FlutterWindow::OnDestroy() {
 
 LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message, WPARAM const wparam, LPARAM const lparam) noexcept {
+  // Fork: these run before Flutter's plugins, which otherwise answer them
+  // first and let the window grow past its monitor after a DPI change.
+  switch (message) {
+    case WM_ENTERSIZEMOVE:
+    case WM_EXITSIZEMOVE:
+      if (window_channel_) {
+        window_channel_->InvokeMethod("onMoveSize",
+                                      std::make_unique<flutter::EncodableValue>(message == WM_ENTERSIZEMOVE));
+      }
+      break;
+    case WM_DPICHANGED:
+      return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
+    case WM_WINDOWPOSCHANGING: {
+      auto* pos = reinterpret_cast<WINDOWPOS*>(lparam);
+      if (pos && !(pos->flags & SWP_NOSIZE) && !is_fullscreen_ && !IsZoomed(hwnd) && !IsIconic(hwnd)) {
+        RECT target{pos->x, pos->y, pos->x + pos->cx, pos->y + pos->cy};
+        if (pos->flags & SWP_NOMOVE) {
+          RECT current{};
+          GetWindowRect(hwnd, &current);
+          target = {current.left, current.top, current.left + pos->cx, current.top + pos->cy};
+        }
+        MONITORINFO info{sizeof(info)};
+        if (GetMonitorInfo(MonitorFromRect(&target, MONITOR_DEFAULTTONEAREST), &info)) {
+          pos->cx = (std::min)(pos->cx, static_cast<int>(info.rcMonitor.right - info.rcMonitor.left));
+          pos->cy = (std::min)(pos->cy, static_cast<int>(info.rcMonitor.bottom - info.rcMonitor.top));
+        }
+      }
+      break;
+    }
+    case WM_GETMINMAXINFO: {
+      if (flutter_controller_) {
+        flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam, lparam);
+      }
+      return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
+    }
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result = flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam, lparam);

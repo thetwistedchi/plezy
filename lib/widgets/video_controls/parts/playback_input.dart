@@ -903,8 +903,21 @@ extension _PlexVideoControlsPlaybackInputMethods on _PlexVideoControlsState {
   Future<void> _requestRate(double rate) => (widget.onRateRequested ?? widget.player.setRate)(rate);
 
   /// Handle long-press start - activate 2x speed
-  void _handleLongPressStart() {
+  void _handleLongPressStart([Offset? globalPosition]) {
     if (!widget.canControl || widget.isLive) return;
+    if (NativeWindowService.movingOrSizing.value) return;
+    // A press on the window edge is the start of a window resize or move,
+    // not a hold on the video.
+    if (globalPosition != null && !PlatformDetector.isMobile(context)) {
+      final size = MediaQuery.sizeOf(context);
+      const edge = 16.0;
+      if (globalPosition.dx < edge ||
+          globalPosition.dy < edge ||
+          globalPosition.dx > size.width - edge ||
+          globalPosition.dy > size.height - edge) {
+        return;
+      }
+    }
 
     _setControlsState(() {
       _isLongPressing = true;
@@ -929,6 +942,12 @@ extension _PlexVideoControlsPlaybackInputMethods on _PlexVideoControlsState {
   }
 
   void _handleLongPressCancel() => _handleLongPressEnd();
+
+  /// A window drag or resize swallows the pointer release, so a hold that
+  /// began then ends with it.
+  void _onWindowMoveSize() {
+    if (NativeWindowService.movingOrSizing.value) _handleLongPressEnd();
+  }
 
   /// Build the visual indicator for long-press 2x speed.
   /// Manual (persistent for duration of press) — separate from the stream-driven
