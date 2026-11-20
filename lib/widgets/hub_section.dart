@@ -196,10 +196,25 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
     final hub = widget.hub;
     final id = (hub.identifier ?? hub.id).toLowerCase();
     final isRecent = id.contains('recentlyadded') || id.endsWith('.recent');
-    final libraryId = hub.libraryId;
     final serverId = hub.serverId;
-    if (!isRecent || libraryId == null || serverId == null || !LibraryJump.canOpen) return null;
+    if (!isRecent || serverId == null || !LibraryJump.canOpen) return null;
+    // The hub's own library, else the section in its key, else the one
+    // library all its titles come from.
+    final itemLibraries = {for (final item in hub.items) item.libraryId};
+    final libraryId =
+        hub.libraryId ??
+        _sectionIdFromKey(hub.id) ??
+        (itemLibraries.length == 1 ? itemLibraries.first : null);
+    if (libraryId == null) return null;
     return buildGlobalKey(ServerId(serverId), libraryId);
+  }
+
+  /// Plex names the section in a per-library hub's key
+  /// (`/hubs/home/recentlyAdded?type=1&sectionID=2`, `/library/sections/2/…`,
+  /// `/hubs/sections/2/…`). Home rows that mix libraries carry none.
+  static String? _sectionIdFromKey(String key) {
+    final match = RegExp(r'(?:[?&](?:librarySectionID|sectionID)=|/sections/)(\d+)').firstMatch(key);
+    return match?.group(1);
   }
 
   int get _totalItemCount => widget.hub.items.length + (widget.hub.more ? 1 : 0);
