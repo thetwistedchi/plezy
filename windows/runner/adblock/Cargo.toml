@@ -1,0 +1,24 @@
+[package]
+name = "plezy_adblock"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "C interface to Brave's adblock-rust engine for the in-app browser"
+license = "GPL-3.0-or-later"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+# Without the default "single-thread" feature, so an engine built on a worker
+# thread can be handed to the UI thread.
+adblock = { version = "=0.13.6", default-features = false, features = ["embedded-domain-resolver", "full-regex-handling"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "debuginfo"

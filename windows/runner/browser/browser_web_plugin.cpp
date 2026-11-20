@@ -5,7 +5,10 @@
 #include <algorithm>
 #include <cwctype>
 #include <optional>
+#include <thread>
 #include <variant>
+
+#include <shlwapi.h>
 
 #include "WebView2EnvironmentOptions.h"
 
@@ -132,9 +135,77 @@ constexpr wchar_t kLinkScript[] =
     L"const r=e=>{const p=e.composedPath?e.composedPath():[];"
     L"const a=p.find(n=>n&&n.tagName==='A'&&n.href);"
     L"try{w.postMessage('plezy-link:'+(a?a.href:''));}catch(_){}};"
-    L"addEventListener('click',r,true);addEventListener('auxclick',r,true);})();";
+    L"addEventListener('click',r,true);addEventListener('auxclick',r,true);"
+    // Ad blocking: report the page's class and id names, so the app can add
+    // the generic hiding rules that apply to them. New names only, batched.
+    L"const sc=new Set(),si=new Set();let pc=[],pi=[],tm=0;"
+    L"const fl=()=>{tm=0;if(!pc.length&&!pi.length)return;"
+    L"try{w.postMessage('plezy-cosm:'+JSON.stringify({c:pc,i:pi}));}catch(_){}pc=[];pi=[];};"
+    L"const ad=e=>{if(sc.size>20000)return;const id=e.id;if(id&&typeof id==='string'&&!si.has(id)){si.add(id);pi.push(id);}"
+    L"const cl=e.classList;if(cl)for(const c of cl)if(!sc.has(c)){sc.add(c);pc.push(c);}};"
+    L"const sn=n=>{if(!n||n.nodeType!==1)return;ad(n);if(n.querySelectorAll)for(const e of n.querySelectorAll('[id],[class]'))ad(e);"
+    L"if(!tm)tm=setTimeout(fl,120);};"
+    L"const st=()=>{sn(document.documentElement);new MutationObserver(ms=>{for(const m of ms){"
+    L"if(m.type==='attributes'){ad(m.target);if(!tm)tm=setTimeout(fl,120);}else for(const n of m.addedNodes)sn(n);}})"
+    L".observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','id']});};"
+    L"if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:true});else st();"
+    L"})();";
 
 constexpr wchar_t kLinkPrefix[] = L"plezy-link:";
+constexpr wchar_t kCosmeticPrefix[] = L"plezy-cosm:";
+
+// Adblock request types for WebView2's resource contexts.
+const char* RequestTypeOf(COREWEBVIEW2_WEB_RESOURCE_CONTEXT context) {
+  switch (context) {
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_DOCUMENT: return "sub_frame";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_STYLESHEET: return "stylesheet";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_IMAGE: return "image";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_MEDIA: return "media";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_TEXT_TRACK: return "media";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_FONT: return "font";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_SCRIPT: return "script";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_XML_HTTP_REQUEST: return "xmlhttprequest";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_FETCH: return "xmlhttprequest";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_EVENT_SOURCE: return "xmlhttprequest";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_WEBSOCKET: return "websocket";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_PING: return "ping";
+    case COREWEBVIEW2_WEB_RESOURCE_CONTEXT_CSP_VIOLATION_REPORT: return "csp_report";
+    default: return "other";
+  }
+}
+
+// Decodes standard base64; stops at the first character that isn't base64.
+std::string DecodeBase64(const std::string& text) {
+  static const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  std::string out;
+  int value = 0;
+  int bits = -8;
+  for (const char c : text) {
+    if (c == '=') break;
+    const auto pos = chars.find(c);
+    if (pos == std::string::npos) continue;
+    value = (value << 6) + static_cast<int>(pos);
+    bits += 6;
+    if (bits >= 0) {
+      out.push_back(static_cast<char>((value >> bits) & 0xFF));
+      bits -= 8;
+    }
+  }
+  return out;
+}
+
+// Splits "data:<mime>;base64,<data>" into its type and bytes.
+bool ParseDataUrl(const std::string& url, std::string& mime, std::string& body) {
+  if (url.rfind("data:", 0) != 0) return false;
+  const auto comma = url.find(',');
+  if (comma == std::string::npos) return false;
+  std::string meta = url.substr(5, comma - 5);
+  const bool base64 = meta.size() >= 7 && meta.compare(meta.size() - 7, 7, ";base64") == 0;
+  if (base64) meta = meta.substr(0, meta.size() - 7);
+  mime = meta.empty() ? "text/plain" : meta;
+  body = base64 ? DecodeBase64(url.substr(comma + 1)) : url.substr(comma + 1);
+  return true;
+}
 
 // Addresses that usually only exist over http: this machine, the local
 // network (router, NAS) and single-label names. They are never upgraded.
@@ -178,9 +249,133 @@ BrowserWebPlugin::BrowserWebPlugin(flutter::PluginRegistrarWindows* registrar) :
         event_sink_ = nullptr;
         return nullptr;
       }));
+
+  // Engines are built on a worker thread and handed over through the window.
+  adblock_message_ = ::RegisterWindowMessageW(L"PlezyBrowserAdblockReady");
+  window_proc_id_ = registrar_->RegisterTopLevelWindowProcDelegate(
+      [this](HWND, UINT message, WPARAM wparam, LPARAM lparam) -> std::optional<LRESULT> {
+        if (adblock_message_ && message == adblock_message_) {
+          auto* loaded = reinterpret_cast<std::pair<PlezyAdblock*, ULONGLONG>*>(lparam);
+          OnAdblockLoaded(static_cast<int>(wparam), loaded->first, loaded->second);
+          delete loaded;
+          return 0;
+        }
+        return std::nullopt;
+      });
 }
 
-BrowserWebPlugin::~BrowserWebPlugin() { DisposeAll(); }
+BrowserWebPlugin::~BrowserWebPlugin() {
+  if (window_proc_id_) registrar_->UnregisterTopLevelWindowProcDelegate(*window_proc_id_);
+  DisposeAll();
+  if (adblock_) plezy_adblock_free(adblock_);
+  adblock_ = nullptr;
+}
+
+bool BrowserWebPlugin::AdblockActive(const std::string& page_url) const {
+  if (!adblock_ || !adblock_enabled_) return false;
+  const std::wstring site = SiteOf(HostOf(ToWide(page_url)));
+  return std::find(adblock_off_sites_.begin(), adblock_off_sites_.end(), site) == adblock_off_sites_.end();
+}
+
+void BrowserWebPlugin::OnAdblockLoaded(int generation, PlezyAdblock* engine, ULONGLONG started) {
+  if (generation != adblock_generation_) {
+    if (engine) plezy_adblock_free(engine);
+    return;
+  }
+  if (engine) {
+    if (adblock_) plezy_adblock_free(adblock_);
+    adblock_ = engine;
+  }
+  Send(0, "adblockReady",
+       {{flutter::EncodableValue("ok"), flutter::EncodableValue(engine != nullptr)},
+        {flutter::EncodableValue("ms"), flutter::EncodableValue(static_cast<int64_t>(::GetTickCount64() - started))}});
+}
+
+void BrowserWebPlugin::ReportBlocked(BrowserTab& tab, bool force) {
+  const ULONGLONG now = ::GetTickCount64();
+  if (!force && now - tab.blocked_report < 400) return;
+  tab.blocked_report = now;
+  Send(tab.id, "blocked", {{flutter::EncodableValue("count"), flutter::EncodableValue(tab.blocked)}});
+}
+
+// Sets up the next page of a tab: its hiding rules and scriptlets run at the
+// start of each of its documents. Replaces the previous page's script.
+void BrowserWebPlugin::PreparePage(BrowserTab& tab, const std::wstring& uri) {
+  tab.page_url = ToUtf8(uri.c_str());
+  tab.blocked = 0;
+  tab.blocked_report = 0;
+  tab.cosmetic_exceptions = "[]";
+  tab.generichide = false;
+  ++tab.page_script_generation;
+  if (!tab.page_script_id.empty() && tab.webview) {
+    tab.webview->RemoveScriptToExecuteOnDocumentCreated(tab.page_script_id.c_str());
+    tab.page_script_id.clear();
+  }
+  if (!tab.webview || !AdblockActive(tab.page_url)) return;
+  char* exceptions = nullptr;
+  int generichide = 0;
+  char* script = plezy_adblock_page_script(adblock_, tab.page_url.c_str(), &exceptions, &generichide);
+  if (exceptions) {
+    tab.cosmetic_exceptions = exceptions;
+    plezy_adblock_free_string(exceptions);
+  }
+  tab.generichide = generichide != 0;
+  if (!script) return;
+  const std::wstring js = ToWide(script);
+  plezy_adblock_free_string(script);
+  const int id = tab.id;
+  const int generation = tab.page_script_generation;
+  tab.webview->AddScriptToExecuteOnDocumentCreated(
+      js.c_str(), Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler>(
+                      [this, id, generation](HRESULT hr, LPCWSTR script_id) -> HRESULT {
+                        BrowserTab* t = Find(id);
+                        if (!t || !t->webview || FAILED(hr) || !script_id) return S_OK;
+                        if (generation != t->page_script_generation) {
+                          t->webview->RemoveScriptToExecuteOnDocumentCreated(script_id);
+                          return S_OK;
+                        }
+                        t->page_script_id = script_id;
+                        return S_OK;
+                      })
+                      .Get());
+}
+
+// Every request of a page passes here: blocked, replaced by a harmless stub
+// (redirect filters), or let through.
+void BrowserWebPlugin::OnResourceRequested(int id, ICoreWebView2WebResourceRequestedEventArgs* args) {
+  BrowserTab* tab = Find(id);
+  if (!tab || !environment_ || !AdblockActive(tab->page_url)) return;
+  ComPtr<ICoreWebView2WebResourceRequest> request;
+  if (FAILED(args->get_Request(&request)) || !request) return;
+  LPWSTR raw = nullptr;
+  request->get_Uri(&raw);
+  const std::wstring uri = raw ? raw : L"";
+  if (raw) ::CoTaskMemFree(raw);
+  if (!StartsWith(Lower(uri), L"http")) return;
+  COREWEBVIEW2_WEB_RESOURCE_CONTEXT context = COREWEBVIEW2_WEB_RESOURCE_CONTEXT_OTHER;
+  args->get_ResourceContext(&context);
+  // The page itself was checked when its navigation started.
+  if (context == COREWEBVIEW2_WEB_RESOURCE_CONTEXT_DOCUMENT && uri == tab->pending_nav) return;
+  const std::string url = ToUtf8(uri.c_str());
+  char* redirect = nullptr;
+  const int verdict = plezy_adblock_check(adblock_, url.c_str(), tab->page_url.c_str(), RequestTypeOf(context), &redirect);
+  if (verdict == 0) return;
+  ComPtr<ICoreWebView2WebResourceResponse> response;
+  std::string mime;
+  std::string body;
+  if (verdict == 2 && redirect && ParseDataUrl(redirect, mime, body)) {
+    ComPtr<IStream> stream;
+    stream.Attach(::SHCreateMemStream(reinterpret_cast<const BYTE*>(body.data()), static_cast<UINT>(body.size())));
+    const std::wstring headers = L"Content-Type: " + ToWide(mime) + L"\r\nAccess-Control-Allow-Origin: *";
+    environment_->CreateWebResourceResponse(stream.Get(), 200, L"OK", headers.c_str(), &response);
+  } else {
+    environment_->CreateWebResourceResponse(nullptr, 403, L"Blocked", L"", &response);
+  }
+  if (redirect) plezy_adblock_free_string(redirect);
+  if (response) args->put_Response(response.Get());
+  ++tab->blocked;
+  ReportBlocked(*tab, false);
+}
 
 BrowserTab* BrowserWebPlugin::Find(int id) {
   auto it = tabs_.find(id);
@@ -344,6 +539,40 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     result->Success();
     return;
   }
+  if (method == "adblockLoad") {
+    // Built on a worker thread; the result comes back through the window.
+    const std::string config = GetString(args, "config").value_or("{}");
+    const int generation = ++adblock_generation_;
+    const HWND window = ::GetAncestor(registrar_->GetView()->GetNativeWindow(), GA_ROOT);
+    const UINT message = adblock_message_;
+    const ULONGLONG started = ::GetTickCount64();
+    std::thread([config, generation, window, message, started]() {
+      PlezyAdblock* engine = plezy_adblock_load(config.c_str());
+      auto* loaded = new std::pair<PlezyAdblock*, ULONGLONG>(engine, started);
+      if (!::PostMessageW(window, message, static_cast<WPARAM>(generation), reinterpret_cast<LPARAM>(loaded))) {
+        if (engine) plezy_adblock_free(engine);
+        delete loaded;
+      }
+    }).detach();
+    result->Success();
+    return;
+  }
+  if (method == "adblockSetEnabled") {
+    adblock_enabled_ = GetBool(args, "value", true);
+    result->Success();
+    return;
+  }
+  if (method == "adblockSetOffSites") {
+    adblock_off_sites_.clear();
+    const auto it = args.find(flutter::EncodableValue("sites"));
+    if (it != args.end() && std::holds_alternative<flutter::EncodableList>(it->second)) {
+      for (const auto& v : std::get<flutter::EncodableList>(it->second)) {
+        if (std::holds_alternative<std::string>(v)) adblock_off_sites_.push_back(Lower(ToWide(std::get<std::string>(v))));
+      }
+    }
+    result->Success();
+    return;
+  }
   if (method == "setDarkScript") {
     dark_script_ = ToWide(GetString(args, "script").value_or(""));
     ++dark_generation_;
@@ -411,6 +640,12 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     result->Success();
   } else if (method == "focus") {
     if (tab->controller) tab->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+    result->Success();
+  } else if (method == "proceedBlocked") {
+    const std::wstring url = ToWide(GetString(args, "url").value_or(""));
+    const std::wstring host = HostOf(url);
+    if (!host.empty()) tab->allowed_hosts.push_back(host);
+    tab->webview->Navigate(url.c_str());
     result->Success();
   } else if (method == "setMuted") {
     ComPtr<ICoreWebView2_8> webview8;
@@ -786,6 +1021,23 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
                 return S_OK;
               }
             }
+            if (tab) {
+              // Pages on a filter list (malware, trackers, ad servers) are not
+              // opened; the app shows a warning with a way to continue.
+              const std::string page = ToUtf8(uri.c_str());
+              const std::wstring host = HostOf(uri);
+              const bool let_through =
+                  std::find(tab->allowed_hosts.begin(), tab->allowed_hosts.end(), host) != tab->allowed_hosts.end();
+              if (!let_through && AdblockActive(page) &&
+                  plezy_adblock_check(adblock_, page.c_str(), page.c_str(), "main_frame", nullptr) != 0) {
+                args->put_Cancel(TRUE);
+                Send(id, "pageBlocked", {{flutter::EncodableValue("url"), flutter::EncodableValue(page)}});
+                return S_OK;
+              }
+              tab->pending_nav = uri;
+              PreparePage(*tab, uri);
+              ReportBlocked(*tab, true);
+            }
             Send(id, "loading", {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))}});
             return S_OK;
           })
@@ -800,6 +1052,7 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
             COREWEBVIEW2_WEB_ERROR_STATUS status = COREWEBVIEW2_WEB_ERROR_STATUS_UNKNOWN;
             args->get_IsSuccess(&success);
             args->get_WebErrorStatus(&status);
+            if (auto* t = Find(id)) ReportBlocked(*t, true);
             Send(id, "loaded",
                  {{flutter::EncodableValue("ok"), flutter::EncodableValue(success == TRUE)},
                   {flutter::EncodableValue("error"), flutter::EncodableValue(static_cast<int>(status))}});
@@ -875,6 +1128,17 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
             if (FAILED(args->TryGetWebMessageAsString(&raw)) || !raw) return S_OK;
             const std::wstring message = raw;
             ::CoTaskMemFree(raw);
+            if (StartsWith(message, kCosmeticPrefix) && message.size() < 512 * 1024) {
+              BrowserTab* t = Find(id);
+              if (!t || t->generichide || !t->webview || !AdblockActive(t->page_url)) return S_OK;
+              const std::string query = ToUtf8(message.substr(wcslen(kCosmeticPrefix)).c_str());
+              char* script = plezy_adblock_generic_script(adblock_, query.c_str(), t->cosmetic_exceptions.c_str());
+              if (script) {
+                t->webview->ExecuteScript(ToWide(script).c_str(), nullptr);
+                plezy_adblock_free_string(script);
+              }
+              return S_OK;
+            }
             const std::wstring prefix = kLinkPrefix;
             if (message.size() > 4096 || !StartsWith(message, prefix)) return S_OK;
             if (auto* t = Find(id)) {
@@ -886,6 +1150,24 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
           .Get(),
       &token);
   tab.tokens.push_back({11, token});
+
+  // Ad blocking sees every request of the page, its frames and its workers.
+  ComPtr<ICoreWebView2_22> webview22;
+  if (SUCCEEDED(webview.As(&webview22))) {
+    webview22->AddWebResourceRequestedFilterWithRequestSourceKinds(
+        L"*", COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL, COREWEBVIEW2_WEB_RESOURCE_REQUEST_SOURCE_KINDS_ALL);
+  } else {
+    webview->AddWebResourceRequestedFilter(L"*", COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL);
+  }
+  webview->add_WebResourceRequested(
+      Callback<ICoreWebView2WebResourceRequestedEventHandler>(
+          [this, id](ICoreWebView2*, ICoreWebView2WebResourceRequestedEventArgs* args) -> HRESULT {
+            OnResourceRequested(id, args);
+            return S_OK;
+          })
+          .Get(),
+      &token);
+  tab.tokens.push_back({13, token});
 
   ComPtr<ICoreWebView2_15> webview15;
   if (SUCCEEDED(webview.As(&webview15))) {
@@ -1078,6 +1360,7 @@ void BrowserWebPlugin::CloseTab(int id) {
         case 10: if (webview8) webview8->remove_IsDocumentPlayingAudioChanged(token); break;
         case 11: tab.webview->remove_WebMessageReceived(token); break;
         case 12: if (webview15) webview15->remove_FaviconChanged(token); break;
+        case 13: tab.webview->remove_WebResourceRequested(token); break;
         default: break;
       }
     }

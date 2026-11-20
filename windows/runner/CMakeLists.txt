@@ -77,6 +77,35 @@ target_include_directories(${BINARY_NAME} PRIVATE
 set_target_properties(${BINARY_NAME} PROPERTIES VS_GLOBAL_WebView2LoaderPreference "Static")
 add_dependencies(${BINARY_NAME} webview_windows_DEPENDENCIES_DOWNLOAD)
 
+# Ad block engine for the in-app browser: a Rust static library around
+# Brave's adblock-rust (windows/runner/adblock), built with cargo. Needs the
+# Rust toolchain (rustup) on the build machine.
+find_program(PLEZY_CARGO cargo HINTS "$ENV{USERPROFILE}/.cargo/bin" "$ENV{CARGO_HOME}/bin")
+if(NOT PLEZY_CARGO)
+  message(FATAL_ERROR "cargo was not found. Install Rust from https://rustup.rs to build the browser's ad blocker.")
+endif()
+set(PLEZY_ADBLOCK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/adblock")
+set(PLEZY_ADBLOCK_TARGET_DIR "${CMAKE_BINARY_DIR}/adblock-target")
+set(PLEZY_ADBLOCK_LIB "${PLEZY_ADBLOCK_TARGET_DIR}/x86_64-pc-windows-msvc/release/plezy_adblock.lib")
+add_custom_command(
+  OUTPUT "${PLEZY_ADBLOCK_LIB}"
+  COMMAND "${PLEZY_CARGO}" build --release --locked
+          --manifest-path "${PLEZY_ADBLOCK_DIR}/Cargo.toml"
+          --target x86_64-pc-windows-msvc
+          --target-dir "${PLEZY_ADBLOCK_TARGET_DIR}"
+  DEPENDS "${PLEZY_ADBLOCK_DIR}/Cargo.toml" "${PLEZY_ADBLOCK_DIR}/Cargo.lock" "${PLEZY_ADBLOCK_DIR}/src/lib.rs"
+  COMMENT "Building the ad block engine (Rust)"
+  VERBATIM)
+add_custom_target(plezy_adblock_build DEPENDS "${PLEZY_ADBLOCK_LIB}")
+add_dependencies(${BINARY_NAME} plezy_adblock_build)
+target_include_directories(${BINARY_NAME} PRIVATE "${PLEZY_ADBLOCK_DIR}")
+# The Rust standard library needs these Windows libraries.
+target_link_libraries(${BINARY_NAME} PRIVATE "${PLEZY_ADBLOCK_LIB}"
+  ws2_32 userenv bcrypt ntdll advapi32 kernel32 synchronization shlwapi)
+# The library always uses the release C runtime; debug builds of the app use
+# the debug one, so let them resolve its imports there.
+target_link_options(${BINARY_NAME} PRIVATE "$<$<CONFIG:Debug>:/NODEFAULTLIB:msvcrt.lib>")
+
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
 

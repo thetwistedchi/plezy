@@ -19,11 +19,13 @@
 #include <wrl.h>
 
 #include <map>
+#include <optional>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "WebView2.h"
+#include "plezy_adblock.h"
 
 void BrowserWebPluginRegisterWithRegistrar(FlutterDesktopPluginRegistrarRef registrar);
 
@@ -48,6 +50,17 @@ struct BrowserTab {
   std::wstring last_link;
   ULONGLONG link_at = 0;
   bool in_private = false;
+  // Ad blocking: the page the tab shows (UTF-8), requests blocked on it, its
+  // per-page script, generic hiding exceptions, hosts let through once.
+  std::string page_url;
+  std::wstring pending_nav;
+  int blocked = 0;
+  ULONGLONG blocked_report = 0;
+  std::wstring page_script_id;
+  int page_script_generation = 0;
+  std::string cosmetic_exceptions = "[]";
+  bool generichide = false;
+  std::vector<std::wstring> allowed_hosts;
   // Id of the installed dark mode script, to remove it again.
   std::wstring dark_script_id;
 };
@@ -82,6 +95,13 @@ class BrowserWebPlugin : public flutter::Plugin {
   void SendFavicon(int id);
   void InstallDarkScript(BrowserTab& tab);
 
+  // Ad blocking (adblock-rust via windows/runner/adblock).
+  bool AdblockActive(const std::string& page_url) const;
+  void OnAdblockLoaded(int generation, PlezyAdblock* engine, ULONGLONG started);
+  void PreparePage(BrowserTab& tab, const std::wstring& uri);
+  void OnResourceRequested(int id, ICoreWebView2WebResourceRequestedEventArgs* args);
+  void ReportBlocked(BrowserTab& tab, bool force);
+
   flutter::PluginRegistrarWindows* registrar_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> method_channel_;
   std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> event_channel_;
@@ -98,6 +118,14 @@ class BrowserWebPlugin : public flutter::Plugin {
   std::vector<std::wstring> popup_sites_;
   // Tracking prevention: 0 off, 1 basic, 2 balanced, 3 strict.
   int tracking_level_ = 2;
+
+  PlezyAdblock* adblock_ = nullptr;
+  bool adblock_enabled_ = true;
+  int adblock_generation_ = 0;
+  // Sites (registrable domains) the user turned blocking off for.
+  std::vector<std::wstring> adblock_off_sites_;
+  std::optional<int> window_proc_id_;
+  UINT adblock_message_ = 0;
   // Dark mode for websites (Dark Reader), run in every new page; empty = off.
   std::wstring dark_script_;
   int dark_generation_ = 0;
