@@ -22,6 +22,9 @@ import '../services/tvos_system_navigation_service.dart';
 import '../utils/app_logger.dart';
 import '../widgets/auth_error_banner.dart';
 import '../widgets/app_icon.dart';
+import '../i18n/retro_strings.dart';
+import '../services/browser/browser_native.dart';
+import 'browser/browser_screen.dart';
 import '../utils/iphone_duo.dart';
 import '../utils/platform_detector.dart';
 import '../utils/snackbar_helper.dart';
@@ -1970,19 +1973,52 @@ class _MainScreenState extends State<MainScreen>
 
   Widget _buildBottomNavigationBar(BuildContext context, {required bool hideLabels}) {
     final tabs = _getBottomNavigationTabs(context);
+    // Fork: the browser opens as its own page, so it is an extra destination
+    // (before Settings) that never becomes the selected one.
+    final browserIndex = BrowserNative.isSupported && !_isOffline
+        ? () {
+            final settings = tabs.indexWhere((tab) => tab.id == NavigationTabId.settings);
+            return settings < 0 ? tabs.length : settings;
+          }()
+        : -1;
+    final itemCount = tabs.length + (browserIndex >= 0 ? 1 : 0);
+    int barIndexOf(int tabIndex) => browserIndex >= 0 && tabIndex >= browserIndex ? tabIndex + 1 : tabIndex;
+    final destinations = tabs.map((tab) => tab.toDestination()).toList();
+    final labels = [for (final tab in tabs) tab.getLabel()];
+    if (browserIndex >= 0) {
+      destinations.insert(
+        browserIndex,
+        DefaultTextStyle.merge(
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+          child: NavigationDestination(
+            icon: const AppIcon.retro(Symbols.public_rounded, fill: 1, retroOpacity: 0.7),
+            label: RetroStrings.browser,
+          ),
+        ),
+      );
+      labels.insert(browserIndex, RetroStrings.browser);
+    }
     final selectedIndex = tabs.indexWhere((tab) => tab.id == _currentTab);
     final navigationBar = NavigationBar(
-      selectedIndex: selectedIndex >= 0 ? selectedIndex : 0,
+      selectedIndex: selectedIndex >= 0 ? barIndexOf(selectedIndex) : 0,
       onDestinationSelected: (i) {
-        if (i >= 0 && i < tabs.length) _selectTab(tabs[i].id);
+        if (i == browserIndex) {
+          unawaited(BrowserScreen.open(context));
+          return;
+        }
+        final tabIndex = browserIndex >= 0 && i > browserIndex ? i - 1 : i;
+        if (tabIndex >= 0 && tabIndex < tabs.length) _selectTab(tabs[tabIndex].id);
       },
       labelBehavior: hideLabels
           ? NavigationDestinationLabelBehavior.alwaysHide
           : NavigationDestinationLabelBehavior.alwaysShow,
-      destinations: tabs.map((tab) => tab.toDestination()).toList(),
+      destinations: destinations,
     );
 
-    final librariesIndex = tabs.indexWhere((tab) => tab.id == NavigationTabId.libraries);
+    final librariesTabIndex = tabs.indexWhere((tab) => tab.id == NavigationTabId.libraries);
+    final librariesIndex = librariesTabIndex < 0 ? -1 : barIndexOf(librariesTabIndex);
     if (tabs.isEmpty) return navigationBar;
 
     return LayoutBuilder(
@@ -1991,11 +2027,11 @@ class _MainScreenState extends State<MainScreen>
 
         // A destination gets an equal share of the bar and spends all of it on
         // the label, so that share is what the labels have to fit into.
-        final itemWidth = constraints.maxWidth / tabs.length;
+        final itemWidth = constraints.maxWidth / itemCount;
         final bar = hideLabels
             ? navigationBar
             : NavigationLabelScale(
-                labels: [for (final tab in tabs) tab.getLabel()],
+                labels: labels,
                 labelWidth: itemWidth,
                 style: navigationBarLabelStyle(context),
                 child: navigationBar,
