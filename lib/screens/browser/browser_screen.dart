@@ -1592,7 +1592,7 @@ class _TabChip extends StatelessWidget {
         if (e.buttons == kMiddleMouseButton) onClose();
       },
       child: Tooltip(
-        message: tab.url ?? title,
+        message: tab.suspended ? '${tab.url ?? title}\n${RetroStrings.tabSleeping}' : (tab.url ?? title),
         waitDuration: const Duration(milliseconds: 600),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(2, 6, 2, 4),
@@ -1618,7 +1618,9 @@ class _TabChip extends StatelessWidget {
                 child: Row(
                   children: [
                     const SizedBox(width: 10),
-                    icon,
+                    // A sleeping tab (paused in the background) looks faded,
+                    // like Edge's sleeping tabs.
+                    Opacity(opacity: tab.suspended ? 0.45 : 1, child: icon),
                     if (tab.isPrivate) ...[
                       const SizedBox(width: 4),
                       BrowserIcon(Symbols.visibility_off_rounded, size: 13, opacity: active ? 1 : 0.6),
@@ -1629,7 +1631,10 @@ class _TabChip extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: active ? t.text : t.textMuted),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: (active ? t.text : t.textMuted).withValues(alpha: tab.suspended ? 0.5 : 1),
+                        ),
                       ),
                     ),
                     if (tab.audio || tab.muted)

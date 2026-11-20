@@ -158,6 +158,8 @@ class RetroStrings {
   static String get askWhereToSave => _t('Ask where to save each file', 'Bei jeder Datei fragen, wo sie gespeichert wird');
   static String get downloadsFolder => _t('Saved to your Downloads folder.', 'Wird in deinem Download-Ordner gespeichert.');
 
+  static String get tabSleeping =>
+      _t('Sleeping: paused to save resources, continues when opened', 'Schläft: pausiert, um Ressourcen zu sparen, läuft beim Öffnen weiter');
   static String get newPrivateTab => _t('New private tab', 'Neuer privater Tab');
   static String get privateTab => _t('Private tab', 'Privater Tab');
   static String get privateTabHint => _t(

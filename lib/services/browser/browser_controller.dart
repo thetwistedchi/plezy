@@ -813,6 +813,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     final minutes = _settings.suspendMinutes;
     if (minutes <= 0 && !all) return;
     final now = DateTime.now();
+    var changed = false;
     for (final tab in tabs) {
       if (!tab.live || tab.suspended) continue;
       final isShown = _shown && tab.id == _activeId;
@@ -820,9 +821,11 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       if (_settings.keepPlayingAwake && tab.audio) continue;
       if (!all && now.difference(tab.lastShown).inMinutes < minutes) continue;
       tab.suspended = true;
+      changed = true;
       unawaited(_native.suspend(tab.id));
       appLogger.d('Browser: suspended tab ${tab.id}');
     }
+    if (changed) notifyListeners();
   }
 
   @override
