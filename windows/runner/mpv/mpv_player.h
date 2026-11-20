@@ -122,6 +122,7 @@ class MpvPlayer {
   // Reports the applied HDR pipeline options once per player, as a synthetic
   // log-message on the first file load (when the Dart callback is wired).
   void LogHdrPipelineOnce();
+  void SendGeometryLog(const std::string& text);
   void EnsureMpvInnerSubclassed();
   void DetachMpvInnerSubclass();
 

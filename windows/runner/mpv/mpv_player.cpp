@@ -753,7 +753,44 @@ void MpvPlayer::SetRect(RECT rect, double device_pixel_ratio) {
   // The video window is a child of the Flutter view; the Dart rect is already
   // in view physical pixels, which is exactly the child coordinate space. No
   // screen mapping, no padding.
-  ::SetWindowPos(hwnd_, HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOACTIVATE);
+  //
+  // Fork: right after the window moves to a monitor with another scale, a
+  // rect can arrive that mixes the old layout with the new scale (seen as a
+  // 6004x3581 video window on a 3440x1440 view), which left the player's
+  // controls unresponsive. The video never needs to be larger than the view,
+  // so it is kept inside it, and mpv's own window is made to follow.
+  const HWND view = ::GetParent(hwnd_);
+  RECT client{};
+  if (view && ::GetClientRect(view, &client) && client.right > 0 && client.bottom > 0) {
+    const RECT asked = rect;
+    rect.left = (std::max)(rect.left, client.left);
+    rect.top = (std::max)(rect.top, client.top);
+    rect.right = (std::min)(rect.right, client.right);
+    rect.bottom = (std::min)(rect.bottom, client.bottom);
+    if (rect.right < rect.left) rect.right = rect.left;
+    if (rect.bottom < rect.top) rect.bottom = rect.top;
+    if (!::EqualRect(&asked, &rect)) {
+      char text[200];
+      snprintf(text, sizeof(text), "video rect %ldx%ld clamped to the view %ldx%ld (scale %.2f)",
+               asked.right - asked.left, asked.bottom - asked.top, client.right, client.bottom, device_pixel_ratio);
+      SendGeometryLog(text);
+    }
+  }
+  const int width = rect.right - rect.left;
+  const int height = rect.bottom - rect.top;
+  ::SetWindowPos(hwnd_, HWND_TOP, rect.left, rect.top, width, height, SWP_NOACTIVATE);
+
+  // mpv sizes its own window from ours; make sure it did not keep a stale
+  // size from before the scale change. Asynchronous: that window belongs to
+  // mpv's thread, which must never block this one.
+  if (HWND inner = ::FindWindowExW(hwnd_, nullptr, nullptr, nullptr)) {
+    RECT inner_rect{};
+    ::GetWindowRect(inner, &inner_rect);
+    if (inner_rect.right - inner_rect.left != width || inner_rect.bottom - inner_rect.top != height) {
+      ::SetWindowPos(inner, nullptr, 0, 0, width, height,
+                     SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_ASYNCWINDOWPOS);
+    }
+  }
 
   // mpv creates its inner window lazily on its own thread; subclass it (and
   // re-subclass if mpv ever recreates it) so mouse and pointer input over the
@@ -796,6 +833,14 @@ void MpvPlayer::LogRecovery(const std::string& text) {
   // regardless of the mpv log level.
   flutter::EncodableMap data;
   data[flutter::EncodableValue("prefix")] = flutter::EncodableValue("audio-recovery");
+  data[flutter::EncodableValue("level")] = flutter::EncodableValue("warn");
+  data[flutter::EncodableValue("text")] = flutter::EncodableValue(text);
+  SendEvent("log-message", data);
+}
+
+void MpvPlayer::SendGeometryLog(const std::string& text) {
+  flutter::EncodableMap data;
+  data[flutter::EncodableValue("prefix")] = flutter::EncodableValue("video-rect");
   data[flutter::EncodableValue("level")] = flutter::EncodableValue("warn");
   data[flutter::EncodableValue("text")] = flutter::EncodableValue(text);
   SendEvent("log-message", data);
