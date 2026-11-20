@@ -308,35 +308,47 @@ void BrowserWebPlugin::PreparePage(BrowserTab& tab, const std::wstring& uri) {
   tab.check_ticks = 0;
   tab.cosmetic_exceptions = "[]";
   tab.generichide = false;
+  if (!tab.webview) return;
+  std::wstring js;
+  if (AdblockActive(tab.page_url)) {
+    char* exceptions = nullptr;
+    int generichide = 0;
+    char* script = plezy_adblock_page_script(adblock_, tab.page_url.c_str(), &exceptions, &generichide);
+    if (exceptions) {
+      tab.cosmetic_exceptions = exceptions;
+      plezy_adblock_free_string(exceptions);
+    }
+    tab.generichide = generichide != 0;
+    if (script) {
+      js = ToWide(script);
+      plezy_adblock_free_string(script);
+    }
+  }
+  // Same site as before: the registered script stays and runs at the very
+  // start of the new document, with no registration to wait for.
+  if (js == tab.page_script_text && (!tab.page_script_id.empty() || tab.page_script_pending || js.empty())) return;
   ++tab.page_script_generation;
-  if (!tab.page_script_id.empty() && tab.webview) {
+  if (!tab.page_script_id.empty()) {
     tab.webview->RemoveScriptToExecuteOnDocumentCreated(tab.page_script_id.c_str());
     tab.page_script_id.clear();
   }
-  if (!tab.webview || !AdblockActive(tab.page_url)) return;
-  char* exceptions = nullptr;
-  int generichide = 0;
-  char* script = plezy_adblock_page_script(adblock_, tab.page_url.c_str(), &exceptions, &generichide);
-  if (exceptions) {
-    tab.cosmetic_exceptions = exceptions;
-    plezy_adblock_free_string(exceptions);
-  }
-  tab.generichide = generichide != 0;
-  if (!script) return;
-  const std::wstring js = ToWide(script);
-  plezy_adblock_free_string(script);
+  tab.page_script_text = js;
+  tab.page_script_pending = false;
+  if (js.empty()) return;
+  tab.page_script_pending = true;
   const int id = tab.id;
   const int generation = tab.page_script_generation;
   tab.webview->AddScriptToExecuteOnDocumentCreated(
       js.c_str(), Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler>(
                       [this, id, generation](HRESULT hr, LPCWSTR script_id) -> HRESULT {
                         BrowserTab* t = Find(id);
-                        if (!t || !t->webview || FAILED(hr) || !script_id) return S_OK;
+                        if (!t || !t->webview) return S_OK;
                         if (generation != t->page_script_generation) {
-                          t->webview->RemoveScriptToExecuteOnDocumentCreated(script_id);
+                          if (SUCCEEDED(hr) && script_id) t->webview->RemoveScriptToExecuteOnDocumentCreated(script_id);
                           return S_OK;
                         }
-                        t->page_script_id = script_id;
+                        t->page_script_pending = false;
+                        if (SUCCEEDED(hr) && script_id) t->page_script_id = script_id;
                         return S_OK;
                       })
                       .Get());
@@ -1116,6 +1128,21 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
       &token);
   tab.tokens.push_back({3, token});
 
+  // A fast page can start before its script finished registering: then the
+  // script runs right away instead, a moment late but still before most of
+  // the page's own scripts.
+  webview->add_ContentLoading(Callback<ICoreWebView2ContentLoadingEventHandler>(
+                                  [this, id](ICoreWebView2* sender, ICoreWebView2ContentLoadingEventArgs*) -> HRESULT {
+                                    BrowserTab* t = Find(id);
+                                    if (t && t->page_script_pending && !t->page_script_text.empty()) {
+                                      sender->ExecuteScript(t->page_script_text.c_str(), nullptr);
+                                    }
+                                    return S_OK;
+                                  })
+                                  .Get(),
+                              &token);
+  tab.tokens.push_back({14, token});
+
   webview->add_NavigationCompleted(
       Callback<ICoreWebView2NavigationCompletedEventHandler>(
           [this, id](ICoreWebView2*, ICoreWebView2NavigationCompletedEventArgs* args) -> HRESULT {
@@ -1452,6 +1479,7 @@ void BrowserWebPlugin::CloseTab(int id) {
         case 11: tab.webview->remove_WebMessageReceived(token); break;
         case 12: if (webview15) webview15->remove_FaviconChanged(token); break;
         case 13: tab.webview->remove_WebResourceRequested(token); break;
+        case 14: tab.webview->remove_ContentLoading(token); break;
         default: break;
       }
     }

@@ -7,10 +7,10 @@ fn main() {
     let resources = std::env::args().nth(1).unwrap();
     let cfg = serde_json::json!({
         "lists": lists.iter().map(|p| serde_json::json!({"path": p, "trusted": true})).collect::<Vec<_>>(),
-        "userFilters": "||example-ad-host.test^\n##.banner-ad\n###sidebar-ad\n",
+        "userFilters": "||example-ad-host.test^\n##.banner-ad\n###sidebar-ad\nexample.com##div.post:has-text(Sponsored)\nexample.com###r:remove()\n",
         "resources": resources,
         "cache": "/tmp/ab.dat",
-        "cacheKey": "k2",
+        "cacheKey": "k4",
     });
     let c = CString::new(cfg.to_string()).unwrap();
     let t = Instant::now();

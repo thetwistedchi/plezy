@@ -257,7 +257,7 @@ class AdblockManager extends ChangeNotifier {
   static const updateEvery = Duration(hours: 24);
 
   /// Bump when the bundled scriptlet resources change.
-  static const _resourcesVersion = 'ubo-2026-11-20';
+  static const _resourcesVersion = 'ubo-2026-11-20b';
 
   SharedPreferences? _prefs;
   Directory? _dir;

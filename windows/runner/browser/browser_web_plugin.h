@@ -63,6 +63,10 @@ struct BrowserTab {
   LONGLONG check_ticks = 0;
   ULONGLONG blocked_report = 0;
   std::wstring page_script_id;
+  // The registered script's text, kept while it stays the same (same site),
+  // and whether its registration is still underway.
+  std::wstring page_script_text;
+  bool page_script_pending = false;
   int page_script_generation = 0;
   std::string cosmetic_exceptions = "[]";
   bool generichide = false;

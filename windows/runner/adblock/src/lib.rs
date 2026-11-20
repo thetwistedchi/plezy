@@ -209,6 +209,9 @@ fn hide_css<'a>(selectors: impl IntoIterator<Item = &'a String>) -> String {
     css
 }
 
+/// Applies procedural and action filters in the page (js/procedural.js).
+const PROCEDURAL: &str = include_str!("../js/procedural.js");
+
 const ADD_STYLE: &str = "const a=c=>{const s=document.createElement('style');s.textContent=c;\
 const put=()=>{const r=document.head||document.documentElement;if(!r)return false;r.appendChild(s);return true;};\
 if(!put()){const o=new MutationObserver(()=>{if(put())o.disconnect();});o.observe(document,{childList:true,subtree:true});}};";
@@ -244,7 +247,12 @@ pub extern "C" fn plezy_adblock_page_script(
     if !generichide.is_null() {
         unsafe { *generichide = r.generichide as c_int };
     }
-    if r.hide_selectors.is_empty() && r.injected_script.trim().is_empty() {
+    let procedural: Vec<serde_json::Value> = r
+        .procedural_actions
+        .iter()
+        .filter_map(|json| serde_json::from_str(json).ok())
+        .collect();
+    if r.hide_selectors.is_empty() && r.injected_script.trim().is_empty() && procedural.is_empty() {
         return std::ptr::null_mut();
     }
     let mut js = String::from("(()=>{");
@@ -253,6 +261,11 @@ pub extern "C" fn plezy_adblock_page_script(
     if !r.hide_selectors.is_empty() {
         js.push_str(ADD_STYLE);
         js.push_str(&format!("a({});", serde_json::to_string(&hide_css(&r.hide_selectors)).unwrap_or_default()));
+    }
+    if !procedural.is_empty() {
+        js.push_str("try{");
+        js.push_str(PROCEDURAL.trim_end().trim_end_matches(';'));
+        js.push_str(&format!("({});}}catch(e){{}}", serde_json::to_string(&procedural).unwrap_or_else(|_| "[]".into())));
     }
     if !r.injected_script.trim().is_empty() {
         js.push_str("try{\n");
