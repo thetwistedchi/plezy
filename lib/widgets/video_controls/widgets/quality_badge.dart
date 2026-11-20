@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../media/media_display_criteria.dart';
+import '../../../mpv/mpv.dart';
 import '../../../theme/player_style.dart';
+import '../../../utils/codec_utils.dart';
 
 /// Small outlined "4K · DV" style badge for the player's bottom bar, built
 /// from the playing version's display criteria. Shows nothing when the
@@ -51,24 +53,107 @@ class QualityBadge extends StatelessWidget {
     if (isTranscoding) return const SizedBox.shrink();
     final labels = labelsFor(criteria);
     if (labels.isEmpty) return const SizedBox.shrink();
+    return PlayerInfoBadge(text: labels.join(' · '), onTap: onTap, tooltip: tooltip);
+  }
+}
+
+/// Fork: the playing audio track's format next to the quality badge, e.g.
+/// `TrueHD Atmos 7.1`, `DTS-HD MA 5.1`, `AAC Stereo`. Follows track switches
+/// and shows nothing when no audio track is playing.
+class AudioFormatBadge extends StatelessWidget {
+  const AudioFormatBadge({super.key, required this.player, this.onTap, this.tooltip});
+
+  final Player player;
+  final VoidCallback? onTap;
+  final String? tooltip;
+
+  static String? labelFor(AudioTrack? track) {
+    final codec = track?.codec;
+    if (track == null || codec == null || codec.isEmpty) return null;
+    final name = CodecUtils.formatAudioCodec(codec, profile: track.codecProfile);
+    // Atmos rides inside TrueHD / E-AC3 and only shows in the track's title.
+    final atmos = (track.title ?? '').toLowerCase().contains('atmos') && !name.contains('Atmos');
+    return [name, if (atmos) 'Atmos', ?CodecUtils.formatAudioChannels(track.channels)].join(' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<Tracks>(
+      stream: player.streams.tracks,
+      initialData: player.state.tracks,
+      builder: (context, tracksSnapshot) => StreamBuilder<TrackSelection>(
+        stream: player.streams.track,
+        initialData: player.state.track,
+        builder: (context, selectionSnapshot) {
+          final selected = selectionSnapshot.data?.audio;
+          if (selected == null || selected.id == AudioTrack.off.id) return const SizedBox.shrink();
+          // The selection can be a bare id ('auto'); the track list has the details.
+          AudioTrack? track = selected;
+          for (final a in tracksSnapshot.data?.audio ?? const <AudioTrack>[]) {
+            if (a.id == selected.id) {
+              track = a;
+              break;
+            }
+          }
+          final label = labelFor(track);
+          if (label == null) return const SizedBox.shrink();
+          return PlayerInfoBadge(text: label, onTap: onTap, tooltip: tooltip);
+        },
+      ),
+    );
+  }
+}
+
+/// Outlined info badge of the player's bottom bar (quality, audio format).
+/// The text is centred on both axes: fixed line height with the leading split
+/// evenly, so caps and digits sit in the middle of the outline.
+class PlayerInfoBadge extends StatelessWidget {
+  const PlayerInfoBadge({super.key, required this.text, this.onTap, this.tooltip});
+
+  final String text;
+  final VoidCallback? onTap;
+  final String? tooltip;
+
+  static const double height = 22;
+  static const double fontSize = 11.5;
+
+  @override
+  Widget build(BuildContext context) {
     final style = PlayerStyle.of(context);
     final color = style.badge ?? Colors.white;
+    const textStyle = TextStyle(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 0.5,
+      height: 1.0,
+      leadingDistribution: TextLeadingDistribution.even,
+    );
     final badge = Container(
-      height: 22,
+      height: height,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.35),
-        border: Border.all(color: color, width: 1.2),
+        border: Border.all(color: color, width: 0.8),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
-        labels.join(' · '),
+        text,
+        maxLines: 1,
+        softWrap: false,
+        textAlign: TextAlign.center,
         textHeightBehavior: const TextHeightBehavior(
           applyHeightToFirstAscent: false,
           applyHeightToLastDescent: false,
+          leadingDistribution: TextLeadingDistribution.even,
         ),
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6, height: 1.0),
+        strutStyle: const StrutStyle(
+          fontSize: fontSize,
+          height: 1.0,
+          forceStrutHeight: true,
+          leadingDistribution: TextLeadingDistribution.even,
+        ),
+        style: textStyle.copyWith(color: color),
       ),
     );
     if (onTap == null) return badge;

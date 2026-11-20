@@ -952,10 +952,11 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                       },
                     ),
                   ),
-                // 4K / HDR badge of the playing version
-                if (!_isLive)
+                // 4K / HDR badge and audio format of the playing version;
+                // both open the file info.
+                if (!_isLive) ...[
                   Padding(
-                    padding: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.only(right: 6),
                     child: QualityBadge(
                       criteria: widget.displayCriteria,
                       isTranscoding: widget.isTranscoding,
@@ -963,6 +964,15 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                       onTap: () => showPlayerFileInfo(context, _trackControlsState),
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: AudioFormatBadge(
+                      player: widget.player,
+                      tooltip: t.mediaMenu.fileInfo,
+                      onTap: () => showPlayerFileInfo(context, _trackControlsState),
+                    ),
+                  ),
+                ],
                 // Volume control (hidden on TV — hardware handles volume)
                 if (!PlatformDetector.isTV()) ...[
                   VolumeControl(
