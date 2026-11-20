@@ -232,6 +232,12 @@ class RetroStrings {
   static String get recentCount => _t('Pages shown', 'Angezeigte Seiten');
   static String get recentEmpty => _t('Pages you visit will show up here.', 'Besuchte Seiten erscheinen hier.');
   static String get removeFromList => _t('Remove from list', 'Aus der Liste entfernen');
+  static String get history => _t('History', 'Verlauf');
+  static String get searchHistory => _t('Search history', 'Verlauf durchsuchen');
+  static String get historyEmpty => _t('No visited pages.', 'Keine besuchten Seiten.');
+  static String get today => _t('Today', 'Heute');
+  static String get yesterday => _t('Yesterday', 'Gestern');
+  static String get earlier => _t('Earlier', 'Früher');
   static String get clearHistory => _t('Clear history', 'Verlauf löschen');
   static String get historyDescription =>
       _t('The recently visited pages on the new tab page', 'Die zuletzt besuchten Seiten auf der Neuer-Tab-Seite');

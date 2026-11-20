@@ -287,6 +287,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
 
   static const settingsPage = 'plezy://settings';
   static const filtersPage = 'plezy://filters';
+  static const historyPage = 'plezy://history';
 
   /// Shows one of the app's own pages in a tab, reusing an open one.
   Future<void> openInternal(String page) async {
@@ -892,7 +893,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     if (text.isEmpty) return null;
     final lower = text.toLowerCase();
     if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('about:')) return text;
-    if (lower == settingsPage || lower == filtersPage) return lower;
+    if (lower == settingsPage || lower == filtersPage || lower == historyPage) return lower;
     if (!text.contains(' ')) {
       final uri = Uri.tryParse('http://$text');
       final host = uri?.host ?? '';

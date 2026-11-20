@@ -19,6 +19,7 @@ import '../../theme/retrowave_colors.dart';
 import '../../widgets/app_icon.dart';
 import 'browser_icon.dart';
 import 'adblock_lists_screen.dart';
+import 'browser_history_page.dart';
 import 'browser_settings_screen.dart';
 
 /// The in-app browser: tabs, address bar, bookmarks. Each tab's page is a
@@ -702,6 +703,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           checked: !_settings.isDarkExcluded(site),
         ),
       _MenuEntry.divider,
+      _menuItem('history', Symbols.history_rounded, RetroStrings.history),
       _menuItem('downloads', Symbols.download_rounded, RetroStrings.downloads),
       _menuItem(
         'external',
@@ -723,6 +725,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
         await _controller.setDarkMode(enabled: !_settings.darkMode);
       case 'darkSite':
         await _controller.setDarkExcluded(site, !_settings.isDarkExcluded(site));
+      case 'history':
+        await _controller.openInternal(BrowserController.historyPage);
       case 'downloads':
         await _showDownloads(anchor);
       case 'external':
@@ -1077,7 +1081,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
     if (tab.isInternal) {
       return DecoratedBox(
         decoration: pageDecoration(Theme.of(context)),
-        child: tab.url == BrowserController.filtersPage ? const AdblockListsScreen() : const BrowserSettingsScreen(),
+        child: switch (tab.url) {
+          BrowserController.filtersPage => const AdblockListsScreen(),
+          BrowserController.historyPage => const BrowserHistoryPage(),
+          _ => const BrowserSettingsScreen(),
+        },
       );
     }
     if (tab.blockedPage case final blocked?) {
@@ -1332,6 +1340,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               ),
             ),
           const SizedBox(width: 4),
+          _buildDownloadsButton(t),
           _buildShieldButton(t, tab),
           Builder(
             builder: (anchor) => IconButton(
@@ -1350,7 +1359,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
               if (rect != null) unawaited(_showBookmarks(rect));
             }),
           ),
-          if (_controller.downloads.isNotEmpty) _buildDownloadsButton(t),
           Builder(
             builder: (anchor) => _iconButton(Symbols.more_vert_rounded, RetroStrings.moreActions, () {
               final rect = _rectOf(anchor);
@@ -1535,6 +1543,8 @@ class _TabChip extends StatelessWidget {
         ? RetroStrings.browserSettings
         : tab.url == BrowserController.filtersPage
         ? RetroStrings.filterLists
+        : tab.url == BrowserController.historyPage
+        ? RetroStrings.history
         : (tab.title.isNotEmpty ? tab.title : tab.host);
     final favicon = tab.favicon;
     Widget icon;
@@ -1542,7 +1552,11 @@ class _TabChip extends StatelessWidget {
       icon = SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.6, color: t.accent));
     } else if (tab.isInternal) {
       icon = BrowserIcon(
-        tab.url == BrowserController.filtersPage ? Symbols.shield_rounded : Symbols.settings_rounded,
+        switch (tab.url) {
+          BrowserController.filtersPage => Symbols.shield_rounded,
+          BrowserController.historyPage => Symbols.history_rounded,
+          _ => Symbols.settings_rounded,
+        },
         size: 15,
         opacity: active ? 1 : 0.6,
       );

@@ -7,14 +7,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'browser_settings.dart';
 
 class VisitedPage {
-  const VisitedPage({required this.url, required this.title});
+  const VisitedPage({required this.url, required this.title, this.at});
 
   final String url;
   final String title;
 
+  /// When it was last visited (older entries have none).
+  final DateTime? at;
+
   String get host => Uri.tryParse(url)?.host.replaceFirst(RegExp(r'^www\.'), '') ?? url;
 
-  Map<String, String> toJson() => {'url': url, 'title': title};
+  Map<String, String> toJson() => {'url': url, 'title': title, if (at != null) 'at': at!.toIso8601String()};
 }
 
 /// The most recently visited pages, newest first, one entry per address.
@@ -24,7 +27,7 @@ class BrowserHistory extends ChangeNotifier {
   static final BrowserHistory instance = BrowserHistory._();
 
   static const _key = 'browser.history';
-  static const maxEntries = 50;
+  static const maxEntries = 500;
 
   SharedPreferences? _prefs;
   final List<VisitedPage> _items = [];
@@ -45,7 +48,13 @@ class BrowserHistory extends ChangeNotifier {
       if (list is List) {
         for (final e in list) {
           if (e is Map && e['url'] is String) {
-            _items.add(VisitedPage(url: e['url'] as String, title: e['title'] is String ? e['title'] as String : ''));
+            _items.add(
+              VisitedPage(
+                url: e['url'] as String,
+                title: e['title'] is String ? e['title'] as String : '',
+                at: DateTime.tryParse(e['at'] as String? ?? ''),
+              ),
+            );
           }
         }
       }
@@ -61,10 +70,13 @@ class BrowserHistory extends ChangeNotifier {
     final i = _items.indexWhere((p) => _norm(p.url) == _norm(url));
     if (i == 0) {
       if (title.isEmpty || _items[0].title == title) return;
-      _items[0] = VisitedPage(url: url, title: title);
+      _items[0] = VisitedPage(url: url, title: title, at: _items[0].at ?? DateTime.now());
     } else {
       final old = i > 0 ? _items.removeAt(i) : null;
-      _items.insert(0, VisitedPage(url: url, title: title.isNotEmpty ? title : (old?.title ?? '')));
+      _items.insert(
+        0,
+        VisitedPage(url: url, title: title.isNotEmpty ? title : (old?.title ?? ''), at: DateTime.now()),
+      );
       if (_items.length > maxEntries) _items.removeRange(maxEntries, _items.length);
     }
     notifyListeners();
