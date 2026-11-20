@@ -110,6 +110,8 @@ class RetroStrings {
   static String get loadOverHttp => _t('Load without encryption', 'Unverschlüsselt laden');
   static String get schemeBlocked =>
       _t('Local files and scripts in the address bar are blocked.', 'Lokale Dateien und Skripte in der Adressleiste sind blockiert.');
+  static String get tabUnresponsive => _t('This page is not responding.', 'Diese Seite reagiert nicht.');
+  static String get wait => _t('Wait', 'Warten');
   static String get tabCrashed => _t('This tab stopped working.', 'Dieser Tab funktioniert nicht mehr.');
   static String permissionAsk(String host, String what) =>
       _t('$host wants to use your $what.', '$host möchte $what verwenden.');

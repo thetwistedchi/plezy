@@ -82,6 +82,10 @@ class CrashedNotice extends BrowserPrompt {
   const CrashedNotice(super.tab);
 }
 
+class UnresponsiveNotice extends BrowserPrompt {
+  const UnresponsiveNotice(super.tab);
+}
+
 /// Tabs of the in-app browser. Only the shown tab runs; the others are
 /// suspended after [BrowserSettings.suspendMinutes], unless they play audio.
 class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
@@ -374,11 +378,25 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         final ext = name.contains('.') ? name.split('.').last : '?';
         appLogger.d('$t: download requested (.$ext, ${e.integer('size')} bytes)');
       case 'crashed':
-        appLogger.w('$t: browser process failed');
+        appLogger.w(
+          '$t: WebView2 process failed: ${_failKind(e.integer('kind'))}, reason ${e.integer('reason')}, '
+          'exit code ${e.integer('exitCode')}',
+        );
       case 'fullscreen':
         appLogger.d('$t: fullscreen ${e.flag('value')}');
     }
   }
+
+  static String _failKind(int kind) => switch (kind) {
+    0 => 'browser process exited',
+    1 => 'page process exited',
+    2 => 'page not responding',
+    3 => 'frame process exited',
+    4 => 'utility process exited',
+    5 => 'sandbox helper exited',
+    6 => 'GPU process exited',
+    _ => 'kind $kind',
+  };
 
   void _onEvent(BrowserEvent e) {
     final tab = _byId(e.tab);
@@ -439,10 +457,33 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       case 'audio':
         tab.audio = e.flag('value');
       case 'crashed':
-        tab
-          ..crashed = true
-          ..loading = false;
-        _prompts.add(CrashedNotice(tab.id));
+        switch (e.integer('kind')) {
+          // The page's own process ended: the tab shows the reload page.
+          case 1:
+            tab
+              ..crashed = true
+              ..loading = false;
+            _prompts.add(CrashedNotice(tab.id));
+          // The page hangs: it may still recover, so the user decides.
+          case 2:
+            _prompts.add(UnresponsiveNotice(tab.id));
+          // The whole browser ended: every tab starts again when shown.
+          case 0:
+            for (final t in tabs) {
+              t
+                ..live = false
+                ..suspended = false
+                ..loading = false;
+            }
+            unawaited(_native.dispose().then((_) async {
+              final shown = active;
+              if (_shown && shown != null) await _show(shown);
+            }));
+          // A frame (often an ad), the GPU or a helper process: Chromium
+          // restarts these itself and the page keeps working.
+          default:
+            break;
+        }
       case 'shortcut':
         final key = e.str('key');
         if (key != null) _shortcuts.add(key);

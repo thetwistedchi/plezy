@@ -343,6 +343,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
         );
       case BlockedSchemeNotice():
         _setNotice(_Notice(RetroStrings.schemeBlocked, warning: true));
+      case UnresponsiveNotice(:final tab):
+        if (tab == _controller.active?.id) {
+          _setNotice(
+            _Notice(
+              RetroStrings.tabUnresponsive,
+              action: RetroStrings.reload,
+              warning: true,
+              onAction: () => unawaited(_controller.reload()),
+              action2: RetroStrings.wait,
+              onAction2: () {},
+            ),
+          );
+        }
       case CrashedNotice(:final tab):
         if (tab == _controller.active?.id) {
           _setNotice(

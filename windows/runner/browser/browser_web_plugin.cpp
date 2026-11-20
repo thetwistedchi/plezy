@@ -769,8 +769,22 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
   tab.tokens.push_back({8, token});
 
   webview->add_ProcessFailed(Callback<ICoreWebView2ProcessFailedEventHandler>(
-                                 [this, id](ICoreWebView2*, ICoreWebView2ProcessFailedEventArgs*) -> HRESULT {
-                                   Send(id, "crashed");
+                                 [this, id](ICoreWebView2*, ICoreWebView2ProcessFailedEventArgs* args) -> HRESULT {
+                                   COREWEBVIEW2_PROCESS_FAILED_KIND kind{};
+                                   args->get_ProcessFailedKind(&kind);
+                                   int reason = -1;
+                                   int exit_code = 0;
+                                   ComPtr<ICoreWebView2ProcessFailedEventArgs2> args2;
+                                   if (SUCCEEDED(args->QueryInterface(IID_PPV_ARGS(&args2)))) {
+                                     COREWEBVIEW2_PROCESS_FAILED_REASON r{};
+                                     args2->get_Reason(&r);
+                                     reason = static_cast<int>(r);
+                                     args2->get_ExitCode(&exit_code);
+                                   }
+                                   Send(id, "crashed",
+                                        {{flutter::EncodableValue("kind"), flutter::EncodableValue(static_cast<int>(kind))},
+                                         {flutter::EncodableValue("reason"), flutter::EncodableValue(reason)},
+                                         {flutter::EncodableValue("exitCode"), flutter::EncodableValue(exit_code)}});
                                    return S_OK;
                                  })
                                  .Get(),
