@@ -636,12 +636,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
                           style: TextStyle(color: item.enabled ? null : tokens(context).textMuted),
                         ),
                       ),
-                      if (item.checked != null)
-                        AppIcon(
-                          item.checked! ? Symbols.check_box_rounded : Symbols.check_box_outline_blank_rounded,
-                          size: 18,
-                          color: tokens(context).accent,
-                        ),
                     ],
                   ),
                 ),
@@ -651,8 +645,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     ),
   );
 
-  _MenuEntry _menuItem(String value, IconData icon, String label, {bool enabled = true, bool? checked}) =>
-      _MenuEntry(value, icon, label, enabled: enabled, checked: checked);
+  _MenuEntry _menuItem(String value, IconData icon, String label, {bool enabled = true}) =>
+      _MenuEntry(value, icon, label, enabled: enabled);
 
   Future<void> _tabMenu(BrowserTabState tab, Offset position) async {
     final picked = await _menu(position & const Size(1, 1), alignLeft: true, [
@@ -688,20 +682,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
   Future<void> _moreMenu(Rect anchor) async {
     final url = _controller.active?.url;
     final internal = _controller.active?.isInternal ?? false;
-    final site = _siteOf(_controller.active);
     final picked = await _menu(anchor, [
       _menuItem('new', Symbols.add_rounded, RetroStrings.newTab),
       _menuItem('private', Symbols.visibility_off_rounded, RetroStrings.newPrivateTab),
       _menuItem('reopen', Symbols.history_rounded, RetroStrings.reopenClosedTab, enabled: _controller.canReopen),
-      _MenuEntry.divider,
-      _menuItem('dark', Symbols.dark_mode_rounded, RetroStrings.darkMode, checked: _settings.darkMode),
-      if (_settings.darkMode && site.isNotEmpty && !internal)
-        _menuItem(
-          'darkSite',
-          Symbols.dark_mode_rounded,
-          RetroStrings.darkOnSite(site),
-          checked: !_settings.isDarkExcluded(site),
-        ),
       _MenuEntry.divider,
       _menuItem('history', Symbols.history_rounded, RetroStrings.history),
       _menuItem('downloads', Symbols.download_rounded, RetroStrings.downloads),
@@ -721,10 +705,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
         _newTab(private: true);
       case 'reopen':
         await _controller.reopenClosed();
-      case 'dark':
-        await _controller.setDarkMode(enabled: !_settings.darkMode);
-      case 'darkSite':
-        await _controller.setDarkExcluded(site, !_settings.isDarkExcluded(site));
       case 'history':
         await _controller.openInternal(BrowserController.historyPage);
       case 'downloads':
@@ -1504,7 +1484,7 @@ class _NeonPanel extends StatelessWidget {
 }
 
 class _MenuEntry {
-  const _MenuEntry(this.value, this.icon, this.label, {this.enabled = true, this.checked});
+  const _MenuEntry(this.value, this.icon, this.label, {this.enabled = true});
 
   static const divider = _MenuEntry(null, Symbols.close_rounded, '');
 
@@ -1512,7 +1492,6 @@ class _MenuEntry {
   final IconData icon;
   final String label;
   final bool enabled;
-  final bool? checked;
 }
 
 class _TabChip extends StatelessWidget {
