@@ -16,6 +16,7 @@ import '../../services/browser/browser_settings.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/page_backdrop.dart';
 import '../../widgets/app_icon.dart';
+import 'browser_icon.dart';
 import 'adblock_lists_screen.dart';
 import 'browser_settings_screen.dart';
 
@@ -270,7 +271,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                         child: Row(
                           children: [
-                            AppIcon.retro(
+                            BrowserIcon(
                               _suggestions[i].bookmark ? Symbols.bookmark_rounded : Symbols.history_rounded,
                               size: 16,
                             ),
@@ -438,7 +439,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const AppIcon.retro(Symbols.warning_amber_rounded, size: 20),
+                  const BrowserIcon(Symbols.warning_amber_rounded, size: 20),
                   const SizedBox(width: 8),
                   Expanded(child: Text(RetroStrings.downloadRisky)),
                 ],
@@ -563,7 +564,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const AppIcon.retro(Symbols.check_rounded, size: 18),
+                            icon: const BrowserIcon(Symbols.check_rounded, size: 18),
                             tooltip: RetroStrings.save,
                             onPressed: () {
                               unawaited(_bookmarks.rename(b.url, name.text));
@@ -571,7 +572,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                             },
                           ),
                           IconButton(
-                            icon: const AppIcon.retro(Symbols.delete_rounded, size: 18),
+                            icon: const BrowserIcon(Symbols.delete_rounded, size: 18),
                             tooltip: RetroStrings.delete,
                             onPressed: () {
                               unawaited(_bookmarks.remove(b.url));
@@ -584,12 +585,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   else
                     ListTile(
                       dense: true,
-                      leading: const AppIcon.retro(Symbols.bookmark_rounded, size: 18),
+                      leading: const BrowserIcon(Symbols.bookmark_rounded, size: 18, fill: 1),
                       title: Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(b.host, maxLines: 1, overflow: TextOverflow.ellipsis),
                       onTap: () => Navigator.pop(context, b.url),
                       trailing: IconButton(
-                        icon: const AppIcon.retro(Symbols.edit_rounded, size: 16),
+                        icon: const BrowserIcon(Symbols.edit_rounded, size: 16),
                         tooltip: RetroStrings.renameBookmark,
                         onPressed: () => setPanel(() {
                           editing = b.url;
@@ -628,7 +629,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   child: Row(
                     children: [
-                      AppIcon.retro(item.icon, size: 18, retroOpacity: item.enabled ? 1 : 0.4),
+                      BrowserIcon(item.icon, size: 18, opacity: item.enabled ? 1 : 0.4),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -753,7 +754,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       children: [
         Builder(
           builder: (anchor) => IconButton(
-            icon: AppIcon.retro(Symbols.shield_rounded, size: 20, retroOpacity: active ? 1 : 0.35),
+            icon: BrowserIcon(Symbols.shield_rounded, size: 20, opacity: active ? 1 : 0.35),
             tooltip: RetroStrings.adblock,
             onPressed: () {
               final rect = _rectOf(anchor);
@@ -772,7 +773,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 decoration: BoxDecoration(color: t.accent, borderRadius: BorderRadius.circular(8)),
                 child: Text(
                   count > 999 ? '999+' : '$count',
-                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    // Readable on light and dark accents of every theme.
+                    color: t.accent.computeLuminance() > 0.5 ? Colors.black : Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -832,7 +838,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
     child: Row(
       children: [
-        AppIcon.retro(icon, size: 20),
+        BrowserIcon(icon, size: 20),
         const SizedBox(width: 10),
         Expanded(child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
       ],
@@ -1091,7 +1097,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const AppIcon.retro(Symbols.shield_rounded, size: 64),
+                  const BrowserIcon(Symbols.shield_rounded, size: 64),
                   const SizedBox(height: 20),
                   Text(RetroStrings.pageBlockedTitle, style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
@@ -1151,7 +1157,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   Widget _iconButton(IconData icon, String tooltip, VoidCallback? onPressed, {double size = 20}) {
     return IconButton(
-      icon: AppIcon.retro(icon, size: size, retroOpacity: onPressed == null ? 0.35 : 1),
+      icon: BrowserIcon(icon, size: size, opacity: onPressed == null ? 0.35 : 1),
       tooltip: tooltip,
       onPressed: onPressed,
       visualDensity: VisualDensity.compact,
@@ -1170,7 +1176,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             message: RetroStrings.leaveBrowser,
             child: TextButton.icon(
               onPressed: () => Navigator.of(context).maybePop(),
-              icon: const AppIcon.retro(Symbols.home_rounded, size: 20),
+              icon: const BrowserIcon(Symbols.home_rounded, size: 20),
               label: Text(RetroStrings.home, style: TextStyle(color: t.text)),
               style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
             ),
@@ -1292,7 +1298,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   prefixIcon: internal
                       ? const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: AppIcon.retro(Symbols.settings_rounded, size: 16),
+                          child: BrowserIcon(Symbols.settings_rounded, size: 16),
                         )
                       : hasPage
                       ? Tooltip(
@@ -1300,20 +1306,21 @@ class _BrowserScreenState extends State<BrowserScreen> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             child: secure
-                                ? const AppIcon.retro(Symbols.lock_rounded, size: 16)
+                                ? const BrowserIcon(Symbols.lock_rounded, size: 16)
                                 : AppIcon(Symbols.lock_open_rounded, size: 16, color: Theme.of(context).colorScheme.error),
                           ),
                         )
                       : const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: AppIcon.retro(Symbols.search_rounded, size: 16),
+                          child: BrowserIcon(Symbols.search_rounded, size: 16),
                         ),
                   prefixIconConstraints: const BoxConstraints(minWidth: 36),
                   suffixIcon: hasPage
                       ? IconButton(
-                          icon: AppIcon.retro(
+                          icon: BrowserIcon(
                             bookmarked ? Symbols.bookmark_rounded : Symbols.bookmark_add_rounded,
                             size: 18,
+                            fill: bookmarked ? 1 : null,
                           ),
                           tooltip: bookmarked ? RetroStrings.removeBookmark : RetroStrings.addBookmark,
                           onPressed: () => unawaited(_toggleBookmark()),
@@ -1331,7 +1338,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           _buildShieldButton(t, tab),
           Builder(
             builder: (anchor) => IconButton(
-              icon: AppIcon.retro(Symbols.dark_mode_rounded, size: 20, retroOpacity: _settings.darkMode ? 1 : 0.45),
+              icon: BrowserIcon(Symbols.dark_mode_rounded, size: 20, opacity: _settings.darkMode ? 1 : 0.45),
               tooltip: RetroStrings.darkMode,
               onPressed: () {
                 final rect = _rectOf(anchor);
@@ -1366,7 +1373,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       color: notice.warning ? error.withValues(alpha: 0.12) : t.surface,
       child: Row(
         children: [
-          AppIcon.retro(notice.warning ? Symbols.warning_amber_rounded : Symbols.public_rounded, size: 18),
+          BrowserIcon(notice.warning ? Symbols.warning_amber_rounded : Symbols.public_rounded, size: 18),
           const SizedBox(width: 10),
           Expanded(child: Text(notice.text, maxLines: 1, overflow: TextOverflow.ellipsis)),
           if (notice.action case final action?)
@@ -1495,15 +1502,15 @@ class _TabChip extends StatelessWidget {
     if (tab.loading) {
       icon = SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.6, color: t.accent));
     } else if (tab.isInternal) {
-      icon = AppIcon.retro(
+      icon = BrowserIcon(
         tab.url == BrowserController.filtersPage ? Symbols.shield_rounded : Symbols.settings_rounded,
         size: 15,
-        retroOpacity: active ? 1 : 0.6,
+        opacity: active ? 1 : 0.6,
       );
     } else if (favicon != null) {
       icon = Image.memory(favicon, width: 16, height: 16, gaplessPlayback: true, filterQuality: FilterQuality.medium);
     } else {
-      icon = AppIcon.retro(Symbols.public_rounded, size: 15, retroOpacity: active ? 1 : 0.6);
+      icon = BrowserIcon(Symbols.public_rounded, size: 15, opacity: active ? 1 : 0.6);
     }
     return Listener(
       // Middle click closes, like in other browsers.
@@ -1540,7 +1547,7 @@ class _TabChip extends StatelessWidget {
                     icon,
                     if (tab.isPrivate) ...[
                       const SizedBox(width: 4),
-                      AppIcon.retro(Symbols.visibility_off_rounded, size: 13, retroOpacity: active ? 1 : 0.6),
+                      BrowserIcon(Symbols.visibility_off_rounded, size: 13, opacity: active ? 1 : 0.6),
                     ],
                     const SizedBox(width: 8),
                     Expanded(
@@ -1553,10 +1560,10 @@ class _TabChip extends StatelessWidget {
                     ),
                     if (tab.audio || tab.muted)
                       IconButton(
-                        icon: AppIcon.retro(
+                        icon: BrowserIcon(
                           tab.muted ? Symbols.volume_off_rounded : Symbols.volume_up_rounded,
                           size: 14,
-                          retroOpacity: active ? 1 : 0.6,
+                          opacity: active ? 1 : 0.6,
                         ),
                         tooltip: tab.muted ? RetroStrings.unmuteTab : RetroStrings.muteTab,
                         onPressed: onMute,
@@ -1565,7 +1572,7 @@ class _TabChip extends StatelessWidget {
                         constraints: const BoxConstraints(minWidth: 24, minHeight: 28),
                       ),
                     IconButton(
-                      icon: AppIcon.retro(Symbols.close_rounded, size: 14, retroOpacity: active ? 1 : 0.6),
+                      icon: BrowserIcon(Symbols.close_rounded, size: 14, opacity: active ? 1 : 0.6),
                       tooltip: RetroStrings.closeTab,
                       onPressed: onClose,
                       visualDensity: VisualDensity.compact,
@@ -1608,7 +1615,7 @@ class _DownloadRow extends StatelessWidget {
     };
     final done = d.state == BrowserDownloadState.completed;
     return ListTile(
-      leading: const AppIcon.retro(Symbols.download_rounded, size: 22),
+      leading: const BrowserIcon(Symbols.download_rounded, size: 22),
       title: Text(d.fileName.isEmpty ? d.url : d.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1628,25 +1635,25 @@ class _DownloadRow extends StatelessWidget {
         children: [
           if (done)
             IconButton(
-              icon: const AppIcon.retro(Symbols.folder_rounded, size: 18),
+              icon: const BrowserIcon(Symbols.folder_rounded, size: 18),
               tooltip: RetroStrings.showInFolder,
               onPressed: () => unawaited(Process.run('explorer.exe', ['/select,', d.path])),
             ),
           if (d.state == BrowserDownloadState.running)
             IconButton(
-              icon: const AppIcon.retro(Symbols.pause_rounded, size: 18),
+              icon: const BrowserIcon(Symbols.pause_rounded, size: 18),
               tooltip: RetroStrings.pause,
               onPressed: () => unawaited(controller.pauseDownload(d.id)),
             ),
           if (d.state == BrowserDownloadState.paused)
             IconButton(
-              icon: const AppIcon.retro(Symbols.play_arrow_rounded, size: 18),
+              icon: const BrowserIcon(Symbols.play_arrow_rounded, size: 18),
               tooltip: RetroStrings.resume,
               onPressed: () => unawaited(controller.resumeDownload(d.id)),
             ),
           if (d.active)
             IconButton(
-              icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+              icon: const BrowserIcon(Symbols.close_rounded, size: 18),
               tooltip: RetroStrings.cancel,
               onPressed: () => unawaited(controller.cancelDownload(d.id)),
             ),
@@ -1688,7 +1695,7 @@ class _NewTabPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const AppIcon.retro(Symbols.visibility_off_rounded, size: 56),
+              const BrowserIcon(Symbols.visibility_off_rounded, size: 56),
               const SizedBox(height: 20),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
@@ -1708,7 +1715,7 @@ class _NewTabPage extends StatelessWidget {
           shrinkWrap: true,
           padding: const EdgeInsets.all(32),
           children: [
-            const Center(child: AppIcon.retro(Symbols.public_rounded, size: 56)),
+            const Center(child: BrowserIcon(Symbols.public_rounded, size: 56)),
             const SizedBox(height: 24),
             if (pages.isEmpty)
               Text(RetroStrings.recentEmpty, textAlign: TextAlign.center, style: TextStyle(color: t.textMuted))

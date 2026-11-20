@@ -13,6 +13,7 @@ import '../../services/browser/browser_settings.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
+import 'browser_icon.dart';
 
 /// Options of the in-app browser.
 class BrowserSettingsScreen extends StatefulWidget {
@@ -117,10 +118,10 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                       _Card(
                         children: [
                           ListTile(
-                            leading: const AppIcon.retro(Symbols.shield_rounded, size: 22),
+                            leading: const BrowserIcon(Symbols.shield_rounded, size: 22),
                             title: Text(RetroStrings.filterLists),
                             subtitle: Text(RetroStrings.adblockDescription),
-                            trailing: const AppIcon.retro(Symbols.chevron_right_rounded, size: 20),
+                            trailing: const BrowserIcon(Symbols.chevron_right_rounded, size: 20),
                             onTap: () => unawaited(BrowserController.instance.openInternal(BrowserController.filtersPage)),
                           ),
                         ],
@@ -337,7 +338,7 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                                 contentPadding: const EdgeInsets.only(left: 32, right: 16),
                                 title: Text(site),
                                 trailing: IconButton(
-                                  icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+                                  icon: const BrowserIcon(Symbols.close_rounded, size: 18),
                                   tooltip: RetroStrings.delete,
                                   onPressed: () => unawaited(BrowserController.instance.setDarkExcluded(site, false)),
                                 ),
@@ -403,7 +404,7 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                                   '${entry.value ? RetroStrings.allowed : RetroStrings.blocked}',
                                 ),
                                 trailing: IconButton(
-                                  icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+                                  icon: const BrowserIcon(Symbols.close_rounded, size: 18),
                                   tooltip: RetroStrings.delete,
                                   onPressed: () {
                                     final i = entry.key.lastIndexOf('|');
@@ -430,7 +431,7 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                               ListTile(
                                 title: Text(site),
                                 trailing: IconButton(
-                                  icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+                                  icon: const BrowserIcon(Symbols.close_rounded, size: 18),
                                   tooltip: RetroStrings.delete,
                                   onPressed: () => unawaited(BrowserController.instance.setPopupAllowed(site, false)),
                                 ),

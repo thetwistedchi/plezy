@@ -7,7 +7,7 @@ import '../../i18n/retro_strings.dart';
 import '../../services/browser/adblock_lists.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
-import '../../widgets/app_icon.dart';
+import 'browser_icon.dart';
 
 /// The ad blocker's filter lists, like uBlock Origin's "Filter lists" page,
 /// plus the user's own filters and the sites without blocking.
@@ -104,7 +104,7 @@ class _AdblockListsScreenState extends State<AdblockListsScreen> {
                                   : () => unawaited(_adblock.update(force: true)),
                               icon: _adblock.updating
                                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : const AppIcon.retro(Symbols.refresh_rounded, size: 18),
+                                  : const BrowserIcon(Symbols.refresh_rounded, size: 18),
                               label: Text(_adblock.updating ? RetroStrings.updatingLists : RetroStrings.updateLists),
                             ),
                           ],
@@ -147,7 +147,7 @@ class _AdblockListsScreenState extends State<AdblockListsScreen> {
                               title: Text(url, maxLines: 1, overflow: TextOverflow.ellipsis),
                               subtitle: Text(_status(AdblockManager.customId(url))),
                               trailing: IconButton(
-                                icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+                                icon: const BrowserIcon(Symbols.close_rounded, size: 18),
                                 tooltip: RetroStrings.delete,
                                 onPressed: () => unawaited(_adblock.removeCustomList(url)),
                               ),
@@ -216,7 +216,7 @@ class _AdblockListsScreenState extends State<AdblockListsScreen> {
                               ListTile(
                                 title: Text(site),
                                 trailing: IconButton(
-                                  icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+                                  icon: const BrowserIcon(Symbols.close_rounded, size: 18),
                                   tooltip: RetroStrings.delete,
                                   onPressed: () => unawaited(_adblock.setOffForSite(site, false)),
                                 ),
