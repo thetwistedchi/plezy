@@ -82,6 +82,12 @@ abstract final class RetroGlyphs {
   static const _add = '<path d="M12 5v14M5 12h14"/>';
   static const _close = '<path d="M6 6l12 12M18 6 6 18"/>';
 
+  static const _openInNew = '<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/>';
+  static const _more = '<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>';
+  static const _volumeUp = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.5a7.5 7.5 0 0 1 0 11"/>';
+  static const _volumeOff = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>';
+  static const _pause = '<path d="M8 5v14M16 5v14"/>';
+
   static final Map<IconData, String> _byIcon = {
     Symbols.home_rounded: _home,
     Symbols.video_library_rounded: _libraries,
@@ -155,6 +161,11 @@ abstract final class RetroGlyphs {
     Symbols.arrow_back_rounded: _arrowBack,
     Symbols.add_rounded: _add,
     Symbols.close_rounded: _close,
+    Symbols.open_in_new_rounded: _openInNew,
+    Symbols.more_vert_rounded: _more,
+    Symbols.volume_up_rounded: _volumeUp,
+    Symbols.volume_off_rounded: _volumeOff,
+    Symbols.pause_rounded: _pause,
   };
 
   static String? pathsFor(IconData icon) => _byIcon[icon];

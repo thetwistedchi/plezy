@@ -125,9 +125,13 @@ std::wstring SiteOf(const std::wstring& host) {
 // page), so the page sends it on the click, before any script reacts.
 constexpr wchar_t kLinkScript[] =
     L"(()=>{if(window.top!==window||!window.chrome||!chrome.webview)return;"
+    // Keep the channel for this script, then take it away from the page, so
+    // pages see a plain Edge rather than an embedded WebView2.
+    L"const w=chrome.webview;try{delete chrome.webview;}catch(_){}"
+    L"if(chrome.webview){try{Object.defineProperty(chrome,'webview',{value:undefined,configurable:true});}catch(_){}}"
     L"const r=e=>{const p=e.composedPath?e.composedPath():[];"
     L"const a=p.find(n=>n&&n.tagName==='A'&&n.href);"
-    L"try{chrome.webview.postMessage('plezy-link:'+(a?a.href:''));}catch(_){}};"
+    L"try{w.postMessage('plezy-link:'+(a?a.href:''));}catch(_){}};"
     L"addEventListener('click',r,true);addEventListener('auxclick',r,true);})();";
 
 constexpr wchar_t kLinkPrefix[] = L"plezy-link:";
@@ -310,7 +314,15 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
       auto it = download_args_.find(request);
       if (it != download_args_.end()) {
         it->second->put_Cancel(allow ? FALSE : TRUE);
+        // The app lists downloads itself: no Edge download flyout.
+        it->second->put_Handled(TRUE);
         download_args_.erase(it);
+      }
+      auto op = pending_downloads_.find(request);
+      if (op != pending_downloads_.end()) {
+        if (allow) downloads_[request] = Download{pending_download_tabs_[request], op->second, 0};
+        pending_downloads_.erase(op);
+        pending_download_tabs_.erase(request);
       }
     }
     auto deferral = deferrals_.find(request);
@@ -318,13 +330,30 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
       deferral->second->Complete();
       deferrals_.erase(deferral);
     }
+    if (method == "answerDownload" && allow) WatchDownload(request);
+    result->Success();
+    return;
+  }
+  if (method == "cancelDownload" || method == "pauseDownload" || method == "resumeDownload") {
+    auto it = downloads_.find(GetInt(args, "download"));
+    if (it != downloads_.end() && it->second.operation) {
+      if (method == "cancelDownload") it->second.operation->Cancel();
+      if (method == "pauseDownload") it->second.operation->Pause();
+      if (method == "resumeDownload") it->second.operation->Resume();
+    }
+    result->Success();
+    return;
+  }
+  if (method == "setTrackingPrevention") {
+    tracking_level_ = GetInt(args, "level");
+    for (auto& [tab_id, tab] : tabs_) ApplyTracking(*tab);
     result->Success();
     return;
   }
 
   const int id = GetInt(args, "id");
   if (method == "createTab") {
-    CreateTab(id, ToWide(GetString(args, "url").value_or("")), std::move(result));
+    CreateTab(id, ToWide(GetString(args, "url").value_or("")), GetBool(args, "private", false), std::move(result));
     return;
   }
   if (method == "closeTab") {
@@ -367,6 +396,10 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
   } else if (method == "focus") {
     if (tab->controller) tab->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
     result->Success();
+  } else if (method == "setMuted") {
+    ComPtr<ICoreWebView2_8> webview8;
+    if (SUCCEEDED(tab->webview.As(&webview8))) webview8->put_IsMuted(GetBool(args, "value", false) ? TRUE : FALSE);
+    result->Success();
   } else if (method == "suspend") {
     ComPtr<ICoreWebView2_3> webview3;
     if (SUCCEEDED(tab->webview.As(&webview3))) {
@@ -387,6 +420,7 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
 
 void BrowserWebPlugin::Initialize(const flutter::EncodableMap& args, Result result) {
   https_upgrade_ = GetBool(args, "httpsUpgrade", true);
+  tracking_level_ = GetInt(args, "tracking");
   if (environment_) {
     result->Success(flutter::EncodableValue(true));
     return;
@@ -431,7 +465,7 @@ void BrowserWebPlugin::Initialize(const flutter::EncodableMap& args, Result resu
   if (FAILED(hr)) finish(false, "WebView2 runtime not available");
 }
 
-void BrowserWebPlugin::CreateTab(int id, const std::wstring& url, Result result) {
+void BrowserWebPlugin::CreateTab(int id, const std::wstring& url, bool in_private, Result result) {
   if (!environment_) {
     result->Error("NOT_READY", "Browser not initialized");
     return;
@@ -442,6 +476,7 @@ void BrowserWebPlugin::CreateTab(int id, const std::wstring& url, Result result)
   }
   auto tab = std::make_unique<BrowserTab>();
   tab->id = id;
+  tab->in_private = in_private;
   const HWND view = registrar_->GetView()->GetNativeWindow();
   tab->host = ::CreateWindowExW(
       WS_EX_NOPARENTNOTIFY, L"STATIC", L"", kHostStyle, 0, 0, 16, 16, view, nullptr, ::GetModuleHandle(nullptr), nullptr);
@@ -455,52 +490,169 @@ void BrowserWebPlugin::CreateTab(int id, const std::wstring& url, Result result)
 
   auto shared = std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
   const int generation = generation_;
-  const HRESULT hr = environment_->CreateCoreWebView2Controller(
-      raw->host,
-      Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-          [this, id, generation, url, shared](HRESULT controller_result, ICoreWebView2Controller* controller) -> HRESULT {
-            BrowserTab* tab = Find(id);
-            if (generation != generation_ || !tab) {
-              if (controller) controller->Close();
-              shared->Error("CLOSED", "The tab was closed");
-              return S_OK;
-            }
-            if (FAILED(controller_result) || !controller) {
-              shared->Error("CREATE_FAILED", "WebView2 controller failed");
-              return S_OK;
-            }
-            tab->controller = controller;
-            tab->controller->get_CoreWebView2(&tab->webview);
+  auto handler = Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+      [this, id, generation, url, shared](HRESULT controller_result, ICoreWebView2Controller* controller) -> HRESULT {
+        BrowserTab* tab = Find(id);
+        if (generation != generation_ || !tab) {
+          if (controller) controller->Close();
+          shared->Error("CLOSED", "The tab was closed");
+          return S_OK;
+        }
+        if (FAILED(controller_result) || !controller) {
+          shared->Error("CREATE_FAILED", "WebView2 controller failed");
+          return S_OK;
+        }
+        tab->controller = controller;
+        tab->controller->get_CoreWebView2(&tab->webview);
 
-            ComPtr<ICoreWebView2Settings> settings;
-            if (SUCCEEDED(tab->webview->get_Settings(&settings))) {
-              // Only the link reports of kLinkScript; nothing goes to the page.
-              settings->put_IsWebMessageEnabled(TRUE);
-              settings->put_AreHostObjectsAllowed(FALSE);
-              settings->put_AreDevToolsEnabled(FALSE);
-              settings->put_IsStatusBarEnabled(TRUE);
-              settings->put_AreDefaultContextMenusEnabled(TRUE);
-              settings->put_IsZoomControlEnabled(TRUE);
-              ComPtr<ICoreWebView2Settings4> settings4;
-              if (SUCCEEDED(settings.As(&settings4))) {
-                settings4->put_IsPasswordAutosaveEnabled(FALSE);
-                settings4->put_IsGeneralAutofillEnabled(FALSE);
-              }
-            }
-            Wire(*tab);
-            // The host may have been placed before the WebView existed.
-            tab->placed_once = false;
-            tab->shown = false;
-            ApplyLayout();
-            if (!url.empty()) tab->webview->Navigate(url.c_str());
-            shared->Success(flutter::EncodableValue(true));
-            return S_OK;
-          })
-          .Get());
+        ComPtr<ICoreWebView2Settings> settings;
+        if (SUCCEEDED(tab->webview->get_Settings(&settings))) {
+          // Only the link reports of kLinkScript; nothing goes to the page.
+          settings->put_IsWebMessageEnabled(TRUE);
+          settings->put_AreHostObjectsAllowed(FALSE);
+          settings->put_AreDevToolsEnabled(FALSE);
+          settings->put_IsStatusBarEnabled(TRUE);
+          settings->put_AreDefaultContextMenusEnabled(TRUE);
+          settings->put_IsZoomControlEnabled(TRUE);
+          ComPtr<ICoreWebView2Settings4> settings4;
+          if (SUCCEEDED(settings.As(&settings4))) {
+            settings4->put_IsPasswordAutosaveEnabled(FALSE);
+            settings4->put_IsGeneralAutofillEnabled(FALSE);
+          }
+          // SmartScreen stays on.
+          ComPtr<ICoreWebView2Settings8> settings8;
+          if (SUCCEEDED(settings.As(&settings8))) settings8->put_IsReputationCheckingRequired(TRUE);
+        }
+        ApplyTracking(*tab);
+        Wire(*tab);
+        // The host may have been placed before the WebView existed.
+        tab->placed_once = false;
+        tab->shown = false;
+        ApplyLayout();
+        if (!url.empty()) tab->webview->Navigate(url.c_str());
+        shared->Success(flutter::EncodableValue(true));
+        return S_OK;
+      });
+
+  // Private tabs share one InPrivate profile: nothing of them is kept after
+  // the last private tab closes.
+  HRESULT hr = E_FAIL;
+  ComPtr<ICoreWebView2Environment10> environment10;
+  ComPtr<ICoreWebView2ControllerOptions> options;
+  if (in_private && SUCCEEDED(environment_.As(&environment10)) &&
+      SUCCEEDED(environment10->CreateCoreWebView2ControllerOptions(&options)) && options) {
+    options->put_IsInPrivateModeEnabled(TRUE);
+    options->put_ProfileName(L"Private");
+    hr = environment10->CreateCoreWebView2ControllerWithOptions(raw->host, options.Get(), handler.Get());
+  } else if (!in_private) {
+    hr = environment_->CreateCoreWebView2Controller(raw->host, handler.Get());
+  }
   if (FAILED(hr)) {
     CloseTab(id);
     shared->Error("CREATE_FAILED", "WebView2 controller could not start");
   }
+}
+
+void BrowserWebPlugin::ApplyTracking(BrowserTab& tab) {
+  if (!tab.webview) return;
+  ComPtr<ICoreWebView2_13> webview13;
+  ComPtr<ICoreWebView2Profile> profile;
+  ComPtr<ICoreWebView2Profile3> profile3;
+  if (SUCCEEDED(tab.webview.As(&webview13)) && SUCCEEDED(webview13->get_Profile(&profile)) && profile &&
+      SUCCEEDED(profile.As(&profile3))) {
+    const COREWEBVIEW2_TRACKING_PREVENTION_LEVEL levels[] = {
+        COREWEBVIEW2_TRACKING_PREVENTION_LEVEL_NONE, COREWEBVIEW2_TRACKING_PREVENTION_LEVEL_BASIC,
+        COREWEBVIEW2_TRACKING_PREVENTION_LEVEL_BALANCED, COREWEBVIEW2_TRACKING_PREVENTION_LEVEL_STRICT};
+    profile3->put_PreferredTrackingPreventionLevel(levels[(std::min)(3, (std::max)(0, tracking_level_))]);
+  }
+}
+
+void BrowserWebPlugin::SendFavicon(int id) {
+  BrowserTab* tab = Find(id);
+  if (!tab || !tab->webview) return;
+  ComPtr<ICoreWebView2_15> webview15;
+  if (FAILED(tab->webview.As(&webview15))) return;
+  webview15->GetFavicon(
+      COREWEBVIEW2_FAVICON_IMAGE_FORMAT_PNG,
+      Callback<ICoreWebView2GetFaviconCompletedHandler>([this, id](HRESULT hr, IStream* stream) -> HRESULT {
+        std::vector<uint8_t> bytes;
+        if (SUCCEEDED(hr) && stream) {
+          uint8_t buffer[4096];
+          ULONG read = 0;
+          while (SUCCEEDED(stream->Read(buffer, sizeof(buffer), &read)) && read > 0) {
+            bytes.insert(bytes.end(), buffer, buffer + read);
+            if (bytes.size() > 512 * 1024) break;
+          }
+        }
+        Send(id, "favicon", {{flutter::EncodableValue("data"), flutter::EncodableValue(bytes)}});
+        return S_OK;
+      }).Get());
+}
+
+void BrowserWebPlugin::SendDownload(int request, const char* state) {
+  auto it = downloads_.find(request);
+  if (it == downloads_.end() || !it->second.operation) return;
+  auto& op = it->second.operation;
+  INT64 received = 0;
+  INT64 total = 0;
+  LPWSTR path = nullptr;
+  LPWSTR uri = nullptr;
+  COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON reason = COREWEBVIEW2_DOWNLOAD_INTERRUPT_REASON_NONE;
+  op->get_BytesReceived(&received);
+  op->get_TotalBytesToReceive(&total);
+  op->get_ResultFilePath(&path);
+  op->get_Uri(&uri);
+  op->get_InterruptReason(&reason);
+  Send(it->second.tab, "downloadState",
+       {{flutter::EncodableValue("download"), flutter::EncodableValue(request)},
+        {flutter::EncodableValue("state"), flutter::EncodableValue(std::string(state))},
+        {flutter::EncodableValue("received"), flutter::EncodableValue(static_cast<int64_t>(received))},
+        {flutter::EncodableValue("total"), flutter::EncodableValue(static_cast<int64_t>(total))},
+        {flutter::EncodableValue("path"), flutter::EncodableValue(TakeString(path))},
+        {flutter::EncodableValue("url"), flutter::EncodableValue(TakeString(uri))},
+        {flutter::EncodableValue("reason"), flutter::EncodableValue(static_cast<int>(reason))}});
+}
+
+void BrowserWebPlugin::WatchDownload(int request) {
+  auto it = downloads_.find(request);
+  if (it == downloads_.end()) return;
+  auto op = it->second.operation;
+  EventRegistrationToken token{};
+  op->add_BytesReceivedChanged(
+      Callback<ICoreWebView2BytesReceivedChangedEventHandler>(
+          [this, request](ICoreWebView2DownloadOperation*, IUnknown*) -> HRESULT {
+            auto d = downloads_.find(request);
+            if (d == downloads_.end()) return S_OK;
+            // At most twice a second.
+            const ULONGLONG now = ::GetTickCount64();
+            if (now - d->second.last_report < 500) return S_OK;
+            d->second.last_report = now;
+            SendDownload(request, "running");
+            return S_OK;
+          })
+          .Get(),
+      &token);
+  op->add_StateChanged(
+      Callback<ICoreWebView2StateChangedEventHandler>(
+          [this, request](ICoreWebView2DownloadOperation* sender, IUnknown*) -> HRESULT {
+            COREWEBVIEW2_DOWNLOAD_STATE state = COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS;
+            sender->get_State(&state);
+            if (state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED) {
+              SendDownload(request, "completed");
+              downloads_.erase(request);
+            } else if (state == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED) {
+              BOOL resumable = FALSE;
+              sender->get_CanResume(&resumable);
+              SendDownload(request, resumable ? "paused" : "failed");
+              if (!resumable) downloads_.erase(request);
+            } else {
+              SendDownload(request, "running");
+            }
+            return S_OK;
+          })
+          .Get(),
+      &token);
+  SendDownload(request, "running");
 }
 
 void BrowserWebPlugin::OpenPopup(int id, const std::wstring& uri, bool) {
@@ -692,6 +844,18 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
       &token);
   tab.tokens.push_back({11, token});
 
+  ComPtr<ICoreWebView2_15> webview15;
+  if (SUCCEEDED(webview.As(&webview15))) {
+    webview15->add_FaviconChanged(Callback<ICoreWebView2FaviconChangedEventHandler>(
+                                      [this, id](ICoreWebView2*, IUnknown*) -> HRESULT {
+                                        SendFavicon(id);
+                                        return S_OK;
+                                      })
+                                      .Get(),
+                                  &token);
+    tab.tokens.push_back({12, token});
+  }
+
   webview->add_PermissionRequested(
       Callback<ICoreWebView2PermissionRequestedEventHandler>(
           [this, id](ICoreWebView2*, ICoreWebView2PermissionRequestedEventArgs* args) -> HRESULT {
@@ -746,6 +910,10 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
               const int request = next_request_++;
               deferrals_[request] = deferral;
               download_args_[request] = args;
+              if (operation) {
+                pending_downloads_[request] = operation;
+                pending_download_tabs_[request] = id;
+              }
               Send(id, "download",
                    {{flutter::EncodableValue("request"), flutter::EncodableValue(request)},
                     {flutter::EncodableValue("url"), flutter::EncodableValue(TakeString(raw_uri))},
@@ -824,7 +992,9 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
             const bool shift = (::GetKeyState(VK_SHIFT) & 0x8000) != 0;
             const bool alt = (::GetKeyState(VK_MENU) & 0x8000) != 0;
             std::string name;
-            if (ctrl && key == 'T') name = "newTab";
+            if (ctrl && shift && key == 'T') name = "reopenTab";
+            else if (ctrl && shift && key == 'N') name = "newPrivateTab";
+            else if (ctrl && key == 'T') name = "newTab";
             else if (ctrl && key == 'W') name = "closeTab";
             else if (ctrl && key == 'L') name = "address";
             else if (ctrl && key == VK_TAB) name = shift ? "prevTab" : "nextTab";
@@ -846,8 +1016,10 @@ void BrowserWebPlugin::CloseTab(int id) {
   if (tab.webview) {
     ComPtr<ICoreWebView2_4> webview4;
     ComPtr<ICoreWebView2_8> webview8;
+    ComPtr<ICoreWebView2_15> webview15;
     tab.webview.As(&webview4);
     tab.webview.As(&webview8);
+    tab.webview.As(&webview15);
     for (const auto& [kind, token] : tab.tokens) {
       switch (kind) {
         case 0: tab.webview->remove_SourceChanged(token); break;
@@ -862,6 +1034,7 @@ void BrowserWebPlugin::CloseTab(int id) {
         case 9: tab.webview->remove_ProcessFailed(token); break;
         case 10: if (webview8) webview8->remove_IsDocumentPlayingAudioChanged(token); break;
         case 11: tab.webview->remove_WebMessageReceived(token); break;
+        case 12: if (webview15) webview15->remove_FaviconChanged(token); break;
         default: break;
       }
     }
@@ -888,6 +1061,9 @@ void BrowserWebPlugin::DisposeAll() {
   for (auto& [request, deferral] : deferrals_) deferral->Complete();
   permission_args_.clear();
   download_args_.clear();
+  pending_downloads_.clear();
+  pending_download_tabs_.clear();
+  downloads_.clear();
   deferrals_.clear();
   std::vector<int> ids;
   for (const auto& [id, tab] : tabs_) ids.push_back(id);

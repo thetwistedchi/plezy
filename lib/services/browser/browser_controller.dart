@@ -1,18 +1,27 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/app_logger.dart';
+import '../fullscreen_state_manager.dart';
 import 'browser_history.dart';
 import 'browser_native.dart';
 import 'browser_settings.dart';
 
 class BrowserTabState {
-  BrowserTabState(this.id, {this.url, this.title = ''});
+  BrowserTabState(this.id, {this.url, this.title = '', this.isPrivate = false});
 
   final int id;
+
+  /// InPrivate: no cookies, history or saved tab once it closes.
+  final bool isPrivate;
+  bool muted = false;
+
+  /// The site's icon as PNG, when it has one.
+  Uint8List? favicon;
 
   /// Null while the tab shows the new tab page.
   String? url;
@@ -36,6 +45,23 @@ class BrowserTabState {
   String get host => Uri.tryParse(url ?? '')?.host ?? '';
 }
 
+enum BrowserDownloadState { running, paused, completed, failed }
+
+class BrowserDownload {
+  BrowserDownload(this.id, {required this.url, required this.path});
+
+  final int id;
+  String url;
+  String path;
+  int received = 0;
+  int total = 0;
+  BrowserDownloadState state = BrowserDownloadState.running;
+
+  String get fileName => path.split(RegExp(r'[\\/]')).last;
+  double? get progress => total > 0 ? (received / total).clamp(0.0, 1.0) : null;
+  bool get active => state == BrowserDownloadState.running || state == BrowserDownloadState.paused;
+}
+
 /// Something the browser page asks the user.
 sealed class BrowserPrompt {
   const BrowserPrompt(this.tab);
@@ -47,6 +73,8 @@ class PermissionPrompt extends BrowserPrompt {
   final int request;
   final int kind;
   final String url;
+
+  String get site => Uri.tryParse(url)?.host ?? url;
 }
 
 class DownloadPrompt extends BrowserPrompt {
@@ -113,6 +141,15 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   /// Ctrl+T, Ctrl+W, Ctrl+L, Ctrl+Tab, Alt+arrows pressed inside a page.
   Stream<String> get shortcuts => _shortcuts.stream;
 
+  /// Downloads of this session, newest first.
+  final List<BrowserDownload> downloads = [];
+
+  /// Recently closed tabs (addresses), newest last.
+  final List<String> _closed = [];
+  bool get canReopen => _closed.isNotEmpty;
+
+  bool _ownsFullscreen = false;
+
   int _nextId = 1;
   int? _activeId;
   bool _shown = false;
@@ -137,6 +174,12 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     _loaded = true;
     await _settings.load();
     await BrowserHistory.instance.load();
+    // "Delete cookies when the app closes": done at the next start, before
+    // the browser engine runs.
+    if (_settings.clearSiteDataOnExit) {
+      await BrowserNative.deleteSiteData();
+      appLogger.d('Browser: cookies and site data cleared at start');
+    }
     if (_settings.restoreTabs) {
       try {
         final prefs = await SharedPreferences.getInstance();
@@ -185,6 +228,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     } else {
       _hiddenSince = DateTime.now();
       active?.lastShown = DateTime.now();
+      if (_ownsFullscreen) unawaited(_syncFullscreen(false));
       _release?.cancel();
       _release = Timer(releaseAfter, _releaseAll);
     }
@@ -203,7 +247,11 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final started = DateTime.now();
       final fresh = _native.activeCacheLimitMb == null;
-      await _native.ensureReady(httpsUpgrade: _settings.httpsUpgrade, cacheLimitMb: _settings.cacheLimitMb);
+      await _native.ensureReady(
+        httpsUpgrade: _settings.httpsUpgrade,
+        cacheLimitMb: _settings.cacheLimitMb,
+        tracking: _settings.trackingLevel,
+      );
       if (fresh) {
         appLogger.i(
           'Browser: engine started in ${DateTime.now().difference(started).inMilliseconds} ms '
@@ -216,7 +264,8 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         tab.loading = true;
         notifyListeners();
         final created = DateTime.now();
-        await _native.createTab(tab.id, url);
+        await _native.createTab(tab.id, url, private: tab.isPrivate);
+        if (tab.muted) await _native.setMuted(tab.id, true);
         appLogger.d('Browser tab ${tab.id}: created in ${DateTime.now().difference(created).inMilliseconds} ms');
       } else if (tab.suspended) {
         appLogger.d('Browser tab ${tab.id}: resumed');
@@ -252,8 +301,8 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// Opens a new tab next to the shown one, with [url] or the new tab page.
-  Future<void> newTab({String? url, bool background = false}) async {
-    final tab = BrowserTabState(_nextId++, url: url ?? _homeUrl());
+  Future<void> newTab({String? url, bool background = false, bool private = false}) async {
+    final tab = BrowserTabState(_nextId++, url: url ?? _homeUrl(), isPrivate: private);
     final index = tabs.indexWhere((t) => t.id == _activeId);
     tabs.insert(index < 0 ? tabs.length : index + 1, tab);
     if (background) {
@@ -269,6 +318,11 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     final index = tabs.indexWhere((t) => t.id == id);
     if (index < 0) return;
     final tab = tabs.removeAt(index);
+    final closedUrl = tab.url;
+    if (!tab.isPrivate && closedUrl != null) {
+      _closed.add(closedUrl);
+      if (_closed.length > 20) _closed.removeAt(0);
+    }
     if (tab.live) await _native.closeTab(id);
     if (tabs.isEmpty) tabs.add(BrowserTabState(_nextId++, url: _homeUrl()));
     if (_activeId == id) {
@@ -278,6 +332,60 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       notifyListeners();
       _scheduleSave();
     }
+  }
+
+  Future<void> reopenClosed() async {
+    if (_closed.isEmpty) return;
+    await newTab(url: _closed.removeLast());
+  }
+
+  Future<void> duplicate(int id) async {
+    final tab = _byId(id);
+    if (tab == null) return;
+    await newTab(url: tab.url, private: tab.isPrivate);
+  }
+
+  Future<void> closeOthers(int id) async {
+    for (final tab in [...tabs]) {
+      if (tab.id != id) await close(tab.id);
+    }
+  }
+
+  Future<void> setMuted(int id, bool muted) async {
+    final tab = _byId(id);
+    if (tab == null) return;
+    tab.muted = muted;
+    notifyListeners();
+    if (tab.live) await _native.setMuted(id, muted);
+  }
+
+  Future<void> setTrackingLevel(int level) async {
+    await _settings.update(trackingLevel: level);
+    await _native.setTrackingPrevention(level);
+  }
+
+  /// Deletes cookies and site data; signs out of every website.
+  Future<void> clearSiteData() async {
+    await _closeEngine();
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    await BrowserNative.deleteSiteData();
+    if (_shown) {
+      _sweep ??= Timer.periodic(const Duration(seconds: 30), (_) => _suspendIdle());
+      final tab = active;
+      if (tab != null) await _show(tab);
+    }
+    notifyListeners();
+  }
+
+  bool get hasActiveDownloads => downloads.any((d) => d.active);
+
+  Future<void> cancelDownload(int id) => _native.cancelDownload(id);
+  Future<void> pauseDownload(int id) => _native.pauseDownload(id);
+  Future<void> resumeDownload(int id) => _native.resumeDownload(id);
+
+  void clearFinishedDownloads() {
+    downloads.removeWhere((d) => !d.active);
+    notifyListeners();
   }
 
   /// Opens what was typed in the address bar: an address or a search.
@@ -411,7 +519,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
           ..canGoBack = e.flag('canGoBack')
           ..canGoForward = e.flag('canGoForward');
         // Also catches pages that change their address without loading.
-        if (!tab.loading && tab.url != null) BrowserHistory.instance.visit(tab.url!, tab.title);
+        if (!tab.isPrivate && !tab.loading && tab.url != null) BrowserHistory.instance.visit(tab.url!, tab.title);
         _scheduleSave();
       case 'loading':
         tab.loading = true;
@@ -424,7 +532,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         final from = tab.upgradedFrom;
         tab.upgradedFrom = null;
         if (!e.flag('ok') && from != null) _prompts.add(HttpFallbackNotice(tab.id, from));
-        if (e.flag('ok') && tab.url != null) BrowserHistory.instance.visit(tab.url!, tab.title);
+        if (!tab.isPrivate && e.flag('ok') && tab.url != null) BrowserHistory.instance.visit(tab.url!, tab.title);
       case 'upgraded':
         tab.upgradedFrom = e.str('url');
       case 'blockedScheme':
@@ -439,7 +547,11 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         }
       // Nobody to ask while the browser is closed: denied.
       case 'permission':
-        if (_prompts.hasListener) {
+        final site = Uri.tryParse(e.str('url') ?? '')?.host ?? '';
+        final remembered = tab.isPrivate ? null : _settings.permissionFor(site, e.integer('kind'));
+        if (remembered != null) {
+          unawaited(answerPermission(e.integer('request'), remembered));
+        } else if (_prompts.hasListener) {
           _prompts.add(PermissionPrompt(tab.id, e.integer('request'), e.integer('kind'), e.str('url') ?? ''));
         } else {
           unawaited(answerPermission(e.integer('request'), false));
@@ -454,6 +566,12 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         }
       case 'fullscreen':
         tab.fullscreen = e.flag('value');
+        unawaited(_syncFullscreen(tab.fullscreen));
+      case 'favicon':
+        final data = e.data['data'];
+        tab.favicon = data is Uint8List && data.isNotEmpty ? data : null;
+      case 'downloadState':
+        _onDownload(e);
       case 'audio':
         tab.audio = e.flag('value');
       case 'crashed':
@@ -491,6 +609,41 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  void _onDownload(BrowserEvent e) {
+    final id = e.integer('download');
+    var d = downloads.where((x) => x.id == id).firstOrNull;
+    if (d == null) {
+      d = BrowserDownload(id, url: e.str('url') ?? '', path: e.str('path') ?? '');
+      downloads.insert(0, d);
+    }
+    d
+      ..received = e.integer('received')
+      ..total = e.integer('total')
+      ..path = e.str('path') ?? d.path
+      ..state = switch (e.str('state')) {
+        'completed' => BrowserDownloadState.completed,
+        'paused' => BrowserDownloadState.paused,
+        'failed' => BrowserDownloadState.failed,
+        _ => BrowserDownloadState.running,
+      };
+    if (d.state == BrowserDownloadState.completed || d.state == BrowserDownloadState.failed) {
+      appLogger.d('Browser download $id: ${d.state.name}');
+    }
+  }
+
+  /// Video fullscreen in a page makes the app window fullscreen too, and
+  /// leaving it restores the window, unless the app was fullscreen before.
+  Future<void> _syncFullscreen(bool value) async {
+    final manager = FullscreenStateManager();
+    if (value && !manager.isFullscreen) {
+      _ownsFullscreen = true;
+      await manager.enterFullscreen();
+    } else if (!value && _ownsFullscreen) {
+      _ownsFullscreen = false;
+      await manager.exitFullscreen();
+    }
+  }
+
   /// Suspends tabs not shown for [BrowserSettings.suspendMinutes].
   void _suspendIdle({bool all = false}) {
     final minutes = _settings.suspendMinutes;
@@ -516,7 +669,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _releaseAll() async {
     final since = _hiddenSince;
     if (_shown || since == null) return;
-    if (tabs.any((t) => t.live && t.audio && _settings.keepPlayingAwake)) {
+    if (hasActiveDownloads || tabs.any((t) => t.live && t.audio && _settings.keepPlayingAwake)) {
       _release = Timer(releaseAfter, _releaseAll);
       return;
     }
@@ -560,13 +713,13 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _save() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final index = tabs.indexWhere((t) => t.id == _activeId);
+      final index = tabs.where((t) => !t.isPrivate).toList().indexWhere((t) => t.id == _activeId);
       await prefs.setString(
         _tabsKey,
         jsonEncode({
           'active': index,
           'tabs': [
-            for (final t in tabs) {'url': t.url ?? '', 'title': t.title},
+            for (final t in tabs.where((t) => !t.isPrivate)) {'url': t.url ?? '', 'title': t.title},
           ],
         }),
       );

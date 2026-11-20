@@ -55,8 +55,8 @@ class BrowserNative {
 
   static const _cacheFolders = {'Cache', 'Code Cache', 'GPUCache', 'Service Worker', 'DawnCache', 'ShaderCache'};
 
-  Future<void> ensureReady({required bool httpsUpgrade, required int cacheLimitMb}) {
-    final ready = _ready ??= _init(httpsUpgrade, cacheLimitMb);
+  Future<void> ensureReady({required bool httpsUpgrade, required int cacheLimitMb, required int tracking}) {
+    final ready = _ready ??= _init(httpsUpgrade, cacheLimitMb, tracking);
     return ready.catchError((Object e) {
       _ready = null;
       throw e;
@@ -68,12 +68,13 @@ class BrowserNative {
     return Directory('${support.path}${Platform.pathSeparator}browser_webview');
   }
 
-  Future<void> _init(bool httpsUpgrade, int cacheLimitMb) async {
+  Future<void> _init(bool httpsUpgrade, int cacheLimitMb, int tracking) async {
     final profile = await _profileDir();
     await profile.create(recursive: true);
     await _channel.invokeMethod<bool>('initialize', {
       'userDataFolder': profile.path,
       'httpsUpgrade': httpsUpgrade,
+      'tracking': tracking,
       'arguments': '--disk-cache-size=${cacheLimitMb * 1024 * 1024}',
     });
     activeCacheLimitMb = cacheLimitMb;
@@ -93,7 +94,13 @@ class BrowserNative {
 
   /// Creates the WebView for tab [id] and loads [url]. Throws when WebView2
   /// could not start.
-  Future<void> createTab(int id, String url) => _channel.invokeMethod<bool>('createTab', {'id': id, 'url': url});
+  Future<void> createTab(int id, String url, {bool private = false}) =>
+      _channel.invokeMethod<bool>('createTab', {'id': id, 'url': url, 'private': private});
+  Future<void> setMuted(int id, bool value) => _call('setMuted', {'id': id, 'value': value});
+  Future<void> setTrackingPrevention(int level) => _call('setTrackingPrevention', {'level': level});
+  Future<void> cancelDownload(int download) => _call('cancelDownload', {'download': download});
+  Future<void> pauseDownload(int download) => _call('pauseDownload', {'download': download});
+  Future<void> resumeDownload(int download) => _call('resumeDownload', {'download': download});
 
   Future<void> closeTab(int id) => _call('closeTab', {'id': id});
   Future<void> navigate(int id, String url, {bool allowHttp = false}) =>
@@ -154,14 +161,36 @@ class BrowserNative {
     return total;
   }
 
+  /// Cookies and what sites store on the PC (logins, site settings).
+  static const _siteDataFolders = {
+    'Network', 'Cookies', 'Local Storage', 'Session Storage', 'IndexedDB', 'Service Worker', 'File System',
+    'WebStorage', 'databases', 'Shared Dictionary', 'blob_storage',
+  };
+
   /// Deletes the cache folders. Only while no browser process uses them.
-  static Future<void> deleteCache() async {
+  static Future<void> deleteCache() => _deleteFolders(_cacheFolders);
+
+  /// Deletes cookies and site data. Only while no browser process uses them.
+  static Future<void> deleteSiteData() => _deleteFolders(_siteDataFolders);
+
+  static Future<void> _deleteFolders(Set<String> names) async {
     final profile = await _profileDir();
     if (!await profile.exists()) return;
     final dirs = <Directory>[];
+    final files = <File>[];
     await for (final entity in profile.list(recursive: true, followLinks: false)) {
-      if (entity is Directory && _cacheFolders.contains(entity.path.split(Platform.pathSeparator).last)) {
-        dirs.add(entity);
+      final name = entity.path.split(Platform.pathSeparator).last;
+      if (!names.contains(name)) continue;
+      // Not inside an already listed folder.
+      if (dirs.any((d) => entity.path.startsWith('${d.path}${Platform.pathSeparator}'))) continue;
+      if (entity is Directory) dirs.add(entity);
+      if (entity is File) files.add(entity);
+    }
+    for (final file in files) {
+      try {
+        await file.delete();
+      } catch (e) {
+        appLogger.d('Browser data delete ${file.path}: $e');
       }
     }
     for (final dir in dirs) {

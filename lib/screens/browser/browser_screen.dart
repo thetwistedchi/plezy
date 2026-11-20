@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/browser_bookmarks.dart';
@@ -310,8 +312,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   Future<void> _onPrompt(BrowserPrompt prompt) async {
     switch (prompt) {
-      case PermissionPrompt(:final request, :final kind, :final url):
-        final allow = await _overlay(() => _askPermission(kind, url)) ?? false;
+      case PermissionPrompt(:final request, :final kind, :final url, :final site, :final tab):
+        final private = _controller.tabs.where((t) => t.id == tab).firstOrNull?.isPrivate ?? false;
+        final answer = await _overlay(() => _askPermission(kind, url, canRemember: !private));
+        final allow = answer?.$1 ?? false;
+        if (answer != null && answer.$2) await _settings.setPermission(site, kind, allow);
         await _controller.answerPermission(request, allow);
       case DownloadPrompt(:final request, :final url, :final path, :final size):
         final allow = await _overlay(() => _askDownload(url, path, size)) ?? false;
@@ -370,24 +375,36 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
-  Future<bool?> _askPermission(int kind, String url) {
-    final what = switch (kind) {
-      1 => RetroStrings.permMicrophone,
-      2 => RetroStrings.permCamera,
-      3 => RetroStrings.permLocation,
-      5 => RetroStrings.permSensors,
-      6 => RetroStrings.permClipboard,
-      _ => RetroStrings.permOther,
-    };
+  /// The answer and whether to remember it for the site.
+  Future<(bool, bool)?> _askPermission(int kind, String url, {required bool canRemember}) {
     final host = Uri.tryParse(url)?.host ?? url;
-    return showDialog<bool>(
+    var remember = false;
+    return showDialog<(bool, bool)>(
       context: context,
-      builder: (context) => AlertDialog(
-        content: Text(RetroStrings.permissionAsk(host, what)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(RetroStrings.block)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(RetroStrings.allow)),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(RetroStrings.permissionAsk(host, RetroStrings.permissionKind(kind))),
+              if (canRemember) ...[
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  value: remember,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(RetroStrings.rememberForSite),
+                  onChanged: (v) => setDialog(() => remember = v ?? false),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, (false, remember)), child: Text(RetroStrings.block)),
+            FilledButton(onPressed: () => Navigator.pop(context, (true, remember)), child: Text(RetroStrings.allow)),
+          ],
+        ),
       ),
     );
   }
@@ -447,6 +464,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
     switch (key) {
       case 'newTab':
         _newTab();
+      case 'newPrivateTab':
+        _newTab(private: true);
+      case 'reopenTab':
+        unawaited(_controller.reopenClosed());
       case 'closeTab':
         _closeActive();
       case 'address':
@@ -462,8 +483,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
-  void _newTab() {
-    unawaited(_controller.newTab());
+  void _newTab({bool private = false}) {
+    unawaited(_controller.newTab(private: private));
     if (_settings.newTabPage != BrowserNewTabPage.custom) _addressFocus.requestFocus();
   }
 
@@ -567,6 +588,148 @@ class _BrowserScreenState extends State<BrowserScreen> {
     if (url != null) await _submit(url);
   }
 
+  Future<String?> _menu(Offset position, List<PopupMenuEntry<String>> items) => _overlay(() {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    return showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
+      items: items,
+    );
+  });
+
+  PopupMenuItem<String> _menuItem(String value, IconData icon, String label, {bool enabled = true}) => PopupMenuItem(
+    value: value,
+    enabled: enabled,
+    child: Row(
+      children: [
+        AppIcon.retro(icon, size: 18, retroOpacity: enabled ? 1 : 0.4),
+        const SizedBox(width: 12),
+        Text(label),
+      ],
+    ),
+  );
+
+  Future<void> _tabMenu(BrowserTabState tab, Offset position) async {
+    final picked = await _menu(position, [
+      _menuItem('reload', Symbols.refresh_rounded, RetroStrings.reload, enabled: tab.url != null),
+      _menuItem('duplicate', Symbols.add_rounded, RetroStrings.duplicateTab),
+      _menuItem(
+        'mute',
+        tab.muted ? Symbols.volume_up_rounded : Symbols.volume_off_rounded,
+        tab.muted ? RetroStrings.unmuteTab : RetroStrings.muteTab,
+      ),
+      const PopupMenuDivider(),
+      _menuItem('reopen', Symbols.history_rounded, RetroStrings.reopenClosedTab, enabled: _controller.canReopen),
+      _menuItem('others', Symbols.close_rounded, RetroStrings.closeOtherTabs, enabled: _controller.tabs.length > 1),
+      _menuItem('close', Symbols.close_rounded, RetroStrings.closeTab),
+    ]);
+    switch (picked) {
+      case 'reload':
+        await _controller.select(tab.id);
+        await _controller.reload();
+      case 'duplicate':
+        await _controller.duplicate(tab.id);
+      case 'mute':
+        await _controller.setMuted(tab.id, !tab.muted);
+      case 'reopen':
+        await _controller.reopenClosed();
+      case 'others':
+        await _controller.closeOthers(tab.id);
+      case 'close':
+        await _controller.close(tab.id);
+    }
+  }
+
+  Future<void> _moreMenu(Offset position) async {
+    final url = _controller.active?.url;
+    final picked = await _menu(position, [
+      _menuItem('new', Symbols.add_rounded, RetroStrings.newTab),
+      _menuItem('private', Symbols.visibility_off_rounded, RetroStrings.newPrivateTab),
+      _menuItem('reopen', Symbols.history_rounded, RetroStrings.reopenClosedTab, enabled: _controller.canReopen),
+      const PopupMenuDivider(),
+      _menuItem('downloads', Symbols.download_rounded, RetroStrings.downloads),
+      _menuItem('external', Symbols.open_in_new_rounded, RetroStrings.openInDefaultBrowser, enabled: url != null),
+      const PopupMenuDivider(),
+      _menuItem('settings', Symbols.settings_rounded, RetroStrings.browserSettings),
+    ]);
+    switch (picked) {
+      case 'new':
+        _newTab();
+      case 'private':
+        _newTab(private: true);
+      case 'reopen':
+        await _controller.reopenClosed();
+      case 'downloads':
+        await _showDownloads();
+      case 'external':
+        final uri = Uri.tryParse(url ?? '');
+        if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+      case 'settings':
+        await _openSettings();
+    }
+  }
+
+  Widget _buildDownloadsButton(MonoTokens t) {
+    final active = _controller.downloads.where((d) => d.active).toList();
+    final total = active.fold<int>(0, (sum, d) => sum + d.total);
+    final received = active.fold<int>(0, (sum, d) => sum + d.received);
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        _iconButton(Symbols.download_rounded, RetroStrings.downloads, () => unawaited(_showDownloads())),
+        if (active.isNotEmpty)
+          IgnorePointer(
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                value: total > 0 ? (received / total).clamp(0.0, 1.0) : null,
+                color: t.accent,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _showDownloads() async {
+    await _overlay(
+      () => showDialog<void>(
+        context: context,
+        builder: (context) => ListenableBuilder(
+          listenable: _controller,
+          builder: (context, _) {
+            final t = tokens(context);
+            final items = _controller.downloads;
+            return AlertDialog(
+              title: Text(RetroStrings.downloads),
+              contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+              content: SizedBox(
+                width: 560,
+                child: items.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(RetroStrings.noDownloads, style: TextStyle(color: t.textMuted)),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: items.length,
+                        itemBuilder: (context, i) => _DownloadRow(download: items[i]),
+                      ),
+              ),
+              actions: [
+                if (items.any((d) => !d.active))
+                  TextButton(onPressed: _controller.clearFinishedDownloads, child: Text(RetroStrings.clearList)),
+                TextButton(onPressed: () => Navigator.pop(context), child: Text(RetroStrings.close)),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   // ---- Build ----
 
   @override
@@ -587,6 +750,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
       body: CallbackShortcuts(
         bindings: {
           const SingleActivator(LogicalKeyboardKey.keyT, control: true): _newTab,
+          const SingleActivator(LogicalKeyboardKey.keyT, control: true, shift: true): () =>
+              unawaited(_controller.reopenClosed()),
+          const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true): () => _newTab(private: true),
           const SingleActivator(LogicalKeyboardKey.keyW, control: true): _closeActive,
           const SingleActivator(LogicalKeyboardKey.keyL, control: true): _addressFocus.requestFocus,
           const SingleActivator(LogicalKeyboardKey.tab, control: true): () => unawaited(_controller.selectRelative(1)),
@@ -630,7 +796,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     if (tab == null || tab.url == null) {
       return DecoratedBox(
         decoration: pageDecoration(Theme.of(context)),
-        child: _NewTabPage(onOpen: (url) => unawaited(_submit(url))),
+        child: _NewTabPage(onOpen: (url) => unawaited(_submit(url)), isPrivate: tab?.isPrivate ?? false),
       );
     }
     if (tab.crashed) {
@@ -692,6 +858,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       active: tab.id == activeId,
                       onTap: () => unawaited(_controller.select(tab.id)),
                       onClose: () => unawaited(_controller.close(tab.id)),
+                      onMute: () => unawaited(_controller.setMuted(tab.id, !tab.muted)),
+                      onMenu: (position) => unawaited(_tabMenu(tab, position)),
                     );
                   },
                 );
@@ -804,6 +972,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ),
           const SizedBox(width: 4),
           _iconButton(Symbols.bookmarks_rounded, RetroStrings.bookmarks, () => unawaited(_showBookmarks())),
+          if (_controller.downloads.isNotEmpty) _buildDownloadsButton(t),
+          Builder(
+            builder: (context) => _iconButton(Symbols.more_vert_rounded, RetroStrings.moreActions, () {
+              final box = context.findRenderObject() as RenderBox?;
+              final position = box == null ? Offset.zero : box.localToGlobal(box.size.bottomLeft(Offset.zero));
+              unawaited(_moreMenu(position));
+            }),
+          ),
         ],
       ),
     );
@@ -885,6 +1061,8 @@ class _TabChip extends StatelessWidget {
     required this.active,
     required this.onTap,
     required this.onClose,
+    required this.onMute,
+    required this.onMenu,
   });
 
   final BrowserTabState tab;
@@ -892,11 +1070,24 @@ class _TabChip extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
   final VoidCallback onClose;
+  final VoidCallback onMute;
+  final ValueChanged<Offset> onMenu;
 
   @override
   Widget build(BuildContext context) {
     final t = tokens(context);
-    final title = tab.url == null ? RetroStrings.newTab : (tab.title.isNotEmpty ? tab.title : tab.host);
+    final title = tab.url == null
+        ? (tab.isPrivate ? RetroStrings.privateTab : RetroStrings.newTab)
+        : (tab.title.isNotEmpty ? tab.title : tab.host);
+    final favicon = tab.favicon;
+    Widget icon;
+    if (tab.loading) {
+      icon = SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.6, color: t.accent));
+    } else if (favicon != null) {
+      icon = Image.memory(favicon, width: 16, height: 16, gaplessPlayback: true, filterQuality: FilterQuality.medium);
+    } else {
+      icon = AppIcon.retro(Symbols.public_rounded, size: 15, retroOpacity: active ? 1 : 0.6);
+    }
     return Listener(
       // Middle click closes, like in other browsers.
       onPointerDown: (e) {
@@ -910,22 +1101,30 @@ class _TabChip extends StatelessWidget {
           child: Material(
             color: active ? t.surface : Colors.transparent,
             borderRadius: BorderRadius.circular(t.radiusSm),
+            shape: tab.isPrivate
+                ? RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(t.radiusSm),
+                    side: BorderSide(color: t.accent.withValues(alpha: 0.55)),
+                  )
+                : null,
             child: InkWell(
               borderRadius: BorderRadius.circular(t.radiusSm),
               onTap: onTap,
+              onSecondaryTapDown: (d) => onMenu(d.globalPosition),
+              onLongPress: () {
+                final box = context.findRenderObject() as RenderBox?;
+                onMenu(box == null ? Offset.zero : box.localToGlobal(box.size.bottomLeft(Offset.zero)));
+              },
               child: SizedBox(
                 width: width,
                 child: Row(
                   children: [
                     const SizedBox(width: 10),
-                    if (tab.loading)
-                      SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 1.6, color: t.accent),
-                      )
-                    else
-                      AppIcon.retro(Symbols.public_rounded, size: 15, retroOpacity: active ? 1 : 0.6),
+                    icon,
+                    if (tab.isPrivate) ...[
+                      const SizedBox(width: 4),
+                      AppIcon.retro(Symbols.visibility_off_rounded, size: 13, retroOpacity: active ? 1 : 0.6),
+                    ],
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -935,7 +1134,19 @@ class _TabChip extends StatelessWidget {
                         style: TextStyle(fontSize: 13, color: active ? t.text : t.textMuted),
                       ),
                     ),
-                    if (tab.audio) AppIcon(Symbols.volume_up_rounded, size: 14, color: t.textMuted),
+                    if (tab.audio || tab.muted)
+                      IconButton(
+                        icon: AppIcon.retro(
+                          tab.muted ? Symbols.volume_off_rounded : Symbols.volume_up_rounded,
+                          size: 14,
+                          retroOpacity: active ? 1 : 0.6,
+                        ),
+                        tooltip: tab.muted ? RetroStrings.unmuteTab : RetroStrings.muteTab,
+                        onPressed: onMute,
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 24, minHeight: 28),
+                      ),
                     IconButton(
                       icon: AppIcon.retro(Symbols.close_rounded, size: 14, retroOpacity: active ? 1 : 0.6),
                       tooltip: RetroStrings.closeTab,
@@ -956,11 +1167,84 @@ class _TabChip extends StatelessWidget {
   }
 }
 
+class _DownloadRow extends StatelessWidget {
+  const _DownloadRow({required this.download});
+
+  final BrowserDownload download;
+
+  static String _size(int bytes) {
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).ceil()} KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = tokens(context);
+    final d = download;
+    final controller = BrowserController.instance;
+    final status = switch (d.state) {
+      BrowserDownloadState.completed => _size(d.total > 0 ? d.total : d.received),
+      BrowserDownloadState.failed => RetroStrings.downloadFailed,
+      BrowserDownloadState.paused => '${RetroStrings.downloadPaused} · ${_size(d.received)}',
+      BrowserDownloadState.running => d.total > 0 ? '${_size(d.received)} / ${_size(d.total)}' : _size(d.received),
+    };
+    final done = d.state == BrowserDownloadState.completed;
+    return ListTile(
+      leading: const AppIcon.retro(Symbols.download_rounded, size: 22),
+      title: Text(d.fileName.isEmpty ? d.url : d.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (d.active) ...[
+            const SizedBox(height: 6),
+            LinearProgressIndicator(value: d.progress, minHeight: 3, color: t.accent),
+            const SizedBox(height: 4),
+          ],
+          Text(status, style: TextStyle(color: t.textMuted, fontSize: 12)),
+        ],
+      ),
+      onTap: done ? () => unawaited(launchUrl(Uri.file(d.path))) : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (done)
+            IconButton(
+              icon: const AppIcon.retro(Symbols.folder_rounded, size: 18),
+              tooltip: RetroStrings.showInFolder,
+              onPressed: () => unawaited(Process.run('explorer.exe', ['/select,', d.path])),
+            ),
+          if (d.state == BrowserDownloadState.running)
+            IconButton(
+              icon: const AppIcon.retro(Symbols.pause_rounded, size: 18),
+              tooltip: RetroStrings.pause,
+              onPressed: () => unawaited(controller.pauseDownload(d.id)),
+            ),
+          if (d.state == BrowserDownloadState.paused)
+            IconButton(
+              icon: const AppIcon.retro(Symbols.play_arrow_rounded, size: 18),
+              tooltip: RetroStrings.resume,
+              onPressed: () => unawaited(controller.resumeDownload(d.id)),
+            ),
+          if (d.active)
+            IconButton(
+              icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+              tooltip: RetroStrings.cancel,
+              onPressed: () => unawaited(controller.cancelDownload(d.id)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// The recently visited pages, or an empty page, by the new tab setting.
 class _NewTabPage extends StatelessWidget {
-  const _NewTabPage({required this.onOpen});
+  const _NewTabPage({required this.onOpen, required this.isPrivate});
 
   final ValueChanged<String> onOpen;
+  final bool isPrivate;
 
   Future<void> _menu(BuildContext context, VisitedPage page, Offset position) async {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -980,6 +1264,24 @@ class _NewTabPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = tokens(context);
     final settings = BrowserSettings.instance;
+    if (isPrivate) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const AppIcon.retro(Symbols.visibility_off_rounded, size: 56),
+              const SizedBox(height: 20),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Text(RetroStrings.privateTabHint, textAlign: TextAlign.center, style: TextStyle(color: t.textMuted)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (settings.newTabPage == BrowserNewTabPage.blank) return const SizedBox.expand();
     final pages = BrowserHistory.instance.recent(settings.recentCount);
     return Center(

@@ -49,6 +49,15 @@ class BrowserSettings extends ChangeNotifier {
   /// Sites allowed to open pop-ups without a click on a link.
   List<String> popupSites = const [];
 
+  /// Tracking prevention: 0 off, 1 basic, 2 balanced, 3 strict (like Edge).
+  int trackingLevel = 2;
+
+  /// Cookies and site data are deleted when the app starts again.
+  bool clearSiteDataOnExit = false;
+
+  /// Remembered answers to permission requests: "site|kind" → allowed.
+  Map<String, bool> permissions = const {};
+
   /// Disk cache limit in MB, applied when the browser starts.
   int cacheLimitMb = defaultCacheLimitMb;
   static const int defaultCacheLimitMb = 200;
@@ -71,6 +80,13 @@ class BrowserSettings extends ChangeNotifier {
     keepHistory = p.getBool('${_prefix}keepHistory') ?? keepHistory;
     httpsUpgrade = p.getBool('${_prefix}httpsUpgrade') ?? httpsUpgrade;
     popupSites = p.getStringList('${_prefix}popupSites') ?? const [];
+    trackingLevel = p.getInt('${_prefix}tracking') ?? trackingLevel;
+    clearSiteDataOnExit = p.getBool('${_prefix}clearSiteDataOnExit') ?? clearSiteDataOnExit;
+    permissions = {
+      for (final entry in p.getStringList('${_prefix}permissions') ?? const <String>[])
+        if (entry.lastIndexOf('|') > 0)
+          entry.substring(0, entry.lastIndexOf('|')): entry.substring(entry.lastIndexOf('|') + 1) == '1',
+    };
     cacheLimitMb = p.getInt('${_prefix}cacheLimitMb') ?? cacheLimitMb;
     notifyListeners();
   }
@@ -78,9 +94,31 @@ class BrowserSettings extends ChangeNotifier {
   Future<void> setPopupAllowed(String site, bool allowed) async {
     await load();
     final sites = {...popupSites};
-    allowed ? sites.add(site) : sites.remove(site);
+    if (allowed) {
+      sites.add(site);
+    } else {
+      sites.remove(site);
+    }
     popupSites = sites.toList()..sort();
     await _prefs!.setStringList('${_prefix}popupSites', popupSites);
+    notifyListeners();
+  }
+
+  /// A remembered answer for permission [kind] on [site], or null.
+  bool? permissionFor(String site, int kind) => permissions['$site|$kind'];
+
+  Future<void> setPermission(String site, int kind, bool? allowed) async {
+    await load();
+    final map = {...permissions};
+    if (allowed == null) {
+      map.remove('$site|$kind');
+    } else {
+      map['$site|$kind'] = allowed;
+    }
+    permissions = map;
+    await _prefs!.setStringList('${_prefix}permissions', [
+      for (final e in map.entries) '${e.key}|${e.value ? 1 : 0}',
+    ]);
     notifyListeners();
   }
 
@@ -107,6 +145,8 @@ class BrowserSettings extends ChangeNotifier {
     bool? keepHistory,
     bool? httpsUpgrade,
     int? cacheLimitMb,
+    int? trackingLevel,
+    bool? clearSiteDataOnExit,
   }) async {
     await load();
     final p = _prefs!;
@@ -149,6 +189,14 @@ class BrowserSettings extends ChangeNotifier {
     if (httpsUpgrade != null) {
       this.httpsUpgrade = httpsUpgrade;
       await p.setBool('${_prefix}httpsUpgrade', httpsUpgrade);
+    }
+    if (trackingLevel != null) {
+      this.trackingLevel = trackingLevel;
+      await p.setInt('${_prefix}tracking', trackingLevel);
+    }
+    if (clearSiteDataOnExit != null) {
+      this.clearSiteDataOnExit = clearSiteDataOnExit;
+      await p.setBool('${_prefix}clearSiteDataOnExit', clearSiteDataOnExit);
     }
     if (cacheLimitMb != null) {
       this.cacheLimitMb = cacheLimitMb.clamp(minCacheLimitMb, maxCacheLimitMb);

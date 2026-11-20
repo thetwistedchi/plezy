@@ -28,6 +28,19 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
   final _cacheLimit = TextEditingController();
   int? _cacheBytes;
   bool _clearing = false;
+  bool _clearingSiteData = false;
+
+  Future<void> _clearSiteData() async {
+    setState(() => _clearingSiteData = true);
+    try {
+      await BrowserController.instance.clearSiteData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(RetroStrings.siteDataDeleted)));
+      }
+    } finally {
+      if (mounted) setState(() => _clearingSiteData = false);
+    }
+  }
 
   static const _suspendChoices = [1, 2, 5, 10, 15, 30, 60, 0];
   static const _recentChoices = [5, 10, 15, 20, 30];
@@ -275,6 +288,80 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                                   : Text(RetroStrings.clearBrowserCache),
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _SectionTitle(RetroStrings.trackingPrevention),
+                      _Card(
+                        children: [
+                          ListTile(
+                            title: Text(RetroStrings.trackingPrevention),
+                            subtitle: Text(RetroStrings.trackingDescription),
+                            trailing: DropdownButton<int>(
+                              value: _settings.trackingLevel.clamp(0, 3),
+                              underline: const SizedBox.shrink(),
+                              items: [
+                                for (final level in const [0, 1, 2, 3])
+                                  DropdownMenuItem(value: level, child: Text(RetroStrings.trackingLevel(level))),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) unawaited(BrowserController.instance.setTrackingLevel(v));
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _SectionTitle(RetroStrings.siteData),
+                      _Card(
+                        children: [
+                          ListTile(
+                            title: Text(RetroStrings.siteData),
+                            subtitle: Text(RetroStrings.siteDataDescription),
+                            trailing: OutlinedButton(
+                              onPressed: _clearingSiteData ? null : () => unawaited(_clearSiteData()),
+                              child: _clearingSiteData
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : Text(RetroStrings.deleteSiteData),
+                            ),
+                          ),
+                          SwitchListTile(
+                            title: Text(RetroStrings.clearOnExit),
+                            subtitle: Text(RetroStrings.clearOnExitDescription),
+                            value: _settings.clearSiteDataOnExit,
+                            onChanged: (v) => unawaited(_settings.update(clearSiteDataOnExit: v)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _SectionTitle(RetroStrings.sitePermissions),
+                      _Card(
+                        children: [
+                          if (_settings.permissions.isEmpty)
+                            ListTile(subtitle: Text(RetroStrings.sitePermissionsEmpty))
+                          else
+                            for (final entry in _settings.permissions.entries)
+                              ListTile(
+                                title: Text(entry.key.substring(0, entry.key.lastIndexOf('|'))),
+                                subtitle: Text(
+                                  '${RetroStrings.permissionLabel(int.tryParse(entry.key.substring(entry.key.lastIndexOf('|') + 1)) ?? 0)}: '
+                                  '${entry.value ? RetroStrings.allowed : RetroStrings.blocked}',
+                                ),
+                                trailing: IconButton(
+                                  icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+                                  tooltip: RetroStrings.delete,
+                                  onPressed: () {
+                                    final i = entry.key.lastIndexOf('|');
+                                    unawaited(
+                                      _settings.setPermission(
+                                        entry.key.substring(0, i),
+                                        int.tryParse(entry.key.substring(i + 1)) ?? 0,
+                                        null,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                         ],
                       ),
                       const SizedBox(height: 24),

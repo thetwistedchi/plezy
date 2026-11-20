@@ -115,6 +115,23 @@ class RetroStrings {
   static String get tabCrashed => _t('This tab stopped working.', 'Dieser Tab funktioniert nicht mehr.');
   static String permissionAsk(String host, String what) =>
       _t('$host wants to use your $what.', '$host möchte $what verwenden.');
+  static String permissionKind(int kind) => switch (kind) {
+    1 => permMicrophone,
+    2 => permCamera,
+    3 => permLocation,
+    5 => permSensors,
+    6 => permClipboard,
+    _ => permOther,
+  };
+  static String permissionLabel(int kind) => switch (kind) {
+    1 => _t('Microphone', 'Mikrofon'),
+    2 => _t('Camera', 'Kamera'),
+    3 => _t('Location', 'Standort'),
+    5 => _t('Motion sensors', 'Bewegungssensoren'),
+    6 => _t('Clipboard', 'Zwischenablage'),
+    _ => _t('Device features', 'Gerätefunktionen'),
+  };
+  static String get rememberForSite => _t('Remember for this site', 'Für diese Seite merken');
   static String get permCamera => _t('camera', 'deine Kamera');
   static String get permMicrophone => _t('microphone', 'dein Mikrofon');
   static String get permLocation => _t('location', 'deinen Standort');
@@ -129,6 +146,28 @@ class RetroStrings {
   );
   static String get download => _t('Download', 'Herunterladen');
   static String get downloadsFolder => _t('Saved to your Downloads folder.', 'Wird in deinem Download-Ordner gespeichert.');
+
+  static String get newPrivateTab => _t('New private tab', 'Neuer privater Tab');
+  static String get privateTab => _t('Private tab', 'Privater Tab');
+  static String get privateTabHint => _t(
+    'Private tab: cookies, history and site data of private tabs are deleted when the last private tab closes. Downloads and bookmarks stay.',
+    'Privater Tab: Cookies, Verlauf und Websitedaten privater Tabs werden gelöscht, sobald der letzte private Tab geschlossen wird. Downloads und Lesezeichen bleiben.',
+  );
+  static String get reopenClosedTab => _t('Reopen closed tab', 'Geschlossenen Tab wieder öffnen');
+  static String get duplicateTab => _t('Duplicate tab', 'Tab duplizieren');
+  static String get closeOtherTabs => _t('Close other tabs', 'Andere Tabs schließen');
+  static String get muteTab => _t('Mute tab', 'Tab stummschalten');
+  static String get unmuteTab => _t('Unmute tab', 'Ton wieder einschalten');
+  static String get openInDefaultBrowser => _t('Open in default browser', 'Im Standardbrowser öffnen');
+  static String get moreActions => _t('More', 'Mehr');
+  static String get downloads => _t('Downloads', 'Downloads');
+  static String get noDownloads => _t('No downloads yet.', 'Noch keine Downloads.');
+  static String get showInFolder => _t('Show in folder', 'Im Ordner anzeigen');
+  static String get pause => _t('Pause', 'Pausieren');
+  static String get resume => _t('Resume', 'Fortsetzen');
+  static String get clearList => _t('Clear list', 'Liste leeren');
+  static String get downloadFailed => _t('Failed', 'Fehlgeschlagen');
+  static String get downloadPaused => _t('Paused', 'Pausiert');
 
   // Browser settings
   static String get browserSettings => _t('Browser settings', 'Browser-Einstellungen');
@@ -185,6 +224,37 @@ class RetroStrings {
     if (bytes >= 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(0)} MB';
     return '${(bytes / 1024).ceil()} KB';
   }
+
+  static String get trackingPrevention => _t('Tracking prevention', 'Schutz vor Tracking');
+  static String get trackingDescription => _t(
+    'Blocks known trackers and fingerprinting services, like in Microsoft Edge. Strict blocks the most and may break some sites.',
+    'Blockiert bekannte Tracker und Fingerprinting-Dienste wie in Microsoft Edge. Streng blockiert am meisten und kann einzelne Seiten stören.',
+  );
+  static String trackingLevel(int level) => switch (level) {
+    0 => _t('Off', 'Aus'),
+    1 => _t('Basic', 'Einfach'),
+    3 => _t('Strict', 'Streng'),
+    _ => _t('Balanced', 'Ausgewogen'),
+  };
+  static String get siteData => _t('Cookies and site data', 'Cookies und Websitedaten');
+  static String get siteDataDescription => _t(
+    'Signs you out of all websites and removes what they stored on this PC.',
+    'Meldet dich auf allen Webseiten ab und entfernt, was sie auf diesem PC gespeichert haben.',
+  );
+  static String get deleteSiteData => _t('Delete', 'Löschen');
+  static String get siteDataDeleted => _t('Cookies and site data deleted.', 'Cookies und Websitedaten gelöscht.');
+  static String get clearOnExit => _t('Delete when the app closes', 'Beim Schließen der App löschen');
+  static String get clearOnExitDescription => _t(
+    'Every app start begins without cookies, so you are signed out of websites each time.',
+    'Jeder App-Start beginnt ohne Cookies, du bist also jedes Mal auf Webseiten abgemeldet.',
+  );
+  static String get sitePermissions => _t('Site permissions', 'Website-Berechtigungen');
+  static String get sitePermissionsEmpty => _t(
+    'Answers you choose to remember when a site asks for the camera, microphone or location appear here.',
+    'Antworten, die du dir beim Zugriff auf Kamera, Mikrofon oder Standort merken lässt, erscheinen hier.',
+  );
+  static String get allowed => _t('Allowed', 'Erlaubt');
+  static String get blocked => _t('Blocked', 'Blockiert');
 
   static String get browserProtection => _t('Built-in protection', 'Eingebauter Schutz');
   static String get browserProtectionDescription => _t(

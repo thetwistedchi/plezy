@@ -47,6 +47,7 @@ struct BrowserTab {
   // The link the user last clicked in the top page, reported by kLinkScript.
   std::wstring last_link;
   ULONGLONG link_at = 0;
+  bool in_private = false;
 };
 
 class BrowserWebPlugin : public flutter::Plugin {
@@ -64,7 +65,10 @@ class BrowserWebPlugin : public flutter::Plugin {
 
   void HandleMethodCall(const flutter::MethodCall<flutter::EncodableValue>& call, Result result);
   void Initialize(const flutter::EncodableMap& args, Result result);
-  void CreateTab(int id, const std::wstring& url, Result result);
+  void CreateTab(int id, const std::wstring& url, bool in_private, Result result);
+  void ApplyTracking(BrowserTab& tab);
+  void WatchDownload(int request);
+  void SendDownload(int request, const char* state);
   void CloseTab(int id);
   void DisposeAll();
   void ApplyLayout();
@@ -73,6 +77,7 @@ class BrowserWebPlugin : public flutter::Plugin {
   void SendState(BrowserTab& tab);
   void Wire(BrowserTab& tab);
   void OpenPopup(int id, const std::wstring& uri, bool allowed);
+  void SendFavicon(int id);
 
   flutter::PluginRegistrarWindows* registrar_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> method_channel_;
@@ -88,6 +93,18 @@ class BrowserWebPlugin : public flutter::Plugin {
   bool https_upgrade_ = true;
   // Sites (registrable domains) the user allowed to open pop-ups.
   std::vector<std::wstring> popup_sites_;
+  // Tracking prevention: 0 off, 1 basic, 2 balanced, 3 strict.
+  int tracking_level_ = 2;
+
+  // Downloads the user allowed, by request id, until they finish.
+  struct Download {
+    int tab = 0;
+    Microsoft::WRL::ComPtr<ICoreWebView2DownloadOperation> operation;
+    ULONGLONG last_report = 0;
+  };
+  std::map<int, Download> downloads_;
+  std::map<int, Microsoft::WRL::ComPtr<ICoreWebView2DownloadOperation>> pending_downloads_;
+  std::map<int, int> pending_download_tabs_;
   RECT rect_{0, 0, 0, 0};
   int generation_ = 0;
 

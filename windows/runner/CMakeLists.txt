@@ -42,14 +42,39 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(${BINARY_NAME} PRIVATE "${MPV_INCLUDE_DIR}")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/../shared/cpp")
 
-# WebView2 SDK for the native YouTube player (youtube/youtube_web_plugin.cpp).
-# The webview_windows plugin restores the same NuGet package into
-# ${CMAKE_BINARY_DIR}/packages before building; reuse it rather than fetching
-# a second copy, and build after that download.
+# WebView2 SDK for the native YouTube player and the in-app browser
+# (youtube/, browser/). The webview_windows plugin keeps its own, older copy
+# of the package; the runner uses a newer one for the browser's privacy and
+# download APIs. Newer SDK headers still contain every older interface. The
+# package is fetched once from NuGet into the build folder.
+set(PLEZY_WEBVIEW2_VERSION "1.0.2903.40")
+set(PLEZY_WEBVIEW2_DIR "${CMAKE_BINARY_DIR}/packages/plezy-webview2-${PLEZY_WEBVIEW2_VERSION}")
+if(NOT EXISTS "${PLEZY_WEBVIEW2_DIR}/build/native/include/WebView2.h")
+  set(_plezy_wv2_pkg "${CMAKE_BINARY_DIR}/packages/plezy-webview2-${PLEZY_WEBVIEW2_VERSION}.zip")
+  file(DOWNLOAD
+    "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/${PLEZY_WEBVIEW2_VERSION}"
+    "${_plezy_wv2_pkg}"
+    STATUS _plezy_wv2_status TLS_VERIFY ON)
+  list(GET _plezy_wv2_status 0 _plezy_wv2_code)
+  if(NOT _plezy_wv2_code EQUAL 0)
+    message(FATAL_ERROR "Could not download the WebView2 SDK ${PLEZY_WEBVIEW2_VERSION}: ${_plezy_wv2_status}")
+  endif()
+  file(MAKE_DIRECTORY "${PLEZY_WEBVIEW2_DIR}")
+  execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E tar xf "${_plezy_wv2_pkg}"
+    WORKING_DIRECTORY "${PLEZY_WEBVIEW2_DIR}"
+    RESULT_VARIABLE _plezy_wv2_extract)
+  if(NOT _plezy_wv2_extract EQUAL 0)
+    message(FATAL_ERROR "Could not unpack the WebView2 SDK ${PLEZY_WEBVIEW2_VERSION}")
+  endif()
+endif()
 target_link_libraries(${BINARY_NAME} PRIVATE
-  "${CMAKE_BINARY_DIR}/packages/Microsoft.Web.WebView2/build/native/Microsoft.Web.WebView2.targets")
+  "${PLEZY_WEBVIEW2_DIR}/build/native/Microsoft.Web.WebView2.targets")
 target_include_directories(${BINARY_NAME} PRIVATE
-  "${CMAKE_BINARY_DIR}/packages/Microsoft.Web.WebView2/build/native/include")
+  "${PLEZY_WEBVIEW2_DIR}/build/native/include")
+# Static loader: no WebView2Loader.dll next to the exe that could clash with
+# the one of webview_windows' older package.
+set_target_properties(${BINARY_NAME} PROPERTIES VS_GLOBAL_WebView2LoaderPreference "Static")
 add_dependencies(${BINARY_NAME} webview_windows_DEPENDENCIES_DOWNLOAD)
 
 # Run the Flutter tool portions of the build. This must not be removed.
