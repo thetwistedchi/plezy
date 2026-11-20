@@ -147,6 +147,15 @@ class RetroStrings {
     'Dieser Dateityp kann Programme auf deinem PC ausführen. Lade ihn nur herunter, wenn du der Seite vertraust.',
   );
   static String get download => _t('Download', 'Herunterladen');
+  static String saveTo(String folder) => _t('Saved to $folder', 'Wird gespeichert in $folder');
+  static String get saveAs => _t('Save as…', 'Speichern unter…');
+  static String get downloadDone => _t('Done', 'Fertig');
+  static String get downloadSection => _t('Downloads', 'Downloads');
+  static String get downloadFolder => _t('Download folder', 'Download-Ordner');
+  static String get downloadFolderDefault => _t('Windows Downloads folder', 'Windows-Download-Ordner');
+  static String get change => _t('Change', 'Ändern');
+  static String get reset => _t('Reset', 'Zurücksetzen');
+  static String get askWhereToSave => _t('Ask where to save each file', 'Bei jeder Datei fragen, wo sie gespeichert wird');
   static String get downloadsFolder => _t('Saved to your Downloads folder.', 'Wird in deinem Download-Ordner gespeichert.');
 
   static String get newPrivateTab => _t('New private tab', 'Neuer privater Tab');

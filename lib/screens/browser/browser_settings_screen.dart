@@ -10,6 +10,7 @@ import '../../services/browser/browser_controller.dart';
 import '../../services/browser/browser_history.dart';
 import '../../services/browser/browser_native.dart';
 import '../../services/browser/browser_settings.dart';
+import '../../services/file_picker_service.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
@@ -305,6 +306,44 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                                   : Text(RetroStrings.clearBrowserCache),
                             ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _SectionTitle(RetroStrings.downloadSection),
+                      _Card(
+                        children: [
+                          ListTile(
+                            title: Text(RetroStrings.downloadFolder),
+                            subtitle: Text(
+                              _settings.downloadFolder.isEmpty
+                                  ? RetroStrings.downloadFolderDefault
+                                  : _settings.downloadFolder,
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_settings.downloadFolder.isNotEmpty)
+                                  TextButton(
+                                    onPressed: () => unawaited(_settings.update(downloadFolder: '')),
+                                    child: Text(RetroStrings.reset),
+                                  ),
+                                OutlinedButton(
+                                  onPressed: () async {
+                                    final dir = await FilePickerService.instance.getDirectoryPath(
+                                      dialogTitle: RetroStrings.downloadFolder,
+                                    );
+                                    if (dir != null) await _settings.update(downloadFolder: dir);
+                                  },
+                                  child: Text(RetroStrings.change),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SwitchListTile(
+                            title: Text(RetroStrings.askWhereToSave),
+                            value: _settings.askWhereToSave,
+                            onChanged: (v) => unawaited(_settings.update(askWhereToSave: v)),
                           ),
                         ],
                       ),

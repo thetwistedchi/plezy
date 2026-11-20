@@ -568,6 +568,10 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     } else {
       auto it = download_args_.find(request);
       if (it != download_args_.end()) {
+        // Where the user chose to save it (the download folder setting or
+        // "save as"); empty keeps WebView2's default path.
+        const std::wstring path = ToWide(GetString(args, "path").value_or(""));
+        if (allow && !path.empty()) it->second->put_ResultFilePath(path.c_str());
         it->second->put_Cancel(allow ? FALSE : TRUE);
         // The app lists downloads itself: no Edge download flyout.
         it->second->put_Handled(TRUE);
@@ -961,6 +965,13 @@ void BrowserWebPlugin::WatchDownload(int request) {
           [this, request](ICoreWebView2DownloadOperation*, IUnknown*) -> HRESULT {
             auto d = downloads_.find(request);
             if (d == downloads_.end()) return S_OK;
+            COREWEBVIEW2_DOWNLOAD_STATE state = COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS;
+            if (d->second.operation) d->second.operation->get_State(&state);
+            if (state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED) {
+              SendDownload(request, "completed");
+              downloads_.erase(d);
+              return S_OK;
+            }
             // At most twice a second.
             const ULONGLONG now = ::GetTickCount64();
             if (now - d->second.last_report < 500) return S_OK;

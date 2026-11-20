@@ -590,7 +590,8 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       _native.setRect(left: left, top: top, right: right, bottom: bottom);
 
   Future<void> answerPermission(int request, bool allow) => _native.answerPermission(request, allow);
-  Future<void> answerDownload(int request, bool allow) => _native.answerDownload(request, allow);
+  Future<void> answerDownload(int request, bool allow, {String? path}) =>
+      _native.answerDownload(request, allow, path: path);
 
   /// Only the host goes into the log, not the full address.
   static String _host(String? url) => Uri.tryParse(url ?? '')?.host ?? '';
@@ -652,6 +653,12 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   void _onEvent(BrowserEvent e) {
     if (e.type == 'pageFocus') {
       _pageFocus.add(null);
+      return;
+    }
+    if (e.type == 'downloadState') {
+      // Also for downloads of tabs that have closed since.
+      _onDownload(e);
+      notifyListeners();
       return;
     }
     if (e.type == 'adblockReady') {
@@ -721,8 +728,6 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       case 'favicon':
         final data = e.data['data'];
         tab.favicon = data is Uint8List && data.isNotEmpty ? data : null;
-      case 'downloadState':
-        _onDownload(e);
       case 'blocked':
         tab.blockedCount = e.integer('count');
       case 'pageBlocked':

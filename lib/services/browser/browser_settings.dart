@@ -46,6 +46,12 @@ class BrowserSettings extends ChangeNotifier {
   bool keepHistory = true;
   bool httpsUpgrade = true;
 
+  /// Where downloads are saved; empty = the Windows Downloads folder.
+  String downloadFolder = '';
+
+  /// Ask for the place and name of every download.
+  bool askWhereToSave = false;
+
   /// Sites allowed to open pop-ups without a click on a link.
   List<String> popupSites = const [];
 
@@ -87,6 +93,8 @@ class BrowserSettings extends ChangeNotifier {
     restoreTabs = p.getBool('${_prefix}restoreTabs') ?? restoreTabs;
     keepHistory = p.getBool('${_prefix}keepHistory') ?? keepHistory;
     httpsUpgrade = p.getBool('${_prefix}httpsUpgrade') ?? httpsUpgrade;
+    downloadFolder = p.getString('${_prefix}downloadFolder') ?? '';
+    askWhereToSave = p.getBool('${_prefix}askWhereToSave') ?? false;
     popupSites = p.getStringList('${_prefix}popupSites') ?? const [];
     trackingLevel = p.getInt('${_prefix}tracking') ?? trackingLevel;
     darkMode = p.getBool('${_prefix}darkMode') ?? darkMode;
@@ -177,6 +185,8 @@ class BrowserSettings extends ChangeNotifier {
     int? cacheLimitMb,
     int? trackingLevel,
     bool? clearSiteDataOnExit,
+    String? downloadFolder,
+    bool? askWhereToSave,
     bool? darkMode,
     int? darkBrightness,
     int? darkContrast,
@@ -222,6 +232,14 @@ class BrowserSettings extends ChangeNotifier {
     if (httpsUpgrade != null) {
       this.httpsUpgrade = httpsUpgrade;
       await p.setBool('${_prefix}httpsUpgrade', httpsUpgrade);
+    }
+    if (downloadFolder != null) {
+      this.downloadFolder = downloadFolder;
+      await p.setString('${_prefix}downloadFolder', downloadFolder);
+    }
+    if (askWhereToSave != null) {
+      this.askWhereToSave = askWhereToSave;
+      await p.setBool('${_prefix}askWhereToSave', askWhereToSave);
     }
     if (darkMode != null) {
       this.darkMode = darkMode;

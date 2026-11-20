@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/adblock_lists.dart';
+import '../../services/file_picker_service.dart';
 import '../../services/browser/browser_bookmarks.dart';
 import '../../services/browser/browser_controller.dart';
 import '../../services/browser/browser_history.dart';
@@ -321,8 +322,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
         if (answer != null && answer.$2) await _settings.setPermission(site, kind, allow);
         await _controller.answerPermission(request, allow);
       case DownloadPrompt(:final request, :final url, :final path, :final size):
-        final allow = await _overlay(() => _askDownload(url, path, size)) ?? false;
-        await _controller.answerDownload(request, allow);
+        final target = await _overlay(() => _askDownload(url, path, size));
+        await _controller.answerDownload(request, target != null, path: target == null || target.isEmpty ? null : target);
       case PopupBlockedNotice(:final url, :final site, :final redirect):
         final target = Uri.tryParse(url)?.host ?? url;
         _setNotice(
@@ -411,13 +412,35 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  Future<bool?> _askDownload(String url, String path, int size) {
+  /// A free file name in [dir]: "name.ext", else "name (1).ext" and so on.
+  static String _uniquePath(String dir, String name) {
+    final sep = Platform.pathSeparator;
+    var path = '$dir$sep$name';
+    if (!File(path).existsSync()) return path;
+    final dot = name.lastIndexOf('.');
+    final base = dot > 0 ? name.substring(0, dot) : name;
+    final ext = dot > 0 ? name.substring(dot) : '';
+    for (var i = 1; i < 1000; i++) {
+      path = '$dir$sep$base ($i)$ext';
+      if (!File(path).existsSync()) break;
+    }
+    return path;
+  }
+
+  /// Asks before a download. Returns where to save it ('' = the browser's
+  /// own choice in the Windows Downloads folder), or null to cancel.
+  Future<String?> _askDownload(String url, String path, int size) {
     final name = path.split(RegExp(r'[\\/]')).last;
     final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
     final risky = _riskyExtensions.contains(ext);
     final host = Uri.tryParse(url)?.host ?? '';
     final t = tokens(context);
-    return showDialog<bool>(
+    final folder = _settings.downloadFolder;
+    final defaultFolder = path.contains(Platform.pathSeparator)
+        ? path.substring(0, path.lastIndexOf(Platform.pathSeparator))
+        : '';
+    final shownFolder = folder.isNotEmpty ? folder : defaultFolder;
+    return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(RetroStrings.downloadTitle),
@@ -431,8 +454,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
               [if (host.isNotEmpty) RetroStrings.downloadFrom(host), if (size > 0) _formatSize(size)].join(' · '),
               style: TextStyle(color: t.textMuted),
             ),
-            const SizedBox(height: 4),
-            Text(RetroStrings.downloadsFolder, style: TextStyle(color: t.textMuted)),
+            if (!_settings.askWhereToSave && shownFolder.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(RetroStrings.saveTo(shownFolder), style: TextStyle(color: t.textMuted)),
+            ],
             if (risky) ...[
               const SizedBox(height: 12),
               Row(
@@ -447,8 +472,25 @@ class _BrowserScreenState extends State<BrowserScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(RetroStrings.cancel)),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(RetroStrings.download)),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(RetroStrings.cancel)),
+          TextButton(
+            onPressed: () async {
+              final picked = await FilePickerService.instance.saveFile(
+                dialogTitle: RetroStrings.saveAs,
+                fileName: name.isEmpty ? null : name,
+              );
+              if (picked != null && context.mounted) Navigator.pop(context, picked);
+            },
+            child: Text(RetroStrings.saveAs),
+          ),
+          if (!_settings.askWhereToSave)
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                context,
+                folder.isNotEmpty && name.isNotEmpty ? _uniquePath(folder, name) : '',
+              ),
+              child: Text(RetroStrings.download),
+            ),
         ],
       ),
     );
@@ -1640,14 +1682,14 @@ class _DownloadRow extends StatelessWidget {
     final d = download;
     final controller = BrowserController.instance;
     final status = switch (d.state) {
-      BrowserDownloadState.completed => _size(d.total > 0 ? d.total : d.received),
+      BrowserDownloadState.completed => '${RetroStrings.downloadDone} · ${_size(d.total > 0 ? d.total : d.received)}',
       BrowserDownloadState.failed => RetroStrings.downloadFailed,
       BrowserDownloadState.paused => '${RetroStrings.downloadPaused} · ${_size(d.received)}',
       BrowserDownloadState.running => d.total > 0 ? '${_size(d.received)} / ${_size(d.total)}' : _size(d.received),
     };
     final done = d.state == BrowserDownloadState.completed;
     return ListTile(
-      leading: const BrowserIcon(Symbols.download_rounded, size: 22),
+      leading: BrowserIcon(done ? Symbols.check_circle_rounded : Symbols.download_rounded, size: 22),
       title: Text(d.fileName.isEmpty ? d.url : d.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

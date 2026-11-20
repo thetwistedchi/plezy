@@ -126,7 +126,8 @@ class BrowserNative {
   Future<void> setHttpsUpgrade(bool value) => _call('setHttpsUpgrade', {'value': value});
   Future<void> answerPermission(int request, bool allow) =>
       _call('answerPermission', {'request': request, 'allow': allow});
-  Future<void> answerDownload(int request, bool allow) => _call('answerDownload', {'request': request, 'allow': allow});
+  Future<void> answerDownload(int request, bool allow, {String? path}) =>
+      _call('answerDownload', {'request': request, 'allow': allow, 'path': ?path});
 
   /// Places the tabs, in physical pixels of the Flutter view.
   Future<void> setRect({required int left, required int top, required int right, required int bottom}) {
