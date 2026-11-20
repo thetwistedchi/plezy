@@ -1140,7 +1140,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
               },
             ),
           ),
-          _iconButton(Symbols.settings_rounded, RetroStrings.browserSettings, () => unawaited(_openSettings())),
           const SizedBox(width: 4),
         ],
       ),
