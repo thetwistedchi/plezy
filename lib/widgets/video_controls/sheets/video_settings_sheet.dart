@@ -1634,10 +1634,9 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
 /// quality badge, as the same page the settings sheet pushes. Returns false
 /// (and opens nothing) when there is nothing to describe.
 bool showPlayerFileInfo(BuildContext context, TrackControlsState state) {
+  final client = _playerFileInfoClient(context, state);
   final item = state.metadata;
-  if (state.isLive || item == null || !item.kind.hasFileInfo) return false;
-  final client = context.tryGetMediaClientForServer(serverIdOrNull(state.serverId));
-  if (client == null) return false;
+  if (client == null || item == null) return false;
   state.onCancelAutoHide?.call();
   unawaited(
     OverlaySheetController.of(context)
@@ -1645,6 +1644,17 @@ bool showPlayerFileInfo(BuildContext context, TrackControlsState state) {
         .whenComplete(() => state.onStartAutoHide?.call()),
   );
   return true;
+}
+
+/// Fork: whether [showPlayerFileInfo] has something to open, so the badges
+/// are only clickable when a click leads somewhere.
+bool canShowPlayerFileInfo(BuildContext context, TrackControlsState state) =>
+    _playerFileInfoClient(context, state) != null;
+
+MediaServerClient? _playerFileInfoClient(BuildContext context, TrackControlsState state) {
+  final item = state.metadata;
+  if (state.isLive || item == null || !item.kind.hasFileInfo) return null;
+  return context.tryGetMediaClientForServer(serverIdOrNull(state.serverId));
 }
 
 /// The playing item's file info as a nested page of the settings sheet. Holds

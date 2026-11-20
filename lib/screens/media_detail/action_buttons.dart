@@ -13,6 +13,10 @@ class _DownloadButtonSpec {
   const _DownloadButtonSpec({required this.icon, this.tooltip, this.foregroundColor, this.interactive = true});
 }
 
+/// Fork: a trailer search in flight. The YouTube search can take a few
+/// seconds; a second press meanwhile would open a second player.
+bool _trailerSearching = false;
+
 extension _MediaDetailActionButtons on _MediaDetailScreenState {
   Widget _buildActionButtons(MediaItem metadata) {
     // Tie asynchronous playback prompts to the actionable subtree, not the
@@ -21,9 +25,15 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
   }
 
   Future<void> _playYouTubeTrailer(BuildContext context, MediaItem metadata, MediaItem? serverTrailer) async {
+    if (_trailerSearching) return;
+    _trailerSearching = true;
     final year = metadata.year;
     final query = '${metadata.title ?? ''}${year != null ? ' $year' : ''} trailer';
-    final video = await YouTubeService.instance.searchFirstVideo(query, preferWord: 'trailer');
+    // Only the search is guarded: the player calls below can stay open (the
+    // mini player) long after this press.
+    final video = await YouTubeService.instance
+        .searchFirstVideo(query, preferWord: 'trailer')
+        .whenComplete(() => _trailerSearching = false);
     if (!context.mounted || !_canUseDetail) return;
     if (video != null) {
       if (YouTubeWebView.isSupported) {

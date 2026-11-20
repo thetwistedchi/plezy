@@ -20,7 +20,7 @@ import '../../utils/desktop_window_padding.dart';
 import '../../utils/platform_detector.dart';
 import '../../utils/formatters.dart';
 import '../../i18n/strings.g.dart';
-import 'sheets/video_settings_sheet.dart' show showPlayerFileInfo;
+import 'sheets/video_settings_sheet.dart' show canShowPlayerFileInfo, showPlayerFileInfo;
 import '../../theme/player_style.dart';
 import '../../models/livetv_capture_buffer.dart';
 import 'models/track_controls_state.dart';
@@ -953,7 +953,7 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                     ),
                   ),
                 // 4K / HDR badge and audio format of the playing version;
-                // both open the file info.
+                // both open the file info when there is one to show.
                 if (!_isLive) ...[
                   Padding(
                     padding: const EdgeInsets.only(right: 6),
@@ -961,7 +961,9 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                       criteria: widget.displayCriteria,
                       isTranscoding: widget.isTranscoding,
                       tooltip: t.mediaMenu.fileInfo,
-                      onTap: () => showPlayerFileInfo(context, _trackControlsState),
+                      onTap: canShowPlayerFileInfo(context, _trackControlsState)
+                          ? () => showPlayerFileInfo(context, _trackControlsState)
+                          : null,
                     ),
                   ),
                   Padding(
@@ -969,7 +971,9 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                     child: AudioFormatBadge(
                       player: widget.player,
                       tooltip: t.mediaMenu.fileInfo,
-                      onTap: () => showPlayerFileInfo(context, _trackControlsState),
+                      onTap: canShowPlayerFileInfo(context, _trackControlsState)
+                          ? () => showPlayerFileInfo(context, _trackControlsState)
+                          : null,
                     ),
                   ),
                 ],

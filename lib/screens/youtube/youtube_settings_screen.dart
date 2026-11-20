@@ -96,6 +96,7 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
 
   Future<void> _signIn() async {
     await _saveCredentials();
+    if (!mounted) return;
     if (!_settings.hasCredentials) {
       setState(() => _message = YtStrings.needClientId);
       return;
