@@ -48,6 +48,9 @@ class BrowserTabState {
   /// The http address a failed https upgrade came from.
   String? upgradedFrom;
 
+  /// One of the app's own pages (settings, filter lists), shown by Flutter.
+  bool get isInternal => url?.startsWith('plezy://') ?? false;
+
   bool get isSecure => url?.startsWith('https://') ?? true;
   String get host => Uri.tryParse(url ?? '')?.host ?? '';
 }
@@ -246,7 +249,27 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   /// The native page shows only for a live tab without a blocked-page warning.
   Future<void> _applyVisibility() {
     final tab = active;
-    return _native.setVisible(_shown && tab != null && tab.live && tab.url != null && tab.blockedPage == null);
+    return _native.setVisible(
+      _shown && tab != null && tab.live && tab.url != null && !tab.isInternal && tab.blockedPage == null,
+    );
+  }
+
+  static const settingsPage = 'plezy://settings';
+  static const filtersPage = 'plezy://filters';
+
+  /// Shows one of the app's own pages in a tab, reusing an open one.
+  Future<void> openInternal(String page) async {
+    final open = tabs.where((t) => t.url == page).firstOrNull;
+    if (open != null) return select(open.id);
+    final current = active;
+    // An empty new tab is used instead of opening another one.
+    if (current != null && current.url == null && !current.isPrivate) {
+      current.url = page;
+      notifyListeners();
+      await _applyVisibility();
+      return;
+    }
+    await newTab(url: page);
   }
 
   /// Opens the page the ad blocker kept closed, once, in [tab].
@@ -271,7 +294,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _show(BrowserTabState tab) async {
     tab.lastShown = DateTime.now();
     final url = tab.url;
-    if (url == null) {
+    if (url == null || tab.isInternal) {
       await _native.setVisible(false);
       return;
     }
@@ -469,6 +492,12 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     target
       ..crashed = false
       ..blockedPage = null;
+    if (url.startsWith('plezy://')) {
+      target.url = url;
+      notifyListeners();
+      await _applyVisibility();
+      return;
+    }
     if (!target.live) {
       target.url = url;
       target.title = '';
@@ -807,13 +836,13 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _save() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final index = tabs.where((t) => !t.isPrivate).toList().indexWhere((t) => t.id == _activeId);
+      final index = tabs.where((t) => !t.isPrivate && !t.isInternal).toList().indexWhere((t) => t.id == _activeId);
       await prefs.setString(
         _tabsKey,
         jsonEncode({
           'active': index,
           'tabs': [
-            for (final t in tabs.where((t) => !t.isPrivate)) {'url': t.url ?? '', 'title': t.title},
+            for (final t in tabs.where((t) => !t.isPrivate && !t.isInternal)) {'url': t.url ?? '', 'title': t.title},
           ],
         }),
       );
@@ -828,6 +857,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     if (text.isEmpty) return null;
     final lower = text.toLowerCase();
     if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('about:')) return text;
+    if (lower == settingsPage || lower == filtersPage) return lower;
     if (!text.contains(' ')) {
       final uri = Uri.tryParse('http://$text');
       final host = uri?.host ?? '';

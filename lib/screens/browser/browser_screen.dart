@@ -517,9 +517,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
-  Future<void> _openSettings() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const BrowserSettingsScreen()));
-  }
+  Future<void> _openSettings() => _controller.openInternal(BrowserController.settingsPage);
 
   Future<void> _editBookmark(Bookmark bookmark, {bool nested = false}) async {
     final name = TextEditingController(text: bookmark.title);
@@ -703,11 +701,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        IconButton(
-          icon: AppIcon.retro(Symbols.shield_rounded, size: 20, retroOpacity: active ? 1 : 0.35),
-          tooltip: RetroStrings.adblock,
-          onPressed: () => unawaited(_showShield()),
-          visualDensity: VisualDensity.compact,
+        Builder(
+          builder: (anchor) => IconButton(
+            icon: AppIcon.retro(Symbols.shield_rounded, size: 20, retroOpacity: active ? 1 : 0.35),
+            tooltip: RetroStrings.adblock,
+            onPressed: () => unawaited(_showShield(anchor)),
+            visualDensity: VisualDensity.compact,
+          ),
         ),
         if (active && count > 0)
           Positioned(
@@ -728,66 +728,155 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
-  Future<void> _showShield() async {
-    final adblock = AdblockManager.instance;
+  /// A small panel under [anchor] (a toolbar button), like a browser's
+  /// extension popup. The page is hidden meanwhile: it would take the clicks.
+  Future<void> _popup(BuildContext anchor, WidgetBuilder builder, {double width = 340}) async {
+    final box = anchor.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final rect = box.localToGlobal(Offset.zero) & box.size;
     await _overlay(
-      () => showDialog<void>(
+      () => showGeneralDialog<void>(
         context: context,
-        builder: (context) => ListenableBuilder(
-          listenable: Listenable.merge([adblock, _controller]),
-          builder: (context, _) {
-            final t = tokens(context);
-            final tab = _controller.active;
-            final site = _siteOf(tab);
-            return AlertDialog(
-              title: Row(
-                children: [
-                  const AppIcon.retro(Symbols.shield_rounded, size: 22),
-                  const SizedBox(width: 10),
-                  Text(RetroStrings.adblock),
-                ],
-              ),
-              content: SizedBox(
-                width: 420,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (!adblock.enabled)
-                      Text(RetroStrings.adblockOffEverywhere, style: TextStyle(color: t.textMuted))
-                    else ...[
-                      Text(RetroStrings.adblockCount(tab?.blockedCount ?? 0)),
-                      if (site.isNotEmpty)
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(RetroStrings.adblockOnSite(site)),
-                          value: !adblock.isOffFor(site),
-                          onChanged: (v) async {
-                            await adblock.setOffForSite(site, !v);
-                            await _controller.reload();
-                          },
-                        ),
-                    ],
-                  ],
+        barrierDismissible: true,
+        barrierLabel: RetroStrings.close,
+        barrierColor: Colors.transparent,
+        transitionDuration: const Duration(milliseconds: 120),
+        pageBuilder: (context, _, _) {
+          final screen = MediaQuery.sizeOf(context);
+          final t = tokens(context);
+          final left = (rect.right - width).clamp(8.0, screen.width - width - 8);
+          return Stack(
+            children: [
+              Positioned(
+                left: left,
+                top: rect.bottom + 4,
+                width: width,
+                child: Material(
+                  color: t.surface,
+                  elevation: 12,
+                  borderRadius: BorderRadius.circular(t.radiusMd),
+                  clipBehavior: Clip.antiAlias,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: screen.height - rect.bottom - 24),
+                    child: SingleChildScrollView(child: builder(context)),
+                  ),
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    unawaited(
-                      Navigator.of(
-                        this.context,
-                      ).push(MaterialPageRoute<void>(builder: (_) => const AdblockListsScreen())),
-                    );
+            ],
+          );
+        },
+        transitionBuilder: (context, animation, _, child) => FadeTransition(opacity: animation, child: child),
+      ),
+    );
+  }
+
+  Widget _popupHeader(IconData icon, String title) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+    child: Row(
+      children: [
+        AppIcon.retro(icon, size: 20),
+        const SizedBox(width: 10),
+        Expanded(child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
+      ],
+    ),
+  );
+
+  Widget _popupLink(BuildContext context, String label, String page) => Align(
+    alignment: Alignment.centerRight,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      child: TextButton(
+        onPressed: () {
+          Navigator.pop(context);
+          unawaited(_controller.openInternal(page));
+        },
+        child: Text(label),
+      ),
+    ),
+  );
+
+  Future<void> _showShield(BuildContext anchor) async {
+    final adblock = AdblockManager.instance;
+    await _popup(
+      anchor,
+      (context) => ListenableBuilder(
+        listenable: Listenable.merge([adblock, _controller]),
+        builder: (context, _) {
+          final t = tokens(context);
+          final tab = _controller.active;
+          final site = _siteOf(tab);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _popupHeader(Symbols.shield_rounded, RetroStrings.adblock),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Text(
+                  adblock.enabled ? RetroStrings.adblockCount(tab?.blockedCount ?? 0) : RetroStrings.adblockOffEverywhere,
+                  style: TextStyle(color: t.textMuted),
+                ),
+              ),
+              if (adblock.enabled && site.isNotEmpty && !(tab?.isInternal ?? false))
+                SwitchListTile(
+                  dense: true,
+                  title: Text(RetroStrings.adblockOnSite(site)),
+                  value: !adblock.isOffFor(site),
+                  onChanged: (v) async {
+                    await adblock.setOffForSite(site, !v);
+                    await _controller.reload();
                   },
-                  child: Text(RetroStrings.filterLists),
                 ),
-                TextButton(onPressed: () => Navigator.pop(context), child: Text(RetroStrings.close)),
+              _popupLink(context, RetroStrings.filterLists, BrowserController.filtersPage),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showDark(BuildContext anchor) async {
+    await _popup(
+      anchor,
+      (context) => ListenableBuilder(
+        listenable: Listenable.merge([_settings, _controller]),
+        builder: (context, _) {
+          final site = _siteOf(_controller.active);
+          final internal = _controller.active?.isInternal ?? false;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _popupHeader(Symbols.dark_mode_rounded, 'Dark Reader'),
+              SwitchListTile(
+                dense: true,
+                title: Text(RetroStrings.darkMode),
+                value: _settings.darkMode,
+                onChanged: (v) => unawaited(_controller.setDarkMode(enabled: v)),
+              ),
+              if (_settings.darkMode && site.isNotEmpty && !internal)
+                SwitchListTile(
+                  dense: true,
+                  title: Text(RetroStrings.darkOnSite(site)),
+                  value: !_settings.isDarkExcluded(site),
+                  onChanged: (v) => unawaited(_controller.setDarkExcluded(site, !v)),
+                ),
+              if (_settings.darkMode) ...[
+                BrowserSliderTile(
+                  label: RetroStrings.darkBrightness,
+                  value: _settings.darkBrightness,
+                  onChanged: (v) => unawaited(_controller.setDarkMode(brightness: v)),
+                ),
+                BrowserSliderTile(
+                  label: RetroStrings.darkContrast,
+                  value: _settings.darkContrast,
+                  onChanged: (v) => unawaited(_controller.setDarkMode(contrast: v)),
+                ),
               ],
-            );
-          },
-        ),
+              _popupLink(context, RetroStrings.browserSettings, BrowserController.settingsPage),
+            ],
+          );
+        },
       ),
     );
   }
@@ -922,6 +1011,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
         child: _NewTabPage(onOpen: (url) => unawaited(_submit(url)), isPrivate: tab?.isPrivate ?? false),
       );
     }
+    if (tab.isInternal) {
+      return DecoratedBox(
+        decoration: pageDecoration(Theme.of(context)),
+        child: tab.url == BrowserController.filtersPage ? const AdblockListsScreen() : const BrowserSettingsScreen(),
+      );
+    }
     if (tab.blockedPage case final blocked?) {
       final t = tokens(context);
       return DecoratedBox(
@@ -1045,7 +1140,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   Widget _buildToolbar(BuildContext context, MonoTokens t, BrowserTabState? tab) {
-    final hasPage = tab?.url != null;
+    final internal = tab?.isInternal ?? false;
+    final hasPage = tab?.url != null && !internal;
     final loading = tab?.loading ?? false;
     final bookmarked = _bookmarks.contains(tab?.url);
     final secure = tab?.isSecure ?? true;
@@ -1108,7 +1204,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
                     borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide(color: t.accent.withValues(alpha: 0.6)),
                   ),
-                  prefixIcon: hasPage
+                  prefixIcon: internal
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: AppIcon.retro(Symbols.settings_rounded, size: 16),
+                        )
+                      : hasPage
                       ? Tooltip(
                           message: secure ? RetroStrings.secureConnection : RetroStrings.insecureConnection,
                           child: Padding(
@@ -1143,6 +1244,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ),
           const SizedBox(width: 4),
           _buildShieldButton(t, tab),
+          Builder(
+            builder: (anchor) => IconButton(
+              icon: AppIcon.retro(Symbols.dark_mode_rounded, size: 20, retroOpacity: _settings.darkMode ? 1 : 0.45),
+              tooltip: RetroStrings.darkMode,
+              onPressed: () => unawaited(_showDark(anchor)),
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
           _iconButton(Symbols.bookmarks_rounded, RetroStrings.bookmarks, () => unawaited(_showBookmarks())),
           if (_controller.downloads.isNotEmpty) _buildDownloadsButton(t),
           Builder(
@@ -1250,11 +1359,21 @@ class _TabChip extends StatelessWidget {
     final t = tokens(context);
     final title = tab.url == null
         ? (tab.isPrivate ? RetroStrings.privateTab : RetroStrings.newTab)
+        : tab.url == BrowserController.settingsPage
+        ? RetroStrings.browserSettings
+        : tab.url == BrowserController.filtersPage
+        ? RetroStrings.filterLists
         : (tab.title.isNotEmpty ? tab.title : tab.host);
     final favicon = tab.favicon;
     Widget icon;
     if (tab.loading) {
       icon = SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.6, color: t.accent));
+    } else if (tab.isInternal) {
+      icon = AppIcon.retro(
+        tab.url == BrowserController.filtersPage ? Symbols.shield_rounded : Symbols.settings_rounded,
+        size: 15,
+        retroOpacity: active ? 1 : 0.6,
+      );
     } else if (favicon != null) {
       icon = Image.memory(favicon, width: 16, height: 16, gaplessPlayback: true, filterQuality: FilterQuality.medium);
     } else {

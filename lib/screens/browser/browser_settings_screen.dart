@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
-import 'adblock_lists_screen.dart';
 
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/browser_controller.dart';
@@ -94,9 +93,8 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(RetroStrings.browserSettings)),
-      body: ListenableBuilder(
+    // Shown inside a browser tab (plezy://settings), so no app bar.
+    return ListenableBuilder(
         listenable: _settings,
         builder: (context, _) {
           if (!_settings.isLoaded) return const Center(child: CircularProgressIndicator());
@@ -111,6 +109,10 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 8, 4, 20),
+                        child: Text(RetroStrings.browserSettings, style: Theme.of(context).textTheme.headlineSmall),
+                      ),
                       _SectionTitle(RetroStrings.adblock),
                       _Card(
                         children: [
@@ -119,9 +121,7 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                             title: Text(RetroStrings.filterLists),
                             subtitle: Text(RetroStrings.adblockDescription),
                             trailing: const AppIcon.retro(Symbols.chevron_right_rounded, size: 20),
-                            onTap: () => Navigator.of(
-                              context,
-                            ).push(MaterialPageRoute<void>(builder: (_) => const AdblockListsScreen())),
+                            onTap: () => unawaited(BrowserController.instance.openInternal(BrowserController.filtersPage)),
                           ),
                         ],
                       ),
@@ -318,12 +318,12 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                             onChanged: (v) => unawaited(BrowserController.instance.setDarkMode(enabled: v)),
                           ),
                           if (_settings.darkMode) ...[
-                            _SliderTile(
+                            BrowserSliderTile(
                               label: RetroStrings.darkBrightness,
                               value: _settings.darkBrightness,
                               onChanged: (v) => unawaited(BrowserController.instance.setDarkMode(brightness: v)),
                             ),
-                            _SliderTile(
+                            BrowserSliderTile(
                               label: RetroStrings.darkContrast,
                               value: _settings.darkContrast,
                               onChanged: (v) => unawaited(BrowserController.instance.setDarkMode(contrast: v)),
@@ -447,7 +447,6 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
             ],
           );
         },
-      ),
     );
   }
 }
@@ -494,22 +493,22 @@ class _Card extends StatelessWidget {
 }
 
 /// A 50 to 150 % slider that applies when released.
-class _SliderTile extends StatefulWidget {
-  const _SliderTile({required this.label, required this.value, required this.onChanged});
+class BrowserSliderTile extends StatefulWidget {
+  const BrowserSliderTile({super.key, required this.label, required this.value, required this.onChanged});
 
   final String label;
   final int value;
   final ValueChanged<int> onChanged;
 
   @override
-  State<_SliderTile> createState() => _SliderTileState();
+  State<BrowserSliderTile> createState() => BrowserSliderTileState();
 }
 
-class _SliderTileState extends State<_SliderTile> {
+class BrowserSliderTileState extends State<BrowserSliderTile> {
   late double _value = widget.value.toDouble();
 
   @override
-  void didUpdateWidget(_SliderTile old) {
+  void didUpdateWidget(BrowserSliderTile old) {
     super.didUpdateWidget(old);
     if (old.value != widget.value) _value = widget.value.toDouble();
   }

@@ -145,6 +145,7 @@ abstract final class RetroGlyphs {
     Symbols.auto_fix_high_rounded: _wand,
     Symbols.rocket_launch_rounded: _rocket,
     Symbols.nights_stay_rounded: _moon,
+    Symbols.dark_mode_rounded: _moon,
     Symbols.favorite_border_rounded: _heart,
     Symbols.playlist_play_rounded: _playlist,
     Symbols.person_rounded: _person,

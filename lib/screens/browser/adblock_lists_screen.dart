@@ -73,24 +73,8 @@ class _AdblockListsScreenState extends State<AdblockListsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(RetroStrings.filterLists),
-        actions: [
-          ListenableBuilder(
-            listenable: _adblock,
-            builder: (context, _) => TextButton.icon(
-              onPressed: _adblock.updating || !_adblock.enabled ? null : () => unawaited(_adblock.update(force: true)),
-              icon: _adblock.updating
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const AppIcon.retro(Symbols.refresh_rounded, size: 18),
-              label: Text(_adblock.updating ? RetroStrings.updatingLists : RetroStrings.updateLists),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: ListenableBuilder(
+    // Shown inside a browser tab (plezy://filters), so no app bar.
+    return ListenableBuilder(
         listenable: _adblock,
         builder: (context, _) {
           if (!_adblock.isLoaded) return const Center(child: CircularProgressIndicator());
@@ -107,6 +91,25 @@ class _AdblockListsScreenState extends State<AdblockListsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 8, 4, 20),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(RetroStrings.filterLists, style: Theme.of(context).textTheme.headlineSmall),
+                            ),
+                            TextButton.icon(
+                              onPressed: _adblock.updating || !_adblock.enabled
+                                  ? null
+                                  : () => unawaited(_adblock.update(force: true)),
+                              icon: _adblock.updating
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const AppIcon.retro(Symbols.refresh_rounded, size: 18),
+                              label: Text(_adblock.updating ? RetroStrings.updatingLists : RetroStrings.updateLists),
+                            ),
+                          ],
+                        ),
+                      ),
                       _Card(
                         children: [
                           SwitchListTile(
@@ -227,7 +230,6 @@ class _AdblockListsScreenState extends State<AdblockListsScreen> {
             ],
           );
         },
-      ),
     );
   }
 }
