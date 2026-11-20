@@ -230,6 +230,11 @@ LRESULT CALLBACK MpvInnerSubclassProc(
       if (!(pos->flags & SWP_NOSIZE)) {
         pos->cx = host.right - host.left;
         pos->cy = host.bottom - host.top;
+        MONITORINFO monitor{sizeof(monitor)};
+        if (::GetMonitorInfo(::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitor)) {
+          pos->cx = (std::min)(pos->cx, static_cast<int>(monitor.rcMonitor.right - monitor.rcMonitor.left));
+          pos->cy = (std::min)(pos->cy, static_cast<int>(monitor.rcMonitor.bottom - monitor.rcMonitor.top));
+        }
       }
       if (!(pos->flags & SWP_NOMOVE)) {
         pos->x = 0;
@@ -790,12 +795,21 @@ void MpvPlayer::SetRect(RECT rect, double device_pixel_ratio) {
     rect.top = (std::max)(rect.top, client.top);
     rect.right = (std::min)(rect.right, client.right);
     rect.bottom = (std::min)(rect.bottom, client.bottom);
+    // And never larger than the monitor the window is on.
+    MONITORINFO monitor{sizeof(monitor)};
+    if (::GetMonitorInfo(::MonitorFromWindow(view, MONITOR_DEFAULTTONEAREST), &monitor)) {
+      const LONG max_width = monitor.rcMonitor.right - monitor.rcMonitor.left;
+      const LONG max_height = monitor.rcMonitor.bottom - monitor.rcMonitor.top;
+      rect.right = (std::min)(rect.right, rect.left + max_width);
+      rect.bottom = (std::min)(rect.bottom, rect.top + max_height);
+    }
     if (rect.right < rect.left) rect.right = rect.left;
     if (rect.bottom < rect.top) rect.bottom = rect.top;
     if (!::EqualRect(&asked, &rect)) {
       char text[200];
-      snprintf(text, sizeof(text), "video rect %ldx%ld clamped to the view %ldx%ld (scale %.2f)",
-               asked.right - asked.left, asked.bottom - asked.top, client.right, client.bottom, device_pixel_ratio);
+      snprintf(text, sizeof(text), "video rect %ldx%ld clamped to %ldx%ld (view %ldx%ld, scale %.2f)",
+               asked.right - asked.left, asked.bottom - asked.top, rect.right - rect.left, rect.bottom - rect.top,
+               client.right, client.bottom, device_pixel_ratio);
       SendGeometryLog(text);
     }
   }

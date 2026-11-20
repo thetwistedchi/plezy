@@ -182,7 +182,8 @@ Win32Window::MessageHandler(HWND hwnd, UINT const message, WPARAM const wparam, 
       if (HMONITOR monitor = MonitorFromRect(newRectSize, MONITOR_DEFAULTTONEAREST)) {
         MONITORINFO info{sizeof(info)};
         if (GetMonitorInfo(monitor, &info)) {
-          const RECT& work = info.rcWork;
+          // The whole monitor, so a fullscreen window keeps its size.
+          const RECT& work = info.rcMonitor;
           newWidth = (std::min)(newWidth, work.right - work.left);
           newHeight = (std::min)(newHeight, work.bottom - work.top);
           newLeft = (std::max)(work.left, (std::min)(newLeft, work.right - newWidth));
@@ -192,6 +193,19 @@ Win32Window::MessageHandler(HWND hwnd, UINT const message, WPARAM const wparam, 
 
       SetWindowPos(hwnd, nullptr, newLeft, newTop, newWidth, newHeight, SWP_NOZORDER | SWP_NOACTIVATE);
 
+      return 0;
+    }
+    // Fork: Windows asks this before every resize, including the one after
+    // a move to a monitor with another scale: the window is never made larger
+    // than the monitor it is on.
+    case WM_GETMINMAXINFO: {
+      auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+      MONITORINFO monitor{sizeof(monitor)};
+      if (info && GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitor)) {
+        const RECT& area = monitor.rcMonitor;
+        info->ptMaxTrackSize.x = (std::min)(info->ptMaxTrackSize.x, area.right - area.left);
+        info->ptMaxTrackSize.y = (std::min)(info->ptMaxTrackSize.y, area.bottom - area.top);
+      }
       return 0;
     }
     case WM_SIZE: {
