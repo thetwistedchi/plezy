@@ -57,6 +57,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
   final List<StreamSubscription<Object>> _subs = [];
   _Notice? _notice;
   int _overlays = 0;
+  final _addressLink = LayerLink();
+  final _suggestPortal = OverlayPortalController();
+  List<_Suggestion> _suggestions = const [];
+  int _highlighted = -1;
   bool? _routeCurrent;
 
   @override
@@ -69,6 +73,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _subs.add(_controller.prompts.listen(_onPrompt));
     _subs.add(_controller.shortcuts.listen(_onShortcut));
     _addressFocus.addListener(_onAddressFocus);
+    _address.addListener(_onAddressText);
     unawaited(_bookmarks.load());
     _syncAddress();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -127,6 +132,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       _selectAddress();
     } else {
       _selectOnTap = false;
+      if (_suggestions.isNotEmpty) _setSuggestions(const []);
       _syncAddress();
     }
   }
@@ -147,6 +153,151 @@ class _BrowserScreenState extends State<BrowserScreen> {
       _overlays--;
       _syncVisibility();
     }
+  }
+
+  /// Flutter content over the page (a menu, the suggestions) hides the page
+  /// while it shows: clicks there would otherwise reach the page.
+  void _overlayActive(bool active) {
+    _overlays += active ? 1 : -1;
+    _syncVisibility();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  // ---- Suggestions ----
+
+  void _onAddressText() {
+    if (!_addressFocus.hasFocus) return _setSuggestions(const []);
+    final query = _address.text.trim().toLowerCase();
+    if (query.length < 3 || query == (_controller.active?.url ?? '').toLowerCase()) {
+      return _setSuggestions(const []);
+    }
+    final seen = <String>{};
+    final starts = <_Suggestion>[];
+    final contains = <_Suggestion>[];
+    void consider(String url, String title, bool bookmark) {
+      final key = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+      if (!seen.add(key)) return;
+      final bare = key.toLowerCase().replaceFirst(RegExp(r'^https?://(www\.)?'), '');
+      final t = title.toLowerCase();
+      final s = _Suggestion(url: url, title: title, bookmark: bookmark);
+      if (bare.startsWith(query)) {
+        starts.add(s);
+      } else if (bare.contains(query) || t.contains(query)) {
+        contains.add(s);
+      }
+    }
+
+    for (final b in _bookmarks.items) {
+      consider(b.url, b.title, true);
+    }
+    for (final p in BrowserHistory.instance.recent(BrowserHistory.maxEntries)) {
+      consider(p.url, p.title, false);
+    }
+    _setSuggestions([...starts, ...contains].take(6).toList());
+  }
+
+  void _setSuggestions(List<_Suggestion> list) {
+    if (list.isEmpty && _suggestions.isEmpty) return;
+    final wasShown = _suggestions.isNotEmpty;
+    _suggestions = list;
+    _highlighted = -1;
+    if (list.isNotEmpty) {
+      _suggestPortal.show();
+      if (!wasShown) _overlayActive(true);
+    } else {
+      _suggestPortal.hide();
+      if (wasShown) _overlayActive(false);
+    }
+    if (mounted) setState(() {});
+  }
+
+  KeyEventResult _onAddressKey(FocusNode node, KeyEvent event) {
+    if (_suggestions.isEmpty || event is KeyUpEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.arrowUp) {
+      final n = _suggestions.length;
+      setState(() {
+        _highlighted = key == LogicalKeyboardKey.arrowDown
+            ? (_highlighted + 1) % n
+            : (_highlighted <= 0 ? n - 1 : _highlighted - 1);
+      });
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.escape) {
+      _setSuggestions(const []);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  Widget _buildSuggestions(BuildContext context) {
+    final t = tokens(context);
+    final box = _addressLink.leaderSize;
+    return CompositedTransformFollower(
+      link: _addressLink,
+      targetAnchor: Alignment.bottomLeft,
+      offset: const Offset(0, 4),
+      showWhenUnlinked: false,
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: TextFieldTapRegion(
+          child: SizedBox(
+            width: box?.width ?? 600,
+            child: Material(
+              color: t.surface,
+              elevation: 8,
+              borderRadius: BorderRadius.circular(t.radiusMd),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < _suggestions.length; i++)
+                    InkWell(
+                      onTap: () {
+                        final url = _suggestions[i].url;
+                        _setSuggestions(const []);
+                        unawaited(_submit(url));
+                      },
+                      child: Container(
+                        color: i == _highlighted ? t.accent.withValues(alpha: 0.16) : null,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                        child: Row(
+                          children: [
+                            AppIcon.retro(
+                              _suggestions[i].bookmark ? Symbols.bookmark_rounded : Symbols.history_rounded,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    if (_suggestions[i].title.isNotEmpty)
+                                      TextSpan(text: '${_suggestions[i].title}  ', style: TextStyle(color: t.text)),
+                                    TextSpan(
+                                      text: _suggestions[i].url,
+                                      style: TextStyle(color: t.textMuted, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _setNotice(_Notice? notice) {
@@ -303,6 +454,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   Future<void> _submit(String text) async {
     _setNotice(null);
+    if (_suggestions.isNotEmpty) _setSuggestions(const []);
     await _controller.go(text);
     _addressFocus.unfocus();
     _keys.requestFocus();
@@ -476,6 +628,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
         ),
       );
     }
+    // While Flutter content covers the page, the page is hidden.
+    if (_overlays > 0) {
+      return DecoratedBox(decoration: pageDecoration(Theme.of(context)), child: const _PageSlot());
+    }
     return const _PageSlot();
   }
 
@@ -557,13 +713,26 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 ),
           const SizedBox(width: 6),
           Expanded(
-            child: SizedBox(
+            child: CompositedTransformTarget(
+              link: _addressLink,
+              child: OverlayPortal(
+                controller: _suggestPortal,
+                overlayChildBuilder: _buildSuggestions,
+                child: Focus(
+                  canRequestFocus: false,
+                  skipTraversal: true,
+                  onKeyEvent: _onAddressKey,
+                  child: SizedBox(
               height: 36,
               child: TextField(
                 controller: _address,
                 focusNode: _addressFocus,
-                onSubmitted: (v) => unawaited(_submit(v)),
+                onSubmitted: (v) => unawaited(_submit(_highlighted >= 0 && _highlighted < _suggestions.length ? _suggestions[_highlighted].url : v)),
                 onTap: _onAddressTap,
+                contextMenuBuilder: (context, editable) => _OverlayGuard(
+                  onChange: _overlayActive,
+                  child: AdaptiveTextSelectionToolbar.editableText(editableTextState: editable),
+                ),
                 onTapOutside: (_) => _addressFocus.unfocus(),
                 keyboardType: TextInputType.url,
                 textInputAction: TextInputAction.go,
@@ -609,6 +778,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 ),
               ),
             ),
+                  ),
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 4),
           _iconButton(Symbols.bookmarks_rounded, RetroStrings.bookmarks, () => unawaited(_showBookmarks())),
@@ -641,6 +814,41 @@ class _BrowserScreenState extends State<BrowserScreen> {
       ),
     );
   }
+}
+
+class _Suggestion {
+  const _Suggestion({required this.url, required this.title, required this.bookmark});
+  final String url;
+  final String title;
+  final bool bookmark;
+}
+
+/// Reports while its child (a context menu) is on screen.
+class _OverlayGuard extends StatefulWidget {
+  const _OverlayGuard({required this.onChange, required this.child});
+
+  final ValueChanged<bool> onChange;
+  final Widget child;
+
+  @override
+  State<_OverlayGuard> createState() => _OverlayGuardState();
+}
+
+class _OverlayGuardState extends State<_OverlayGuard> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onChange(true);
+  }
+
+  @override
+  void dispose() {
+    widget.onChange(false);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _TabChip extends StatelessWidget {
