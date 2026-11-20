@@ -18,6 +18,7 @@ import 'package:plezy/widgets/app_icon.dart';
 import 'package:plezy/widgets/background_download_warning_banner.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
+import '../widgets/mini_player/video_mini_player.dart' show MinimizableRoute;
 import '../widgets/collapsible_text.dart';
 import '../widgets/rating_bottom_sheet.dart';
 
@@ -1157,8 +1158,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   /// reaches it under a dialog closes the dialog.
   void _popMediaDetail() {
     final route = _route ?? ModalRoute.of(context);
-    if (route == null || !route.isCurrent) return;
-    Navigator.pop(context, _watchStateChanged);
+    if (route == null) return;
+    // Fork: also leaves while a minimized player sits above this page.
+    MinimizableRoute.popRoute(route, _watchStateChanged);
   }
 
   void _handleMediaDetailSystemBack() {

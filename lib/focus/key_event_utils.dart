@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../widgets/mini_player/video_mini_player.dart' show MinimizableRoute;
 import '../utils/platform_detector.dart';
 import 'dpad_navigator.dart';
 
@@ -108,8 +109,13 @@ KeyEventResult handleBackKeyNavigation<T>(BuildContext context, KeyEvent event, 
   }
   // Don't handle back when a dialog/overlay is on top of our route —
   // the overlay handles its own dismissal via DismissAction.
-  if (ModalRoute.of(context)?.isCurrent != true) {
+  final ownRoute = ModalRoute.of(context);
+  if (ownRoute == null || !MinimizableRoute.isCurrentOrUnderMinimized(ownRoute)) {
     return KeyEventResult.ignored;
+  }
+  // Fork: under the mini player the top route is the player, so pop this one.
+  if (!ownRoute.isCurrent) {
+    return handleBackKeyAction(event, () => MinimizableRoute.popRoute(ownRoute, result));
   }
   // Handle on KeyUpEvent to prevent double-pop when returning from child screens
   // (KeyDownEvent can be received by both the popping screen and the returned-to screen)

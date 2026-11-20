@@ -5,6 +5,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../focus/focusable_wrapper.dart';
 import '../i18n/strings.g.dart';
 import 'app_icon.dart';
+import 'mini_player/video_mini_player.dart' show MinimizableRoute;
 
 /// Defines the visual style of the back button
 enum BackButtonStyle {
@@ -70,7 +71,8 @@ class _AppBarBackButtonState extends State<AppBarBackButton> {
     // A back button acts for the route it is drawn in. A key can still reach it
     // after that route began closing or under a route pushed above it, where
     // the pop would take that other route instead.
-    if (!(ModalRoute.isCurrentOf(context) ?? true)) return;
+    final route = ModalRoute.of(context);
+    if (route != null && !MinimizableRoute.isCurrentOrUnderMinimized(route)) return;
     if (widget.onPressed != null) {
       widget.onPressed!();
     } else {

@@ -125,14 +125,53 @@ mixin MinimizableRoute<T> on ModalRoute<T> {
   bool _minimized = false;
   Route<dynamic>? _below;
 
+  static final Set<MinimizableRoute<dynamic>> _minimizedRoutes = {};
+
+  /// Fork: [route] is the top route, or only a minimized player sits above it.
+  /// Back buttons and back keys use this in place of [Route.isCurrent], which
+  /// stays false for the page under the mini player.
+  static bool isCurrentOrUnderMinimized(Route<dynamic> route) {
+    if (route.isCurrent) return true;
+    if (!route.isActive) return false;
+    for (final m in _minimizedRoutes) {
+      if (identical(m._below, route) && m.isTopRoute && m.isActive) return true;
+    }
+    return false;
+  }
+
+  /// Fork: closes [route] if [isCurrentOrUnderMinimized]: a plain pop when it
+  /// is on top, otherwise it is taken out from under the mini player.
+  static bool popRoute(Route<dynamic> route, [Object? result]) {
+    final nav = route.navigator;
+    if (nav == null || !isCurrentOrUnderMinimized(route)) return false;
+    if (route.isCurrent) {
+      nav.pop(result);
+    } else {
+      if (route.isFirst) return false;
+      nav.removeRoute(route);
+    }
+    return true;
+  }
+
   bool get minimized => _minimized;
 
   set minimized(bool value) {
     if (_minimized == value) return;
     _minimized = value;
+    if (value) {
+      _minimizedRoutes.add(this);
+    } else {
+      _minimizedRoutes.remove(this);
+    }
     final entries = overlayEntries;
     if (entries.isNotEmpty) entries.first.opaque = opaque;
     changedInternalState();
+  }
+
+  @override
+  void dispose() {
+    _minimizedRoutes.remove(this);
+    super.dispose();
   }
 
   @override
