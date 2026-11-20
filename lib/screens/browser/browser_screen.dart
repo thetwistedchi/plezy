@@ -789,7 +789,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 ),
               ),
             ),
-          ),
           const SizedBox(width: 4),
           _iconButton(Symbols.bookmarks_rounded, RetroStrings.bookmarks, () => unawaited(_showBookmarks())),
         ],

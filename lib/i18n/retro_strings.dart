@@ -186,7 +186,7 @@ class RetroStrings {
 
   static String get browserProtection => _t('Built-in protection', 'Eingebauter Schutz');
   static String get browserProtectionDescription => _t(
-    'Pop-ups only open from a clicked link or within the same site, pages can't jump to another site right after opening one, notification requests are declined, passwords and form data are not saved, and Microsoft Defender SmartScreen warns about known dangerous sites and downloads.',
+    'Pop-ups only open from a clicked link or within the same site, pages can\'t jump to another site right after opening one, notification requests are declined, passwords and form data are not saved, and Microsoft Defender SmartScreen warns about known dangerous sites and downloads.',
     'Pop-ups öffnen sich nur über einen angeklickten Link oder innerhalb derselben Seite, Seiten können nach einem Pop-up nicht sofort zu einer anderen Seite springen, Benachrichtigungsanfragen werden abgelehnt, Passwörter und Formulardaten werden nicht gespeichert und Microsoft Defender SmartScreen warnt vor bekannten gefährlichen Seiten und Downloads.',
   );
 }
