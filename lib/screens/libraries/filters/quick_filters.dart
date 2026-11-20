@@ -18,6 +18,7 @@ class FilterStrings {
   static bool get _de => LocaleSettings.currentLocale == AppLocale.de;
   static String _t(String en, String de) => _de ? de : en;
 
+  static String get showAll => _t('Show all', 'Alle anzeigen');
   static String get unwatched => _t('Unwatched', 'Ungesehen');
   static String get uhd => '4K';
   static String get hdr => 'HDR';
@@ -375,5 +376,38 @@ abstract final class SavedFilterSets {
   static Future<void> remove(String libraryKey, String name) async {
     final sets = [...await load(libraryKey)]..removeWhere((s) => s.name == name);
     await save(libraryKey, sets);
+  }
+}
+
+
+/// Fork: "Show all" on a Recently added row. Opens the row's library in
+/// Libraries › Browse with the Added recently filter and newest first.
+abstract final class LibraryJump {
+  /// Set by the main screen: switches to Libraries on that library.
+  static void Function(String libraryGlobalKey)? openLibrary;
+
+  static String? _pendingRecent;
+
+  /// Bumps when a jump is requested, so a Browse tab already showing that
+  /// library applies it too.
+  static final ValueNotifier<int> revision = ValueNotifier(0);
+
+  static bool get canOpen => openLibrary != null;
+
+  static void showRecentlyAdded(String libraryGlobalKey) {
+    final open = openLibrary;
+    if (open == null) return;
+    _pendingRecent = libraryGlobalKey;
+    open(libraryGlobalKey);
+    revision.value++;
+  }
+
+  static bool hasPendingRecent(String libraryGlobalKey) => _pendingRecent == libraryGlobalKey;
+
+  /// Hands the pending request to [libraryGlobalKey]'s Browse tab, once.
+  static bool takePendingRecent(String libraryGlobalKey) {
+    if (_pendingRecent != libraryGlobalKey) return false;
+    _pendingRecent = null;
+    return true;
   }
 }

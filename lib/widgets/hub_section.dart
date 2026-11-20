@@ -14,6 +14,9 @@ import '../focus/key_event_utils.dart';
 import '../services/settings_service.dart';
 import 'settings_builder.dart';
 import '../utils/layout_constants.dart';
+import '../media/ids.dart';
+import '../screens/libraries/filters/quick_filters.dart' show FilterStrings, LibraryJump;
+import '../utils/global_key_utils.dart';
 import '../utils/platform_detector.dart';
 import '../theme/mono_tokens.dart';
 import '../focus/locked_hub_controller.dart';
@@ -187,6 +190,18 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
   }
 
   /// Total item count including the optional "View All" card
+  /// Fork: the library of a Recently added row, when Libraries can open it
+  /// (the row's "Show all" button). Null for every other row.
+  String? get _recentlyAddedLibraryKey {
+    final hub = widget.hub;
+    final id = (hub.identifier ?? hub.id).toLowerCase();
+    final isRecent = id.contains('recentlyadded') || id.endsWith('.recent');
+    final libraryId = hub.libraryId;
+    final serverId = hub.serverId;
+    if (!isRecent || libraryId == null || serverId == null || !LibraryJump.canOpen) return null;
+    return buildGlobalKey(ServerId(serverId), libraryId);
+  }
+
   int get _totalItemCount => widget.hub.items.length + (widget.hub.more ? 1 : 0);
 
   @override
@@ -533,7 +548,12 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
             padding: widget.inset
                 ? EdgeInsets.symmetric(vertical: isTv ? 6 : 2)
                 : EdgeInsets.fromLTRB(leadingPadding - 4, isTv ? 6 : 2, 8, isTv ? 8 : 2),
-            child: MouseRegion(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: MouseRegion(
               onEnter: widget.onToggleHideWatched == null ? null : (_) => setState(() => _headerHovered = true),
               onExit: widget.onToggleHideWatched == null ? null : (_) => setState(() => _headerHovered = false),
               child: ExcludeFocus(
@@ -614,6 +634,27 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                 ),
               ),
             ),
+            ),
+                  ),
+                ),
+                // Fork: "Show all" on a Recently added row opens its library
+                // filtered to Added recently, newest first.
+                if (_recentlyAddedLibraryKey case final libraryKey? when !isTv)
+                  TextButton.icon(
+                    onPressed: () => LibraryJump.showRecentlyAdded(libraryKey),
+                    style: TextButton.styleFrom(
+                      foregroundColor: retroHeading,
+                      visualDensity: VisualDensity.compact,
+                      // Keeps the header row as low as before.
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                    ),
+                    iconAlignment: IconAlignment.end,
+                    icon: AppIcon.retro(Symbols.arrow_forward_rounded, fill: 1, size: 18, color: retroHeading),
+                    label: Text(FilterStrings.showAll),
+                  ),
+              ],
             ),
           ),
 

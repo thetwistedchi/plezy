@@ -75,6 +75,7 @@ import '../focus/key_event_utils.dart';
 import 'discover_screen.dart';
 import 'explore_screen.dart';
 import 'libraries/library_quick_picker_sheet.dart';
+import 'libraries/filters/quick_filters.dart' show LibraryJump;
 import 'libraries/libraries_screen.dart';
 import 'livetv/live_tv_screen.dart';
 import 'search_screen.dart';
@@ -543,6 +544,7 @@ class _MainScreenState extends State<MainScreen>
   void initState() {
     super.initState();
     ShortcutsOverlay.install(() => context);
+    LibraryJump.openLibrary = _selectLibrary;
     _isOffline = widget.isOfflineMode;
     _offlineUntilConnected = widget.isOfflineMode;
 
@@ -1051,6 +1053,7 @@ class _MainScreenState extends State<MainScreen>
   @override
   void dispose() {
     _retrowaveRecheck?.cancel();
+    if (LibraryJump.openLibrary == _selectLibrary) LibraryJump.openLibrary = null;
     ShortcutsOverlay.uninstall();
     if (_watchTogether?.navigatorOpener == _navigateToWatchTogetherMedia) _watchTogether?.navigatorOpener = null;
     WidgetsBinding.instance.removeObserver(this);

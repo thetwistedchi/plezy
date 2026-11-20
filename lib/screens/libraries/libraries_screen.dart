@@ -35,6 +35,7 @@ import 'library_server_label.dart';
 import 'state_messages.dart';
 import 'tabs/library_browse_tab.dart';
 import 'tabs/library_recommended_tab.dart';
+import 'filters/quick_filters.dart' show LibraryJump;
 import 'library_search_field.dart';
 import 'tabs/library_collections_tab.dart';
 import 'tabs/library_genres_tab.dart';
@@ -579,8 +580,11 @@ class _LibrariesScreenState extends State<LibrariesScreen>
     await storage.saveSelectedLibraryKey(libraryGlobalKey);
     if (!mounted || _selectedLibraryGlobalKey != libraryGlobalKey) return;
 
-    // Restore saved tab by name
-    final savedTabName = storage.getLibraryTab(libraryGlobalKey);
+    // Restore saved tab by name. Fork: a "Show all" from a Recently added
+    // row opens Browse instead.
+    final savedTabName = LibraryJump.hasPendingRecent(libraryGlobalKey)
+        ? LibraryTabType.browse.name
+        : storage.getLibraryTab(libraryGlobalKey);
     final savedType = LibraryTabType.values.where((t) => t.name == savedTabName).firstOrNull;
     final targetTabIndex = savedType != null ? _visibleTabs.indexOf(savedType) : -1;
     if (targetTabIndex >= 0 && targetTabIndex != tabController.index) {

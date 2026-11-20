@@ -482,7 +482,38 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
   }
 
   @override
+  void initState() {
+    super.initState();
+    LibraryJump.revision.addListener(_tryApplyPendingJump);
+  }
+
+  /// Fork: "Show all" from a Recently added row: the Added recently filter
+  /// alone, newest first. Waits until the quick filters are known.
+  void _tryApplyPendingJump() {
+    if (!mounted || _quickFilters.isEmpty || _selectedGrouping == 'folders') return;
+    final key = widget.library.globalKey;
+    if (!LibraryJump.takePendingRecent(key)) return;
+    final recent = _quickFilters.where((q) => q.kind == QuickFilterKind.recent).firstOrNull;
+    final sort = _sortOptions.where((s) => s.key == 'addedAt').firstOrNull;
+    if (sort != null) {
+      setState(() {
+        _selectedSort = sort;
+        _isSortDescending = true;
+      });
+      unawaited(
+        StorageService.getInstance().then((storage) => storage.saveLibrarySort(key, sort.key, descending: true)),
+      );
+    }
+    if (recent != null) {
+      unawaited(_applyFilters(recent.toggle(const [])));
+    } else if (sort != null) {
+      unawaited(_applyFilters(const []));
+    }
+  }
+
+  @override
   void dispose() {
+    LibraryJump.revision.removeListener(_tryApplyPendingJump);
     disposePagination();
     _scrollActivityTimer?.cancel();
     _scrollIdleTimer?.cancel();
@@ -2329,6 +2360,7 @@ class _LibraryBrowseTabState extends BaseLibraryTabState<MediaItem, LibraryBrows
       ) {
         if (!mounted || generation != _quickFiltersGeneration) return;
         setState(() => _quickFilters = quick);
+        _tryApplyPendingJump();
       }),
     );
   }
