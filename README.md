@@ -8,7 +8,7 @@
 
 A Windows-focused fork of [Plezy](https://github.com/edde746/plezy), with an Android and Android TV build, a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
 
-Current version: **0.9.5.1**. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
+Current version: **0.9.5.2**. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
 
 <p>
   <a href="https://github.com/thetwistedchi/plezy/releases">Release notes</a> ·
