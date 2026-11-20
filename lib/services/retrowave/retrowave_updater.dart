@@ -22,6 +22,9 @@ class RetrowaveRelease {
 
   /// File name → download URL.
   final Map<String, String> assets;
+
+  RetrowaveRelease withNotes(String notes) =>
+      RetrowaveRelease(version: version, name: name, notes: notes, pageUrl: pageUrl, assets: assets);
 }
 
 /// How [RetrowaveUpdater.install] can update this copy of the app.
@@ -96,7 +99,8 @@ abstract final class RetrowaveUpdater {
       final release = _parse(jsonDecode(response.body) as Map<String, dynamic>);
       if (!isNewer(release.version, currentVersion)) return null;
       if (!manual && prefs.getString(_keySkipped) == release.version) return null;
-      return release;
+      // Several releases since this build: show all their notes.
+      return release.withNotes(await _notesSince(currentVersion, release));
     } catch (e, st) {
       appLogger.w('Update check failed', error: e, stackTrace: st);
       if (manual) rethrow;
@@ -141,11 +145,46 @@ abstract final class RetrowaveUpdater {
           )
           .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) return null;
-      return _parse(jsonDecode(response.body) as Map<String, dynamic>);
+      final release = _parse(jsonDecode(response.body) as Map<String, dynamic>);
+      // Updated across several releases: what is new in all of them.
+      return release.withNotes(await _notesSince(last, release));
     } catch (e) {
       appLogger.d('What\'s new lookup failed', error: e);
       return null;
     }
+  }
+
+  /// The notes of every release after [installed] up to [target], newest
+  /// first, each under its version as a heading. Only [target]'s own notes
+  /// when it is the only one, or when the list cannot be read.
+  static Future<String> _notesSince(String installed, RetrowaveRelease target) async {
+    try {
+      final response = await http
+          .get(
+            Uri.https('api.github.com', '/repos/$_repo/releases', {'per_page': '30'}),
+            headers: {'Accept': 'application/vnd.github+json'},
+          )
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) return target.notes;
+      final releases = [
+        for (final r in jsonDecode(response.body) as List)
+          if (r is Map<String, dynamic> && r['draft'] != true && r['prerelease'] != true) _parse(r),
+      ].where((r) => isNewer(r.version, installed) && !isNewer(r.version, target.version)).toList()
+        ..sort((a, b) => isNewer(a.version, b.version) ? -1 : (isNewer(b.version, a.version) ? 1 : 0));
+      if (releases.length <= 1) return target.notes;
+      return [for (final r in releases) _withVersionHeading(r)].join('\n\n');
+    } catch (e) {
+      appLogger.d('Release list unavailable', error: e);
+      return target.notes;
+    }
+  }
+
+  /// A release's notes with `## <version>` as its first line, in place of
+  /// its `## Plezy Retrowave <version>` title.
+  static String _withVersionHeading(RetrowaveRelease release) {
+    final lines = release.notes.trim().split(RegExp(r'\r?\n'));
+    if (lines.isNotEmpty && lines.first.trimLeft().startsWith('## Plezy Retrowave')) lines.removeAt(0);
+    return ['## ${release.version}', ...lines].join('\n').trim();
   }
 
   static Future<void> skip(String version) async {
