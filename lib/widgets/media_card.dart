@@ -1617,8 +1617,8 @@ class _RatingMedianBadge extends StatelessWidget {
   }
 }
 
-/// Quality (cyan) and audio languages (violet) in one fixed-height row; more
-/// than two languages collapse to `+N`.
+/// Quality, HDR and audio format (cyan) on the left, the audio languages
+/// (violet) on the right, in one fixed-height row.
 class _InfoPills extends StatelessWidget {
   const _InfoPills({required this.item, required this.isOffline});
 
@@ -1626,6 +1626,9 @@ class _InfoPills extends StatelessWidget {
   final bool isOffline;
 
   static const double _gap = 4;
+
+  /// Least space kept between the left group and the languages.
+  static const double _groupGap = 6;
 
   /// Width of a [RetroPill] with [label] at its default size.
   static double _pillWidth(String label, ui.TextDirection direction) {
@@ -1642,39 +1645,42 @@ class _InfoPills extends StatelessWidget {
     return math.max(18.0, width + 18 * 0.38 * 2 + 2);
   }
 
-  /// The most detailed pill set that fits [maxWidth]: on narrow cards (TV,
-  /// dense grids) quality and HDR merge into one pill and the languages
-  /// shorten to the first one plus a count, instead of the last pill being
-  /// cut off.
-  static List<(String, RetroPillTone)> _fit(PosterInfo info, double maxWidth, ui.TextDirection direction) {
+  static double _rowWidth(List<String> pills, ui.TextDirection direction) =>
+      pills.fold<double>(0, (sum, p) => sum + _pillWidth(p, direction)) + _gap * math.max(0, pills.length - 1);
+
+  /// The most detailed left and right sets that fit [maxWidth] together.
+  /// When they would meet, the details give way in this order, so quality
+  /// and a language stay longest: the audio layout (`7.1`), quality and HDR
+  /// merge (`4K HDR`), the languages shorten to the first plus a count
+  /// (`DE +2`), Atmos and the DTS variant go (`TrueHD`, `DTS`), then the
+  /// audio pill, and last only the languages are kept.
+  static (List<String>, List<String>) _fit(PosterInfo info, double maxWidth, ui.TextDirection direction) {
     final quality = info.quality;
     final langs = info.languages;
-    String? langsFull;
-    if (langs.isNotEmpty) {
-      langsFull = langs.length <= 2 ? langs.join(' · ') : '${langs.take(2).join(' · ')} +${langs.length - 2}';
-    }
+    final langsFull = langs.isEmpty
+        ? null
+        : (langs.length <= 2 ? langs.join(' · ') : '${langs.take(2).join(' · ')} +${langs.length - 2}');
     final langsShort = langs.isEmpty ? null : (langs.length == 1 ? langs.first : '${langs.first} +${langs.length - 1}');
     final merged = [?quality, if (info.hdr) 'HDR'].join(' ');
+    final codec = info.audioCodec;
+    final audioFull = codec == null ? null : [codec, ?info.audioChannels].join(' ');
+    final audioBase = codec?.split(' ').first.replaceFirst(RegExp(r'^DTS.*'), 'DTS');
 
-    final candidates = <List<(String, RetroPillTone)>>[
-      [
-        if (quality != null) (quality, RetroPillTone.cyan),
-        if (info.hdr) ('HDR', RetroPillTone.cyan),
-        if (langsFull != null) (langsFull, RetroPillTone.violet),
-      ],
-      [
-        if (merged.isNotEmpty) (merged, RetroPillTone.cyan),
-        if (langsFull != null) (langsFull, RetroPillTone.violet),
-      ],
-      [
-        if (merged.isNotEmpty) (merged, RetroPillTone.cyan),
-        if (langsShort != null) (langsShort, RetroPillTone.violet),
-      ],
-      [if (langsShort != null) (langsShort, RetroPillTone.violet) else if (merged.isNotEmpty) (merged, RetroPillTone.cyan)],
+    final separate = [?quality, if (info.hdr) 'HDR'];
+    final mergedList = [if (merged.isNotEmpty) merged];
+    final candidates = <(List<String>, List<String>)>[
+      ([...separate, ?audioFull], [?langsFull]),
+      ([...separate, ?codec], [?langsFull]),
+      ([...mergedList, ?codec], [?langsFull]),
+      ([...mergedList, ?codec], [?langsShort]),
+      ([...mergedList, ?audioBase], [?langsShort]),
+      (mergedList, [?langsShort]),
+      (langsShort != null ? const <String>[] : mergedList, [?langsShort]),
     ];
-    for (final pills in candidates) {
-      final width = pills.fold<double>(0, (sum, p) => sum + _pillWidth(p.$1, direction)) + _gap * math.max(0, pills.length - 1);
-      if (width <= maxWidth) return pills;
+    for (final (left, right) in candidates) {
+      final both = left.isNotEmpty && right.isNotEmpty;
+      final width = _rowWidth(left, direction) + _rowWidth(right, direction) + (both ? _groupGap : 0);
+      if (width <= maxWidth) return (left, right);
     }
     return candidates.last;
   }
@@ -1690,13 +1696,18 @@ class _InfoPills extends StatelessWidget {
         final info = cache.infoFor(item, client);
         return LayoutBuilder(
           builder: (context, constraints) {
-            final pills = _fit(info, constraints.maxWidth, Directionality.of(context));
+            final (left, right) = _fit(info, constraints.maxWidth, Directionality.of(context));
             return ClipRect(
               child: Row(
                 children: [
-                  for (var i = 0; i < pills.length; i++) ...[
+                  for (var i = 0; i < left.length; i++) ...[
                     if (i > 0) const SizedBox(width: _gap),
-                    RetroPill(label: pills[i].$1, tone: pills[i].$2),
+                    RetroPill(label: left[i], tone: RetroPillTone.cyan),
+                  ],
+                  const Spacer(),
+                  for (var i = 0; i < right.length; i++) ...[
+                    if (i > 0) const SizedBox(width: _gap),
+                    RetroPill(label: right[i], tone: RetroPillTone.violet),
                   ],
                 ],
               ),

@@ -11,14 +11,23 @@ import '../media/media_kind.dart';
 import '../media/media_server_client.dart';
 import '../media/media_stream.dart';
 import '../utils/app_logger.dart';
+import '../utils/codec_utils.dart';
 import '../utils/platform_detector.dart';
 import 'device_performance.dart';
 import 'plex_client.dart';
 
-/// Quality and audio languages of a title, for the pills under a poster.
+/// Quality, audio format and audio languages of a title, for the pills
+/// under a poster.
 @immutable
 class PosterInfo {
-  const PosterInfo({this.quality, this.hdr = false, this.languages = const []});
+  const PosterInfo({
+    this.quality,
+    this.hdr = false,
+    this.languages = const [],
+    this.audioCodec,
+    this.audioChannels,
+    this.audioKnown = true,
+  });
 
   /// `4K`, `1080p`, `720p` or `SD`.
   final String? quality;
@@ -27,7 +36,16 @@ class PosterInfo {
   /// Audio languages as two-letter codes (`DE`, `EN`), in stream order.
   final List<String> languages;
 
-  bool get isEmpty => quality == null && !hdr && languages.isEmpty;
+  /// Fork: format of the default audio track, e.g. `TrueHD Atmos`,
+  /// `DTS-HD MA`, `E-AC3`, and its layout (`7.1`, `5.1`, `Stereo`).
+  final String? audioCodec;
+  final String? audioChannels;
+
+  /// False for entries cached before the audio format was stored: they are
+  /// shown as they are and looked up again.
+  final bool audioKnown;
+
+  bool get isEmpty => quality == null && !hdr && languages.isEmpty && audioCodec == null;
 
   /// From an item with its versions (and, for languages, its streams).
   static PosterInfo of(MediaItem item) {
@@ -36,16 +54,42 @@ class PosterInfo {
     final version = versions.first;
     final streams = [for (final part in version.parts) ...part.streams];
     final languages = <String>[];
+    final audio = <MediaStream>[];
     for (final stream in streams) {
       if (stream.kind != MediaStreamKind.audio) continue;
+      audio.add(stream);
       final code = shortLanguage(stream.languageCode ?? stream.language);
       if (code != null && !languages.contains(code)) languages.add(code);
     }
+    // The track that plays by default: the server's pick, else the
+    // container's default, else the first.
+    final main = audio.where((s) => s.selected).firstOrNull ?? audio.where((s) => s.isDefault).firstOrNull ?? audio.firstOrNull;
     return PosterInfo(
       quality: _quality(version.videoResolution, version.height),
       hdr: streams.any((s) => s.kind == MediaStreamKind.video && s.hdr),
       languages: languages,
+      audioCodec: main == null ? null : _audioCodec(main),
+      audioChannels: CodecUtils.formatAudioChannels(main?.channels),
     );
+  }
+
+  /// `TrueHD Atmos`, `DTS-HD MA`, `DTS:X`, `E-AC3`, `AAC`. The DTS variant and
+  /// Atmos only show in the track's names, not its codec.
+  static String? _audioCodec(MediaStream stream) {
+    final codec = stream.codec;
+    if (codec == null || codec.isEmpty) return null;
+    final names = '${stream.displayTitle ?? ''} ${stream.title ?? ''}'.toUpperCase();
+    var name = CodecUtils.formatAudioCodec(codec);
+    if (name.startsWith('DTS')) {
+      for (final variant in const ['DTS:X', 'DTS-HD MA', 'DTS-HD HRA', 'DTS-ES']) {
+        if (names.contains(variant)) {
+          name = variant;
+          break;
+        }
+      }
+    }
+    if (names.contains('ATMOS') && (name == 'TrueHD' || name == 'E-AC3')) name = '$name Atmos';
+    return name;
   }
 
   static String? _quality(String? resolution, int? height) {
@@ -92,14 +136,18 @@ class PosterInfo {
     };
   }
 
-  List<Object?> toJson() => [quality, hdr ? 1 : 0, languages];
+  List<Object?> toJson() => [quality, hdr ? 1 : 0, languages, audioCodec, audioChannels];
 
   static PosterInfo? fromJson(Object? json) {
-    if (json is! List || json.length != 3) return null;
+    // Three fields: cached before the audio format was stored.
+    if (json is! List || (json.length != 3 && json.length != 5)) return null;
     return PosterInfo(
       quality: json[0] as String?,
       hdr: json[1] == 1,
       languages: [for (final l in (json[2] as List? ?? const [])) '$l'],
+      audioCodec: json.length == 5 ? json[3] as String? : null,
+      audioChannels: json.length == 5 ? json[4] as String? : null,
+      audioKnown: json.length == 5,
     );
   }
 }
@@ -157,20 +205,24 @@ class PosterInfoCache extends ChangeNotifier {
     unawaited(_load());
     final key = item.globalKey;
     final cached = _entries[key];
-    if (cached != null && DateTime.now().difference(cached.at) < _ttl) return cached.info;
+    if (cached != null && DateTime.now().difference(cached.at) < _ttl) {
+      // An older entry without the audio format: shown, and asked again.
+      if (!cached.info.audioKnown && client != null) _request(key, item, client, refresh: true);
+      return cached.info;
+    }
     final listing = PosterInfo.of(item);
     if (client != null && listing.languages.isEmpty) _request(key, item, client);
     return listing;
   }
 
-  void _request(String key, MediaItem item, MediaServerClient client) {
+  void _request(String key, MediaItem item, MediaServerClient client, {bool refresh = false}) {
     // Reduced effects tier (weak TV sticks): no background lookups; the pills
     // show what the listing carries (quality, HDR).
     if (DevicePerformance.isReduced) return;
     if (_pending.contains(key)) return;
     unawaited(
       _load().then((_) {
-        if (_entries.containsKey(key) || _pending.contains(key)) return;
+        if ((!refresh && _entries.containsKey(key)) || _pending.contains(key)) return;
         _pending.add(key);
         _queue.add((key: key, item: item, client: client));
         while (_queue.length > _maxQueued) {
