@@ -149,7 +149,11 @@ class BrowserWebPlugin : public flutter::Plugin {
   RECT rect_{0, 0, 0, 0};
   // Flutter popups over the page, in the same coordinates as rect_. The page
   // gets holes there, so the popups take the clicks and the page stays live.
-  std::vector<RECT> cutouts_;
+  struct Cutout {
+    RECT rect;
+    int radius;
+  };
+  std::vector<Cutout> cutouts_;
   int generation_ = 0;
 
   // Permission and download requests waiting for the Dart side's answer.

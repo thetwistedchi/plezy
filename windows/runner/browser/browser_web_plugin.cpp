@@ -465,8 +465,11 @@ void BrowserWebPlugin::ApplyRegion(BrowserTab& tab) {
   const int width = (std::max)(0, static_cast<int>(rect_.right - rect_.left));
   const int height = (std::max)(0, static_cast<int>(rect_.bottom - rect_.top));
   HRGN region = ::CreateRectRgn(0, 0, width, height);
-  for (const RECT& cut : cutouts_) {
-    HRGN hole = ::CreateRectRgn(cut.left - rect_.left, cut.top - rect_.top, cut.right - rect_.left, cut.bottom - rect_.top);
+  for (const Cutout& cutout : cutouts_) {
+    const RECT& cut = cutout.rect;
+    // Rounded like the popup, so no gap shows at its corners.
+    HRGN hole = ::CreateRoundRectRgn(cut.left - rect_.left, cut.top - rect_.top, cut.right - rect_.left + 1,
+                                     cut.bottom - rect_.top + 1, cutout.radius * 2, cutout.radius * 2);
     ::CombineRgn(region, region, hole, RGN_DIFF);
     ::DeleteObject(hole);
   }
@@ -513,8 +516,10 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
         if (std::holds_alternative<double>(v)) return static_cast<LONG>(std::get<double>(v));
         return 0;
       };
-      for (size_t i = 0; i + 3 < list.size(); i += 4) {
-        cutouts_.push_back(RECT{num(list[i]), num(list[i + 1]), num(list[i + 2]), num(list[i + 3])});
+      // left, top, right, bottom, corner radius
+      for (size_t i = 0; i + 4 < list.size(); i += 5) {
+        cutouts_.push_back(Cutout{RECT{num(list[i]), num(list[i + 1]), num(list[i + 2]), num(list[i + 3])},
+                                  static_cast<int>(num(list[i + 4]))});
       }
     }
     for (auto& [tab_id, tab] : tabs_) {

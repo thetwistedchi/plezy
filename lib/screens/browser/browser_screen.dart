@@ -15,6 +15,7 @@ import '../../services/browser/browser_history.dart';
 import '../../services/browser/browser_settings.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/page_backdrop.dart';
+import '../../theme/retrowave_colors.dart';
 import '../../widgets/app_icon.dart';
 import 'browser_icon.dart';
 import 'adblock_lists_screen.dart';
@@ -249,13 +250,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
         alignment: Alignment.topLeft,
         child: TextFieldTapRegion(
           child: _Cutout(
+            radius: t.radiusMd,
             child: SizedBox(
             width: box?.width ?? 600,
-            child: Material(
-              color: t.surface,
-              elevation: 8,
-              borderRadius: BorderRadius.circular(t.radiusMd),
-              clipBehavior: Clip.antiAlias,
+            child: _NeonPanel(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -813,11 +811,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
               top: anchor.bottom + 4,
               width: width,
               child: _Cutout(
-                child: Material(
-                  color: t.surface,
-                  elevation: 12,
-                  borderRadius: BorderRadius.circular(t.radiusMd),
-                  clipBehavior: Clip.antiAlias,
+                radius: t.radiusMd,
+                child: _NeonPanel(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxHeight: screen.height - anchor.bottom - 24),
                     child: SingleChildScrollView(child: builder(context)),
@@ -1265,7 +1260,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   anchor: editable.contextMenuAnchors.primaryAnchor,
                   children: [
                     _Cutout(
-                      margin: 12,
+                      // The toolbar's own frame: 8 above and below, rounded.
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      radius: 7,
                       child: IntrinsicWidth(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -1410,12 +1407,15 @@ class _Suggestion {
 /// suggestions). Reports its area, so the page gets a hole there and this
 /// content takes the clicks while the page stays visible around it.
 class _Cutout extends StatefulWidget {
-  const _Cutout({required this.child, this.margin = 6});
+  const _Cutout({required this.child, this.margin = EdgeInsets.zero, this.radius = 0});
 
   final Widget child;
 
-  /// Extra room around the child, for shadows and borders.
-  final double margin;
+  /// Extra room around the child, for borders drawn outside it.
+  final EdgeInsets margin;
+
+  /// The child's corner radius: the hole is rounded the same way.
+  final double radius;
 
   @override
   State<_Cutout> createState() => _CutoutState();
@@ -1430,10 +1430,11 @@ class _CutoutState extends State<_Cutout> {
     final box = context.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize || !box.attached) return;
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    final rect = (box.localToGlobal(Offset.zero) & box.size).inflate(widget.margin);
+    final rect = widget.margin.inflateRect(box.localToGlobal(Offset.zero) & box.size);
     BrowserController.instance.setCutout(
       _id,
       Rect.fromLTRB(rect.left * dpr, rect.top * dpr, rect.right * dpr, rect.bottom * dpr),
+      radius: widget.radius * dpr,
     );
   }
 
@@ -1452,6 +1453,44 @@ class _CutoutState extends State<_Cutout> {
         return false;
       },
       child: SizeChangedLayoutNotifier(child: widget.child),
+    );
+  }
+}
+
+/// A popup's frame: a thin neon edge (the retrowave cyan to magenta fade,
+/// the theme's accent elsewhere) inside its own bounds, so nothing is drawn
+/// over the page around it. Static, so it costs nothing per frame.
+class _NeonPanel extends StatelessWidget {
+  const _NeonPanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = tokens(context);
+    final radius = BorderRadius.circular(t.radiusMd);
+    final retro = RetroColors.isActive(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        gradient: retro
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF3FDDF0), Color(0xFFEC4FC4)],
+              )
+            : null,
+        color: retro ? null : t.accent.withValues(alpha: 0.7),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(1.5),
+        child: Material(
+          color: t.surface,
+          borderRadius: BorderRadius.circular((t.radiusMd - 1.5).clamp(0, 999)),
+          clipBehavior: Clip.antiAlias,
+          child: child,
+        ),
+      ),
     );
   }
 }

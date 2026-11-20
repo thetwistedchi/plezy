@@ -153,18 +153,18 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   /// The user clicked into the page (it took the keyboard focus).
   Stream<void> get pageFocused => _pageFocus.stream;
 
-  final Map<int, Rect> _cutouts = {};
+  final Map<int, (Rect, double)> _cutouts = {};
   bool _cutoutsQueued = false;
 
   /// Marks where Flutter content (a popup) lies over the page, in physical
   /// pixels; null removes it. The page gets a hole there, so the popup takes
   /// the clicks while the page stays visible around it.
-  void setCutout(int id, Rect? rect) {
+  void setCutout(int id, Rect? rect, {double radius = 0}) {
     if (rect == null) {
       if (_cutouts.remove(id) == null) return;
     } else {
-      if (_cutouts[id] == rect) return;
-      _cutouts[id] = rect;
+      if (_cutouts[id] == (rect, radius)) return;
+      _cutouts[id] = (rect, radius);
     }
     if (_cutoutsQueued) return;
     _cutoutsQueued = true;
@@ -172,7 +172,8 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       _cutoutsQueued = false;
       unawaited(
         _native.setCutouts([
-          for (final r in _cutouts.values) ...[r.left.floor(), r.top.floor(), r.right.ceil(), r.bottom.ceil()],
+          for (final (r, radius) in _cutouts.values)
+            ...[r.left.floor(), r.top.floor(), r.right.ceil(), r.bottom.ceil(), radius.round()],
         ]),
       );
     });
