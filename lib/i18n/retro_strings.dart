@@ -133,6 +133,11 @@ class RetroStrings {
   static String get clearHistory => _t('Clear history', 'Verlauf löschen');
   static String get historyDescription =>
       _t('The recently visited pages on the new tab page', 'Die zuletzt besuchten Seiten auf der Neuer-Tab-Seite');
+  static String get keepHistory => _t('Remember visited pages', 'Besuchte Seiten merken');
+  static String get keepHistoryDescription => _t(
+    'Keep the recently visited pages after the app is closed. When off, the list starts empty with every app start.',
+    'Die zuletzt besuchten Seiten auch nach dem Schließen der App behalten. Wenn aus, ist die Liste bei jedem App-Start leer.',
+  );
   static String get historyCleared => _t('History cleared.', 'Verlauf gelöscht.');
   static String get open => _t('Open', 'Öffnen');
   static String get newTabBlank => _t('Empty', 'Leer');

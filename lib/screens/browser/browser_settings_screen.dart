@@ -163,6 +163,15 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                                 },
                               ),
                             ),
+                          SwitchListTile(
+                            title: Text(RetroStrings.keepHistory),
+                            subtitle: Text(RetroStrings.keepHistoryDescription),
+                            value: _settings.keepHistory,
+                            onChanged: (v) async {
+                              await _settings.update(keepHistory: v);
+                              await BrowserHistory.instance.persistChanged();
+                            },
+                          ),
                           ListTile(
                             title: Text(RetroStrings.clearHistory),
                             subtitle: Text(RetroStrings.historyDescription),

@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'browser_settings.dart';
+
 class VisitedPage {
   const VisitedPage({required this.url, required this.title});
 
@@ -33,6 +35,11 @@ class BrowserHistory extends ChangeNotifier {
   Future<void> load() async {
     if (_prefs != null) return;
     final p = _prefs = await SharedPreferences.getInstance();
+    await BrowserSettings.instance.load();
+    if (!BrowserSettings.instance.keepHistory) {
+      await p.remove(_key);
+      return;
+    }
     try {
       final list = jsonDecode(p.getString(_key) ?? '[]');
       if (list is List) {
@@ -77,8 +84,16 @@ class BrowserHistory extends ChangeNotifier {
     await _save();
   }
 
+  /// Saves the list, or removes the saved one when it is not to be kept.
   Future<void> _save() async {
     await load();
+    if (!BrowserSettings.instance.keepHistory) {
+      await _prefs!.remove(_key);
+      return;
+    }
     await _prefs!.setString(_key, jsonEncode(_items.map((p) => p.toJson()).toList()));
   }
+
+  /// Applies a changed "keep history" setting to the saved list.
+  Future<void> persistChanged() => _save();
 }

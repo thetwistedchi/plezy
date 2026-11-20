@@ -41,6 +41,9 @@ class BrowserSettings extends ChangeNotifier {
   /// Tabs that play audio are not suspended.
   bool keepPlayingAwake = true;
   bool restoreTabs = true;
+
+  /// Recently visited pages are kept after the app closes.
+  bool keepHistory = true;
   bool httpsUpgrade = true;
 
   /// Disk cache limit in MB, applied when the browser starts.
@@ -62,6 +65,7 @@ class BrowserSettings extends ChangeNotifier {
     suspendMinutes = p.getInt('${_prefix}suspendMinutes') ?? suspendMinutes;
     keepPlayingAwake = p.getBool('${_prefix}keepPlayingAwake') ?? keepPlayingAwake;
     restoreTabs = p.getBool('${_prefix}restoreTabs') ?? restoreTabs;
+    keepHistory = p.getBool('${_prefix}keepHistory') ?? keepHistory;
     httpsUpgrade = p.getBool('${_prefix}httpsUpgrade') ?? httpsUpgrade;
     cacheLimitMb = p.getInt('${_prefix}cacheLimitMb') ?? cacheLimitMb;
     notifyListeners();
@@ -87,6 +91,7 @@ class BrowserSettings extends ChangeNotifier {
     int? suspendMinutes,
     bool? keepPlayingAwake,
     bool? restoreTabs,
+    bool? keepHistory,
     bool? httpsUpgrade,
     int? cacheLimitMb,
   }) async {
@@ -123,6 +128,10 @@ class BrowserSettings extends ChangeNotifier {
     if (restoreTabs != null) {
       this.restoreTabs = restoreTabs;
       await p.setBool('${_prefix}restoreTabs', restoreTabs);
+    }
+    if (keepHistory != null) {
+      this.keepHistory = keepHistory;
+      await p.setBool('${_prefix}keepHistory', keepHistory);
     }
     if (httpsUpgrade != null) {
       this.httpsUpgrade = httpsUpgrade;

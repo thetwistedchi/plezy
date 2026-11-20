@@ -104,10 +104,29 @@ class _BrowserScreenState extends State<BrowserScreen> {
     if (_address.text != url) _address.text = url;
   }
 
+  /// The first click into the address bar selects the whole address, like
+  /// in other browsers; a further click places the cursor.
+  bool _selectOnTap = false;
+
+  void _selectAddress() {
+    _address.selection = TextSelection(baseOffset: 0, extentOffset: _address.text.length);
+  }
+
+  void _onAddressTap() {
+    if (!_selectOnTap) return;
+    _selectOnTap = false;
+    // After the text field has placed the cursor for this click.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_addressFocus.hasFocus) _selectAddress();
+    });
+  }
+
   void _onAddressFocus() {
     if (_addressFocus.hasFocus) {
-      _address.selection = TextSelection(baseOffset: 0, extentOffset: _address.text.length);
+      _selectOnTap = true;
+      _selectAddress();
     } else {
+      _selectOnTap = false;
       _syncAddress();
     }
   }
@@ -544,6 +563,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 controller: _address,
                 focusNode: _addressFocus,
                 onSubmitted: (v) => unawaited(_submit(v)),
+                onTap: _onAddressTap,
                 onTapOutside: (_) => _addressFocus.unfocus(),
                 keyboardType: TextInputType.url,
                 textInputAction: TextInputAction.go,
