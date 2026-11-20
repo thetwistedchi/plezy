@@ -672,7 +672,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       child: Row(
         children: [
           const SizedBox(width: 4),
-          _iconButton(Symbols.arrow_back_rounded, RetroStrings.leaveBrowser, () => Navigator.of(context).maybePop()),
+          _iconButton(Symbols.home_rounded, RetroStrings.leaveBrowser, () => Navigator.of(context).maybePop()),
           const SizedBox(width: 4),
           Expanded(
             child: LayoutBuilder(
