@@ -105,8 +105,9 @@ class AudioFormatBadge extends StatelessWidget {
 }
 
 /// Outlined info badge of the player's bottom bar (quality, audio format).
-/// The text is centred on both axes: fixed line height with the leading split
-/// evenly, so caps and digits sit in the middle of the outline.
+/// Centred by the capitals, not the font box: the box keeps room for
+/// descenders under the baseline, so text centred by it sits high. The
+/// baseline is placed so the cap height is in the middle of the outline.
 class PlayerInfoBadge extends StatelessWidget {
   const PlayerInfoBadge({super.key, required this.text, this.onTap, this.tooltip});
 
@@ -117,43 +118,46 @@ class PlayerInfoBadge extends StatelessWidget {
   static const double height = 22;
   static const double fontSize = 11.5;
 
+  /// Cap height as a share of the font size (Segoe UI, Inter, Roboto: 0.70–0.73).
+  static const double _capHeight = 0.71;
+
   @override
   Widget build(BuildContext context) {
     final style = PlayerStyle.of(context);
     final color = style.badge ?? Colors.white;
-    const textStyle = TextStyle(
-      fontSize: fontSize,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0.5,
-      height: 1.0,
-      leadingDistribution: TextLeadingDistribution.even,
-    );
+    const border = 0.8;
+    // Inside the outline: (height - 2 * border); baseline at its middle plus
+    // half the cap height.
+    const inner = height - 2 * border;
+    const baseline = (inner + fontSize * _capHeight) / 2;
     final badge = Container(
       height: height,
-      alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.35),
-        border: Border.all(color: color, width: 0.8),
+        border: Border.all(color: color, width: border),
         borderRadius: BorderRadius.circular(5),
       ),
-      child: Text(
-        text,
-        maxLines: 1,
-        softWrap: false,
-        textAlign: TextAlign.center,
-        textHeightBehavior: const TextHeightBehavior(
-          applyHeightToFirstAscent: false,
-          applyHeightToLastDescent: false,
-          leadingDistribution: TextLeadingDistribution.even,
+      child: Align(
+        alignment: Alignment.topCenter,
+        widthFactor: 1,
+        child: Baseline(
+          baseline: baseline,
+          baselineType: TextBaseline.alphabetic,
+          child: Text(
+            text,
+            maxLines: 1,
+            softWrap: false,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: color,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5,
+              height: 1.0,
+            ),
+          ),
         ),
-        strutStyle: const StrutStyle(
-          fontSize: fontSize,
-          height: 1.0,
-          forceStrutHeight: true,
-          leadingDistribution: TextLeadingDistribution.even,
-        ),
-        style: textStyle.copyWith(color: color),
       ),
     );
     if (onTap == null) return badge;

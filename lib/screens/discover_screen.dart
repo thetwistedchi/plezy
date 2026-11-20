@@ -64,6 +64,7 @@ import '../utils/layout_constants.dart';
 import '../utils/platform_detector.dart';
 import '../utils/tone_mapped_logo_image.dart';
 import '../theme/mono_tokens.dart';
+import '../theme/retrowave_colors.dart';
 import 'libraries/content_state_builder.dart';
 import 'libraries/state_messages.dart';
 import 'main_screen.dart';
@@ -914,8 +915,9 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                               child: Container(
                                 width: 8,
                                 height: 8,
+                                // Fork: the theme's online colour (cyan on retrowave).
                                 decoration: BoxDecoration(
-                                  color: Colors.green,
+                                  color: RetroColors.online(context),
                                   shape: BoxShape.circle,
                                   border: Border.fromBorderSide(BorderSide(color: foregroundColor, width: 1)),
                                 ),
