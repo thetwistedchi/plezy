@@ -562,6 +562,12 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         final name = (e.str('path') ?? '').split(RegExp(r'[\\/]')).last;
         final ext = name.contains('.') ? name.split('.').last : '?';
         appLogger.d('$t: download requested (.$ext, ${e.integer('size')} bytes)');
+      case 'adblockStats':
+        final ms = (e.data['ms'] as num?)?.toDouble() ?? 0;
+        appLogger.d(
+          '$t: ad blocker checked ${e.integer('checked')} requests, blocked ${e.integer('blocked')}, '
+          'checking took ${ms.toStringAsFixed(1)} ms',
+        );
       case 'crashed':
         appLogger.w(
           '$t: WebView2 process failed: ${_failKind(e.integer('kind'))}, reason ${e.integer('reason')}, '

@@ -55,6 +55,9 @@ struct BrowserTab {
   std::string page_url;
   std::wstring pending_nav;
   int blocked = 0;
+  // Requests checked on the page and the time that took, for the log.
+  int checked = 0;
+  LONGLONG check_ticks = 0;
   ULONGLONG blocked_report = 0;
   std::wstring page_script_id;
   int page_script_generation = 0;

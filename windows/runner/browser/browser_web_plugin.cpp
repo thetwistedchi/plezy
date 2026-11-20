@@ -304,6 +304,8 @@ void BrowserWebPlugin::PreparePage(BrowserTab& tab, const std::wstring& uri) {
   tab.page_url = ToUtf8(uri.c_str());
   tab.blocked = 0;
   tab.blocked_report = 0;
+  tab.checked = 0;
+  tab.check_ticks = 0;
   tab.cosmetic_exceptions = "[]";
   tab.generichide = false;
   ++tab.page_script_generation;
@@ -358,7 +360,13 @@ void BrowserWebPlugin::OnResourceRequested(int id, ICoreWebView2WebResourceReque
   if (context == COREWEBVIEW2_WEB_RESOURCE_CONTEXT_DOCUMENT && uri == tab->pending_nav) return;
   const std::string url = ToUtf8(uri.c_str());
   char* redirect = nullptr;
+  LARGE_INTEGER before{};
+  LARGE_INTEGER after{};
+  ::QueryPerformanceCounter(&before);
   const int verdict = plezy_adblock_check(adblock_, url.c_str(), tab->page_url.c_str(), RequestTypeOf(context), &redirect);
+  ::QueryPerformanceCounter(&after);
+  ++tab->checked;
+  tab->check_ticks += after.QuadPart - before.QuadPart;
   if (verdict == 0) return;
   ComPtr<ICoreWebView2WebResourceResponse> response;
   std::string mime;
@@ -1052,7 +1060,18 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
             COREWEBVIEW2_WEB_ERROR_STATUS status = COREWEBVIEW2_WEB_ERROR_STATUS_UNKNOWN;
             args->get_IsSuccess(&success);
             args->get_WebErrorStatus(&status);
-            if (auto* t = Find(id)) ReportBlocked(*t, true);
+            if (auto* t = Find(id)) {
+              ReportBlocked(*t, true);
+              if (t->checked > 0) {
+                LARGE_INTEGER frequency{};
+                ::QueryPerformanceFrequency(&frequency);
+                const double ms = frequency.QuadPart ? 1000.0 * t->check_ticks / frequency.QuadPart : 0;
+                Send(id, "adblockStats",
+                     {{flutter::EncodableValue("checked"), flutter::EncodableValue(t->checked)},
+                      {flutter::EncodableValue("blocked"), flutter::EncodableValue(t->blocked)},
+                      {flutter::EncodableValue("ms"), flutter::EncodableValue(ms)}});
+              }
+            }
             Send(id, "loaded",
                  {{flutter::EncodableValue("ok"), flutter::EncodableValue(success == TRUE)},
                   {flutter::EncodableValue("error"), flutter::EncodableValue(static_cast<int>(status))}});
