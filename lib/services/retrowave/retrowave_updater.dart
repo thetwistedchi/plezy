@@ -48,6 +48,9 @@ abstract final class RetrowaveUpdater {
   static const _universalApk = 'plezy-retrowave-universal.apk';
   static const _keyLastCheck = 'retrowave_update_last_check';
   static const _keySkipped = 'retrowave_update_skipped';
+
+  /// The version the last install handed over to the installer.
+  static const _keyAttempted = 'retrowave_update_attempted';
   /// Startup checks run every launch; this only stops a burst of restarts
   /// from asking GitHub again within minutes.
   static const _cooldown = Duration(minutes: 10);
@@ -99,6 +102,13 @@ abstract final class RetrowaveUpdater {
       final release = _parse(jsonDecode(response.body) as Map<String, dynamic>);
       if (!isNewer(release.version, currentVersion)) return null;
       if (!manual && prefs.getString(_keySkipped) == release.version) return null;
+      // Installed before, yet this build is still older: that release's
+      // files are not the version they claim. Offering it again on every
+      // start would loop; Check for updates still offers it.
+      if (!manual && prefs.getString(_keyAttempted) == release.version) {
+        appLogger.w('Update to ${release.version} was installed but this build is still $currentVersion');
+        return null;
+      }
       // Several releases since this build: show all their notes.
       return release.withNotes(await _notesSince(currentVersion, release));
     } catch (e, st) {
@@ -217,6 +227,11 @@ abstract final class RetrowaveUpdater {
         final url = release.assets[_installerAsset];
         if (url == null) return 'missing:$_installerAsset';
         final file = await _download(url, _installerAsset, onProgress);
+        // Remembered so a release whose files are older than they claim is
+        // not offered on every start (Android's prompt can be cancelled, so
+        // only here).
+        final prefs = await BaseSharedPreferencesService.sharedCache();
+        await prefs.setString(_keyAttempted, release.version);
         // Silent install over this copy; the installer's launch entry reopens
         // the app afterwards. Exit so the files are free to replace.
         await Process.start(file.path, const [
