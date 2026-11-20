@@ -43,10 +43,8 @@ target_include_directories(${BINARY_NAME} PRIVATE "${MPV_INCLUDE_DIR}")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}/../shared/cpp")
 
 # WebView2 SDK for the native YouTube player and the in-app browser
-# (youtube/, browser/). The webview_windows plugin keeps its own, older copy
-# of the package; the runner uses a newer one for the browser's privacy and
-# download APIs. Newer SDK headers still contain every older interface. The
-# package is fetched once from NuGet into the build folder.
+# (youtube/, browser/), including the YouTube sign-in page. The package is
+# fetched once from NuGet into the build folder.
 set(PLEZY_WEBVIEW2_VERSION "1.0.2903.40")
 set(PLEZY_WEBVIEW2_DIR "${CMAKE_BINARY_DIR}/packages/plezy-webview2-${PLEZY_WEBVIEW2_VERSION}")
 if(NOT EXISTS "${PLEZY_WEBVIEW2_DIR}/build/native/include/WebView2.h")
@@ -72,10 +70,8 @@ target_link_libraries(${BINARY_NAME} PRIVATE
   "${PLEZY_WEBVIEW2_DIR}/build/native/Microsoft.Web.WebView2.targets")
 target_include_directories(${BINARY_NAME} PRIVATE
   "${PLEZY_WEBVIEW2_DIR}/build/native/include")
-# Static loader: no WebView2Loader.dll next to the exe that could clash with
-# the one of webview_windows' older package.
+# Static loader: no WebView2Loader.dll needed next to the exe.
 set_target_properties(${BINARY_NAME} PROPERTIES VS_GLOBAL_WebView2LoaderPreference "Static")
-add_dependencies(${BINARY_NAME} webview_windows_DEPENDENCIES_DOWNLOAD)
 
 # Ad block engine for the in-app browser: a Rust static library around
 # Brave's adblock-rust (windows/runner/adblock), built with cargo. Needs the

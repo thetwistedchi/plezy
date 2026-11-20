@@ -15,6 +15,7 @@
 #include <windows.h>
 #include <wrl.h>
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -44,6 +45,14 @@ class YouTubeWebPlugin : public flutter::Plugin {
   void UpdateBounds();
   void SendEvent(const std::string& type, const std::string& data);
 
+  // The sign-in page (and cookie / cache housekeeping): a second, interactive
+  // WebView on the same browser profile, separate from the player so a
+  // playing (or minimized) video keeps running.
+  using AuthReady = std::function<void(bool ok, const std::string& error)>;
+  void AuthCreate(const flutter::EncodableMap& args, bool visible, AuthReady ready);
+  void AuthRun(const std::string& action, std::function<void(bool ok)> done);
+  void AuthClose();
+
   flutter::PluginRegistrarWindows* registrar_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> method_channel_;
   std::unique_ptr<flutter::EventChannel<flutter::EncodableValue>> event_channel_;
@@ -62,6 +71,12 @@ class YouTubeWebPlugin : public flutter::Plugin {
   EventRegistrationToken navigation_token_{};
   // Bumped on dispose so callbacks of a torn-down WebView do nothing.
   int generation_ = 0;
+
+  HWND auth_host_ = nullptr;
+  Microsoft::WRL::ComPtr<ICoreWebView2Controller> auth_controller_;
+  Microsoft::WRL::ComPtr<ICoreWebView2> auth_webview_;
+  EventRegistrationToken auth_new_window_token_{};
+  int auth_generation_ = 0;
 };
 
 }  // namespace youtube_web

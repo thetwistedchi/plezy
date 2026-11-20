@@ -14,6 +14,9 @@ const String _ytRoutePrefix = 'yt/';
 /// beneath the Flutter view, which a painted backdrop would cover.
 MaterialPageRoute<T> ytRoute<T>(String name, WidgetBuilder builder) => name == 'player'
     ? YouTubePlayerRoute<T>(settings: RouteSettings(name: '$_ytRoutePrefix$name'), builder: builder)
+    : name == 'signin'
+    // The sign-in page is a native WebView beneath the Flutter view too.
+    ? NoPageBackdropRoute<T>(settings: RouteSettings(name: '$_ytRoutePrefix$name'), builder: builder)
     : MaterialPageRoute<T>(settings: RouteSettings(name: '$_ytRoutePrefix$name'), builder: builder);
 
 /// The YouTube player's route: no page backdrop, and it can step aside for

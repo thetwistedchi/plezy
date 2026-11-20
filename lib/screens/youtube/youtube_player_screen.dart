@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:webview_windows/webview_windows.dart';
 
 import '../../i18n/strings.g.dart';
 import '../../services/fullscreen_state_manager.dart';
@@ -223,7 +222,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   Future<void> _init() async {
     try {
-      if (await WebviewController.getWebViewVersion() == null) {
+      if (await YouTubeWebView.runtimeVersion() == null) {
         if (mounted) setState(() => _initError = YtStrings.webviewMissing);
         return;
       }

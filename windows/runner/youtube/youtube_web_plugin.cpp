@@ -86,7 +86,10 @@ YouTubeWebPlugin::YouTubeWebPlugin(flutter::PluginRegistrarWindows* registrar) :
       }));
 }
 
-YouTubeWebPlugin::~YouTubeWebPlugin() { Dispose(); }
+YouTubeWebPlugin::~YouTubeWebPlugin() {
+  AuthClose();
+  Dispose();
+}
 
 void YouTubeWebPlugin::SendEvent(const std::string& type, const std::string& data) {
   if (!event_sink_) return;
@@ -129,6 +132,79 @@ void YouTubeWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     if (host_) ::ShowWindow(host_, visible_ ? SW_SHOWNA : SW_HIDE);
     if (controller_) controller_->put_IsVisible(visible_ ? TRUE : FALSE);
     result->Success();
+    return;
+  }
+
+  if (method == "runtimeVersion") {
+    LPWSTR version = nullptr;
+    if (SUCCEEDED(GetAvailableCoreWebView2BrowserVersionString(nullptr, &version)) && version) {
+      result->Success(flutter::EncodableValue(ToUtf8(version)));
+      ::CoTaskMemFree(version);
+    } else {
+      result->Success();
+    }
+    return;
+  }
+  if (method == "authOpen") {
+    const std::string url = GetString(args, "url").value_or("");
+    auto shared = std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
+    AuthCreate(args, true, [this, shared, url](bool ok, const std::string& error) {
+      if (!ok) {
+        shared->Error("INIT_FAILED", error);
+        return;
+      }
+      if (!url.empty()) auth_webview_->Navigate(ToWide(url).c_str());
+      shared->Success();
+    });
+    return;
+  }
+  if (method == "authRect") {
+    if (auth_host_) {
+      const int left = GetInt(args, "left");
+      const int top = GetInt(args, "top");
+      const int width = (std::max)(0, GetInt(args, "right") - left);
+      const int height = (std::max)(0, GetInt(args, "bottom") - top);
+      ::SetWindowPos(auth_host_, HWND_TOP, left, top, width, height, SWP_NOACTIVATE);
+      if (auth_controller_) {
+        RECT bounds{};
+        ::GetClientRect(auth_host_, &bounds);
+        auth_controller_->put_Bounds(bounds);
+        auth_controller_->NotifyParentWindowPositionChanged();
+      }
+    }
+    result->Success();
+    return;
+  }
+  if (method == "authClose") {
+    AuthClose();
+    result->Success();
+    return;
+  }
+  if (method == "authRun") {
+    // clearCookies / clearCache, on the open sign-in view or a hidden one.
+    const std::string action = GetString(args, "action").value_or("");
+    auto shared = std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
+    auto run = [this, shared, action](bool temporary) {
+      AuthRun(action, [this, shared, temporary](bool ok) {
+        if (temporary) AuthClose();
+        if (ok) {
+          shared->Success();
+        } else {
+          shared->Error("FAILED", "The action failed");
+        }
+      });
+    };
+    if (auth_webview_) {
+      run(false);
+      return;
+    }
+    AuthCreate(args, false, [shared, run](bool ok, const std::string& error) {
+      if (!ok) {
+        shared->Error("INIT_FAILED", error);
+        return;
+      }
+      run(true);
+    });
     return;
   }
 
@@ -337,6 +413,130 @@ void YouTubeWebPlugin::Initialize(const flutter::EncodableMap& args, Result resu
           .Get());
 
   if (FAILED(hr)) finish(false, "WebView2 runtime not available");
+}
+
+void YouTubeWebPlugin::AuthCreate(const flutter::EncodableMap& args, bool visible, AuthReady ready) {
+  if (auth_webview_) {
+    if (visible && auth_host_) ::ShowWindow(auth_host_, SW_SHOWNA);
+    if (visible && auth_controller_) auth_controller_->put_IsVisible(TRUE);
+    ready(true, "");
+    return;
+  }
+  AuthClose();
+  const int generation = ++auth_generation_;
+  const std::wstring user_data = ToWide(GetString(args, "userDataFolder").value_or(""));
+  const std::wstring arguments = ToWide(GetString(args, "arguments").value_or(""));
+
+  // Not WS_DISABLED like the player's host: the sign-in page takes input.
+  const HWND view = registrar_->GetView()->GetNativeWindow();
+  auth_host_ = ::CreateWindowExW(WS_EX_NOPARENTNOTIFY, L"STATIC", L"", WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+                                 0, 0, 16, 16, view, nullptr, ::GetModuleHandle(nullptr), nullptr);
+  if (!auth_host_) {
+    ready(false, "Could not create the host window");
+    return;
+  }
+  if (visible) ::ShowWindow(auth_host_, SW_SHOWNA);
+
+  auto options = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
+  options->put_AdditionalBrowserArguments(arguments.c_str());
+  const HRESULT hr = CreateCoreWebView2EnvironmentWithOptions(
+      nullptr, user_data.empty() ? nullptr : user_data.c_str(), options.Get(),
+      Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+          [this, generation, visible, ready](HRESULT env_result, ICoreWebView2Environment* environment) -> HRESULT {
+            if (generation != auth_generation_) return S_OK;
+            if (FAILED(env_result) || !environment) {
+              ready(false, "WebView2 environment failed");
+              return S_OK;
+            }
+            const HRESULT create = environment->CreateCoreWebView2Controller(
+                auth_host_,
+                Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                    [this, generation, visible, ready](HRESULT controller_result,
+                                                       ICoreWebView2Controller* controller) -> HRESULT {
+                      if (generation != auth_generation_) {
+                        if (controller) controller->Close();
+                        return S_OK;
+                      }
+                      if (FAILED(controller_result) || !controller) {
+                        ready(false, "WebView2 controller failed");
+                        return S_OK;
+                      }
+                      auth_controller_ = controller;
+                      auth_controller_->get_CoreWebView2(&auth_webview_);
+                      ComPtr<ICoreWebView2Settings> settings;
+                      if (SUCCEEDED(auth_webview_->get_Settings(&settings))) {
+                        settings->put_AreDevToolsEnabled(FALSE);
+                        settings->put_IsStatusBarEnabled(FALSE);
+                      }
+                      // Google's sign-in opens some steps as pop-ups: keep
+                      // them in the same view.
+                      auth_webview_->add_NewWindowRequested(
+                          Callback<ICoreWebView2NewWindowRequestedEventHandler>(
+                              [this](ICoreWebView2*, ICoreWebView2NewWindowRequestedEventArgs* request) -> HRESULT {
+                                LPWSTR uri = nullptr;
+                                if (SUCCEEDED(request->get_Uri(&uri)) && uri) {
+                                  if (auth_webview_) auth_webview_->Navigate(uri);
+                                  ::CoTaskMemFree(uri);
+                                }
+                                request->put_Handled(TRUE);
+                                return S_OK;
+                              })
+                              .Get(),
+                          &auth_new_window_token_);
+                      RECT bounds{};
+                      ::GetClientRect(auth_host_, &bounds);
+                      auth_controller_->put_Bounds(bounds);
+                      auth_controller_->put_IsVisible(visible ? TRUE : FALSE);
+                      ready(true, "");
+                      return S_OK;
+                    })
+                    .Get());
+            if (FAILED(create)) ready(false, "WebView2 controller could not start");
+            return S_OK;
+          })
+          .Get());
+  if (FAILED(hr)) ready(false, "WebView2 runtime not available");
+}
+
+void YouTubeWebPlugin::AuthRun(const std::string& action, std::function<void(bool ok)> done) {
+  if (!auth_webview_) {
+    done(false);
+    return;
+  }
+  if (action == "clearCookies") {
+    ComPtr<ICoreWebView2_2> webview2;
+    ComPtr<ICoreWebView2CookieManager> cookies;
+    if (SUCCEEDED(auth_webview_.As(&webview2)) && SUCCEEDED(webview2->get_CookieManager(&cookies)) && cookies) {
+      cookies->DeleteAllCookies();
+      done(true);
+    } else {
+      done(false);
+    }
+    return;
+  }
+  if (action == "clearCache") {
+    const HRESULT hr = auth_webview_->CallDevToolsProtocolMethod(
+        L"Network.clearBrowserCache", L"{}",
+        Callback<ICoreWebView2CallDevToolsProtocolMethodCompletedHandler>([done](HRESULT error, LPCWSTR) -> HRESULT {
+          done(SUCCEEDED(error));
+          return S_OK;
+        }).Get());
+    if (FAILED(hr)) done(false);
+    return;
+  }
+  done(false);
+}
+
+void YouTubeWebPlugin::AuthClose() {
+  ++auth_generation_;
+  if (auth_webview_) auth_webview_->remove_NewWindowRequested(auth_new_window_token_);
+  if (auth_controller_) auth_controller_->Close();
+  auth_webview_.Reset();
+  auth_controller_.Reset();
+  if (auth_host_) {
+    ::DestroyWindow(auth_host_);
+    auth_host_ = nullptr;
+  }
 }
 
 void YouTubeWebPlugin::UpdateBounds() {

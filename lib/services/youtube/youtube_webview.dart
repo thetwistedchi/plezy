@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:webview_windows/webview_windows.dart';
 
 import '../../utils/app_logger.dart';
 import 'youtube_settings.dart';
@@ -59,14 +58,6 @@ class YouTubeWebView {
       '--disable-backgrounding-occluded-windows',
       '--disable-features=CalculateNativeWinOcclusion',
     ].join(' ');
-    try {
-      // The sign-in window still uses webview_windows; with the same folder
-      // and the same arguments it shares the player's browser profile.
-      await WebviewController.initializeEnvironment(userDataPath: profile.path, additionalArguments: browserArguments);
-    } on PlatformException catch (e) {
-      // Already initialized in this process.
-      appLogger.d('WebView2 environment: ${e.message}');
-    }
     return pageDir.path;
   }
 
@@ -95,17 +86,39 @@ class YouTubeWebView {
     return total;
   }
 
-  /// Clears the player's browser cache and keeps the YouTube sign-in.
-  static Future<void> clearCache() async {
-    await ensureReady();
-    final controller = WebviewController();
+  static const MethodChannel _channel = MethodChannel('com.plezy.retrowave/youtube_web');
+
+  /// The installed WebView2 runtime's version, or null without one.
+  static Future<String?> runtimeVersion() async {
     try {
-      await controller.initialize();
-      await controller.clearCache();
-    } finally {
-      unawaited(controller.dispose());
+      return await _channel.invokeMethod<String>('runtimeVersion');
+    } catch (_) {
+      return null;
     }
   }
+
+  static Future<Map<String, String?>> _profileArgs() async {
+    await ensureReady();
+    return {'userDataFolder': profilePath, 'arguments': browserArguments};
+  }
+
+  /// Clears the player's browser cache and keeps the YouTube sign-in.
+  static Future<void> clearCache() async =>
+      _channel.invokeMethod<void>('authRun', {...await _profileArgs(), 'action': 'clearCache'});
+
+  /// Removes the player's YouTube cookies (signs out).
+  static Future<void> clearCookies() async =>
+      _channel.invokeMethod<void>('authRun', {...await _profileArgs(), 'action': 'clearCookies'});
+
+  /// Opens the interactive sign-in view on the player's profile at [url].
+  static Future<void> openSignIn(Uri url) async =>
+      _channel.invokeMethod<void>('authOpen', {...await _profileArgs(), 'url': url.toString()});
+
+  /// Places the sign-in view, in physical pixels of the Flutter view.
+  static Future<void> setSignInRect({required int left, required int top, required int right, required int bottom}) =>
+      _channel.invokeMethod<void>('authRect', {'left': left, 'top': top, 'right': right, 'bottom': bottom});
+
+  static Future<void> closeSignIn() => _channel.invokeMethod<void>('authClose');
 
   static Uri playerUrl(String videoId, {double start = 0, String language = 'en'}) =>
       Uri.https(host, '/player.html', {
