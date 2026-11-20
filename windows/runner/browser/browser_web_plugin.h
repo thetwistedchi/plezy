@@ -48,6 +48,8 @@ struct BrowserTab {
   std::wstring last_link;
   ULONGLONG link_at = 0;
   bool in_private = false;
+  // Id of the installed dark mode script, to remove it again.
+  std::wstring dark_script_id;
 };
 
 class BrowserWebPlugin : public flutter::Plugin {
@@ -78,6 +80,7 @@ class BrowserWebPlugin : public flutter::Plugin {
   void Wire(BrowserTab& tab);
   void OpenPopup(int id, const std::wstring& uri, bool allowed);
   void SendFavicon(int id);
+  void InstallDarkScript(BrowserTab& tab);
 
   flutter::PluginRegistrarWindows* registrar_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> method_channel_;
@@ -95,6 +98,9 @@ class BrowserWebPlugin : public flutter::Plugin {
   std::vector<std::wstring> popup_sites_;
   // Tracking prevention: 0 off, 1 basic, 2 balanced, 3 strict.
   int tracking_level_ = 2;
+  // Dark mode for websites (Dark Reader), run in every new page; empty = off.
+  std::wstring dark_script_;
+  int dark_generation_ = 0;
 
   // Downloads the user allowed, by request id, until they finish.
   struct Download {

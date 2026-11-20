@@ -49,6 +49,14 @@ class BrowserSettings extends ChangeNotifier {
   /// Sites allowed to open pop-ups without a click on a link.
   List<String> popupSites = const [];
 
+  /// Dark mode for websites (Dark Reader).
+  bool darkMode = false;
+  int darkBrightness = 100;
+  int darkContrast = 100;
+
+  /// Sites shown as they are, without dark mode.
+  List<String> darkExcluded = const [];
+
   /// Tracking prevention: 0 off, 1 basic, 2 balanced, 3 strict (like Edge).
   int trackingLevel = 2;
 
@@ -81,6 +89,10 @@ class BrowserSettings extends ChangeNotifier {
     httpsUpgrade = p.getBool('${_prefix}httpsUpgrade') ?? httpsUpgrade;
     popupSites = p.getStringList('${_prefix}popupSites') ?? const [];
     trackingLevel = p.getInt('${_prefix}tracking') ?? trackingLevel;
+    darkMode = p.getBool('${_prefix}darkMode') ?? darkMode;
+    darkBrightness = p.getInt('${_prefix}darkBrightness') ?? darkBrightness;
+    darkContrast = p.getInt('${_prefix}darkContrast') ?? darkContrast;
+    darkExcluded = p.getStringList('${_prefix}darkExcluded') ?? const [];
     clearSiteDataOnExit = p.getBool('${_prefix}clearSiteDataOnExit') ?? clearSiteDataOnExit;
     permissions = {
       for (final entry in p.getStringList('${_prefix}permissions') ?? const <String>[])
@@ -101,6 +113,24 @@ class BrowserSettings extends ChangeNotifier {
     }
     popupSites = sites.toList()..sort();
     await _prefs!.setStringList('${_prefix}popupSites', popupSites);
+    notifyListeners();
+  }
+
+  bool isDarkExcluded(String host) {
+    final h = host.replaceFirst(RegExp(r'^www\.'), '');
+    return darkExcluded.any((s) => h == s || h.endsWith('.$s'));
+  }
+
+  Future<void> setDarkExcluded(String site, bool excluded) async {
+    await load();
+    final sites = {...darkExcluded};
+    if (excluded) {
+      sites.add(site);
+    } else {
+      sites.remove(site);
+    }
+    darkExcluded = sites.toList()..sort();
+    await _prefs!.setStringList('${_prefix}darkExcluded', darkExcluded);
     notifyListeners();
   }
 
@@ -147,6 +177,9 @@ class BrowserSettings extends ChangeNotifier {
     int? cacheLimitMb,
     int? trackingLevel,
     bool? clearSiteDataOnExit,
+    bool? darkMode,
+    int? darkBrightness,
+    int? darkContrast,
   }) async {
     await load();
     final p = _prefs!;
@@ -189,6 +222,18 @@ class BrowserSettings extends ChangeNotifier {
     if (httpsUpgrade != null) {
       this.httpsUpgrade = httpsUpgrade;
       await p.setBool('${_prefix}httpsUpgrade', httpsUpgrade);
+    }
+    if (darkMode != null) {
+      this.darkMode = darkMode;
+      await p.setBool('${_prefix}darkMode', darkMode);
+    }
+    if (darkBrightness != null) {
+      this.darkBrightness = darkBrightness;
+      await p.setInt('${_prefix}darkBrightness', darkBrightness);
+    }
+    if (darkContrast != null) {
+      this.darkContrast = darkContrast;
+      await p.setInt('${_prefix}darkContrast', darkContrast);
     }
     if (trackingLevel != null) {
       this.trackingLevel = trackingLevel;

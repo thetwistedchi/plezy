@@ -1205,6 +1205,7 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint _) {
 /// the event never finishes enriching. The collectors are lazy, so registering
 /// them here loads nothing until a reader runs.
 void _registerAppLicenses() {
+  _registerDarkReaderLicense();
   _registerShaderLicenses();
   // iOS covers iPhone, iPad, and Apple TV; mpv-build links SpatialAudioBridge
   // into libmpv there and not on macOS.
@@ -1217,6 +1218,14 @@ void _registerSpatialAudioLicenses() {
   LicenseRegistry.addLicense(() async* {
     final notices = await rootBundle.loadString('assets/licenses/SpatialAudioBridge.txt');
     yield LicenseEntryWithLineBreaks(const ['SpatialAudioBridge'], notices);
+  });
+}
+
+/// Dark Reader, bundled for the in-app browser's dark mode for websites.
+void _registerDarkReaderLicense() {
+  LicenseRegistry.addLicense(() async* {
+    final notice = await rootBundle.loadString('assets/licenses/DarkReader.txt');
+    yield LicenseEntryWithLineBreaks(const ['Dark Reader'], notice);
   });
 }
 

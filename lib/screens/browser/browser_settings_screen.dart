@@ -291,6 +291,44 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      _SectionTitle(RetroStrings.darkMode),
+                      _Card(
+                        children: [
+                          SwitchListTile(
+                            title: Text(RetroStrings.darkMode),
+                            subtitle: Text(RetroStrings.darkModeDescription),
+                            value: _settings.darkMode,
+                            onChanged: (v) => unawaited(BrowserController.instance.setDarkMode(enabled: v)),
+                          ),
+                          if (_settings.darkMode) ...[
+                            _SliderTile(
+                              label: RetroStrings.darkBrightness,
+                              value: _settings.darkBrightness,
+                              onChanged: (v) => unawaited(BrowserController.instance.setDarkMode(brightness: v)),
+                            ),
+                            _SliderTile(
+                              label: RetroStrings.darkContrast,
+                              value: _settings.darkContrast,
+                              onChanged: (v) => unawaited(BrowserController.instance.setDarkMode(contrast: v)),
+                            ),
+                            ListTile(
+                              title: Text(RetroStrings.darkExcluded),
+                              subtitle: _settings.darkExcluded.isEmpty ? Text(RetroStrings.darkExcludedEmpty) : null,
+                            ),
+                            for (final site in _settings.darkExcluded)
+                              ListTile(
+                                contentPadding: const EdgeInsets.only(left: 32, right: 16),
+                                title: Text(site),
+                                trailing: IconButton(
+                                  icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+                                  tooltip: RetroStrings.delete,
+                                  onPressed: () => unawaited(BrowserController.instance.setDarkExcluded(site, false)),
+                                ),
+                              ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                       _SectionTitle(RetroStrings.trackingPrevention),
                       _Card(
                         children: [
@@ -434,6 +472,45 @@ class _Card extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+    );
+  }
+}
+
+/// A 50 to 150 % slider that applies when released.
+class _SliderTile extends StatefulWidget {
+  const _SliderTile({required this.label, required this.value, required this.onChanged});
+
+  final String label;
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_SliderTile> createState() => _SliderTileState();
+}
+
+class _SliderTileState extends State<_SliderTile> {
+  late double _value = widget.value.toDouble();
+
+  @override
+  void didUpdateWidget(_SliderTile old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value) _value = widget.value.toDouble();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(widget.label),
+      subtitle: Slider(
+        value: _value.clamp(50, 150),
+        min: 50,
+        max: 150,
+        divisions: 20,
+        label: '${_value.round()} %',
+        onChanged: (v) => setState(() => _value = v),
+        onChangeEnd: (v) => widget.onChanged(v.round()),
+      ),
+      trailing: SizedBox(width: 48, child: Text('${_value.round()} %', textAlign: TextAlign.end)),
     );
   }
 }

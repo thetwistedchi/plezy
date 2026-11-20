@@ -225,6 +225,19 @@ class RetroStrings {
     return '${(bytes / 1024).ceil()} KB';
   }
 
+  static String get darkMode => _t('Dark mode for websites', 'Dunkelmodus für Webseiten');
+  static String get darkModeDescription => _t(
+    'Shows bright websites dark, using Dark Reader. Can slow down very large pages.',
+    'Zeigt helle Webseiten dunkel an, mit Dark Reader. Kann sehr große Seiten verlangsamen.',
+  );
+  static String darkOnSite(String site) => _t('Dark mode on $site', 'Dunkelmodus auf $site');
+  static String get darkBrightness => _t('Brightness', 'Helligkeit');
+  static String get darkContrast => _t('Contrast', 'Kontrast');
+  static String get darkExcluded => _t('Shown without dark mode', 'Ohne Dunkelmodus angezeigt');
+  static String get darkExcludedEmpty => _t(
+    'Sites you turn dark mode off for (⋮ menu) appear here.',
+    'Seiten, für die du den Dunkelmodus ausschaltest (⋮-Menü), erscheinen hier.',
+  );
   static String get trackingPrevention => _t('Tracking prevention', 'Schutz vor Tracking');
   static String get trackingDescription => _t(
     'Blocks known trackers and fingerprinting services, like in Microsoft Edge. Strict blocks the most and may break some sites.',

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -259,6 +260,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         );
       }
       await _native.setPopupSites(_settings.popupSites);
+      if (fresh) await _syncDark();
       if (!tab.live) {
         tab.live = true;
         tab.loading = true;
@@ -357,6 +359,44 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     tab.muted = muted;
     notifyListeners();
     if (tab.live) await _native.setMuted(id, muted);
+  }
+
+  String? _darkLibrary;
+
+  /// Dark mode for websites: Dark Reader runs in every page unless the site
+  /// is excluded. Kept out of the page's view (no global DarkReader).
+  Future<String> _darkScript() async {
+    if (!_settings.darkMode) return '';
+    final lib = _darkLibrary ??= await rootBundle.loadString('assets/browser/darkreader.min.js');
+    final excluded = jsonEncode(_settings.darkExcluded);
+    return '(()=>{try{if(window.__plezyDark){window.__plezyDark.disable();}}catch(e){}'
+        'const h=location.hostname.replace(/^www\\./,"");'
+        'if($excluded.some(s=>h===s||h.endsWith("."+s)))return;'
+        'var exports={},module={exports:{}},define=undefined;\n'
+        '$lib\n'
+        ';const D=exports;try{D.setFetchMethod(window.fetch.bind(window));}catch(e){}'
+        'D.enable({brightness:${_settings.darkBrightness},contrast:${_settings.darkContrast},sepia:0});'
+        'try{Object.defineProperty(window,"__plezyDark",{value:D,configurable:true});}catch(e){}'
+        '})();';
+  }
+
+  Future<void> _syncDark() async {
+    try {
+      await _native.setDarkScript(await _darkScript());
+    } catch (e) {
+      appLogger.w('Browser dark mode', error: e);
+    }
+  }
+
+  /// Applies changed dark mode settings to open and new pages.
+  Future<void> setDarkMode({bool? enabled, int? brightness, int? contrast}) async {
+    await _settings.update(darkMode: enabled, darkBrightness: brightness, darkContrast: contrast);
+    await _syncDark();
+  }
+
+  Future<void> setDarkExcluded(String site, bool excluded) async {
+    await _settings.setDarkExcluded(site, excluded);
+    await _syncDark();
   }
 
   Future<void> setTrackingLevel(int level) async {

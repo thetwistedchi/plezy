@@ -97,6 +97,7 @@ class BrowserNative {
   Future<void> createTab(int id, String url, {bool private = false}) =>
       _channel.invokeMethod<bool>('createTab', {'id': id, 'url': url, 'private': private});
   Future<void> setMuted(int id, bool value) => _call('setMuted', {'id': id, 'value': value});
+  Future<void> setDarkScript(String script) => _call('setDarkScript', {'script': script});
   Future<void> setTrackingPrevention(int level) => _call('setTrackingPrevention', {'level': level});
   Future<void> cancelDownload(int download) => _call('cancelDownload', {'download': download});
   Future<void> pauseDownload(int download) => _call('pauseDownload', {'download': download});

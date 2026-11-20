@@ -642,10 +642,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   Future<void> _moreMenu(Offset position) async {
     final url = _controller.active?.url;
+    final site = (_controller.active?.host ?? '').replaceFirst(RegExp(r'^www\.'), '');
     final picked = await _menu(position, [
       _menuItem('new', Symbols.add_rounded, RetroStrings.newTab),
       _menuItem('private', Symbols.visibility_off_rounded, RetroStrings.newPrivateTab),
       _menuItem('reopen', Symbols.history_rounded, RetroStrings.reopenClosedTab, enabled: _controller.canReopen),
+      const PopupMenuDivider(),
+      CheckedPopupMenuItem(value: 'dark', checked: _settings.darkMode, child: Text(RetroStrings.darkMode)),
+      if (_settings.darkMode && site.isNotEmpty)
+        CheckedPopupMenuItem(
+          value: 'darkSite',
+          checked: !_settings.isDarkExcluded(site),
+          child: Text(RetroStrings.darkOnSite(site)),
+        ),
       const PopupMenuDivider(),
       _menuItem('downloads', Symbols.download_rounded, RetroStrings.downloads),
       _menuItem('external', Symbols.open_in_new_rounded, RetroStrings.openInDefaultBrowser, enabled: url != null),
@@ -659,6 +668,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
         _newTab(private: true);
       case 'reopen':
         await _controller.reopenClosed();
+      case 'dark':
+        await _controller.setDarkMode(enabled: !_settings.darkMode);
+      case 'darkSite':
+        await _controller.setDarkExcluded(site, !_settings.isDarkExcluded(site));
       case 'downloads':
         await _showDownloads();
       case 'external':

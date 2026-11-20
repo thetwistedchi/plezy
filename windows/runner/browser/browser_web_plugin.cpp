@@ -344,6 +344,22 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     result->Success();
     return;
   }
+  if (method == "setDarkScript") {
+    dark_script_ = ToWide(GetString(args, "script").value_or(""));
+    ++dark_generation_;
+    for (auto& [tab_id, tab] : tabs_) {
+      InstallDarkScript(*tab);
+      if (!tab->webview) continue;
+      // Open pages change right away; the script itself undoes an earlier run.
+      if (dark_script_.empty()) {
+        tab->webview->ExecuteScript(L"try{window.__plezyDark&&window.__plezyDark.disable();}catch(e){}", nullptr);
+      } else {
+        tab->webview->ExecuteScript(dark_script_.c_str(), nullptr);
+      }
+    }
+    result->Success();
+    return;
+  }
   if (method == "setTrackingPrevention") {
     tracking_level_ = GetInt(args, "level");
     for (auto& [tab_id, tab] : tabs_) ApplyTracking(*tab);
@@ -525,6 +541,7 @@ void BrowserWebPlugin::CreateTab(int id, const std::wstring& url, bool in_privat
         }
         ApplyTracking(*tab);
         Wire(*tab);
+        InstallDarkScript(*tab);
         // The host may have been placed before the WebView existed.
         tab->placed_once = false;
         tab->shown = false;
@@ -565,6 +582,32 @@ void BrowserWebPlugin::ApplyTracking(BrowserTab& tab) {
         COREWEBVIEW2_TRACKING_PREVENTION_LEVEL_BALANCED, COREWEBVIEW2_TRACKING_PREVENTION_LEVEL_STRICT};
     profile3->put_PreferredTrackingPreventionLevel(levels[(std::min)(3, (std::max)(0, tracking_level_))]);
   }
+}
+
+void BrowserWebPlugin::InstallDarkScript(BrowserTab& tab) {
+  if (!tab.webview) return;
+  if (!tab.dark_script_id.empty()) {
+    tab.webview->RemoveScriptToExecuteOnDocumentCreated(tab.dark_script_id.c_str());
+    tab.dark_script_id.clear();
+  }
+  if (dark_script_.empty()) return;
+  const int id = tab.id;
+  const int generation = dark_generation_;
+  tab.webview->AddScriptToExecuteOnDocumentCreated(
+      dark_script_.c_str(),
+      Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler>(
+          [this, id, generation](HRESULT hr, LPCWSTR script_id) -> HRESULT {
+            BrowserTab* t = Find(id);
+            if (!t || !t->webview || FAILED(hr) || !script_id) return S_OK;
+            // Replaced again meanwhile: this one is stale.
+            if (generation != dark_generation_) {
+              t->webview->RemoveScriptToExecuteOnDocumentCreated(script_id);
+              return S_OK;
+            }
+            t->dark_script_id = script_id;
+            return S_OK;
+          })
+          .Get());
 }
 
 void BrowserWebPlugin::SendFavicon(int id) {
