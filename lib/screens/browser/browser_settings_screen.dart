@@ -508,9 +508,9 @@ class BrowserSliderTileState extends State<BrowserSliderTile> {
   late double _value = widget.value.toDouble();
 
   @override
-  void didUpdateWidget(BrowserSliderTile old) {
-    super.didUpdateWidget(old);
-    if (old.value != widget.value) _value = widget.value.toDouble();
+  void didUpdateWidget(BrowserSliderTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) _value = widget.value.toDouble();
   }
 
   @override
