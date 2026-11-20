@@ -823,7 +823,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
           const AppMenuDivider<String>(),
           AppMenuItem<String>(
             value: _freeOnPlexValue,
-            icon: Symbols.live_tv_rounded,
+            icon: Symbols.local_activity_rounded,
             label: RetroStrings.freeOnPlex,
           ),
         ],

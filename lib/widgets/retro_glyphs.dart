@@ -26,6 +26,7 @@ abstract final class RetroGlyphs {
   static const _expandMore = '<path d="M6 9l6 6 6-6"/>';
   static const _expandLess = '<path d="M6 15l6-6 6 6"/>';
   static const _chevronRight = '<path d="M9 6l6 6-6 6"/>';
+  static const _freeOnPlex = '<path d="M4 6h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4V7a1 1 0 0 1 1-1z"/><path d="M15.5 6v2M15.5 11v2M15.5 16v2"/><path d="M8 9.8v4.4l3.6-2.2z"/>';
   static const _arrowDropDown = '<path d="M7 10l5 5 5-5z"/>';
   static const _arrowForward = '<path d="M4 12h16M14 6l6 6-6 6"/>';
   static const _visibility = '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
@@ -90,6 +91,7 @@ abstract final class RetroGlyphs {
     Symbols.chevron_right_rounded: _chevronRight,
     Symbols.arrow_forward_rounded: _arrowForward,
     Symbols.arrow_drop_down_rounded: _arrowDropDown,
+    Symbols.local_activity_rounded: _freeOnPlex,
     Symbols.visibility_rounded: _visibility,
     Symbols.visibility_off_rounded: _visibilityOff,
     Symbols.dns_rounded: _dns,

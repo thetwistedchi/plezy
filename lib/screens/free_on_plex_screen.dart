@@ -185,7 +185,7 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
             child: HubSection(
               hub: hub,
               focusMemory: _focusMemory,
-              icon: hub.id == 'vod:all' ? Symbols.video_library_rounded : Symbols.movie_rounded,
+              icon: hub.id == 'vod:all' ? Symbols.local_activity_rounded : Symbols.movie_rounded,
               loadMoreItems: hub.more ? () => _loadAll(hub) : null,
             ),
           ),

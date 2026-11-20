@@ -1525,8 +1525,8 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
   /// Fork: Plex's free catalog as an entry under the libraries.
   Widget _buildFreeOnPlexItem(dynamic t) {
     return NavigationRailItem(
-      icon: Symbols.live_tv_rounded,
-      selectedIcon: Symbols.live_tv_rounded,
+      icon: Symbols.local_activity_rounded,
+      selectedIcon: Symbols.local_activity_rounded,
       label: Text(
         RetroStrings.freeOnPlex,
         style: TextStyle(fontSize: 13, color: t.textMuted),
