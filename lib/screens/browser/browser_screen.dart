@@ -690,6 +690,33 @@ class _BrowserScreenState extends State<BrowserScreen> {
   _MenuEntry _menuItem(String value, IconData icon, String label, {bool enabled = true}) =>
       _MenuEntry(value, icon, label, enabled: enabled);
 
+  /// The recently closed tabs to pick from, plus "reopen all".
+  Future<void> _closedMenu(Rect anchor, {bool alignLeft = false}) async {
+    final closed = _controller.closedTabs.take(10).toList();
+    if (closed.isEmpty) return;
+    String label(({String url, String title}) e) {
+      if (e.url == BrowserController.settingsPage) return RetroStrings.browserSettings;
+      if (e.url == BrowserController.filtersPage) return RetroStrings.filterLists;
+      if (e.url == BrowserController.historyPage) return RetroStrings.history;
+      if (e.title.isNotEmpty) return e.title;
+      return Uri.tryParse(e.url)?.host ?? e.url;
+    }
+
+    final picked = await _menu(anchor, alignLeft: alignLeft, [
+      for (var i = 0; i < closed.length; i++) _menuItem('$i', Symbols.history_rounded, label(closed[i])),
+      if (closed.length > 1) ...[
+        _MenuEntry.divider,
+        _menuItem('all', Symbols.add_rounded, RetroStrings.reopenAllClosed(_controller.closedTabs.length)),
+      ],
+    ]);
+    if (picked == null) return;
+    if (picked == 'all') {
+      await _controller.reopenAllClosed();
+    } else {
+      await _controller.reopenClosed(int.parse(picked));
+    }
+  }
+
   Future<void> _tabMenu(BrowserTabState tab, Offset position) async {
     final picked = await _menu(position & const Size(1, 1), alignLeft: true, [
       _menuItem('reload', Symbols.refresh_rounded, RetroStrings.reload, enabled: tab.url != null),
@@ -700,7 +727,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         tab.muted ? RetroStrings.unmuteTab : RetroStrings.muteTab,
       ),
       _MenuEntry.divider,
-      _menuItem('reopen', Symbols.history_rounded, RetroStrings.reopenClosedTab, enabled: _controller.canReopen),
+      _menuItem('reopen', Symbols.history_rounded, RetroStrings.recentlyClosed, enabled: _controller.canReopen),
       _menuItem('others', Symbols.close_rounded, RetroStrings.closeOtherTabs, enabled: _controller.tabs.length > 1),
       _menuItem('close', Symbols.close_rounded, RetroStrings.closeTab),
     ]);
@@ -713,7 +740,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       case 'mute':
         await _controller.setMuted(tab.id, !tab.muted);
       case 'reopen':
-        await _controller.reopenClosed();
+        await _closedMenu(position & const Size(1, 1), alignLeft: true);
       case 'others':
         await _controller.closeOthers(tab.id);
       case 'close':
@@ -727,7 +754,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final picked = await _menu(anchor, [
       _menuItem('new', Symbols.add_rounded, RetroStrings.newTab),
       _menuItem('private', Symbols.visibility_off_rounded, RetroStrings.newPrivateTab),
-      _menuItem('reopen', Symbols.history_rounded, RetroStrings.reopenClosedTab, enabled: _controller.canReopen),
+      _menuItem('reopen', Symbols.history_rounded, RetroStrings.recentlyClosed, enabled: _controller.canReopen),
       _MenuEntry.divider,
       _menuItem('history', Symbols.history_rounded, RetroStrings.history),
       _menuItem('downloads', Symbols.download_rounded, RetroStrings.downloads),
@@ -746,7 +773,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       case 'private':
         _newTab(private: true);
       case 'reopen':
-        await _controller.reopenClosed();
+        await _closedMenu(anchor);
       case 'history':
         await _controller.openInternal(BrowserController.historyPage);
       case 'downloads':

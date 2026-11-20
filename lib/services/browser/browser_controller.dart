@@ -186,8 +186,11 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   final List<BrowserDownload> downloads = [];
 
   /// Recently closed tabs (addresses), newest last.
-  final List<String> _closed = [];
+  final List<({String url, String title})> _closed = [];
   bool get canReopen => _closed.isNotEmpty;
+
+  /// Recently closed tabs, newest first.
+  List<({String url, String title})> get closedTabs => _closed.reversed.toList();
 
   bool _ownsFullscreen = false;
 
@@ -413,7 +416,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     final tab = tabs.removeAt(index);
     final closedUrl = tab.url;
     if (!tab.isPrivate && closedUrl != null) {
-      _closed.add(closedUrl);
+      _closed.add((url: closedUrl, title: tab.title));
       if (_closed.length > 20) _closed.removeAt(0);
     }
     if (tab.live) await _native.closeTab(id);
@@ -427,9 +430,22 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<void> reopenClosed() async {
-    if (_closed.isEmpty) return;
-    await newTab(url: _closed.removeLast());
+  /// Reopens the closed tab [index] places back from the newest (0 = the
+  /// last one closed).
+  Future<void> reopenClosed([int index = 0]) async {
+    if (index < 0 || index >= _closed.length) return;
+    final entry = _closed.removeAt(_closed.length - 1 - index);
+    await newTab(url: entry.url);
+  }
+
+  /// Reopens every recently closed tab, oldest first; the newest is shown.
+  Future<void> reopenAllClosed() async {
+    final entries = [..._closed];
+    _closed.clear();
+    for (final entry in entries.take(entries.length - 1)) {
+      await newTab(url: entry.url, background: true);
+    }
+    if (entries.isNotEmpty) await newTab(url: entries.last.url);
   }
 
   Future<void> duplicate(int id) async {

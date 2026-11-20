@@ -167,6 +167,8 @@ class RetroStrings {
     'Privater Tab: Cookies, Verlauf und Websitedaten privater Tabs werden gelöscht, sobald der letzte private Tab geschlossen wird. Downloads und Lesezeichen bleiben.',
   );
   static String get reopenClosedTab => _t('Reopen closed tab', 'Geschlossenen Tab wieder öffnen');
+  static String get recentlyClosed => _t('Recently closed tabs…', 'Kürzlich geschlossene Tabs…');
+  static String reopenAllClosed(int n) => _t('Reopen all ($n)', 'Alle wieder öffnen ($n)');
   static String get duplicateTab => _t('Duplicate tab', 'Tab duplizieren');
   static String get closeOtherTabs => _t('Close other tabs', 'Andere Tabs schließen');
   static String get muteTab => _t('Mute tab', 'Tab stummschalten');
