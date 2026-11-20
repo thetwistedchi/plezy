@@ -199,6 +199,7 @@ class TitleLinksService {
     final idKey = '${kind.name}:${ids.tmdb ?? ids.imdb ?? ids.tvdb}';
     final settings = SettingsService.instanceOrNull;
     int? malId;
+    int? traktId;
 
     final keys = RatingKeys.instance;
     await keys.load();
@@ -210,6 +211,7 @@ class TitleLinksService {
       );
       take(scores);
       malId = scores.malId;
+      traktId = scores.traktId;
     }
 
     final omdbKey = keys.key(RatingKeys.omdb);
@@ -235,19 +237,24 @@ class TitleLinksService {
       for (final link in links)
         () async {
           final rating = link.rating ?? found[link.source];
-          if (rating != null) return link.withRating(rating);
+          // Trakt's id search pages (`/search/tmdb/…`) can answer 404, so its
+          // card needs the real page even when another source had the score.
+          if (rating != null && link.source != 'trakt') return link.withRating(rating);
           switch (link.source) {
             case 'letterboxd':
               final fetched = await _cached('lb:${ids.tmdb ?? ids.imdb}', () => _fetchLetterboxd(link.url));
               return link.withRating(fetched.rating);
             case 'trakt':
               final fetched = await _cached('trakt:$idKey', () => _fetchTrakt(kind, ids));
-              final slugUrl = fetched.slug == null ? null : traktUrl(kind: kind, slug: fetched.slug);
+              // The title's page by slug, else by Trakt's numeric id (from
+              // MDBList), which Trakt also resolves.
+              final page = fetched.slug ?? traktId?.toString();
+              final pageUrl = page == null ? null : traktUrl(kind: kind, slug: page);
               return TitleLink(
                 source: link.source,
                 siteName: link.siteName,
-                url: slugUrl ?? link.url,
-                rating: fetched.rating,
+                url: pageUrl ?? link.url,
+                rating: rating ?? fetched.rating,
               );
             default:
               return link;
