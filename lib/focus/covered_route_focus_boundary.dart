@@ -192,7 +192,7 @@ class _CoveredRouteFocusBoundaryState extends State<CoveredRouteFocusBoundary> {
       // The exclusion applies in this build's didUpdateWidget; post-frame
       // callbacks run before the focus change it requested is applied.
       if (_focusPathAtCover.isNotEmpty) {
-        final navigator = route?.navigator;
+        final navigator = route.navigator;
         WidgetsBinding.instance.addPostFrameCallback((_) => _yieldFocusToCover(navigator));
       }
     } else if (_covered && !covered) {

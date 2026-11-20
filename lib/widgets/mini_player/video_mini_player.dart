@@ -167,10 +167,11 @@ mixin MinimizableRoute<T> on ModalRoute<T> {
       // Keyboard focus goes to the page under the bar instead of nowhere.
       final below = _below;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_minimized && below is ModalRoute && below.isActive) {
-          final scope = below.focusScopeNode;
-          if (!scope.hasFocus) scope.requestFocus();
-        }
+        if (!_minimized || below is! ModalRoute || !below.isActive) return;
+        final pageContext = below.subtreeContext;
+        if (pageContext == null || !pageContext.mounted) return;
+        final scope = FocusScope.of(pageContext);
+        if (!scope.hasFocus) scope.requestFocus();
       });
     } else {
       _minimizedRoutes.remove(this);
