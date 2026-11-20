@@ -46,6 +46,9 @@ class BrowserSettings extends ChangeNotifier {
   bool keepHistory = true;
   bool httpsUpgrade = true;
 
+  /// Sites allowed to open pop-ups without a click on a link.
+  List<String> popupSites = const [];
+
   /// Disk cache limit in MB, applied when the browser starts.
   int cacheLimitMb = defaultCacheLimitMb;
   static const int defaultCacheLimitMb = 200;
@@ -67,7 +70,17 @@ class BrowserSettings extends ChangeNotifier {
     restoreTabs = p.getBool('${_prefix}restoreTabs') ?? restoreTabs;
     keepHistory = p.getBool('${_prefix}keepHistory') ?? keepHistory;
     httpsUpgrade = p.getBool('${_prefix}httpsUpgrade') ?? httpsUpgrade;
+    popupSites = p.getStringList('${_prefix}popupSites') ?? const [];
     cacheLimitMb = p.getInt('${_prefix}cacheLimitMb') ?? cacheLimitMb;
+    notifyListeners();
+  }
+
+  Future<void> setPopupAllowed(String site, bool allowed) async {
+    await load();
+    final sites = {...popupSites};
+    allowed ? sites.add(site) : sites.remove(site);
+    popupSites = sites.toList()..sort();
+    await _prefs!.setStringList('${_prefix}popupSites', popupSites);
     notifyListeners();
   }
 

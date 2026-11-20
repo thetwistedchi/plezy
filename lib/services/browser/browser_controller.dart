@@ -58,8 +58,14 @@ class DownloadPrompt extends BrowserPrompt {
 }
 
 class PopupBlockedNotice extends BrowserPrompt {
-  const PopupBlockedNotice(super.tab, this.url);
+  const PopupBlockedNotice(super.tab, this.url, this.site, {this.redirect = false});
   final String url;
+
+  /// The site that tried to open it.
+  final String site;
+
+  /// The page tried to leave for [url] right after opening a pop-up.
+  final bool redirect;
 }
 
 class HttpFallbackNotice extends BrowserPrompt {
@@ -191,6 +197,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     }
     try {
       await _native.ensureReady(httpsUpgrade: _settings.httpsUpgrade, cacheLimitMb: _settings.cacheLimitMb);
+      await _native.setPopupSites(_settings.popupSites);
       if (!tab.live) {
         tab.live = true;
         tab.loading = true;
@@ -311,6 +318,12 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> setHttpsUpgrade(bool value) => _native.setHttpsUpgrade(value);
 
+  /// Allows or blocks pop-ups from [site] from now on.
+  Future<void> setPopupAllowed(String site, bool allowed) async {
+    await _settings.setPopupAllowed(site, allowed);
+    await _native.setPopupSites(_settings.popupSites);
+  }
+
   /// Where the page goes, in physical pixels of the Flutter view.
   Future<void> setPageRect({required int left, required int top, required int right, required int bottom}) =>
       _native.setRect(left: left, top: top, right: right, bottom: bottom);
@@ -353,7 +366,9 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         if (url != null && url.isNotEmpty) unawaited(newTab(url: url));
       case 'popupBlocked':
         final url = e.str('url');
-        if (url != null && url.isNotEmpty) _prompts.add(PopupBlockedNotice(tab.id, url));
+        if (url != null && url.isNotEmpty) {
+          _prompts.add(PopupBlockedNotice(tab.id, url, e.str('site') ?? '', redirect: e.flag('redirect')));
+        }
       // Nobody to ask while the browser is closed: denied.
       case 'permission':
         if (_prompts.hasListener) {

@@ -35,10 +35,12 @@ class BrowserScreen extends StatefulWidget {
 }
 
 class _Notice {
-  const _Notice(this.text, {this.action, this.onAction, this.warning = false});
+  const _Notice(this.text, {this.action, this.onAction, this.action2, this.onAction2, this.warning = false});
   final String text;
   final String? action;
   final VoidCallback? onAction;
+  final String? action2;
+  final VoidCallback? onAction2;
   final bool warning;
 }
 
@@ -314,12 +316,17 @@ class _BrowserScreenState extends State<BrowserScreen> {
       case DownloadPrompt(:final request, :final url, :final path, :final size):
         final allow = await _overlay(() => _askDownload(url, path, size)) ?? false;
         await _controller.answerDownload(request, allow);
-      case PopupBlockedNotice(:final url):
+      case PopupBlockedNotice(:final url, :final site, :final redirect):
+        final target = Uri.tryParse(url)?.host ?? url;
         _setNotice(
           _Notice(
-            '${RetroStrings.popupBlocked}: ${Uri.tryParse(url)?.host ?? url}',
+            redirect
+                ? '${RetroStrings.redirectBlocked(site)}: $target'
+                : (site.isEmpty ? '${RetroStrings.popupBlocked}: $target' : '${RetroStrings.popupBlockedFrom(site)}: $target'),
             action: RetroStrings.openAnyway,
             onAction: () => unawaited(_controller.newTab(url: url)),
+            action2: site.isEmpty ? null : RetroStrings.alwaysAllow,
+            onAction2: site.isEmpty ? null : () => unawaited(_controller.setPopupAllowed(site, true)),
           ),
         );
       case HttpFallbackNotice(:final tab, :final httpUrl):
@@ -808,6 +815,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 notice.onAction?.call();
               },
               child: Text(action),
+            ),
+          if (notice.action2 case final action2?)
+            TextButton(
+              onPressed: () {
+                _setNotice(null);
+                notice.onAction2?.call();
+              },
+              child: Text(action2),
             ),
           _iconButton(Symbols.close_rounded, RetroStrings.close, () => _setNotice(null), size: 16),
         ],

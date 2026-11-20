@@ -42,6 +42,8 @@ struct BrowserTab {
   RECT placed{0, 0, 0, 0};
   bool shown = false;
   bool placed_once = false;
+  // When this tab last opened a pop-up (GetTickCount64), for the tab-under check.
+  ULONGLONG popup_at = 0;
 };
 
 class BrowserWebPlugin : public flutter::Plugin {
@@ -67,6 +69,7 @@ class BrowserWebPlugin : public flutter::Plugin {
   void Send(int tab, const std::string& type, const flutter::EncodableMap& data = {});
   void SendState(BrowserTab& tab);
   void Wire(BrowserTab& tab);
+  void OpenPopup(int id, const std::wstring& uri, bool allowed);
 
   flutter::PluginRegistrarWindows* registrar_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> method_channel_;
@@ -80,6 +83,8 @@ class BrowserWebPlugin : public flutter::Plugin {
   int active_ = 0;
   bool visible_ = false;
   bool https_upgrade_ = true;
+  // Sites (registrable domains) the user allowed to open pop-ups.
+  std::vector<std::wstring> popup_sites_;
   RECT rect_{0, 0, 0, 0};
   int generation_ = 0;
 

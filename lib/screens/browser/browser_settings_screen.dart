@@ -278,6 +278,24 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+                      _SectionTitle(RetroStrings.popupSites),
+                      _Card(
+                        children: [
+                          if (_settings.popupSites.isEmpty)
+                            ListTile(subtitle: Text(RetroStrings.popupSitesEmpty))
+                          else
+                            for (final site in _settings.popupSites)
+                              ListTile(
+                                title: Text(site),
+                                trailing: IconButton(
+                                  icon: const AppIcon.retro(Symbols.close_rounded, size: 18),
+                                  tooltip: RetroStrings.delete,
+                                  onPressed: () => unawaited(BrowserController.instance.setPopupAllowed(site, false)),
+                                ),
+                              ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                       _SectionTitle(RetroStrings.browserProtection),
                       _Card(children: [ListTile(subtitle: Text(RetroStrings.browserProtectionDescription))]),
                     ],

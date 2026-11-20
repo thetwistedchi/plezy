@@ -93,6 +93,41 @@ std::wstring HostOf(const std::wstring& uri) {
   return Lower(authority);
 }
 
+// The site of a host, roughly its registrable domain: "news.example.co.uk"
+// and "example.co.uk" are one site, like the browser's same-site check.
+std::wstring SiteOf(const std::wstring& host) {
+  std::vector<std::wstring> labels;
+  size_t start = 0;
+  while (true) {
+    const auto dot = host.find(L'.', start);
+    labels.push_back(host.substr(start, dot == std::wstring::npos ? std::wstring::npos : dot - start));
+    if (dot == std::wstring::npos) break;
+    start = dot + 1;
+  }
+  if (labels.size() <= 2) return host;
+  // Two-letter country endings with a short second level: co.uk, com.au.
+  size_t keep = 2;
+  const auto& last = labels[labels.size() - 1];
+  const auto& second = labels[labels.size() - 2];
+  if (last.size() == 2 && second.size() <= 3) keep = 3;
+  if (labels.size() <= keep) return host;
+  std::wstring site;
+  for (size_t i = labels.size() - keep; i < labels.size(); ++i) {
+    if (!site.empty()) site += L'.';
+    site += labels[i];
+  }
+  return site;
+}
+
+// Remembers the link the user last clicked (or middle-clicked) in the top
+// page, so a new window can be told apart from a script's pop-up. Only read
+// by the app; the page gets nothing from it.
+constexpr wchar_t kLinkScript[] =
+    L"(()=>{if(window.top!==window)return;const r=e=>{const p=e.composedPath?e.composedPath():[];"
+    L"const a=p.find(n=>n&&n.tagName==='A'&&n.href);"
+    L"Object.defineProperty(window,'__plezyLink',{value:a?{h:a.href,t:Date.now()}:null,configurable:true,enumerable:false});};"
+    L"addEventListener('click',r,true);addEventListener('auxclick',r,true);})();";
+
 // Addresses that usually only exist over http: this machine, the local
 // network (router, NAS) and single-label names. They are never upgraded.
 bool IsLocalHost(const std::wstring& host) {
@@ -239,6 +274,17 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
   if (method == "setActive") {
     active_ = GetInt(args, "id");
     ApplyLayout();
+    result->Success();
+    return;
+  }
+  if (method == "setPopupSites") {
+    popup_sites_.clear();
+    const auto it = args.find(flutter::EncodableValue("sites"));
+    if (it != args.end() && std::holds_alternative<flutter::EncodableList>(it->second)) {
+      for (const auto& v : std::get<flutter::EncodableList>(it->second)) {
+        if (std::holds_alternative<std::string>(v)) popup_sites_.push_back(Lower(ToWide(std::get<std::string>(v))));
+      }
+    }
     result->Success();
     return;
   }
@@ -453,10 +499,16 @@ void BrowserWebPlugin::CreateTab(int id, const std::wstring& url, Result result)
   }
 }
 
+void BrowserWebPlugin::OpenPopup(int id, const std::wstring& uri, bool) {
+  if (auto* tab = Find(id)) tab->popup_at = ::GetTickCount64();
+  Send(id, "openTab", {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))}});
+}
+
 void BrowserWebPlugin::Wire(BrowserTab& tab) {
   const int id = tab.id;
   auto& webview = tab.webview;
   EventRegistrationToken token{};
+  webview->AddScriptToExecuteOnDocumentCreated(kLinkScript, nullptr);
 
   webview->add_SourceChanged(Callback<ICoreWebView2SourceChangedEventHandler>(
                                  [this, id](ICoreWebView2*, ICoreWebView2SourceChangedEventArgs*) -> HRESULT {
@@ -512,6 +564,29 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
                 return S_OK;
               }
             }
+            // Tab-under: right after opening a pop-up, the page itself moves to
+            // another site without a click. Blocked like in Chrome.
+            if (tab && tab->popup_at && ::GetTickCount64() - tab->popup_at < 10000) {
+              BOOL user = FALSE;
+              BOOL redirect = FALSE;
+              args->get_IsUserInitiated(&user);
+              args->get_IsRedirected(&redirect);
+              LPWSTR current = nullptr;
+              sender->get_Source(&current);
+              const std::wstring from = current ? current : L"";
+              if (current) ::CoTaskMemFree(current);
+              const std::wstring site = SiteOf(HostOf(uri));
+              const bool allowed =
+                  std::find(popup_sites_.begin(), popup_sites_.end(), SiteOf(HostOf(from))) != popup_sites_.end();
+              if (!user && !redirect && !allowed && !site.empty() && site != SiteOf(HostOf(from))) {
+                args->put_Cancel(TRUE);
+                Send(id, "popupBlocked",
+                     {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))},
+                      {flutter::EncodableValue("site"), flutter::EncodableValue(ToUtf8(SiteOf(HostOf(from)).c_str()))},
+                      {flutter::EncodableValue("redirect"), flutter::EncodableValue(true)}});
+                return S_OK;
+              }
+            }
             Send(id, "loading", {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))}});
             return S_OK;
           })
@@ -536,17 +611,79 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
       &token);
   tab.tokens.push_back({4, token});
 
-  // Pop-up blocker: a new window only opens (as a tab) after a click.
+  // Pop-up blocker, along the lines of Chrome's: a new window opens (as a
+  // tab) only after a click, and then only for the clicked link or a page of
+  // the same site. Scripts opening other sites on a click (the usual ad
+  // pop-up) are blocked with a notice, unless the user allowed the site.
   webview->add_NewWindowRequested(
       Callback<ICoreWebView2NewWindowRequestedEventHandler>(
-          [this, id](ICoreWebView2*, ICoreWebView2NewWindowRequestedEventArgs* args) -> HRESULT {
+          [this, id](ICoreWebView2* sender, ICoreWebView2NewWindowRequestedEventArgs* args) -> HRESULT {
             args->put_Handled(TRUE);
             LPWSTR raw = nullptr;
             args->get_Uri(&raw);
-            const std::string uri = TakeString(raw);
+            const std::wstring uri = raw ? raw : L"";
+            if (raw) ::CoTaskMemFree(raw);
             BOOL user = FALSE;
             args->get_IsUserInitiated(&user);
-            Send(id, user ? "openTab" : "popupBlocked", {{flutter::EncodableValue("url"), flutter::EncodableValue(uri)}});
+            LPWSTR current = nullptr;
+            sender->get_Source(&current);
+            const std::wstring opener = current ? current : L"";
+            if (current) ::CoTaskMemFree(current);
+            const std::wstring opener_site = SiteOf(HostOf(opener));
+            const bool site_allowed =
+                std::find(popup_sites_.begin(), popup_sites_.end(), opener_site) != popup_sites_.end();
+            if (site_allowed) {
+              OpenPopup(id, uri, true);
+              return S_OK;
+            }
+            if (!user) {
+              Send(id, "popupBlocked",
+                   {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))},
+                    {flutter::EncodableValue("site"), flutter::EncodableValue(ToUtf8(opener_site.c_str()))}});
+              return S_OK;
+            }
+            const std::wstring target_site = SiteOf(HostOf(uri));
+            if (!target_site.empty() && target_site == opener_site) {
+              OpenPopup(id, uri, true);
+              return S_OK;
+            }
+            // Another site: open it only if it is the link the user clicked.
+            ComPtr<ICoreWebView2Deferral> deferral;
+            args->GetDeferral(&deferral);
+            ComPtr<ICoreWebView2NewWindowRequestedEventArgs> keep(args);
+            const HRESULT hr = sender->ExecuteScript(
+                L"(()=>{const l=window.__plezyLink;return l&&Date.now()-l.t<3000?l.h:'';})()",
+                Callback<ICoreWebView2ExecuteScriptCompletedHandler>(
+                    [this, id, uri, opener_site, deferral, keep](HRESULT hr, LPCWSTR json) -> HRESULT {
+                      std::wstring clicked = (SUCCEEDED(hr) && json) ? json : L"";
+                      // A JSON string: strip the quotes, undo escaped slashes.
+                      if (clicked.size() >= 2 && clicked.front() == L'"') clicked = clicked.substr(1, clicked.size() - 2);
+                      std::wstring unescaped;
+                      for (size_t i = 0; i < clicked.size(); ++i) {
+                        if (clicked[i] == L'\\' && i + 1 < clicked.size()) ++i;
+                        unescaped += clicked[i];
+                      }
+                      auto trim = [](std::wstring u) {
+                        while (!u.empty() && u.back() == L'/') u.pop_back();
+                        return u;
+                      };
+                      if (!unescaped.empty() && trim(unescaped) == trim(uri)) {
+                        OpenPopup(id, uri, true);
+                      } else {
+                        Send(id, "popupBlocked",
+                             {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))},
+                              {flutter::EncodableValue("site"), flutter::EncodableValue(ToUtf8(opener_site.c_str()))}});
+                      }
+                      if (deferral) deferral->Complete();
+                      return S_OK;
+                    })
+                    .Get());
+            if (FAILED(hr)) {
+              Send(id, "popupBlocked",
+                   {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))},
+                    {flutter::EncodableValue("site"), flutter::EncodableValue(ToUtf8(opener_site.c_str()))}});
+              if (deferral) deferral->Complete();
+            }
             return S_OK;
           })
           .Get(),

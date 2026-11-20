@@ -95,6 +95,15 @@ class RetroStrings {
   static String get allow => _t('Allow', 'Erlauben');
   static String get block => _t('Block', 'Blockieren');
   static String get popupBlocked => _t('Pop-up blocked', 'Pop-up blockiert');
+  static String popupBlockedFrom(String site) => _t('Pop-up from $site blocked', 'Pop-up von $site blockiert');
+  static String redirectBlocked(String site) =>
+      _t('$site tried to leave for another site after opening a pop-up', '$site wollte nach einem Pop-up zu einer anderen Seite wechseln');
+  static String get alwaysAllow => _t('Always allow', 'Immer erlauben');
+  static String get popupSites => _t('Pop-ups allowed on', 'Pop-ups erlaubt auf');
+  static String get popupSitesEmpty => _t(
+    'Pop-ups only open after a click on a link or within the same site. Sites you allow from the pop-up notice are listed here.',
+    'Pop-ups öffnen sich nur nach einem Klick auf einen Link oder innerhalb derselben Seite. Seiten, die du über den Pop-up-Hinweis erlaubst, stehen hier.',
+  );
   static String get openAnyway => _t('Open anyway', 'Trotzdem öffnen');
   static String get httpsFailed =>
       _t('This site could not be loaded securely.', 'Diese Seite konnte nicht sicher geladen werden.');
@@ -177,7 +186,7 @@ class RetroStrings {
 
   static String get browserProtection => _t('Built-in protection', 'Eingebauter Schutz');
   static String get browserProtectionDescription => _t(
-    'Pop-ups only open after a click, notification requests are declined, passwords and form data are not saved, and Microsoft Defender SmartScreen warns about known dangerous sites and downloads.',
-    'Pop-ups öffnen sich nur nach einem Klick, Benachrichtigungsanfragen werden abgelehnt, Passwörter und Formulardaten werden nicht gespeichert und Microsoft Defender SmartScreen warnt vor bekannten gefährlichen Seiten und Downloads.',
+    'Pop-ups only open from a clicked link or within the same site, pages can't jump to another site right after opening one, notification requests are declined, passwords and form data are not saved, and Microsoft Defender SmartScreen warns about known dangerous sites and downloads.',
+    'Pop-ups öffnen sich nur über einen angeklickten Link oder innerhalb derselben Seite, Seiten können nach einem Pop-up nicht sofort zu einer anderen Seite springen, Benachrichtigungsanfragen werden abgelehnt, Passwörter und Formulardaten werden nicht gespeichert und Microsoft Defender SmartScreen warnt vor bekannten gefährlichen Seiten und Downloads.',
   );
 }
