@@ -127,7 +127,7 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
         }
       }
     }
-    await Future.wait([for (var i = 0; i < 6; i++) worker()]);
+    await Future.wait([for (var i = 0; i < 12; i++) worker()]);
     return [for (final k in keys) if (_freeEntries[k] case final Map<String, dynamic> entry) entry];
   }
 
@@ -184,7 +184,7 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
       _searchMessage = null;
     });
     try {
-      final results = await PlexDiscoverClient(session).search(query, limit: 40);
+      final results = await PlexDiscoverClient(session).search(query, limit: 25);
       final keys = [
         for (final r in results)
           if (r.metadata['ratingKey']?.toString() case final String key when key.isNotEmpty) key,
@@ -457,6 +457,8 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
                   : null,
             ),
             textInputAction: TextInputAction.search,
+            // The keyboard only opens when the field is pressed, not on passing by.
+            tvTextInputAutoOpenBehavior: TvTextInputAutoOpenBehavior.never,
             onSubmitted: (value) => unawaited(_search(value)),
             onNavigateDown: () {
               if (shown.isNotEmpty) _hubKey(0).currentState?.requestFocusFromMemory();

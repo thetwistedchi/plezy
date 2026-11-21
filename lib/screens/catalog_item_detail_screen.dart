@@ -22,6 +22,7 @@ import '../media/ids.dart';
 import '../media/media_hub.dart';
 import '../media/media_item.dart';
 import '../media/media_item_merge.dart';
+import '../media/media_kind.dart';
 import '../media/media_rating.dart';
 import '../media/primary_trailer.dart';
 import '../models/catalog/catalog_cast_member.dart';
@@ -39,6 +40,7 @@ import '../services/catalog/community_ratings.dart';
 import '../services/catalog/plex_catalog_source.dart';
 import '../services/catalog/seerr_catalog_source.dart';
 import '../services/data_aggregation_service.dart';
+import '../utils/dialogs.dart';
 import '../utils/app_logger.dart';
 import '../utils/catalog_navigation_helper.dart';
 import '../utils/desktop_window_padding.dart';
@@ -320,10 +322,17 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
     final streamingLinks = <CatalogLink>[];
     final otherLinks = <CatalogLink>[];
     // tvOS has no browser to open a provider's site in (#2877).
+    CatalogLink? plexLink;
     for (final link in isTvosRunner ? const <CatalogLink>[] : item.links ?? const <CatalogLink>[]) {
       if (link.label.trim().isEmpty || link.url.trim().isEmpty) continue;
+      // Fork: Plex's free catalog has its own button, not a "Watch on" link.
+      if (Uri.tryParse(link.url)?.host == 'app.plex.tv') {
+        plexLink ??= link;
+        continue;
+      }
       (link.isStreaming ? streamingLinks : otherLinks).add(link);
     }
+    _plexLink = plexLink;
     for (final node in _linkFocusNodes) {
       node.dispose();
     }
@@ -451,8 +460,10 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
 
   /// Fork: a Free on plex.tv title's link to where it plays, shown as the
   /// first, highlighted action.
+  CatalogLink? _plexLink;
+
   CatalogLink? get _freePlexLink =>
-      _streamingLinks.firstWhereOrNull((link) => Uri.tryParse(link.url)?.host == 'app.plex.tv') ??
+      _plexLink ??
       (_freeVodUrl == null
           ? null
           : CatalogLink(label: RetroStrings.freeOnPlexWatch, url: _freeVodUrl!, isStreaming: true));
@@ -464,10 +475,60 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   /// Rating key -> whether Plex's free catalog has it, for this app run.
   static final Map<String, bool> _freeVodKnown = {};
 
+  /// Fork: a free title plays; for a show an episode can be chosen first
+  /// (season, then episode), or Plex's own pick (where it continues).
+  Future<void> _playFreePlex(CatalogLink free) async {
+    final key = _item.ids.plex;
+    if (_item.kind != MediaKind.show || key == null || key.isEmpty) return _openExternalUrl(free.url);
+    try {
+      final session = await context.read<CatalogSourcesProvider>().resolvePlexSession();
+      if (session == null || !mounted) return _openExternalUrl(free.url);
+      final vod = PlexDiscoverClient(session, baseUri: PlexDiscoverClient.vodBaseUri);
+      final seasons = (await vod.getPage('/library/metadata/$key/children', limit: 100)).items;
+      if (!mounted) return;
+      if (seasons.isEmpty) return _openExternalUrl(free.url);
+      String? seasonKey;
+      if (seasons.length == 1) {
+        seasonKey = seasons.first['ratingKey']?.toString();
+      } else {
+        seasonKey = await showOptionPickerDialog<String>(
+          context,
+          title: RetroStrings.freeOnPlexChooseSeason,
+          options: [
+            (icon: Symbols.play_arrow_rounded, label: RetroStrings.freeOnPlexPlexChoice, value: ''),
+            for (final season in seasons)
+              if (season['ratingKey']?.toString() case final String k when k.isNotEmpty)
+                (icon: null, label: '${season['title'] ?? k}', value: k),
+          ],
+        );
+        if (seasonKey == null || !mounted) return;
+        if (seasonKey.isEmpty) return _openExternalUrl(free.url);
+      }
+      if (seasonKey == null) return _openExternalUrl(free.url);
+      final episodes = (await vod.getPage('/library/metadata/$seasonKey/children', limit: 100)).items;
+      if (!mounted) return;
+      final episode = await showOptionPickerDialog<String>(
+        context,
+        title: RetroStrings.freeOnPlexChooseEpisode,
+        options: [
+          if (seasons.length == 1) (icon: Symbols.play_arrow_rounded, label: RetroStrings.freeOnPlexPlexChoice, value: ''),
+          for (final e in episodes)
+            if (e['ratingKey']?.toString() case final String k when k.isNotEmpty)
+              (icon: null, label: '${e['index'] != null ? '${e['index']}. ' : ''}${e['title'] ?? k}', value: k),
+        ],
+      );
+      if (episode == null || !mounted) return;
+      return _openExternalUrl(episode.isEmpty ? free.url : FreeOnPlexScreen.watchUrl(episode));
+    } catch (e) {
+      appLogger.d('Free on plex.tv: episodes not loaded', error: e);
+      if (mounted) return _openExternalUrl(free.url);
+    }
+  }
+
   Future<void> _checkFreeOnPlex() async {
     final key = widget.item.ids.plex;
     if (key == null || key.isEmpty || isTvosRunner) return;
-    if ((widget.item.links ?? const []).any((l) => Uri.tryParse(l.url)?.host == 'app.plex.tv')) return;
+    if (_plexLink != null || (widget.item.links ?? const []).any((l) => Uri.tryParse(l.url)?.host == 'app.plex.tv')) return;
     var free = _freeVodKnown[key];
     if (free == null) {
       try {
@@ -1573,10 +1634,10 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
                                                   debugLabel: 'catalog_free_plex',
                                                   autofocus: true,
                                                   tooltip: RetroStrings.freeOnPlexPlay,
-                                                  onPressed: () => unawaited(_openExternalUrl(free.url)),
+                                                  onPressed: () => unawaited(_playFreePlex(free)),
                                                   builder: (context, state) => _FreePlexButton(
                                                     focused: state.showFocus,
-                                                    onPressed: () => unawaited(_openExternalUrl(free.url)),
+                                                    onPressed: () => unawaited(_playFreePlex(free)),
                                                   ),
                                                 ),
                                               if (_watchlistSource != null)

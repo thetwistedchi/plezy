@@ -20,6 +20,9 @@ class RetroStrings {
   // Free on Plex (Plex's ad-supported Movies & Shows)
   static String get freeOnPlex => _t('Free on plex.tv', 'Kostenlos auf plex.tv');
   static String get freeOnPlexAll => _t('All titles', 'Alle Titel');
+  static String get freeOnPlexChooseSeason => _t('Choose a season', 'Staffel wählen');
+  static String get freeOnPlexChooseEpisode => _t('Choose an episode', 'Folge wählen');
+  static String get freeOnPlexPlexChoice => _t('Where Plex continues', 'Wo Plex weitermacht');
   static String get freeOnPlexWatchlist => _t('Free on your watchlist', 'Kostenlos auf deiner Merkliste');
   static String get freeOnPlexSearch => _t('Search Plex\'s free titles', 'Kostenlose Titel von Plex suchen');
   static String freeOnPlexResults(String query) => _t('Free results for "$query"', 'Kostenlose Treffer für „$query"');
