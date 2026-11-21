@@ -154,8 +154,10 @@ internal class BrowserPageView(
     val handled = web.dispatchKeyEvent(event)
     if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
       val now = SystemClock.uptimeMillis()
-      val atTop = !web.canScrollVertically(-1)
-      if (!handled || (atTop && now - lastUpAtTop < 600)) {
+      // The page itself at the top (fields and inner scroll areas may still
+      // take Up): a second quick Up goes back to the toolbar.
+      val atTop = web.scrollY <= 0 || !web.canScrollVertically(-1)
+      if (!handled || (atTop && lastUpAtTop != 0L && now - lastUpAtTop < 700)) {
         lastUpAtTop = 0
         plugin.onLeavePage(this)
         return true
