@@ -655,7 +655,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         if (e.flag('ok')) {
           appLogger.d('$t: loaded');
         } else if (e.integer('error') != 14) {
-          appLogger.i('$t: load failed (WebView2 error ${e.integer('error')})');
+          appLogger.i('$t: load failed (${_host(_byId(e.tab)?.url)}, error ${e.integer('error')})');
         }
       case 'upgraded':
         appLogger.d('$t: upgraded ${_host(e.str('url'))} to https');
@@ -715,6 +715,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     }
     if (e.type == 'remoteUrl') {
       final url = e.str('url');
+      appLogger.d('Browser: address from the phone remote (${url?.length ?? 0} characters)');
       if (url != null && url.trim().isNotEmpty) unawaited(go(url));
       return;
     }

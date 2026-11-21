@@ -2095,22 +2095,23 @@ class _PageSlotState extends State<_PageSlot> {
         onFocusChange: (focused) {
           if (focused) unawaited(BrowserController.instance.focusPage());
         },
-        // Keys only arrive here while the page itself doesn't have them yet:
-        // Up goes to the toolbar, the others hand the keys to the page.
+        // Flutter sees every key first; keys it leaves unhandled go on to the
+        // native page. While the page is focused, the arrows and OK must go
+        // there (its pointer), not to Flutter's focus traversal.
         onKeyEvent: (node, event) {
-          if (event is! KeyDownEvent) return KeyEventResult.ignored;
           final key = event.logicalKey;
-          if (key == LogicalKeyboardKey.arrowUp) {
-            BrowserController.instance.leavePage();
-            return KeyEventResult.handled;
-          }
-          if (key == LogicalKeyboardKey.arrowDown ||
+          if (key == LogicalKeyboardKey.arrowUp ||
+              key == LogicalKeyboardKey.arrowDown ||
               key == LogicalKeyboardKey.arrowLeft ||
               key == LogicalKeyboardKey.arrowRight ||
               key == LogicalKeyboardKey.select ||
-              key == LogicalKeyboardKey.enter) {
-            unawaited(BrowserController.instance.focusPage());
-            return KeyEventResult.handled;
+              key == LogicalKeyboardKey.enter ||
+              key == LogicalKeyboardKey.numpadEnter ||
+              key == LogicalKeyboardKey.gameButtonA) {
+            if (event is KeyDownEvent && event is! KeyRepeatEvent) {
+              unawaited(BrowserController.instance.focusPage());
+            }
+            return KeyEventResult.skipRemainingHandlers;
           }
           return KeyEventResult.ignored;
         },

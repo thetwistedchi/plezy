@@ -2,25 +2,26 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, interactive-widget=overlays-content">
 <meta name="theme-color" content="#140a24">
 <title>Plezy Retrowave remote</title>
 <style>
   :root { --bg:#140a24; --panel:#22123a; --line:#4a2a74; --accent:#ec4899; --text:#f4ecff; --muted:#a990c9; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html, body { margin:0; height:100%; background:var(--bg); color:var(--text);
+  html, body { margin:0; height:100%; height:100svh; overflow:hidden; background:var(--bg); color:var(--text);
     font:15px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   body { display:flex; flex-direction:column; gap:10px; padding:10px; padding-bottom:max(10px, env(safe-area-inset-bottom)); }
   header { display:flex; align-items:center; gap:8px; min-height:22px; }
   #dot { width:9px; height:9px; border-radius:50%; background:var(--muted); flex:none; }
   #dot.on { background:#34d399; }
   #page { flex:1; color:var(--muted); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .row { display:flex; gap:8px; }
+  .row { display:flex; gap:8px; flex:none; }
+  input, #msg, header { flex:none; }
   button { flex:1; min-height:46px; border:1px solid var(--line); border-radius:12px; background:var(--panel);
     color:var(--text); font:inherit; font-size:15px; }
   button:active { border-color:var(--accent); background:#3a1d5c; }
   button.accent { border-color:var(--accent); }
-  #pad { flex:1; min-height:200px; border:1px solid var(--line); border-radius:16px; position:relative;
+  #pad { flex:1 1 auto; min-height:120px; border:1px solid var(--line); border-radius:16px; position:relative;
     background:radial-gradient(circle at 50% 40%, #2a1647, var(--panel)); touch-action:none; user-select:none; }
   #pad span { position:absolute; inset:auto 0 12px 0; text-align:center; color:var(--muted); font-size:12px; pointer-events:none; }
   input { width:100%; min-height:46px; border:1px solid var(--line); border-radius:12px; background:var(--panel);
@@ -136,11 +137,11 @@
   var text = document.getElementById('text');
   document.getElementById('type').addEventListener('click', function () {
     if (!text.value) return;
-    send({ t:'text', v:text.value }); text.value = '';
+    send({ t:'text', v:text.value }); text.value = ''; text.blur(); window.scrollTo(0, 0);
   });
   document.getElementById('open').addEventListener('click', function () {
     if (!text.value.trim()) return;
-    send({ t:'url', v:text.value.trim() }); text.value = ''; text.blur();
+    send({ t:'url', v:text.value.trim() }); text.value = ''; text.blur(); window.scrollTo(0, 0);
   });
   text.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('type').click(); }
