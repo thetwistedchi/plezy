@@ -752,6 +752,10 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       _leavePage.add(null);
       return;
     }
+    if (e.type == 'togglePointer') {
+      unawaited(togglePointerForSite());
+      return;
+    }
     if (e.type == 'remoteConnected') {
       _remoteConnected.add(null);
       return;

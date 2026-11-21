@@ -302,8 +302,8 @@ class RetroStrings {
   static String get tvPointer => _t('Pointer for the remote', 'Zeiger für die Fernbedienung');
   static String get tvPointerHere => _t('Pointer on this site', 'Zeiger auf dieser Seite');
   static String get tvPointerDescription => _t(
-    'The arrows move a pointer over the page (hold for faster) and OK clicks. Off: the arrows select the page\'s links and buttons. The ⋮ menu switches it for single websites; the choice is remembered per site.',
-    'Die Pfeiltasten bewegen einen Zeiger über die Seite (gedrückt halten für schneller), OK klickt. Aus: Die Pfeiltasten wählen die Links und Schaltflächen der Seite. Das ⋮-Menü schaltet ihn für einzelne Websites um; das wird pro Seite gemerkt.',
+    'The arrows move a pointer over the page (hold for faster) and OK clicks. Off: the arrows select the page\'s links and buttons. Holding OK on a page or the ⋮ menu switches it for that website; the choice is remembered per site.',
+    'Die Pfeiltasten bewegen einen Zeiger über die Seite (gedrückt halten für schneller), OK klickt. Aus: Die Pfeiltasten wählen die Links und Schaltflächen der Seite. OK gedrückt halten oder das ⋮-Menü schaltet ihn für diese Website um; das wird pro Seite gemerkt.',
   );
   static String get keepPlayingAwake => _t('Keep tabs playing audio running', 'Tabs mit Ton weiterlaufen lassen');
   static String get restoreTabs => _t('Restore tabs', 'Tabs wiederherstellen');

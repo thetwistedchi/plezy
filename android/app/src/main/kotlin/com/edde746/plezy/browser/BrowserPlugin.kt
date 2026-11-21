@@ -418,6 +418,9 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
 
   internal fun onPageTouched() = send(0, "pageFocus")
 
+  /** Holding OK on the page: Dart switches the pointer for the site. */
+  internal fun onTogglePointer() = send(0, "togglePointer")
+
   internal fun onLeavePage(view: BrowserPageView) {
     view.returnFocusToFlutter()
     send(0, "leavePage")

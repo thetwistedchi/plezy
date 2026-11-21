@@ -49,6 +49,7 @@ internal class BrowserPageView(
       "return p.a===document.activeElement&&p.s===s.join(',');})()"
   }
   private var lastUpAtTop = 0L
+  private var okLong = false
 
   /** The remote moves a pointer (on) or selects the page's elements (off). */
   var pointerMode = false
@@ -136,6 +137,23 @@ internal class BrowserPageView(
     }
     val web = current
     if (!tv || web == null) return false
+    // Holding OK switches between pointer and selection for this site (as
+    // TV browsers do with a long press); the press itself then clicks nothing.
+    val ok = event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || event.keyCode == KeyEvent.KEYCODE_ENTER ||
+      event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER || event.keyCode == KeyEvent.KEYCODE_BUTTON_A
+    if (ok && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) okLong = false
+    if (ok && event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0) {
+      if (!okLong && event.eventTime - event.downTime >= 700) {
+        okLong = true
+        plugin.onTogglePointer()
+      }
+      return true
+    }
+    if (ok && event.action == KeyEvent.ACTION_UP && okLong) {
+      okLong = false
+      if (!pointerMode) web.dispatchKeyEvent(KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED))
+      return true
+    }
     if (!pointerMode) return selectKey(web, event)
     when (event.keyCode) {
       KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
@@ -173,7 +191,7 @@ internal class BrowserPageView(
       val down = event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
       postDelayed({
         web.evaluateJavascript(UNCHANGED) { value ->
-          if (value == "true") scrollBy(web, 0f, (if (down) 1 else -1) * height * 0.35f / resources.displayMetrics.density)
+          if (value == "true") touchScroll(web, 0f, (if (down) 1 else -1) * height * 0.3f)
         }
       }, 150)
     }
@@ -232,8 +250,36 @@ internal class BrowserPageView(
 
   /** At the pointer's edge: scrolls whatever is under it by a step. */
   private fun scroll(web: WebView, x: Float, y: Float) {
-    val step = 120f
-    scrollBy(web, x * step, y * step)
+    val step = height * 0.18f
+    touchScroll(web, x * step, y * step)
+  }
+
+  /**
+   * Scrolls like a finger: a short drag at the pointer (or the middle),
+   * held still before lifting so it does not fling. Works wherever touch
+   * scrolling works, inner scroll areas included. [dx], [dy] in view
+   * pixels; positive [dy] shows more of the page below.
+   */
+  private fun touchScroll(web: WebView, dx: Float, dy: Float) {
+    val startX = if (cursorX >= 0) cursorX else width / 2f
+    val startY = if (cursorY >= 0) cursorY else height / 2f
+    // Keep the drag on screen: start where there is room for it.
+    val fromY = (startY + dy / 2f).coerceIn(height * 0.1f, height * 0.9f)
+    val fromX = (startX + dx / 2f).coerceIn(width * 0.1f, width * 0.9f)
+    val t0 = SystemClock.uptimeMillis()
+    fun send(action: Int, time: Long, x: Float, y: Float) {
+      val event = MotionEvent.obtain(t0, time, action, x, y, 0)
+      event.source = InputDevice.SOURCE_TOUCHSCREEN
+      web.dispatchTouchEvent(event)
+      event.recycle()
+    }
+    send(MotionEvent.ACTION_DOWN, t0, fromX, fromY)
+    val steps = 6
+    for (i in 1..steps) {
+      send(MotionEvent.ACTION_MOVE, t0 + i * 16L, fromX - dx * i / steps, fromY - dy * i / steps)
+    }
+    send(MotionEvent.ACTION_MOVE, t0 + steps * 16L + 200, fromX - dx, fromY - dy)
+    send(MotionEvent.ACTION_UP, t0 + steps * 16L + 220, fromX - dx, fromY - dy)
   }
 
   /**
