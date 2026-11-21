@@ -64,10 +64,14 @@ import org.json.JSONObject
  */
 class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
   companion object {
-    private const val PLEX_TOGGLE = "(()=>{const q=s=>document.querySelector(s);" +
+    // Plex Web's play/pause button: its centre in view pixels, "hidden"
+    // while the controls are hidden, or "none".
+    private const val PLEX_BUTTON = "(()=>{const q=s=>document.querySelector(s);" +
       "const b=q('[data-testid=\"pauseButton\"]')||q('[data-testid=\"resumeButton\"]')||" +
-      "q('button[aria-label=\"Pause\"]')||q('button[aria-label=\"Pausieren\"]');" +
-      "if(b){b.click();return 'button';}return 'none';})()"
+      "q('button[aria-label=\"Pause\"]')||q('button[aria-label=\"Pausieren\"]')||q('button[aria-label=\"Play\"]')||q('button[aria-label=\"Wiedergabe\"]');" +
+      "if(!b)return 'hidden none';const r=b.getBoundingClientRect();const st=getComputedStyle(b);let o=1;for(let e=b;e;e=e.parentElement)o*=+getComputedStyle(e).opacity;" +
+      "if(r.width<2||r.height<2||st.visibility==='hidden'||o<0.2||r.bottom<0||r.top>innerHeight)return 'hidden';" +
+      "const d=devicePixelRatio;return Math.round((r.left+r.width/2)*d)+','+Math.round((r.top+r.height/2)*d);})()"
 
     private const val TAG = "PlezyBrowser"
     private const val CHANNEL = "com.plezy.retrowave/browser"
@@ -1135,14 +1139,36 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
   }
 
   /**
-   * Pause and play in Plex Web: its own play/pause button when there is one
-   * (Plex keeps its own player state and restarts a video paused under it),
-   * else its Space shortcut.
+   * Pause and play in Plex Web with real taps, as a finger would: its own
+   * play/pause button (Plex keeps its own player state and ignores scripted
+   * clicks). With its controls hidden, a first tap shows them. Falls back
+   * to its Space shortcut.
    */
-  private fun plexSpace(web: WebView) {
-    web.evaluateJavascript(PLEX_TOGGLE) { result ->
+  private fun plexSpace(web: WebView, attempt: Int = 0) {
+    web.evaluateJavascript(PLEX_BUTTON) { result ->
       Log.i(TAG, "Plex play/pause: $result")
-      if (result != "\"button\"") plexSpaceKey(web)
+      val parts = result.trim('"').split(',')
+      val x = parts.getOrNull(0)?.toFloatOrNull()
+      val y = parts.getOrNull(1)?.toFloatOrNull()
+      when {
+        x != null && y != null -> tapWeb(web, x, y)
+        result.contains("hidden") && attempt == 0 -> {
+          // Shows the controls, then the button is tapped.
+          tapWeb(web, web.width / 2f, web.height / 2f)
+          main.postDelayed({ plexSpace(web, 1) }, 450)
+        }
+        else -> plexSpaceKey(web)
+      }
+    }
+  }
+
+  private fun tapWeb(web: WebView, x: Float, y: Float) {
+    val now = android.os.SystemClock.uptimeMillis()
+    for ((action, time) in listOf(android.view.MotionEvent.ACTION_DOWN to now, android.view.MotionEvent.ACTION_UP to now + 50)) {
+      val e = android.view.MotionEvent.obtain(now, time, action, x, y, 0)
+      e.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+      web.dispatchTouchEvent(e)
+      e.recycle()
     }
   }
 
