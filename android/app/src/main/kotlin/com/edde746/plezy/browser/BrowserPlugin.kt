@@ -566,6 +566,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
       override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
         tab.error = null
+        if (pageFullscreenTab == tab.id) exitFullscreen()
         // Back, forward and reloads skip shouldOverrideUrlLoading.
         if (url.startsWith("http") && tab.preparedFor != siteOf(hostOf(url))) preparePage(tab, url, runNow = true)
         else tab.pageUrl = url
@@ -749,6 +750,8 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
         val scale = web.width / parts[2]
         tap(web, parts[0] * scale, parts[1] * scale)
         Log.i(TAG, "Free on plex.tv: play pressed")
+        // Plex's player fills the page: the browser's bars go away too.
+        main.postDelayed({ enterPageFullscreen(tab) }, 2500)
       }
     }
     main.postDelayed({ attempt() }, 1200)
@@ -803,8 +806,23 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
     send(tabId, "fullscreen", mapOf("value" to true))
   }
 
+  /** The tab whose page fills the screen without the browser's bars (Plex's player). */
+  private var pageFullscreenTab = 0
+
+  private fun enterPageFullscreen(tab: Tab) {
+    if (tabs[tab.id] !== tab || fullscreenView != null || pageFullscreenTab == tab.id) return
+    pageFullscreenTab = tab.id
+    send(tab.id, "fullscreen", mapOf("value" to true))
+  }
+
   /** Leaves a page's video fullscreen; true when there was one. */
   fun exitFullscreen(): Boolean {
+    if (fullscreenView == null && pageFullscreenTab != 0) {
+      val id = pageFullscreenTab
+      pageFullscreenTab = 0
+      send(id, "fullscreen", mapOf("value" to false))
+      return true
+    }
     val view = fullscreenView ?: return false
     (view.parent as? ViewGroup)?.removeView(view)
     fullscreenView = null
