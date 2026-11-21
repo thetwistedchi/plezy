@@ -68,6 +68,12 @@ class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
     // while the controls are hidden, or "none".
     // Plex's main video: the largest one (others are previews or ads).
     private const val PLEX_VIDEO = "[...document.querySelectorAll('video')].sort((a,b)=>b.clientWidth*b.clientHeight-a.clientWidth*a.clientHeight)[0]"
+    // What is at the button's place and what the player is doing (XX, YY: view pixels).
+    private const val PLEX_DIAG = "(()=>{try{const d=devicePixelRatio;const e=document.elementFromPoint(XX/d,YY/d);" +
+      "const n=x=>x?(x.tagName+'#'+(x.getAttribute('data-testid')||'')+'['+(x.getAttribute('aria-label')||'')+']'+(x.disabled?'disabled':'')):'none';" +
+      "const vs=[...document.querySelectorAll('video')];const v=$PLEX_VIDEO;" +
+      "const ad=document.querySelector('[class*=\"Ad\"],[data-testid*=\"ad\" i]');" +
+      "return 'at:'+n(e)+' parent:'+n(e&&e.closest('button'))+' videos:'+vs.length+' t:'+(v?v.currentTime.toFixed(1):'-')+' ad:'+(ad?ad.className.toString().slice(0,40):'no');}catch(x){return ''+x;}})()"
     private const val PLEX_PAUSED = "(()=>{const v=$PLEX_VIDEO;return v?v.paused:null;})()"
     private const val PLEX_BUTTON = "(()=>{const q=s=>document.querySelector(s);" +
       "const b=q('[data-testid=\"pauseButton\"]')||q('[data-testid=\"resumeButton\"]')||" +
@@ -1251,11 +1257,24 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       val x = parts.getOrNull(0)?.toFloatOrNull()
       val y = parts.getOrNull(1)?.toFloatOrNull()
       when {
-        x != null && y != null -> web.evaluateJavascript(PLEX_PAUSED) { before ->
-          tapWeb(web, x, y)
-          main.postDelayed({
-            if (web.isAttachedToWindow) web.evaluateJavascript(PLEX_PAUSED) { after -> Log.i(TAG, "Plex button tap: paused $before -> $after") }
-          }, 500)
+        x != null && y != null -> web.evaluateJavascript(PLEX_DIAG.replace("XX", "$x").replace("YY", "$y")) { diag ->
+          Log.i(TAG, "Plex player: $diag")
+          web.evaluateJavascript(PLEX_PAUSED) { before ->
+            tapWeb(web, x, y)
+            main.postDelayed({
+              if (!web.isAttachedToWindow) return@postDelayed
+              web.evaluateJavascript(PLEX_PAUSED) { after ->
+                Log.i(TAG, "Plex button click: paused $before -> $after")
+                if (before == after) {
+                  // Not taken: Plex's Space shortcut instead.
+                  plexSpaceKey(web)
+                  main.postDelayed({
+                    if (web.isAttachedToWindow) web.evaluateJavascript(PLEX_PAUSED) { k -> Log.i(TAG, "Plex Space: paused $after -> $k") }
+                  }, 500)
+                }
+              }
+            }, 500)
+          }
         }
         result.contains("hidden") && attempt == 0 -> {
           // A mouse moving over the player shows its controls without
