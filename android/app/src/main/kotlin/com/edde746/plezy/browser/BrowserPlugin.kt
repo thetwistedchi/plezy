@@ -91,6 +91,26 @@ class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
       "if(a==='press'){b.focus();return 'focused '+name;}" +
       "if(W.__pzSel!==b){clear();W.__pzOld=b.style.outline;W.__pzSel=b;}" +
       "b.style.outline='3px solid #ec4899';b.style.outlineOffset='2px';return name;})('ACTION')"
+    // An open Plex dialog: its choices top to bottom, the one chosen outlined
+    // and focused; ACTION: up, down or press. "no" without a dialog.
+    private const val PLEX_DIALOG = "(a=>{const W=window;" +
+      "const vis=b=>{const r=b.getBoundingClientRect();if(r.width<4||r.height<4||r.bottom<0||r.top>innerHeight)return false;" +
+      "const st=getComputedStyle(b);return st.visibility!=='hidden'&&st.display!=='none';};" +
+      "const ds=[...document.querySelectorAll('[role=dialog],[aria-modal=true],[class*=Modal],[class*=modal]')].filter(vis);" +
+      "const d=ds[ds.length-1];if(!d)return 'no';" +
+      "const items=[...d.querySelectorAll('button,a[href],[role=menuitem],[role=button],[role=option],[tabindex]:not([tabindex=\"-1\"])')]" +
+      ".filter(e=>vis(e)&&!e.disabled).filter((e,i,l)=>!l.some(o=>o!==e&&o.contains(e)))" +
+      ".sort((x,y)=>{const p=x.getBoundingClientRect(),q=y.getBoundingClientRect();return Math.abs(p.top-q.top)>8?p.top-q.top:p.left-q.left;});" +
+      "if(!items.length)return 'no';" +
+      "const isClose=e=>/close|schlie|cancel|abbrech/i.test((e.getAttribute('aria-label')||'')+(e.getAttribute('data-testid')||''))||e.textContent.trim()==='';" +
+      "let i=items.indexOf(W.__pzDlg);if(i<0)i=items.indexOf(document.activeElement);" +
+      "if(i<0){i=items.findIndex(e=>!isClose(e));if(i<0)i=0;}" +
+      "else if(a==='down')i=Math.min(items.length-1,i+1);else if(a==='up')i=Math.max(0,i-1);" +
+      "const e=items[i];const name=(e.getAttribute('aria-label')||e.textContent||'').trim().slice(0,30)+' '+(i+1)+'/'+items.length;" +
+      "if(a==='press'){e.click();W.__pzDlg=null;return 'dialog pressed '+name;}" +
+      "if(W.__pzDlg&&W.__pzDlg!==e){W.__pzDlg.style.outline='';}" +
+      "W.__pzDlg=e;e.style.outline='3px solid #ec4899';e.style.outlineOffset='-3px';try{e.focus({preventScroll:true});}catch(_){}" +
+      "return 'dialog '+name;})('ACTION')"
     private const val PLEX_PAUSED = "(()=>{const v=$PLEX_VIDEO;return v?v.paused:null;})()"
     private const val PLEX_BUTTON = "(()=>{const q=s=>document.querySelector(s);" +
       "const b=q('[data-testid=\"pauseButton\"]')||q('[data-testid=\"resumeButton\"]')||" +
@@ -1229,19 +1249,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       code != android.view.KeyEvent.KEYCODE_HEADSETHOOK) {
       // OK pauses once a video is there; before (Plex's dialogs and buttons)
       // it still clicks what is selected.
-      val down = android.view.KeyEvent(event)
-      web.evaluateJavascript("(()=>{const v=$PLEX_VIDEO;return !!(v&&v.readyState>0);})()") { has ->
-        Log.d(TAG, "Plex OK: video loaded $has")
-        if (!web.isAttachedToWindow) {
-          // closed meanwhile
-        } else if (has == "true") {
-          plexSpace(web)
-        } else {
-          if (!web.hasFocus()) web.requestFocus()
-          web.dispatchKeyEvent(down)
-          web.dispatchKeyEvent(android.view.KeyEvent.changeAction(down, android.view.KeyEvent.ACTION_UP))
-        }
-      }
+      plexOkDefault(web, event)
       return true
     }
     // Plex Web keeps its own player state (it starts a paused video again):
@@ -1282,17 +1290,41 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     val code = event.keyCode
     val ok = code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER
     val handled = when (code) {
-      android.view.KeyEvent.KEYCODE_DPAD_UP -> true
-      android.view.KeyEvent.KEYCODE_DPAD_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT,
-      android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> plexControls
-      else -> ok && plexControls
+      android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN -> true
+      android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> plexControls
+      else -> ok
     }
     if (!handled) return null
     if (event.action != android.view.KeyEvent.ACTION_DOWN) return true
+    // A Plex dialog (resume, consent, menus) first: Up/Down choose, OK presses.
+    if (!plexControls) {
+      val copy = android.view.KeyEvent(event)
+      val dialogAction = when (code) {
+        android.view.KeyEvent.KEYCODE_DPAD_UP -> "up"
+        android.view.KeyEvent.KEYCODE_DPAD_DOWN -> "down"
+        else -> "press"
+      }
+      web.evaluateJavascript(PLEX_DIALOG.replace("ACTION", dialogAction)) { result ->
+        if (!web.isAttachedToWindow) return@evaluateJavascript
+        if (result.contains("dialog")) {
+          Log.i(TAG, "Plex dialog $dialogAction: $result")
+        } else if (ok) {
+          plexOkDefault(web, copy)
+        } else if (code == android.view.KeyEvent.KEYCODE_DPAD_UP) {
+          plexControlStep(web, code)
+        }
+      }
+      return true
+    }
+    plexControlStep(web, code)
+    return true
+  }
+
+  private fun plexControlStep(web: WebView, code: Int) {
     main.removeCallbacks(plexControlsIdle)
     if (code == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
       closePlexControls()
-      return true
+      return
     }
     // Keeps Plex's controls on screen.
     hoverWeb(web, web.width / 2f, web.height / 2f)
@@ -1321,7 +1353,23 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       }
     }, if (action == "open") 300L else 0L)
     main.postDelayed(plexControlsIdle, 6000)
-    return true
+  }
+
+  /** OK on the player page: pauses once a video is there, else presses what Plex selected. */
+  private fun plexOkDefault(web: WebView, event: android.view.KeyEvent) {
+    val down = android.view.KeyEvent(event)
+    web.evaluateJavascript("(()=>{const v=$PLEX_VIDEO;return !!(v&&v.readyState>0);})()") { has ->
+      Log.d(TAG, "Plex OK: video loaded $has")
+      if (!web.isAttachedToWindow) {
+        // closed meanwhile
+      } else if (has == "true") {
+        plexSpace(web)
+      } else {
+        if (!web.hasFocus()) web.requestFocus()
+        web.dispatchKeyEvent(down)
+        web.dispatchKeyEvent(android.view.KeyEvent.changeAction(down, android.view.KeyEvent.ACTION_UP))
+      }
+    }
   }
 
   /**
