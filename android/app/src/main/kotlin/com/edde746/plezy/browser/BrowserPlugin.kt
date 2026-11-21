@@ -136,8 +136,12 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       if (!page.isAttachedToWindow) return null
       // Up three times quickly from the page: the address bar. Counted here
       // so presses still count when the first one left the page.
-      if (page.tripleUp(event, page.hasFocus())) return true
-      if (!page.hasFocus()) return null
+      // The page is focused in Flutter: its keys go straight to it. Through
+      // Flutter they could arrive before the page had the focus and be lost.
+      val onPage = page.hasFocus() || page.flutterFocused
+      if (page.tripleUp(event, onPage)) return true
+      if (!onPage) return null
+      if (!page.hasFocus()) page.requestFocus()
       return when (event.keyCode) {
         android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN,
         android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
@@ -424,6 +428,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
 
   /** Up three times quickly on the page: the keys go to the address bar. */
   internal fun onFocusAddress(view: BrowserPageView) {
+    view.flutterFocused = false
     view.returnFocusToFlutter()
     send(0, "focusAddress")
   }
@@ -432,6 +437,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
   internal fun onTogglePointer() = send(0, "togglePointer")
 
   internal fun onLeavePage(view: BrowserPageView) {
+    view.flutterFocused = false
     view.returnFocusToFlutter()
     send(0, "leavePage")
   }
@@ -1162,6 +1168,16 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
         "scroll" -> remoteTouch.scroll(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
         "tap" -> remoteTouch.tap()
         "bar" -> remoteTouch.scrollShape(e.optInt("v") == 1)
+        "closeKeyboard" -> {
+          // Leaves the page's text field and hides the TV's keyboard.
+          web?.evaluateJavascript("(()=>{const a=document.activeElement;if(a&&a!==document.body)a.blur();})()", null)
+          val act = activity
+          val target = act?.currentFocus ?: web
+          if (act != null && target != null) {
+            (act.getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+              .hideSoftInputFromWindow(target.windowToken, 0)
+          }
+        }
         "dpad" -> {
           val code = when (e.optString("v")) {
             "up" -> android.view.KeyEvent.KEYCODE_DPAD_UP
@@ -1523,6 +1539,10 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
       "reload" -> web.reload()
       "stop" -> web.stopLoading()
       "focus" -> page?.focusPage() ?: run { focusPending = true }
+      "blur" -> {
+        focusPending = false
+        page?.flutterFocused = false
+      }
       "proceedBlocked" -> {
         val url = call.argument<String>("url") ?: ""
         hostOf(url).takeIf { it.isNotEmpty() }?.let { tab.allowedHosts.add(it) }

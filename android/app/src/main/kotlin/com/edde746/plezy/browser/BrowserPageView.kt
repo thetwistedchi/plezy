@@ -98,7 +98,11 @@ internal class BrowserPageView(
     cursor?.bringToFront()
   }
 
+  /** Flutter's focus is on the page (set by Dart, cleared when it leaves). */
+  @Volatile var flutterFocused = false
+
   fun focusPage() {
+    flutterFocused = true
     val ok = requestFocus()
     android.util.Log.d("PlezyBrowser", "page focus requested: $ok")
     if (!tv) current?.requestFocus()
@@ -293,7 +297,9 @@ internal class BrowserPageView(
   /** At the pointer's edge: scrolls whatever is under it by a step. */
   private fun scroll(web: WebView, x: Float, y: Float) {
     val step = height * 0.18f
-    touchScroll(web, x * step, y * step)
+    // From the middle of the page: at the edge the drag would start on a
+    // fixed bar or footer that does not scroll.
+    touchScroll(web, x * step, y * step, fromMiddle = true)
   }
 
   /**
@@ -302,10 +308,10 @@ internal class BrowserPageView(
    * scrolling works, inner scroll areas included. [dx], [dy] in view
    * pixels; positive [dy] shows more of the page below.
    */
-  private fun touchScroll(web: WebView, dx: Float, dy: Float) {
+  private fun touchScroll(web: WebView, dx: Float, dy: Float, fromMiddle: Boolean = false) {
     if (dragging) return
-    val startX = if (cursorX >= 0) cursorX else width / 2f
-    val startY = if (cursorY >= 0) cursorY else height / 2f
+    val startX = if (cursorX >= 0 && !(fromMiddle && dx != 0f)) cursorX else width / 2f
+    val startY = if (cursorY >= 0 && !(fromMiddle && dy != 0f)) cursorY else height / 2f
     // Keep the drag on screen: start where there is room for it.
     val fromY = (startY + dy / 2f).coerceIn(height * 0.1f, height * 0.9f)
     val fromX = (startX + dx / 2f).coerceIn(width * 0.1f, width * 0.9f)

@@ -2288,7 +2288,7 @@ class _PageSlotState extends State<_PageSlot> {
       return Focus(
         focusNode: _browserPageFocus,
         onFocusChange: (focused) {
-          if (focused) unawaited(BrowserController.instance.focusPage());
+          unawaited(focused ? BrowserController.instance.focusPage() : BrowserController.instance.blurPage());
         },
         // Flutter sees every key first; keys it leaves unhandled go on to the
         // native page. While the page is focused, the arrows and OK must go

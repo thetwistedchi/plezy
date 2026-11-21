@@ -51,6 +51,7 @@
 <div class="row">
   <button data-key="Backspace">⌫</button>
   <button data-key="Tab" id="nextField">Next field ⇥</button>
+  <button id="closeKb">Done ✕</button>
   <button data-key="Enter" class="accent">Enter ⏎</button>
 </div>
 <div class="row">
@@ -77,6 +78,7 @@
     document.getElementById('type').textContent = 'Tippen';
     document.getElementById('open').textContent = 'Öffnen';
     document.getElementById('nextField').textContent = 'Nächstes Feld ⇥';
+    document.getElementById('closeKb').textContent = 'Fertig ✕';
     document.documentElement.lang = 'de';
   }
   var msg = document.getElementById('msg');
@@ -185,6 +187,11 @@
     b.addEventListener('click', function () { send({ t:'key', v:b.dataset.key }); });
   });
   var text = document.getElementById('text');
+  // Done: leaves the field on the TV (its keyboard closes) and here.
+  document.getElementById('closeKb').addEventListener('click', function () {
+    send({ t:'closeKeyboard' });
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  });
   var address = document.getElementById('address');
   var editingAddress = false;
   address.addEventListener('focus', function () { editingAddress = true; address.select(); });

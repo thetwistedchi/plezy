@@ -137,6 +137,9 @@ class BrowserNative {
   Future<void> reload(int id) => _call('reload', {'id': id});
   Future<void> stop(int id) => _call('stop', {'id': id});
   Future<void> focus(int id) => _call('focus', {'id': id});
+
+  /// Flutter's focus left the page.
+  Future<void> blur() => _call('blur', const {});
   Future<void> suspend(int id) => _call('suspend', {'id': id});
   Future<void> resume(int id) => _call('resume', {'id': id});
   Future<void> setActive(int id) => _call('setActive', {'id': id});

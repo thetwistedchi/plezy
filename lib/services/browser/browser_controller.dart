@@ -675,6 +675,8 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     if (tab != null && tab.live) await _native.focus(tab.id);
   }
 
+  Future<void> blurPage() => _native.blur();
+
   Future<void> setHttpsUpgrade(bool value) => _native.setHttpsUpgrade(value);
 
   /// Allows or blocks pop-ups from [site] from now on.
