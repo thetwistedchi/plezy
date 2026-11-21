@@ -96,12 +96,20 @@ class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
     private const val PLEX_DIALOG = "(a=>{const W=window;" +
       "const vis=b=>{const r=b.getBoundingClientRect();if(r.width<4||r.height<4||r.bottom<0||r.top>innerHeight)return false;" +
       "const st=getComputedStyle(b);return st.visibility!=='hidden'&&st.display!=='none';};" +
-      "const ds=[...document.querySelectorAll('[role=dialog],[aria-modal=true],[class*=Modal],[class*=modal]')].filter(vis);" +
-      "const d=ds[ds.length-1];if(!d)return 'no';" +
-      "const items=[...d.querySelectorAll('button,a[href],[role=menuitem],[role=button],[role=option],[tabindex]:not([tabindex=\"-1\"])')]" +
+      "const SEL='button,a[href],[role=menuitem],[role=button],[role=option],[tabindex]:not([tabindex=\"-1\"])';" +
+      "const ds=[...document.querySelectorAll('[role=dialog],[role=alertdialog],[role=menu],[aria-modal=true]')].filter(vis);" +
+      "let d=ds[ds.length-1];" +
+      // Without such marks: the layer over the middle of the screen with a
+      // few choices and no video (Plex's own dialogs).
+      "if(!d){let e=document.elementFromPoint(innerWidth/2,innerHeight/2);" +
+      "while(e&&e!==document.body){const st=getComputedStyle(e);" +
+      "if((st.position==='fixed'||st.position==='absolute'&&+st.zIndex>0)&&!e.querySelector('video')){" +
+      "const n=[...e.querySelectorAll(SEL)].filter(vis).length;if(n>=2&&n<=12){d=e;break;}}e=e.parentElement;}}" +
+      "if(!d){const c=document.elementFromPoint(innerWidth/2,innerHeight/2);return 'no '+(c?c.tagName+'.'+(''+c.className).slice(0,30):'');}" +
+      "const items=[...d.querySelectorAll(SEL)]" +
       ".filter(e=>vis(e)&&!e.disabled).filter((e,i,l)=>!l.some(o=>o!==e&&o.contains(e)))" +
       ".sort((x,y)=>{const p=x.getBoundingClientRect(),q=y.getBoundingClientRect();return Math.abs(p.top-q.top)>8?p.top-q.top:p.left-q.left;});" +
-      "if(!items.length)return 'no';" +
+      "if(!items.length)return 'no items';" +
       "const isClose=e=>/close|schlie|cancel|abbrech/i.test((e.getAttribute('aria-label')||'')+(e.getAttribute('data-testid')||''))||e.textContent.trim()==='';" +
       "let i=items.indexOf(W.__pzDlg);if(i<0)i=items.indexOf(document.activeElement);" +
       "if(i<0){i=items.findIndex(e=>!isClose(e));if(i<0)i=0;}" +
@@ -1306,11 +1314,13 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       }
       web.evaluateJavascript(PLEX_DIALOG.replace("ACTION", dialogAction)) { result ->
         if (!web.isAttachedToWindow) return@evaluateJavascript
-        if (result.contains("dialog")) {
+        if (result.startsWith("\"dialog")) {
           Log.i(TAG, "Plex dialog $dialogAction: $result")
         } else if (ok) {
+          Log.d(TAG, "Plex: no dialog ($result)")
           plexOkDefault(web, copy)
         } else if (code == android.view.KeyEvent.KEYCODE_DPAD_UP) {
+          Log.d(TAG, "Plex: no dialog ($result)")
           plexControlStep(web, code)
         }
       }
