@@ -66,6 +66,7 @@ class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
   companion object {
     // Plex Web's play/pause button: its centre in view pixels, "hidden"
     // while the controls are hidden, or "none".
+    private const val PLEX_PAUSED = "(()=>{const v=document.querySelector('video');return v?v.paused:null;})()"
     private const val PLEX_BUTTON = "(()=>{const q=s=>document.querySelector(s);" +
       "const b=q('[data-testid=\"pauseButton\"]')||q('[data-testid=\"resumeButton\"]')||" +
       "q('button[aria-label=\"Pause\"]')||q('button[aria-label=\"Pausieren\"]')||q('button[aria-label=\"Play\"]')||q('button[aria-label=\"Wiedergabe\"]');" +
@@ -1151,14 +1152,43 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       val x = parts.getOrNull(0)?.toFloatOrNull()
       val y = parts.getOrNull(1)?.toFloatOrNull()
       when {
-        x != null && y != null -> tapWeb(web, x, y)
+        x != null && y != null -> web.evaluateJavascript(PLEX_PAUSED) { before ->
+          tapWeb(web, x, y)
+          main.postDelayed({
+            web.evaluateJavascript(PLEX_PAUSED) { after -> Log.i(TAG, "Plex button tap: paused $before -> $after") }
+          }, 500)
+        }
         result.contains("hidden") && attempt == 0 -> {
-          // Shows the controls, then the button is tapped.
-          tapWeb(web, web.width / 2f, web.height / 2f)
-          main.postDelayed({ plexSpace(web, 1) }, 450)
+          // A mouse moving over the player shows its controls without
+          // touching the video (a tap there pauses or plays by itself).
+          hoverWeb(web, web.width / 2f, web.height / 2f)
+          main.postDelayed({ plexSpace(web, 1) }, 350)
+        }
+        result.contains("hidden") && attempt == 1 -> {
+          // The tap that shows them may already pause or play: done then.
+          web.evaluateJavascript(PLEX_PAUSED) { before ->
+            tapWeb(web, web.width / 2f, web.height / 2f)
+            main.postDelayed({
+              web.evaluateJavascript(PLEX_PAUSED) { after ->
+                Log.i(TAG, "Plex tap in the middle: paused $before -> $after")
+                if (before == after) plexSpace(web, 2)
+              }
+            }, 450)
+          }
         }
         else -> plexSpaceKey(web)
       }
+    }
+  }
+
+  private fun hoverWeb(web: WebView, x: Float, y: Float) {
+    val now = android.os.SystemClock.uptimeMillis()
+    for ((i, action) in listOf(android.view.MotionEvent.ACTION_HOVER_ENTER, android.view.MotionEvent.ACTION_HOVER_MOVE,
+      android.view.MotionEvent.ACTION_HOVER_MOVE).withIndex()) {
+      val e = android.view.MotionEvent.obtain(now, now + i * 30L, action, x + i * 12f, y + i * 8f, 0)
+      e.source = android.view.InputDevice.SOURCE_MOUSE
+      web.dispatchGenericMotionEvent(e)
+      e.recycle()
     }
   }
 
