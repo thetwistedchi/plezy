@@ -205,6 +205,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
   private val finished = HashMap<String, Long>() // path -> DownloadManager id
 
   @Volatile private var remoteState = JSONObject()
+  private val remoteTouch = RemoteTouch { activity }
   private val remote by lazy {
     PhoneRemoteServer(appContext, { events -> main.post { onRemote(events) } }, { remoteState })
   }
@@ -1111,9 +1112,9 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
       val e = events.optJSONObject(i) ?: continue
       val web = tab?.webView
       when (e.optString("t")) {
-        "move" -> page?.remoteMove(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
-        "scroll" -> page?.remoteScroll(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
-        "tap" -> page?.remoteTap()
+        "move" -> remoteTouch.move(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
+        "scroll" -> remoteTouch.scroll(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
+        "tap" -> remoteTouch.tap()
         "dpad" -> {
           val code = when (e.optString("v")) {
             "up" -> android.view.KeyEvent.KEYCODE_DPAD_UP
@@ -1387,6 +1388,7 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
       }
       "remoteStop" -> {
         if (remote.running) remote.stop()
+        remoteTouch.dispose()
         result.success(null)
       }
       "createTab" -> createTab(call, result)
@@ -1543,6 +1545,7 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
   private fun disposeAll() {
     exitFullscreen()
     if (remote.running) remote.stop()
+    remoteTouch.dispose()
     for (id in tabs.keys.toList()) closeTab(id)
     page?.show(null)
   }

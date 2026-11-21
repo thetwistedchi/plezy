@@ -65,12 +65,28 @@ internal class PhoneRemoteServer(
     val bound = socket ?: return null
     server = bound
     Thread({ accept(bound) }, "plezy-remote").apply { isDaemon = true }.start()
+    // Stops by itself after [IDLE_MS] without use, checked every minute.
+    idleTimer?.cancel()
+    idleTimer = java.util.Timer("plezy-remote-idle", true).apply {
+      schedule(object : java.util.TimerTask() {
+        override fun run() {
+          if (System.currentTimeMillis() - lastUse > IDLE_MS) {
+            Log.i(TAG, "Phone remote: idle, stopping")
+            stop()
+          }
+        }
+      }, 60_000, 60_000)
+    }
     Log.i(TAG, "Phone remote listening on port ${bound.localPort}")
     return url(ip, bound.localPort)
   }
 
+  private var idleTimer: java.util.Timer? = null
+
   @Synchronized
   fun stop() {
+    idleTimer?.cancel()
+    idleTimer = null
     try {
       server?.close()
     } catch (_: Exception) {
