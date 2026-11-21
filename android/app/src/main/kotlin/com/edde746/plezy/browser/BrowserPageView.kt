@@ -43,13 +43,6 @@ internal class BrowserPageView(
     const val SNAPSHOT = "(()=>{const s=[];const d=document.scrollingElement||document.documentElement;s.push(d.scrollTop);" +
       "const m=window.__plezyScroller;if(m&&m.isConnected)s.push(m.scrollTop);" +
       "window.__plezyKeySnap={a:document.activeElement,s:s.join(',')};})()"
-    const val SAVE_SCROLL = "(()=>{const l=[];const d=document.scrollingElement||document.documentElement;" +
-      "l.push([d,d.scrollTop,d.scrollLeft]);for(const e of document.querySelectorAll('body *'))" +
-      "if(e.scrollTop>0||e.scrollLeft>0)l.push([e,e.scrollTop,e.scrollLeft]);" +
-      "window.__plezyHold={l:l,a:document.activeElement,t:Date.now()};})()"
-    const val RESTORE_SCROLL = "(()=>{const h=window.__plezyHold;if(!h||Date.now()-h.t>1500)return false;let m=false;" +
-      "for(const [e,t,x] of h.l){if(e.isConnected&&(Math.abs(e.scrollTop-t)>2||Math.abs(e.scrollLeft-x)>2)){e.scrollTop=t;e.scrollLeft=x;m=true;}}" +
-      "const a=document.activeElement;if(m&&a&&a!==h.a&&a!==document.body)a.blur();return m;})()"
     const val BLUR_HIDDEN = "(()=>{const a=document.activeElement;if(!a||a===document.body)return;" +
       "const r=a.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)a.blur();})()"
     const val UNCHANGED = "(()=>{const p=window.__plezyKeySnap;if(!p)return false;const s=[];" +
@@ -95,8 +88,6 @@ internal class BrowserPageView(
   /** Shows [webView] (or nothing), taking it out of wherever it was. */
   fun show(webView: WebView?) {
     if (current === webView) return
-    restoring = false
-    waiting.clear()
     current?.let { removeView(it) }
     current = webView
     if (webView != null) {
@@ -112,47 +103,11 @@ internal class BrowserPageView(
 
   fun focusPage() {
     flutterFocused = true
-    val web = current
-    val ok = if (tv && web != null && !web.hasFocus()) refocus(web) else requestFocus()
-    android.util.Log.d("PlezyBrowser", "page focus requested: $ok")
+    val had = current?.hasFocus() == true
+    val ok = requestFocus()
+    android.util.Log.d("PlezyBrowser", "page focus requested: $ok (had it: $had)")
     if (!tv) current?.requestFocus()
   }
-
-  /**
-   * Gives the focus back to the page without moving it: a WebView gaining
-   * the focus from a direction selects the page's first element and
-   * scrolls back up to it. The scroll positions are put back and that
-   * selection dropped.
-   */
-  private fun refocus(web: WebView): Boolean {
-    web.evaluateJavascript(SAVE_SCROLL, null)
-    val ok = requestFocus()
-    if (!web.hasFocus()) web.requestFocus()
-    // Keys meanwhile wait, or putting the page back would undo them.
-    restoring = true
-    val generation = ++restoreGeneration
-    fun release() {
-      if (!restoring || generation != restoreGeneration) return
-      restoring = false
-      val keys = waiting.toList()
-      waiting.clear()
-      if (current === web) for (k in keys) selectKey(web, k)
-    }
-    postDelayed({
-      web.evaluateJavascript(RESTORE_SCROLL) { moved ->
-        if (moved == "true") android.util.Log.d("PlezyBrowser", "refocus moved the page: put back")
-        release()
-      }
-    }, 80)
-    // A page that does not answer (loading, busy) does not hold the keys.
-    postDelayed({ release() }, 400)
-    return ok
-  }
-
-  private var restoreGeneration = 0
-
-  private var restoring = false
-  private val waiting = ArrayList<KeyEvent>()
 
   private val focusListener = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, _ -> updateCursor() }
 
@@ -258,11 +213,7 @@ internal class BrowserPageView(
    * twice quickly at the top of the page) goes back to the toolbar.
    */
   private fun selectKey(web: WebView, event: KeyEvent): Boolean {
-    if (!web.hasFocus()) refocus(web)
-    if (restoring) {
-      waiting.add(KeyEvent(event))
-      return true
-    }
+    if (!web.hasFocus()) web.requestFocus()
     val vertical = event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
     val down = event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
     val now = SystemClock.uptimeMillis()

@@ -674,6 +674,9 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     with(web.settings) {
       javaScriptEnabled = true
       domStorageEnabled = true
+      // Getting the focus back (the remote) must not select the page's first
+      // element and scroll back up to it.
+      setNeedInitialFocus(false)
       @Suppress("DEPRECATION")
       databaseEnabled = true
       setSupportMultipleWindows(true)
