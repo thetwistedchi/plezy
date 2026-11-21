@@ -6,141 +6,64 @@
 > [!WARNING]
 > **Disclaimer:** This fork is 100% vibecoded (written entirely with AI assistance) and is intended only for my personal use and preferences. It comes with no support, no guarantees and no promise of stability. Use it at your own risk; for a maintained client, use the original [Plezy](https://github.com/edde746/plezy).
 
-A Windows-focused fork of [Plezy](https://github.com/edde746/plezy), with an Android and Android TV build, a retrowave look, a Ratings & links row on every movie and show, a restyled player and a **YouTube tab** for your subscriptions with its own retrowave player. Everything Plezy does still works; this fork only adds to it.
+A fork of [Plezy](https://github.com/edde746/plezy) for Windows and Android / Android TV with a retrowave look, ratings from every major site, Plex's and Tubi's free catalogs, a YouTube tab and a built-in browser. Everything Plezy does still works; this fork only adds to it.
 
 Current version: **1.0**. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
 
-<p>
-  <a href="https://github.com/thetwistedchi/plezy/releases">Release notes</a> ·
-  <a href="#download">Download</a> ·
-  <a href="#what-this-fork-adds">What this fork adds</a> ·
-  <a href="#youtube">YouTube</a> ·
-  <a href="https://github.com/edde746/plezy">Upstream Plezy</a> ·
-  <a href="LICENSE">License</a>
-</p>
-
 ## Download
 
-Get the latest build from the [Releases page](https://github.com/thetwistedchi/plezy/releases):
+From the [Releases page](https://github.com/thetwistedchi/plezy/releases):
 
 | File | What it is |
 | --- | --- |
-| `plezy-retrowave-installer.exe` | Windows installer (x64). Installs as **Plezy Retrowave**, next to a regular Plezy install. |
-| `plezy-retrowave-x64-portable.7z` | Windows portable build, unzip and run `plezy.exe`. |
-| `plezy-retrowave-arm64.apk` | Android and Android TV with 64-bit Android (e.g. NVIDIA Shield, most current phones). Installs as its own app next to the official Plezy. |
-| `plezy-retrowave-universal.apk` | Android for any device, including TV sticks that run 32-bit Android (most Fire TV sticks, Chromecast with Google TV). Larger download. |
-| `plezy-retrowave-macos.dmg` | macOS, experimental and untested. Not signed: on first launch right-click the app and choose **Open**. |
+| `plezy-retrowave-installer.exe` | Windows installer (x64), installs as **Plezy Retrowave** next to a regular Plezy |
+| `plezy-retrowave-x64-portable.7z` | Windows portable build: unzip and run `plezy.exe` |
+| `plezy-retrowave-arm64.apk` | Android and Android TV, 64-bit (e.g. NVIDIA Shield, current phones) |
+| `plezy-retrowave-universal.apk` | Android for any device, including 32-bit TV sticks (larger) |
+| `plezy-retrowave-macos.dmg` | macOS, experimental |
 
-The Android build is installed by sideloading, e.g. over the network with `adb install plezy-retrowave-arm64.apk` after turning on network debugging in the device's developer options. YouTube subscriptions are not part of the Android build.
+The builds are not code-signed:
+- **Windows:** SmartScreen warns on first launch: **More info**, then **Run anyway**.
+- **macOS:** move the app to Applications and open it once, then **System Settings > Privacy & Security > Open Anyway**.
+- **Android:** install by sideloading, e.g. `adb install plezy-retrowave-arm64.apk`.
 
-The builds are not code-signed, so Windows SmartScreen warns on first launch: click **More info**, then **Run anyway**.
+The app updates itself from this page (Windows installer and Android in place).
 
-Plezy Retrowave and upstream Plezy share the same settings and sign-ins on one PC.
+## Main features
 
-## What this fork adds
+**Look**
+- **Retrowave theme**: night purple, violet, magenta and cyan, with AI-generated outrun-style icons and app icon. Other themes still work.
 
-A feature overview. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
+**Ratings and details**
+- **Ratings & links** on every movie and show: Letterboxd, Trakt, IMDb, Rotten Tomatoes, TMDB, Metacritic, MyAnimeList, plus a **rating median** on posters.
+- Quality, HDR and audio language pills on posters, a hover preview on desktop, studio, producer and director on the details page.
 
-### Retrowave theme
+**Libraries and Home**
+- Quick filters, saved filter sets, **Surprise me**, a library search box, a startup library and **hide watched** per Home row.
 
-- Free **Retrowave** theme (Settings › Appearance › Theme), the default for new installs. Every colour comes from one palette of night purple, violet, magenta and cyan, with a muted background fade on every page.
-- AI-generated outrun-style icons (simple SVG line drawings) with a cyan to magenta stroke in the sidebar, the bottom bar, the main top bars and the row headings. Other themes keep the Material icons.
-- Retrowave app icon, startup logo and, on Windows 11, a night purple title bar and window border.
-- The fork's additions (poster pills, rating cards, quality and language pills) follow the active theme's colours in every other theme too.
+**Player**
+- Play from start, trailers, tracks and zoom remembered per title, a 4K / HDR badge, letterbox cropping and a neon **Skip intro / credits**.
 
-### Ratings
+**Free catalogs**
+- **Free on plex.tv**: Plex's free, ad-supported movies and shows with search, your watchlist, continue watching and a season / episode list. Plays in Plex Web, on Android full screen with remote control.
+- **Tubi (beta)**: Tubi's free catalog with rows, search and episodes (only in Tubi's countries).
 
-- A **Ratings & links** row on every movie and show: Letterboxd, Trakt, IMDb, Rotten Tomatoes (critics and audience), TMDB, Metacritic and MyAnimeList, each card linking to the site.
-- Optional **MDBList** and **OMDb** API keys (Settings › Services › Rating sources) fill in missing scores; MyAnimeList works without a key. Keys are stored encrypted and tested when saved.
-- A **rating median** (0–100) on posters and as a card on the details page. Clicking it compares every score side by side with the median.
-- **Studio, Producer and Director** under the overview, and **Similar in your library** on the details page.
+**Browser** (Windows; Android beta)
+- Tabs, bookmarks, private tabs, a pop-up blocker, HTTPS upgrades, tracking prevention, Dark Reader and an ad blocker (Brave's adblock-rust with uBlock Origin's lists).
+- On TVs: remote navigation, an optional pointer and the **phone as remote** (QR code).
 
-### Libraries and Home
+**YouTube** (Windows)
+- A tab with the newest videos of the channels you follow (no account needed, optional Google sign-in), played with retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist and Return YouTube Dislike. YouTube Premium works through the player sign-in. **How it works** in the tab explains the setup.
 
-- **Quick filters** (Unwatched, 4K, HDR, audio language, Added recently), active filters as removable pills, **saved filter sets** per library and **Surprise me**. On phones they are in the library options sheet.
-- A **search box** next to the library tabs that narrows the current library.
-- Libraries remember their scroll position; a **startup library** can be set under Settings › General.
-- Each Home row can **hide watched** titles.
-- **Free on plex.tv** under the libraries lists Plex's free, ad-supported Movies & Shows; titles open in Plex Web to play (on Android in the in-app browser), since that service's copy protection and ads only work in Plex's own apps.
-- **Browser** (Windows; Android as a beta) in the sidebar: tabs, bookmarks, Ecosia search by default, background tabs that pause to save resources, a pop-up blocker with HTTPS upgrades, private tabs, tracking prevention, dark mode for websites (Dark Reader) and a built-in ad blocker (Brave's adblock-rust with uBlock Origin's filter lists). Building the app needs the Rust toolchain (rustup); for Android also its targets: `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
+**TV**
+- Full remote control, holding Back goes home, and **Remote shortcuts** under Settings lists every button.
 
-### Posters
+## Known limitations
 
-- Quality, HDR and audio language pills under each poster (e.g. `4K` `HDR` `DE · EN`).
-- A hover preview with year, runtime, genres, median and plot, with an adjustable delay (Settings › Appearance).
-- Series posters for episodes in libraries and rows by default (Settings › Appearance › Episode poster).
-
-### Player
-
-- **Play from start** next to Resume, and the trailer button plays the YouTube trailer.
-- Audio track, subtitles and zoom are remembered per movie or series (Settings › Playback).
-- A **4K / HDR badge** in the bottom bar, and letterbox detection that crops black bars.
-- Desktop: the title in the top bar opens the series or the episode details.
-- Retrowave look: a violet play button, a cyan to magenta timeline and volume, and a neon **Skip intro / credits** button.
-
-### Updates
-
-- The app checks this fork's GitHub releases on start and every 6 hours. Installed Windows builds and Android update in place; the portable build opens the download page. After an update, the first start shows what is new.
-
-### Platforms
-
-- **Windows** is the main platform.
-- **Android and Android TV** (tested on an NVIDIA Shield) install as their own app next to the official Plezy. Weak devices automatically skip the heavier extras. There is no YouTube tab on Android.
-- **macOS** is experimental and untested; it has no YouTube tab or mini player.
-
-### Watch Together
-
-- The in-player session pill shows **HOST** for the host; guests in a host-only room see a lock and the host's name.
-
-## YouTube
-
-A **YouTube** tab in the sidebar with the newest videos from the channels you follow, played in the app with the retrowave controls. **How it works** (the **?** in the YouTube tab) explains every setup step in the app.
-
-### Two ways to use it
-
-| | Without an account | With Google sign-in (optional) |
-| --- | --- | --- |
-| Channels | Add by link or @handle, or import Google Takeout's `subscriptions.csv` | Your subscriptions are imported automatically (and combined with the ones you add) |
-| Videos | From YouTube's public RSS feeds, no quota | Same, plus video lengths and premiere detection |
-| Player, SponsorBlock, DeArrow, chapters, watchlist | ✓ | ✓ |
-| YouTube Premium (no ads) | ✓ via the player sign-in | ✓ |
-| Comments, like / dislike | – | ✓ (read and write) |
-| Channel pages | Newest 15 videos | All uploads |
-
-Google sign-in needs a free Google Cloud project with your own OAuth client (Desktop app); the in-app guide walks through it. The sign-in is stored encrypted with Windows (DPAPI).
-
-### Subscriptions view
-
-- Sort by **Newest** or **Most relevant** (channels you watch, videos doing unusually well, freshness)
-- Filter **All / Unwatched / Continue**; Shorts and premieres hidden by default
-- **+** on a thumbnail adds it to the **watchlist**, **⋮** (or right-click) to open the channel, mark it as favourite, hide the video or hide the whole channel
-- Progress bars on thumbnails, DeArrow titles and thumbnails instead of clickbait
-- Windows notifications for new videos from favourite channels
-
-### Player
-
-- Embedded YouTube player (WebView2) with YouTube's own controls hidden and the retrowave controls on top
-- Gradient timeline with chapter gaps, chapter names and storyboard previews on hover
-- Quality with YouTube's names (1080p60, 2160p60 HDR), speed from 0.25× to 2× including 1.1× and 1.2× (remembered)
-- Captions: creator and auto-generated tracks, auto-translate, preferred language in settings
-- Audio language: switch between audio tracks; the original audio is preferred over AI dubs
-- **SponsorBlock**: auto-skip with undo, or a neon skip button, per category; segments and the highlight on the timeline
-- Resumes where you stopped; the watchlist plays in order and drops finished videos
-- Side panels: watchlist (reorder, add from your feed), comments, more from the channel; channel pages
-- Like / dislike with **Return YouTube Dislike** counts, share link (with timestamp), sleep timer, fullscreen
-- Shortcuts: Space/K, J/L or arrows, ↑/↓, M, F, C, N, 0–9, `<` `>`, `,` `.`
-- Discord status, using Plezy's existing Discord setting
-- Every button can be hidden in Settings › Player buttons
-
-### Known limitations
-
-- Android, Android TV and macOS builds get less testing than Windows; the macOS build is untested.
-- Letterboxd has no public API; its score is read from the film page and may stop working if Letterboxd changes it. The card then still links to the film.
-- Trakt scores use Plezy's Trakt app credentials.
-- Guest pause requests and chat in Watch Together are not built; they need changes to the Open Watch Party relay.
-- YouTube quality, in-between speeds, captions and audio tracks use YouTube's internal player functions and may break if YouTube changes its player. Premium bitrate can't be picked manually.
-- Clicks don't reach the embedded video, so YouTube's "Skip ad" button can't be clicked; with Premium there are no ads.
-- Videos whose creators disabled embedding open on youtube.com instead.
+- Windows is the main platform; Android gets less testing, macOS is experimental.
+- Letterboxd, Tubi and parts of the YouTube player use unofficial interfaces and can break when those sites change.
+- Free on plex.tv and Tubi show ads; their players only work in a browser.
+- Building needs the Rust toolchain for the browser's ad blocker, for Android also `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
 - SponsorBlock and DeArrow data: [sponsor.ajay.app](https://sponsor.ajay.app) (CC BY-NC-SA 4.0). Dislike estimates: [Return YouTube Dislike](https://returnyoutubedislike.com).
 
 ---
