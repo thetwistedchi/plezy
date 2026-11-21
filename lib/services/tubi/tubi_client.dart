@@ -82,7 +82,9 @@ class TubiClient {
     if (response.statusCode == 451 ||
         finalPath.contains('unavailable') ||
         finalPath.contains('geo') ||
-        response.body.contains('not available in your')) {
+        response.body.contains('not available in your') ||
+        response.body.contains('not available in Europe') ||
+        (response.bodyBytes.length < 8000 && response.body.contains('not available'))) {
       throw TubiUnavailableException();
     }
     if (response.statusCode >= 400) throw Exception('Tubi answered ${response.statusCode}');
