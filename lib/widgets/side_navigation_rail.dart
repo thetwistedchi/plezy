@@ -478,6 +478,9 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
   static const _kLibraries = 'libraries';
   static const _kSearch = 'search';
   static const _kDownloads = 'downloads';
+  static const _kYouTube = 'youtube';
+  static const _kBrowser = 'browser';
+  static const _kFreeOnPlex = 'free_on_plex';
   static const _kSettings = 'settings';
   static const _kReconnect = 'reconnect';
   static const _kFullscreen = 'fullscreen';
@@ -646,7 +649,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
       case NavigationTabId.search:
         return _kSearch;
       case NavigationTabId.youtube:
-        return 'youtube';
+        return _kYouTube;
       case NavigationTabId.downloads:
         return _showDownloads ? _kDownloads : null;
       case NavigationTabId.settings:
@@ -692,6 +695,9 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
       _kLibraries,
       if (hasExplore) _kExplore,
       _kSearch,
+      _kYouTube,
+      _kBrowser,
+      _kFreeOnPlex,
       if (_showDownloads) _kDownloads,
       _kSettings,
       _kReconnect,
@@ -783,10 +789,14 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
             _kHiddenLibraries,
             if (_hiddenLibrariesExpanded) ..._focusKeysForLibraryRows(hiddenRows),
           ],
+          // Fork entries; an unmounted one is skipped by the D-pad scan.
+          if (hasPlexServer(context)) _kFreeOnPlex,
         ],
         if (hasLiveTv) 'liveTv',
         if (hasExplore) _kExplore,
         _kSearch,
+        if (YouTubeWebView.isSupported) _kYouTube,
+        if (BrowserNative.isSupported) _kBrowser,
       ],
       if (_showDownloads) _kDownloads,
       _kSettings,
@@ -1090,7 +1100,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                                           label: 'YouTube',
                                           isSelected: widget.selectedTab == NavigationTabId.youtube,
                                           onTap: () => widget.onDestinationSelected(NavigationTabId.youtube),
-                                          focusNode: _focusTracker.get('youtube'),
+                                          focusNode: _focusTracker.get(_kYouTube),
                                           isCollapsed: isCollapsed,
                                         ),
                                         const SizedBox(height: _itemGap),
@@ -1103,7 +1113,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                                           label: RetroStrings.browser,
                                           isSelected: false,
                                           onTap: () => unawaited(BrowserScreen.open(context)),
-                                          focusNode: _focusTracker.get('browser'),
+                                          focusNode: _focusTracker.get(_kBrowser),
                                           isCollapsed: isCollapsed,
                                         ),
                                         const SizedBox(height: _itemGap),
@@ -1551,7 +1561,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
       onTap: () => unawaited(
         Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FreeOnPlexScreen())),
       ),
-      focusNode: _focusTracker.get('free_on_plex'),
+      focusNode: _focusTracker.get(_kFreeOnPlex),
       iconSize: 18,
       expandedHeight: 40,
       suppressSelectedBackground: widget.isSidebarFocused,
