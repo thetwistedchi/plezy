@@ -75,6 +75,9 @@
   var barY = null;
   bar.addEventListener('pointerdown', function (e) {
     e.stopPropagation();
+    // Only a fresh touch on the bar scrolls: not while a finger is
+    // already moving the pointer on the touchpad.
+    if (Object.keys(points).length > 0) return;
     bar.setPointerCapture(e.pointerId);
     barY = e.clientY;
     bar.className = 'on';
