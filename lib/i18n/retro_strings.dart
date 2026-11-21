@@ -20,6 +20,10 @@ class RetroStrings {
   // Free on Plex (Plex's ad-supported Movies & Shows)
   static String get freeOnPlex => _t('Free on plex.tv', 'Kostenlos auf plex.tv');
   static String get freeOnPlexAll => _t('All titles', 'Alle Titel');
+  static String get freeOnPlexWatchlist => _t('Free on your watchlist', 'Kostenlos auf deiner Merkliste');
+  static String get freeOnPlexSearch => _t('Search Plex\'s free titles', 'Kostenlose Titel von Plex suchen');
+  static String freeOnPlexResults(String query) => _t('Free results for "$query"', 'Kostenlose Treffer für „$query"');
+  static String get freeOnPlexNoResults => _t('No free titles found.', 'Keine kostenlosen Titel gefunden.');
   static String get freeOnPlexPlay => _t('Watch free on Plex', 'Kostenlos auf Plex ansehen');
   static String get freeOnPlexWatch => _t('Plex (free, with ads)', 'Plex (kostenlos, mit Werbung)');
   static String get freeOnPlexHint => Platform.isAndroid
