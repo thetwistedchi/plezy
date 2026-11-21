@@ -709,7 +709,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
       if (tab.autoplayFor != url || System.currentTimeMillis() - started > 30_000) return
       web.evaluateJavascript(find) { value ->
         val parts = value?.trim('[', ']')?.split(',')?.mapNotNull { it.trim().toFloatOrNull() }
-        if (parts == null || parts.size < 3 || parts[2] <= 0f) {
+        if (parts == null || parts.size < 3 || parts[2] <= 0f || web.width <= 0 || !web.isAttachedToWindow) {
           main.postDelayed({ attempt() }, 700)
           return@evaluateJavascript
         }
