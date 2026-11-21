@@ -65,7 +65,7 @@ import '../widgets/overlay_sheet.dart';
 import '../widgets/seerr_request_sheet.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/stat_chip.dart';
-import 'browser/browser_screen.dart';
+import 'free_plex_player_screen.dart';
 import 'free_on_plex_screen.dart' show FreeOnPlexScreen;
 
 /// Detail screen for a catalog item (Explore tab). Renders from provider
@@ -739,9 +739,9 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
 
   Future<void> _openExternalUrl(String value) async {
     final uri = Uri.tryParse(value);
-    // Fork: on Android, Plex's free titles play in the in-app browser.
+    // Fork: on Android, Plex's free titles play in their own Plex Web page.
     if (Platform.isAndroid && uri != null && uri.host == 'app.plex.tv' && BrowserNative.isSupported) {
-      await BrowserScreen.open(context, url: value);
+      await FreePlexPlayerScreen.open(context, value);
       return;
     }
     if (uri != null && uri.hasScheme && await openExternalUrl(uri)) return;

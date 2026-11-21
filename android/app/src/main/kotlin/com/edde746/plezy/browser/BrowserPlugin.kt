@@ -67,6 +67,8 @@ class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
     private const val TAG = "PlezyBrowser"
     private const val CHANNEL = "com.plezy.retrowave/browser"
     const val VIEW_TYPE = "plezy/browser_page"
+    const val PLAYER_VIEW_TYPE = "plezy/plex_player"
+    private const val PLAYER_TAB = -1
     private const val PRIVATE_PROFILE = "Private"
     private const val BRIDGE = "plezyBridge"
 
@@ -195,7 +197,42 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
       override fun create(context: Context, viewId: Int, args: Any?): PlatformView =
         BrowserPageView(activity ?: context, this@BrowserPlugin, tv)
     })
+    binding.platformViewRegistry.registerViewFactory(PLAYER_VIEW_TYPE, object : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
+      override fun create(context: Context, viewId: Int, args: Any?): PlatformView =
+        createPlayerView(activity ?: context, (args as? Map<*, *>)?.get("url") as? String ?: "")
+    })
   }
+
+  /**
+   * Free on plex.tv's player page: Plex Web alone, without the browser
+   * around it. Its own WebView (not one of the tabs), with the same
+   * protection, the automatic consent answer and autoplay; it goes when
+   * the page closes.
+   */
+  private fun createPlayerView(context: Context, url: String): PlatformView {
+    val tab = Tab(PLAYER_TAB, false)
+    val container = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
+    val web = createWebView(tab)
+    container.addView(web, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    if (url.isNotEmpty()) load(tab, url)
+    main.postDelayed({ web.requestFocus() }, 300)
+    playerTab = tab
+    return object : PlatformView {
+      override fun getView(): View = container
+
+      override fun dispose() {
+        if (fullscreenTab == PLAYER_TAB) exitFullscreen()
+        if (playerTab === tab) playerTab = null
+        tab.autoplayFor = "closed"
+        container.removeView(web)
+        web.stopLoading()
+        web.destroy()
+        tab.webView = null
+      }
+    }
+  }
+
+  private var playerTab: Tab? = null
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel?.setMethodCallHandler(null)

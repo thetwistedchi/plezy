@@ -20,8 +20,8 @@ class RetroStrings {
   static String get freeOnPlexWatch => _t('Plex (free, with ads)', 'Plex (kostenlos, mit Werbung)');
   static String get freeOnPlexHint => Platform.isAndroid
       ? _t(
-          'Plex\'s free, ad-supported movies and shows. Open a title and press "Watch free on Plex": it plays in the in-app browser.',
-          'Die kostenlosen, werbefinanzierten Filme und Serien von Plex. Titel öffnen und „Kostenlos auf Plex ansehen" drücken: Er läuft im eingebauten Browser.',
+          'Plex\'s free, ad-supported movies and shows. Open a title and press "Watch free on Plex": it plays full screen in Plex Web, Back closes it.',
+          'Die kostenlosen, werbefinanzierten Filme und Serien von Plex. Titel öffnen und „Kostenlos auf Plex ansehen" drücken: Er läuft im Vollbild in Plex Web, Zurück schließt ihn.',
         )
       : _t(
           'Plex\'s free, ad-supported movies and shows. Open a title and press "Watch free on Plex": it plays in Plex Web.',
