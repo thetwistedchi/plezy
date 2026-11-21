@@ -287,10 +287,32 @@ class MediaImageHelper {
         return uri.replace(queryParameters: params).toString();
       }
 
+      // Fork: Plex's own catalog artwork (Discover, Free on plex.tv) is sized
+      // by Plex's public image service, as in Plex Web: faster than the
+      // home server fetching it from the internet first, and without a
+      // server it would arrive as the full original.
+      {
+        final host = Uri.tryParse(basePath)?.host ?? '';
+        if (host.endsWith('.plex.tv') && host != 'images.plex.tv') {
+          final (width, height) = calculateOptimalDimensions(
+            maxWidth: maxWidth,
+            maxHeight: maxHeight,
+            pixelRatio: pixelRatio,
+            imageType: imageType,
+          );
+          return Uri.https('images.plex.tv', '/photo', {
+            'width': '$width',
+            'height': '$height',
+            'minSize': '1',
+            'upscale': '1',
+            'url': basePath,
+          }).toString();
+        }
+      }
+      if (client == null) return basePath;
       // EPG / external URL — proxy through the server's transcoder. Plex
       // implements [externalImageUrl] via `/photo/:/transcode?url=...`;
       // backends without a comparable endpoint return the URL unchanged.
-      if (client == null) return basePath;
       final (width, height) = calculateOptimalDimensions(
         maxWidth: maxWidth,
         maxHeight: maxHeight,
