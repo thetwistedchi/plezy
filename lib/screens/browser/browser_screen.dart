@@ -200,9 +200,16 @@ class _BrowserScreenState extends State<BrowserScreen> {
       return await show();
     } finally {
       _overlays--;
+      _overlayClosed = DateTime.now();
       _syncVisibility();
     }
   }
+
+  /// When a dialog or popup last closed: the Back press that closed it (on
+  /// key down) must not also leave the browser (Android's Back on key up).
+  DateTime _overlayClosed = DateTime(0);
+
+  bool get _overlayJustClosed => DateTime.now().difference(_overlayClosed) < const Duration(milliseconds: 700);
 
   // ---- Suggestions ----
 
@@ -1011,6 +1018,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       transitionBuilder: (context, animation, _, child) => FadeTransition(opacity: animation, child: child),
     );
     _popupContext = null;
+    _overlayClosed = DateTime.now();
     return result;
   }
 
@@ -1229,6 +1237,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       canPop: !Platform.isAndroid,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        if (_overlays > 0 || _overlayJustClosed) return;
         final popup = _popupContext;
         if (popup != null && popup.mounted) {
           Navigator.pop(popup);
