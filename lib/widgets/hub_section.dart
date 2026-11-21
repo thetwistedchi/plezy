@@ -115,7 +115,13 @@ class HubSection extends StatefulWidget {
   /// Vertical viewport alignment when this hub is focused.
   final double focusScrollAlignment;
 
+  /// Fork: false leaves out the quality/language pill row (and its space),
+  /// for rows whose titles have no file information, like Plex's free
+  /// catalog. Null follows the setting.
+  final bool? showInfoPills;
+
   const HubSection({
+    this.showInfoPills,
     this.leadingCard,
     this.onToggleHideWatched,
     this.hidesWatched = false,
@@ -745,7 +751,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                         ? EdgeInsets.only(right: cardGap)
                         : EdgeInsets.symmetric(horizontal: cardGap / 2);
 
-                    final infoPills = MediaCard.showsInfoPills(context);
+                    final infoPills = widget.showInfoPills ?? MediaCard.showsInfoPills(context);
                     final containerHeight =
                         posterHeight + (isTv ? 48 : 33) + (infoPills ? MediaCard.infoPillsBand : 0);
                     final focusBorderWidth = FocusTheme.focusBorderWidth;

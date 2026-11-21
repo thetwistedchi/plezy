@@ -18,10 +18,15 @@ class RetroStrings {
   static String get freeOnPlexAll => _t('All titles', 'Alle Titel');
   static String get freeOnPlexPlay => _t('Watch free on Plex', 'Kostenlos auf Plex ansehen');
   static String get freeOnPlexWatch => _t('Plex (free, with ads)', 'Plex (kostenlos, mit Werbung)');
-  static String get freeOnPlexHint => _t(
-    'Plex\'s free, ad-supported movies and shows. They play in Plex\'s own app or Plex Web: open a title and use the Plex button.',
-    'Die kostenlosen, werbefinanzierten Filme und Serien von Plex. Sie laufen in der Plex-App oder Plex Web: Titel öffnen und den Plex-Knopf nutzen.',
-  );
+  static String get freeOnPlexHint => Platform.isAndroid
+      ? _t(
+          'Plex\'s free, ad-supported movies and shows. Open a title and press "Watch free on Plex": it plays in the in-app browser.',
+          'Die kostenlosen, werbefinanzierten Filme und Serien von Plex. Titel öffnen und „Kostenlos auf Plex ansehen" drücken: Er läuft im eingebauten Browser.',
+        )
+      : _t(
+          'Plex\'s free, ad-supported movies and shows. Open a title and press "Watch free on Plex": it plays in Plex Web.',
+          'Die kostenlosen, werbefinanzierten Filme und Serien von Plex. Titel öffnen und „Kostenlos auf Plex ansehen" drücken: Er läuft in Plex Web.',
+        );
   static String get freeOnPlexNoAccount =>
       _t('Sign in with a Plex account to see Plex\'s free titles.', 'Melde dich mit einem Plex-Konto an, um die kostenlosen Titel von Plex zu sehen.');
   static String get freeOnPlexEmpty => _t('Plex offers no free titles here right now.', 'Plex bietet hier gerade keine kostenlosen Titel an.');

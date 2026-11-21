@@ -218,6 +218,9 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
               focusMemory: _focusMemory,
               icon: hub.id == 'vod:all' ? Symbols.local_activity_rounded : Symbols.movie_rounded,
               loadMoreItems: hub.more ? () => _loadAll(hub) : null,
+              // The free catalog's listings carry no file details (quality,
+              // languages), so the pill row would only leave a gap.
+              showInfoPills: false,
             ),
           ),
       const SliverToBoxAdapter(child: SizedBox(height: 24)),
