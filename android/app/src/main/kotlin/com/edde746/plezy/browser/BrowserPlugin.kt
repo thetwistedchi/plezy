@@ -132,6 +132,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
     var error: Int? = null
     var muted = false
     var suspended = false
+    var autoplayFor: String? = null
   }
 
   private class PendingDownload(
@@ -587,6 +588,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
         send(tab.id, "loaded", mapOf("ok" to (error == null), "error" to (error ?: 0)))
         sendState(tab)
         if (tab.muted) applyMute(tab)
+        maybeAutoplayPlex(tab, url)
       }
 
       override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -595,6 +597,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
       override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
         sendState(tab)
+        maybeAutoplayPlex(tab, url)
       }
 
       override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
@@ -684,6 +687,50 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
     tab.webView = web
     installDarkScript(tab)
     return web
+  }
+
+  /**
+   * Free on plex.tv: a title's Plex Web page opened from the app starts
+   * playing by itself. The Play button is pressed with a real tap (a script
+   * click would not count as the user's, and the video would not start).
+   */
+  private fun maybeAutoplayPlex(tab: Tab, url: String) {
+    if (!url.startsWith("https://app.plex.tv/") || !url.contains("tv.plex.provider.vod") || !url.contains("details")) return
+    if (tab.autoplayFor == url) return
+    tab.autoplayFor = url
+    val started = System.currentTimeMillis()
+    val find = "(function(){var b=document.querySelector('[data-testid=\"preplay-play\"]')||" +
+      "Array.from(document.querySelectorAll('button')).find(function(e){var l=(e.getAttribute('aria-label')||e.textContent||'').trim().toLowerCase();" +
+      "return l==='play'||l==='abspielen'||l==='wiedergeben'||l==='ansehen';});" +
+      "if(!b)return null;var r=b.getBoundingClientRect();if(!r.width)return null;" +
+      "return [r.left+r.width/2,r.top+r.height/2,window.innerWidth];})()"
+    fun attempt() {
+      val web = tab.webView ?: return
+      if (tab.autoplayFor != url || System.currentTimeMillis() - started > 30_000) return
+      web.evaluateJavascript(find) { value ->
+        val parts = value?.trim('[', ']')?.split(',')?.mapNotNull { it.trim().toFloatOrNull() }
+        if (parts == null || parts.size < 3 || parts[2] <= 0f) {
+          main.postDelayed({ attempt() }, 700)
+          return@evaluateJavascript
+        }
+        val scale = web.width / parts[2]
+        tap(web, parts[0] * scale, parts[1] * scale)
+        Log.i(TAG, "Free on plex.tv: play pressed")
+      }
+    }
+    main.postDelayed({ attempt() }, 1200)
+  }
+
+  private fun tap(web: WebView, x: Float, y: Float) {
+    val now = android.os.SystemClock.uptimeMillis()
+    val down = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_DOWN, x, y, 0)
+    down.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+    web.dispatchTouchEvent(down)
+    down.recycle()
+    val up = android.view.MotionEvent.obtain(now, now + 60, android.view.MotionEvent.ACTION_UP, x, y, 0)
+    up.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+    web.dispatchTouchEvent(up)
+    up.recycle()
   }
 
   private fun onNewWindow(tab: Tab, url: String, opener: String, userGesture: Boolean) {

@@ -16,6 +16,7 @@ class RetroStrings {
   // Free on Plex (Plex's ad-supported Movies & Shows)
   static String get freeOnPlex => _t('Free on plex.tv', 'Kostenlos auf plex.tv');
   static String get freeOnPlexAll => _t('All titles', 'Alle Titel');
+  static String get freeOnPlexPlay => _t('Watch free on Plex', 'Kostenlos auf Plex ansehen');
   static String get freeOnPlexWatch => _t('Plex (free, with ads)', 'Plex (kostenlos, mit Werbung)');
   static String get freeOnPlexHint => _t(
     'Plex\'s free, ad-supported movies and shows. They play in Plex\'s own app or Plex Web: open a title and use the Plex button.',

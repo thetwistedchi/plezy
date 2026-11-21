@@ -16,6 +16,7 @@ import '../focus/input_mode_tracker.dart';
 import '../focus/key_event_utils.dart';
 import '../focus/locked_hub_controller.dart';
 import '../i18n/app_locale_utils.dart';
+import '../i18n/retro_strings.dart';
 import '../i18n/strings.g.dart';
 import '../media/ids.dart';
 import '../media/media_hub.dart';
@@ -424,7 +425,12 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   /// with the detail fetch (issue #1959).
   bool get _canRequest => _requestSource != null && _item.ids.tmdb != null;
 
-  bool get _hasActions => _watchlistSource != null || _canRequest || _hasTrailer;
+  bool get _hasActions => _watchlistSource != null || _canRequest || _hasTrailer || _freePlexLink != null;
+
+  /// Fork: a Free on plex.tv title's link to where it plays, shown as the
+  /// first, highlighted action.
+  CatalogLink? get _freePlexLink =>
+      _streamingLinks.firstWhereOrNull((link) => Uri.tryParse(link.url)?.host == 'app.plex.tv');
 
   bool get _hasLibraryMatches => _libraryMatchFocusNodes.isNotEmpty;
 
@@ -1515,6 +1521,17 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
                                             key: _actionBarKey,
                                             onNavigateDown: _focusSectionBelowActions,
                                             actions: [
+                                              if (_freePlexLink case final CatalogLink free)
+                                                FocusableAction(
+                                                  debugLabel: 'catalog_free_plex',
+                                                  autofocus: true,
+                                                  tooltip: RetroStrings.freeOnPlexPlay,
+                                                  onPressed: () => unawaited(_openExternalUrl(free.url)),
+                                                  builder: (context, state) => _FreePlexButton(
+                                                    focused: state.showFocus,
+                                                    onPressed: () => unawaited(_openExternalUrl(free.url)),
+                                                  ),
+                                                ),
                                               if (_watchlistSource != null)
                                                 FocusableAction(
                                                   // Stable identities so the focused binding survives the
@@ -1633,6 +1650,54 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
                     AppBarBackButton(style: BackButtonStyle.circular, focusNode: _backButtonFocusNode),
                     context: hostContext,
                   )!,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Fork: the highlighted "Watch free on Plex" action of a Free on plex.tv
+/// title, a glowing magenta pill.
+class _FreePlexButton extends StatelessWidget {
+  const _FreePlexButton({required this.focused, required this.onPressed});
+
+  final bool focused;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    const magenta = Color(0xFFEC4899);
+    const purple = Color(0xFF8B5CF6);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(colors: [magenta, purple]),
+        border: Border.all(color: Colors.white.withValues(alpha: focused ? 0.95 : 0.25), width: focused ? 2.5 : 1),
+        boxShadow: [
+          BoxShadow(color: magenta.withValues(alpha: focused ? 0.75 : 0.4), blurRadius: focused ? 22 : 12, spreadRadius: focused ? 2 : 0),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onPressed,
+          canRequestFocus: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AppIcon(Symbols.play_arrow_rounded, fill: 1, size: 24, color: Colors.white),
+                const SizedBox(width: 8),
+                Text(
+                  RetroStrings.freeOnPlexPlay,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
                 ),
               ],
             ),
