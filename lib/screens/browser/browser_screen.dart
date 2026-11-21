@@ -1505,9 +1505,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
           if (!Platform.isAndroid || event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.arrowDown) {
             return KeyEventResult.ignored;
           }
-          if (_suggestions.isNotEmpty || !_pageSlotShown) return KeyEventResult.ignored;
-          _browserPageFocus.requestFocus();
-          return KeyEventResult.handled;
+          if (_suggestions.isNotEmpty) return KeyEventResult.ignored;
+          return _focusBelowToolbar() ? KeyEventResult.handled : KeyEventResult.ignored;
         },
         child: Row(
         children: [
@@ -1553,9 +1552,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       decoration: addressDecoration,
                       onSubmitted: (v) => unawaited(_submit(v)),
                       onNavigateUp: () => _addressFocus.focusInDirection(TraversalDirection.up),
-                      onNavigateDown: () => _pageSlotShown
-                          ? _browserPageFocus.requestFocus()
-                          : _addressFocus.focusInDirection(TraversalDirection.down),
+                      onNavigateDown: () {
+                        if (!_focusBelowToolbar()) _addressFocus.focusInDirection(TraversalDirection.down);
+                      },
                       onNavigateLeft: () => _addressFocus.focusInDirection(TraversalDirection.left),
                       onNavigateRight: () => _addressFocus.focusInDirection(TraversalDirection.right),
                     )
@@ -2097,8 +2096,9 @@ class _NewTabPage extends StatelessWidget {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  for (final p in pages)
+                  for (final (i, p) in pages.indexed)
                     _PageTile(
+                      focusNode: i == 0 ? _newTabFirstFocus : null,
                       title: p.title.isEmpty ? p.host : p.title,
                       host: p.host,
                       onOpen: () => onOpen(p.url),
@@ -2114,7 +2114,9 @@ class _NewTabPage extends StatelessWidget {
 }
 
 class _PageTile extends StatelessWidget {
-  const _PageTile({required this.title, required this.host, required this.onOpen, required this.onMenu});
+  const _PageTile({this.focusNode, required this.title, required this.host, required this.onOpen, required this.onMenu});
+
+  final FocusNode? focusNode;
 
   final String title;
   final String host;
@@ -2131,6 +2133,7 @@ class _PageTile extends StatelessWidget {
         color: t.surface,
         borderRadius: BorderRadius.circular(t.radiusMd),
         child: InkWell(
+          focusNode: focusNode,
           borderRadius: BorderRadius.circular(t.radiusMd),
           focusColor: t.accent.withValues(alpha: 0.35),
           onTap: onOpen,
@@ -2167,6 +2170,23 @@ final FocusNode _browserPageFocus = FocusNode(debugLabel: 'browser-page');
 /// notice): only then does Down go to [_browserPageFocus]. A node keeps its
 /// last context after its widget is gone, so that can't tell.
 bool get _pageSlotShown => _browserPageFocus.context?.mounted ?? false;
+
+/// The new-tab page's first recent page, for the remote's Down from the toolbar.
+final FocusNode _newTabFirstFocus = FocusNode(debugLabel: 'browser-newtab-first');
+
+/// Down from the toolbar or the address bar: into the page, or onto the
+/// new-tab page's recent pages. False when neither is on screen.
+bool _focusBelowToolbar() {
+  if (_pageSlotShown) {
+    _browserPageFocus.requestFocus();
+    return true;
+  }
+  if (_newTabFirstFocus.context?.mounted ?? false) {
+    _newTabFirstFocus.requestFocus();
+    return true;
+  }
+  return false;
+}
 
 /// Popups (menus, panels): the remote lands on their first entry, and Back
 /// closes the popup rather than the browser.
