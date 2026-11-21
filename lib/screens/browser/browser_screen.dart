@@ -1505,7 +1505,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           if (!Platform.isAndroid || event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.arrowDown) {
             return KeyEventResult.ignored;
           }
-          if (_suggestions.isNotEmpty || _browserPageFocus.context == null) return KeyEventResult.ignored;
+          if (_suggestions.isNotEmpty || !_pageSlotShown) return KeyEventResult.ignored;
           _browserPageFocus.requestFocus();
           return KeyEventResult.handled;
         },
@@ -1553,7 +1553,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       decoration: addressDecoration,
                       onSubmitted: (v) => unawaited(_submit(v)),
                       onNavigateUp: () => _addressFocus.focusInDirection(TraversalDirection.up),
-                      onNavigateDown: () => _browserPageFocus.context != null
+                      onNavigateDown: () => _pageSlotShown
                           ? _browserPageFocus.requestFocus()
                           : _addressFocus.focusInDirection(TraversalDirection.down),
                       onNavigateLeft: () => _addressFocus.focusInDirection(TraversalDirection.left),
@@ -2132,6 +2132,7 @@ class _PageTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(t.radiusMd),
         child: InkWell(
           borderRadius: BorderRadius.circular(t.radiusMd),
+          focusColor: t.accent.withValues(alpha: 0.35),
           onTap: onOpen,
           onSecondaryTapDown: (d) => onMenu(d.globalPosition),
           onLongPress: () {
@@ -2161,6 +2162,11 @@ class _PageTile extends StatelessWidget {
 
 /// The page's focus on Android (the remote's Down from the toolbar).
 final FocusNode _browserPageFocus = FocusNode(debugLabel: 'browser-page');
+
+/// Whether the page's platform view is on screen (not the new-tab page or a
+/// notice): only then does Down go to [_browserPageFocus]. A node keeps its
+/// last context after its widget is gone, so that can't tell.
+bool get _pageSlotShown => _browserPageFocus.context?.mounted ?? false;
 
 /// Popups (menus, panels): the remote lands on their first entry, and Back
 /// closes the popup rather than the browser.
