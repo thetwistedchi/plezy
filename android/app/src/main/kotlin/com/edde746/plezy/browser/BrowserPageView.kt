@@ -37,6 +37,17 @@ internal class BrowserPageView(
   private var cursorX = -1f
   private var cursorY = -1f
   private var repeat = 0
+
+  private companion object {
+    // What the selection and the scroll positions were before a key.
+    const val SNAPSHOT = "(()=>{const s=[];const d=document.scrollingElement||document.documentElement;s.push(d.scrollTop);" +
+      "const m=window.__plezyScroller;if(m&&m.isConnected)s.push(m.scrollTop);" +
+      "window.__plezyKeySnap={a:document.activeElement,s:s.join(',')};})()"
+    const val UNCHANGED = "(()=>{const p=window.__plezyKeySnap;if(!p)return false;const s=[];" +
+      "const d=document.scrollingElement||document.documentElement;s.push(d.scrollTop);" +
+      "const m=window.__plezyScroller;if(m&&m.isConnected)s.push(m.scrollTop);" +
+      "return p.a===document.activeElement&&p.s===s.join(',');})()"
+  }
   private var lastUpAtTop = 0L
 
   /** The remote moves a pointer (on) or selects the page's elements (off). */
@@ -151,7 +162,21 @@ internal class BrowserPageView(
    */
   private fun selectKey(web: WebView, event: KeyEvent): Boolean {
     if (!web.hasFocus()) web.requestFocus()
+    val vertical = event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+    if (vertical && event.action == KeyEvent.ACTION_DOWN) {
+      web.evaluateJavascript(SNAPSHOT, null)
+    }
     val handled = web.dispatchKeyEvent(event)
+    if (vertical && event.action == KeyEvent.ACTION_DOWN) {
+      // Pages that scroll inside an element: when the key neither moved
+      // the selection nor scrolled anything, the page is scrolled here.
+      val down = event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+      postDelayed({
+        web.evaluateJavascript(UNCHANGED) { value ->
+          if (value == "true") scrollBy(web, 0f, (if (down) 1 else -1) * height * 0.35f / resources.displayMetrics.density)
+        }
+      }, 150)
+    }
     if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
       val now = SystemClock.uptimeMillis()
       // The page itself at the top (fields and inner scroll areas may still

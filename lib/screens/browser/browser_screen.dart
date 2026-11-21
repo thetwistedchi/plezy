@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +11,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../focus/dpad_navigator.dart';
 import '../../focus/focusable_text_field.dart';
-import '../../focus/key_event_utils.dart';
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/adblock_lists.dart';
 import '../../services/file_picker_service.dart';
@@ -2188,8 +2188,9 @@ bool _focusBelowToolbar() {
   return false;
 }
 
-/// Popups (menus, panels): the remote lands on their first entry, and Back
-/// closes the popup rather than the browser.
+/// Popups (menus, panels): the remote lands on their first entry. Back
+/// closes them through the route (the browser's PopScope checks for an open
+/// popup first); handling the key here as well went back a page too.
 class _PopupFocus extends StatefulWidget {
   const _PopupFocus({required this.child});
 
@@ -2223,8 +2224,6 @@ class _PopupFocusState extends State<_PopupFocus> {
     return Focus(
       focusNode: _node,
       onKeyEvent: (node, event) {
-        final back = handleBackKeyAction(event, () => Navigator.of(context).maybePop());
-        if (back != KeyEventResult.ignored) return back;
         if (event is KeyDownEvent && node.hasPrimaryFocus && event.logicalKey.isDpadDirection) {
           final first = node.traversalDescendants.where((n) => n.canRequestFocus).firstOrNull;
           if (first != null) {
@@ -2301,9 +2300,14 @@ class _PageSlotState extends State<_PageSlot> {
           }
           return KeyEventResult.ignored;
         },
-        child: const AndroidView(
+        child: AndroidView(
           viewType: BrowserNative.androidViewType,
-          creationParamsCodec: StandardMessageCodec(),
+          creationParamsCodec: const StandardMessageCodec(),
+          // The page takes every touch, drags (scrolling) included; without
+          // this, Flutter only passes it taps.
+          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+            Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
+          },
         ),
       );
     }

@@ -1071,6 +1071,15 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     } ?: return null
     val web = tab.webView ?: return null
     if (event.action != android.view.KeyEvent.ACTION_DOWN) return true
+    // Plex Web keeps its own player state (it starts a paused video again):
+    // its Space shortcut pauses and plays.
+    if (command is String && command != "none" && (web.url ?: "").startsWith("https://app.plex.tv/")) {
+      if (!web.hasFocus()) web.requestFocus()
+      val now = android.os.SystemClock.uptimeMillis()
+      web.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_SPACE, 0))
+      web.dispatchKeyEvent(android.view.KeyEvent(now, now + 40, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_SPACE, 0))
+      return true
+    }
     val message = when (command) {
       is Int -> "{plezyMedia:'seek',by:$command}"
       "none" -> return true
