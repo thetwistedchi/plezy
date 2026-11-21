@@ -694,7 +694,23 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
    * playing by itself. The Play button is pressed with a real tap (a script
    * click would not count as the user's, and the video would not start).
    */
+  /**
+   * Plex Web's cookie notice: answered once with "decline" (only the
+   * necessary cookies), which Plex remembers in its own cookie, so it does
+   * not cover the page or the player again.
+   */
+  private val plexConsentScript = "(function(){if(window.__plezyConsent)return;window.__plezyConsent=1;" +
+    "var words=['decline','reject','disagree','do not agree','not agree','only necessary','necessary only'," +
+    "'ablehnen','alle ablehnen','nicht zustimmen','nur notwendige','nur erforderliche'];" +
+    "var t=Date.now();var iv=setInterval(function(){" +
+    "var b=Array.from(document.querySelectorAll('button,[role=button],a')).find(function(e){" +
+    "var l=(e.getAttribute('aria-label')||e.textContent||'').trim().toLowerCase();" +
+    "if(!l||l.length>40)return false;var box=e.closest('[class*=onsent],[id*=onsent],[class*=ookie],[id*=ookie],[role=dialog]');" +
+    "return box&&words.some(function(w){return l.indexOf(w)>=0;});});" +
+    "if(b){clearInterval(iv);b.click();}else if(Date.now()-t>15000)clearInterval(iv);},500);})();"
+
   private fun maybeAutoplayPlex(tab: Tab, url: String) {
+    if (url.startsWith("https://app.plex.tv/")) tab.webView?.evaluateJavascript(plexConsentScript, null)
     if (!url.startsWith("https://app.plex.tv/") || !url.contains("tv.plex.provider.vod") || !url.contains("details")) return
     if (tab.autoplayFor == url) return
     tab.autoplayFor = url
