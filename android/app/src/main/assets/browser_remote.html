@@ -28,27 +28,32 @@
     color:var(--text); font:inherit; padding:0 12px; }
   input:focus { outline:none; border-color:var(--accent); }
   #msg { color:#fca5a5; font-size:13px; min-height:0; }
+  form.row input { flex:1; min-width:0; }
+  button.small { flex:none; min-width:76px; }
 </style>
 </head>
 <body>
 <header><div id="dot"></div><div id="page">Connecting…</div></header>
 <div id="msg"></div>
+<form id="addressForm" class="row" autocomplete="off">
+  <input id="address" type="url" inputmode="url" enterkeyhint="go" autocapitalize="off" spellcheck="false" placeholder="Address or search">
+  <button id="open" type="submit" class="accent small">Open</button>
+</form>
+<form id="textForm" class="row" autocomplete="off">
+  <input id="text" type="text" enterkeyhint="send" autocapitalize="off" spellcheck="false" placeholder="Type into the selected field">
+  <button id="type" type="submit" class="small">Type</button>
+</form>
+<div class="row">
+  <button data-key="Backspace">⌫</button>
+  <button data-key="Tab" id="nextField">Next field ⇥</button>
+  <button data-key="Enter" class="accent">Enter ⏎</button>
+</div>
 <div class="row">
   <button data-nav="back">◀ Back</button>
   <button data-nav="forward">Forward ▶</button>
   <button data-nav="reload">⟳ Reload</button>
 </div>
 <div id="pad"><span id="hint">Move: one finger · Click: tap · Scroll: two fingers</span></div>
-<div class="row">
-  <button data-key="Backspace">⌫</button>
-  <button data-key="Tab">Tab</button>
-  <button data-key="Enter" class="accent">Enter ⏎</button>
-</div>
-<input id="text" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Type text or an address">
-<div class="row">
-  <button id="type">Type into page</button>
-  <button id="open" class="accent">Open address</button>
-</div>
 <script>
 (function () {
   var key = new URLSearchParams(location.search).get('k') || '';
@@ -57,9 +62,11 @@
     var t = { back:'◀ Zurück', forward:'Vor ▶', reload:'⟳ Neu laden' };
     document.querySelectorAll('[data-nav]').forEach(function (b) { b.textContent = t[b.dataset.nav]; });
     document.getElementById('hint').textContent = 'Bewegen: ein Finger · Klicken: tippen · Scrollen: zwei Finger';
-    document.getElementById('text').placeholder = 'Text oder Adresse eingeben';
-    document.getElementById('type').textContent = 'In Seite tippen';
-    document.getElementById('open').textContent = 'Adresse öffnen';
+    document.getElementById('address').placeholder = 'Adresse oder Suche';
+    document.getElementById('text').placeholder = 'In das gewählte Feld tippen';
+    document.getElementById('type').textContent = 'Tippen';
+    document.getElementById('open').textContent = 'Öffnen';
+    document.getElementById('nextField').textContent = 'Nächstes Feld ⇥';
     document.documentElement.lang = 'de';
   }
   var msg = document.getElementById('msg');
@@ -135,26 +142,36 @@
     b.addEventListener('click', function () { send({ t:'key', v:b.dataset.key }); });
   });
   var text = document.getElementById('text');
-  document.getElementById('type').addEventListener('click', function () {
+  var address = document.getElementById('address');
+  var editingAddress = false;
+  address.addEventListener('focus', function () { editingAddress = true; address.select(); });
+  address.addEventListener('blur', function () { editingAddress = false; });
+  document.getElementById('addressForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = address.value.trim();
+    if (!v) return;
+    send({ t:'url', v:v });
+    address.blur();
+    window.scrollTo(0, 0);
+  });
+  document.getElementById('textForm').addEventListener('submit', function (e) {
+    e.preventDefault();
     if (!text.value) return;
-    send({ t:'text', v:text.value }); text.value = ''; text.blur(); window.scrollTo(0, 0);
-  });
-  document.getElementById('open').addEventListener('click', function () {
-    if (!text.value.trim()) return;
-    send({ t:'url', v:text.value.trim() }); text.value = ''; text.blur(); window.scrollTo(0, 0);
-  });
-  text.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('type').click(); }
+    send({ t:'text', v:text.value });
+    text.value = '';
   });
 
   function state() {
     fetch('/s?k=' + encodeURIComponent(key)).then(function (r) { return r.ok ? r.json() : null; }).then(function (s) {
       dot.className = s ? 'on' : '';
-      if (s) page.textContent = s.title || s.url || '';
+      if (s) {
+        page.textContent = s.title || s.url || '';
+        if (!editingAddress && s.url && s.url !== 'about:blank') address.value = s.url;
+      }
     }).catch(function () { dot.className = ''; });
   }
   state();
-  setInterval(state, 2500);
+  setInterval(state, 1500);
 })();
 </script>
 </body>

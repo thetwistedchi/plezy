@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -379,6 +380,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         );
       }
       await _native.setPopupSites(_settings.popupSites);
+      if (Platform.isAndroid) await _native.setPointer(_settings.tvPointer);
       if (fresh) {
         await _syncDark();
         unawaited(AdblockManager.instance.start());
@@ -535,6 +537,13 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setDarkExcluded(String site, bool excluded) async {
     await _settings.setDarkExcluded(site, excluded);
     await _syncDark();
+  }
+
+  /// Android TV: pointer or element selection for the remote.
+  Future<void> setTvPointer(bool value) async {
+    await _settings.update(tvPointer: value);
+    await _native.setPointer(value);
+    notifyListeners();
   }
 
   Future<void> setTrackingLevel(int level) async {

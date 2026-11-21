@@ -864,8 +864,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
       _MenuEntry.divider,
       _menuItem('history', Symbols.history_rounded, RetroStrings.history),
       _menuItem('downloads', Symbols.download_rounded, RetroStrings.downloads),
-      if (Platform.isAndroid && PlatformDetector.isTV())
+      if (Platform.isAndroid && PlatformDetector.isTV()) ...[
+        _menuItem(
+          'pointer',
+          _settings.tvPointer ? Symbols.toggle_on_rounded : Symbols.toggle_off_rounded,
+          RetroStrings.tvPointer,
+        ),
         _menuItem('remote', Symbols.phone_android_rounded, RetroStrings.phoneRemote),
+      ],
       _menuItem(
         'external',
         Symbols.open_in_new_rounded,
@@ -888,6 +894,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
         await _showDownloads(anchor);
       case 'remote':
         await _showPhoneRemote();
+      case 'pointer':
+        await _controller.setTvPointer(!_settings.tvPointer);
       case 'external':
         final uri = Uri.tryParse(url ?? '');
         if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);

@@ -42,6 +42,9 @@ class BrowserSettings extends ChangeNotifier {
   bool keepPlayingAwake = true;
   bool restoreTabs = true;
 
+  /// Android TV: the remote moves a pointer instead of selecting the page's elements.
+  bool tvPointer = false;
+
   /// Recently visited pages are kept after the app closes.
   bool keepHistory = true;
   bool httpsUpgrade = true;
@@ -91,6 +94,7 @@ class BrowserSettings extends ChangeNotifier {
     suspendMinutes = p.getInt('${_prefix}suspendMinutes') ?? suspendMinutes;
     keepPlayingAwake = p.getBool('${_prefix}keepPlayingAwake') ?? keepPlayingAwake;
     restoreTabs = p.getBool('${_prefix}restoreTabs') ?? restoreTabs;
+    tvPointer = p.getBool('${_prefix}tvPointer') ?? tvPointer;
     keepHistory = p.getBool('${_prefix}keepHistory') ?? keepHistory;
     httpsUpgrade = p.getBool('${_prefix}httpsUpgrade') ?? httpsUpgrade;
     downloadFolder = p.getString('${_prefix}downloadFolder') ?? '';
@@ -180,6 +184,7 @@ class BrowserSettings extends ChangeNotifier {
     int? suspendMinutes,
     bool? keepPlayingAwake,
     bool? restoreTabs,
+    bool? tvPointer,
     bool? keepHistory,
     bool? httpsUpgrade,
     int? cacheLimitMb,
@@ -220,6 +225,10 @@ class BrowserSettings extends ChangeNotifier {
     if (keepPlayingAwake != null) {
       this.keepPlayingAwake = keepPlayingAwake;
       await p.setBool('${_prefix}keepPlayingAwake', keepPlayingAwake);
+    }
+    if (tvPointer != null) {
+      this.tvPointer = tvPointer;
+      await p.setBool('${_prefix}tvPointer', tvPointer);
     }
     if (restoreTabs != null) {
       this.restoreTabs = restoreTabs;

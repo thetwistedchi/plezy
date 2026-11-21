@@ -290,6 +290,11 @@ class RetroStrings {
     'Only the tab on screen keeps running. Others pause after this time and continue when you open them. When memory runs low, they pause right away.',
     'Nur der sichtbare Tab läuft weiter. Andere pausieren nach dieser Zeit und laufen weiter, sobald du sie öffnest. Bei knappem Arbeitsspeicher pausieren sie sofort.',
   );
+  static String get tvPointer => _t('Pointer for the remote', 'Zeiger für die Fernbedienung');
+  static String get tvPointerDescription => _t(
+    'The arrows move a pointer over the page (hold for faster) and OK clicks. Off: the arrows select the page\'s links and buttons.',
+    'Die Pfeiltasten bewegen einen Zeiger über die Seite (gedrückt halten für schneller), OK klickt. Aus: Die Pfeiltasten wählen die Links und Schaltflächen der Seite.',
+  );
   static String get keepPlayingAwake => _t('Keep tabs playing audio running', 'Tabs mit Ton weiterlaufen lassen');
   static String get restoreTabs => _t('Restore tabs', 'Tabs wiederherstellen');
   static String get restoreTabsDescription =>

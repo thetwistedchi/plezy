@@ -232,9 +232,12 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
   // ------------------------------------------------------------- page view
 
+  private var pointer = false
+
   internal fun attachPage(view: BrowserPageView) {
     page = view
     shownPage = view
+    view.pointerMode = pointer
     applyLayout()
     // Asked for before the platform view existed (a new tab's first page).
     if (focusPending) {
@@ -772,7 +775,10 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
           if (!web.hasFocus()) web.requestFocus()
           web.evaluateJavascript("$insertTextScript(${JSONObject.quote(e.optString("v"))});", null)
         }
-        "url" -> send(0, "remoteUrl", mapOf("url" to e.optString("v")))
+        "url" -> {
+          Log.i(TAG, "Phone remote: address received")
+          send(0, "remoteUrl", mapOf("url" to e.optString("v")))
+        }
       }
     }
   }
@@ -874,6 +880,11 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
         result.success(null)
       }
       "setRect", "setCutouts" -> result.success(null)
+      "setPointer" -> {
+        pointer = call.argument<Boolean>("value") ?: false
+        page?.pointerMode = pointer
+        result.success(null)
+      }
       "setVisible" -> {
         visible = call.argument<Boolean>("visible") ?: false
         applyLayout()

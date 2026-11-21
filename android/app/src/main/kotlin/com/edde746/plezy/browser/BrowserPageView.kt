@@ -37,8 +37,14 @@ internal class BrowserPageView(
   private var cursorX = -1f
   private var cursorY = -1f
   private var repeat = 0
-  private var lastKey = 0
-  private var lastPress = 0L
+  private var lastUpAtTop = 0L
+
+  /** The remote moves a pointer (on) or selects the page's elements (off). */
+  var pointerMode = false
+    set(value) {
+      field = value
+      updateCursor()
+    }
 
   init {
     setBackgroundColor(Color.TRANSPARENT)
@@ -93,7 +99,7 @@ internal class BrowserPageView(
   /** The pointer shows while the page (or the WebView in it) has the focus. */
   private fun updateCursor() {
     val c = cursor ?: return
-    val shown = current != null && (hasFocus() || remoteActive)
+    val shown = current != null && ((pointerMode && hasFocus()) || remoteActive)
     c.visibility = if (shown) View.VISIBLE else View.GONE
     if (shown && cursorX < 0 && width > 0) {
       cursorX = width / 2f
@@ -119,18 +125,15 @@ internal class BrowserPageView(
     }
     val web = current
     if (!tv || web == null) return false
+    if (!pointerMode) return selectKey(web, event)
     when (event.keyCode) {
       KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
         if (event.action != KeyEvent.ACTION_DOWN) return true
-        // A press moves about 1/30 of the screen; quick presses in the same
-        // direction and holding the key speed it up to about 1/8.
-        val now = SystemClock.uptimeMillis()
-        val quick = event.keyCode == lastKey && now - lastPress < 400
-        repeat = if (event.repeatCount > 0 || quick) (repeat + 1).coerceAtMost(12) else 0
-        lastKey = event.keyCode
-        lastPress = now
-        val base = (width.coerceAtLeast(height) / 30f).coerceAtLeast(24f)
-        move(event.keyCode, base * (1f + repeat * 0.25f))
+        // A press moves a small step (about 1/80 of the screen) for detail;
+        // holding the key speeds it up to about 1/12.
+        repeat = if (event.repeatCount > 0) (repeat + 1).coerceAtMost(20) else 0
+        val base = (width.coerceAtLeast(height) / 80f).coerceAtLeast(10f)
+        move(event.keyCode, base * (1f + repeat * 0.27f))
         return true
       }
       KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BUTTON_A -> {
@@ -139,6 +142,27 @@ internal class BrowserPageView(
       }
     }
     return false
+  }
+
+  /**
+   * Without the pointer: the WebView's own D-pad navigation moves between
+   * the page's links, buttons and fields. Up with nothing further up (or
+   * twice quickly at the top of the page) goes back to the toolbar.
+   */
+  private fun selectKey(web: WebView, event: KeyEvent): Boolean {
+    if (!web.hasFocus()) web.requestFocus()
+    val handled = web.dispatchKeyEvent(event)
+    if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+      val now = SystemClock.uptimeMillis()
+      val atTop = !web.canScrollVertically(-1)
+      if (!handled || (atTop && now - lastUpAtTop < 600)) {
+        lastUpAtTop = 0
+        plugin.onLeavePage(this)
+        return true
+      }
+      lastUpAtTop = if (atTop) now else 0
+    }
+    return true
   }
 
   private fun move(key: Int, distance: Float) {

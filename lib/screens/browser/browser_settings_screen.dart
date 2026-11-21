@@ -13,6 +13,7 @@ import '../../services/browser/browser_native.dart';
 import '../../services/browser/browser_settings.dart';
 import '../../services/file_picker_service.dart';
 import '../../theme/mono_tokens.dart';
+import '../../utils/platform_detector.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
 import 'browser_icon.dart';
@@ -255,6 +256,13 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                             value: _settings.keepPlayingAwake,
                             onChanged: (v) => unawaited(_settings.update(keepPlayingAwake: v)),
                           ),
+                          if (Platform.isAndroid && PlatformDetector.isTV())
+                            SwitchListTile(
+                              title: Text(RetroStrings.tvPointer),
+                              subtitle: Text(RetroStrings.tvPointerDescription),
+                              value: _settings.tvPointer,
+                              onChanged: (v) => unawaited(BrowserController.instance.setTvPointer(v)),
+                            ),
                           SwitchListTile(
                             title: Text(RetroStrings.restoreTabs),
                             subtitle: Text(RetroStrings.restoreTabsDescription),

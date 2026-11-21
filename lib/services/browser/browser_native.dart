@@ -140,6 +140,7 @@ class BrowserNative {
   Future<void> suspend(int id) => _call('suspend', {'id': id});
   Future<void> resume(int id) => _call('resume', {'id': id});
   Future<void> setActive(int id) => _call('setActive', {'id': id});
+  Future<void> setPointer(bool value) => _call('setPointer', {'value': value});
   Future<void> setPopupSites(List<String> sites) => _call('setPopupSites', {'sites': sites});
   Future<void> setHttpsUpgrade(bool value) => _call('setHttpsUpgrade', {'value': value});
   Future<void> answerPermission(int request, bool allow) =>
