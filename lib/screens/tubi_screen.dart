@@ -152,7 +152,7 @@ class _TubiScreenState extends State<TubiScreen> {
       setState(() {
         _searching = false;
         _searchHub = results.isEmpty ? null : _hub('tubi:search', RetroStrings.tubiResults(query), results);
-        _searchMessage = results.isEmpty ? RetroStrings.freeOnPlexNoResults : null;
+        _searchMessage = results.isEmpty ? RetroStrings.tubiNoResults : null;
       });
       if (results.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -41,6 +41,7 @@ class RetroStrings {
     'Tubi is not available in your region. It works in countries like the USA, Canada, the UK or Australia.',
     'Tubi ist in deiner Region nicht verfügbar. Es funktioniert in Ländern wie den USA, Kanada, Großbritannien oder Australien.',
   );
+  static String get tubiNoResults => _t('Nothing found on Tubi.', 'Auf Tubi nichts gefunden.');
   static String get tubiFailed => _t('Tubi could not be loaded.', 'Tubi konnte nicht geladen werden.');
   static String get freeOnPlexEpisodes => _t('Episodes (free on Plex)', 'Folgen (kostenlos auf Plex)');
   static String get freeOnPlexChooseSeason => _t('Choose a season', 'Staffel wählen');

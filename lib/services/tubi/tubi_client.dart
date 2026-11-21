@@ -219,8 +219,30 @@ class TubiClient {
     return rows;
   }
 
-  /// Search results for [query].
+  /// Search results for [query]: Tubi's search service, else its search page.
   Future<List<TubiTitle>> search(String query) async {
+    try {
+      final response = await _http
+          .get(
+            Uri.parse('$_base/oz/search/${Uri.encodeComponent(query)}'),
+            headers: const {'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0'},
+          )
+          .timeout(const Duration(seconds: 20));
+      appLogger.d('Tubi search service → ${response.statusCode} (${response.bodyBytes.length} bytes)');
+      if (response.statusCode == 200) {
+        final decoded = await compute(_decode, response.body);
+        final list = decoded is List
+            ? decoded
+            : decoded is Map
+            ? (decoded['contents'] ?? decoded['items'] ?? decoded['results'] ?? decoded['data']) as List?
+            : null;
+        final results = [for (final e in list ?? const []) ?_title(e)];
+        if (results.isNotEmpty) return results;
+        appLogger.d('Tubi search service: nothing readable (${decoded is Map ? decoded.keys.take(10).join(',') : decoded.runtimeType})');
+      }
+    } catch (e) {
+      appLogger.d('Tubi search service failed: $e');
+    }
     final data = await _state(await _html('/search/${Uri.encodeComponent(query)}'), '__data');
     if (data == null) return const [];
     final videos = _map(_map(data['video'])['byId']);
