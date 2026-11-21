@@ -1215,6 +1215,19 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     // The Plex player page is a player too: OK and Left/Right control it.
     val playerPage = fullscreenView == null && playerTab?.webView?.isAttachedToWindow == true
     if (playerPage) plexControlKey(event)?.let { return it }
+    // Media keys on the player page go to Plex Web itself (its own media
+    // controls): pressing its buttons for it also triggered them a second
+    // time through the system, pausing and playing again.
+    if (playerPage && code in setOf(
+        android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, android.view.KeyEvent.KEYCODE_MEDIA_PLAY,
+        android.view.KeyEvent.KEYCODE_MEDIA_PAUSE, android.view.KeyEvent.KEYCODE_HEADSETHOOK,
+      )
+    ) {
+      val web = playerTab?.webView ?: return null
+      if (!web.hasFocus()) web.requestFocus()
+      web.dispatchKeyEvent(event)
+      return true
+    }
     val inFullscreen = fullscreenView != null || playerPage
     val command: Any = when (code) {
       android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, android.view.KeyEvent.KEYCODE_HEADSETHOOK -> "toggle"
@@ -1261,6 +1274,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
 
   /** Up on the Plex player page selects its control buttons until Down or a few idle seconds. */
   private var plexControls = false
+  private var lastPlexPress = 0L
   private val plexControlsIdle = Runnable { closePlexControls() }
 
   private fun plexControlScript(action: String) = PLEX_CONTROLS.replace("ACTION", action)
@@ -1329,7 +1343,12 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     main.postDelayed({
       if (!web.isAttachedToWindow) return@postDelayed
       web.evaluateJavascript(plexControlScript(action)) { result ->
-        if (action == "press" && result.contains("focused")) pressEnter(web)
+        if (action == "press" && result.contains("focused")) {
+          // One press per OK: repeated or resent presses would toggle again.
+          val now = android.os.SystemClock.uptimeMillis()
+          if (now - lastPlexPress > 700) pressEnter(web)
+          lastPlexPress = now
+        }
         if (result.contains("none")) plexControls = false
       }
     }, if (action == "open") 300L else 0L)

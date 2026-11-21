@@ -62,8 +62,11 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
     final playIcon = _getPlayButtonIcon(metadata);
     final playActionLabel = playIcon == Symbols.resume_rounded ? t.common.resume : t.common.play;
     final playSemanticsLabel = playButtonLabel.isEmpty ? playActionLabel : '$playActionLabel $playButtonLabel';
-    final playIconSize = isTv ? 22 * tvScale : 20.0;
-    final playTextStyle = TextStyle(fontSize: isTv ? 17 * tvScale : 16, fontWeight: .w700);
+    // Fork: a larger Play, always with its word.
+    final playIconSize = isTv ? 28 * tvScale : 26.0;
+    final playTextStyle = TextStyle(fontSize: isTv ? 21 * tvScale : 19, fontWeight: .w800);
+    final playHeight = actionSize * 1.2;
+    final playText = playButtonLabel.isNotEmpty ? '$playActionLabel $playButtonLabel' : playActionLabel;
     final playButtonIcon = AppIcon(playIcon, fill: 1, size: playIconSize);
 
     // Split "Play Version" segment (#1881): a visible second Play segment
@@ -236,24 +239,22 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
         onTap: onPlayPressed,
         excludeSemantics: true,
         child: SizedBox(
-          height: actionSize,
+          height: playHeight,
           child: FilledButton(
             onPressed: onPlayPressed,
             style: actionButtonStyle(
               showFocus: state.showFocus,
-              padding: .symmetric(horizontal: isTv ? 17 * tvScale : 16, vertical: isTv ? 9 * tvScale : 0),
+              padding: .symmetric(horizontal: isTv ? 26 * tvScale : 24, vertical: isTv ? 9 * tvScale : 0),
               shape: playShape,
             ),
-            child: playButtonLabel.isNotEmpty
-                ? Row(
-                    mainAxisSize: .min,
-                    children: [
-                      playButtonIcon,
-                      SizedBox(width: isTv ? 7 * tvScale : 8),
-                      Text(playButtonLabel, style: playTextStyle),
-                    ],
-                  )
-                : playButtonIcon,
+            child: Row(
+              mainAxisSize: .min,
+              children: [
+                playButtonIcon,
+                SizedBox(width: isTv ? 9 * tvScale : 10),
+                Text(playText, style: playTextStyle),
+              ],
+            ),
           ),
         ),
       );
