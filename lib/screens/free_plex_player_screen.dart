@@ -5,18 +5,36 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:provider/provider.dart';
+
+import '../providers/catalog_sources_provider.dart';
 import '../services/fullscreen_state_manager.dart';
+import '../utils/app_logger.dart';
 
 /// Fork, Android: a Free on plex.tv title playing in Plex Web, full screen
 /// and without the browser around it (android/.../browser/BrowserPlugin,
 /// `plezy/plex_player`). Playback starts by itself; Back closes the page.
+/// Plex Web is signed in with the app's Plex account (its active profile),
+/// so watch history and progress are kept there too.
 class FreePlexPlayerScreen extends StatefulWidget {
-  const FreePlexPlayerScreen({super.key, required this.url});
+  const FreePlexPlayerScreen({super.key, required this.url, this.plexToken});
 
   final String url;
+  final String? plexToken;
 
-  static Future<void> open(BuildContext context, String url) =>
-      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FreePlexPlayerScreen(url: url)));
+  static Future<void> open(BuildContext context, String url) async {
+    String? token;
+    try {
+      final session = await context.read<CatalogSourcesProvider>().resolvePlexSession();
+      if (session != null && session.accessToken.isNotEmpty) token = session.accessToken;
+    } catch (e) {
+      appLogger.d('Free on plex.tv: no Plex sign-in for Plex Web: $e');
+    }
+    if (!context.mounted) return;
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => FreePlexPlayerScreen(url: url, plexToken: token)));
+  }
 
   @override
   State<FreePlexPlayerScreen> createState() => _FreePlexPlayerScreenState();
@@ -65,7 +83,7 @@ class _FreePlexPlayerScreenState extends State<FreePlexPlayerScreen> {
         },
         child: AndroidView(
           viewType: 'plezy/plex_player',
-          creationParams: {'url': widget.url},
+          creationParams: {'url': widget.url, 'plexToken': widget.plexToken ?? ''},
           creationParamsCodec: const StandardMessageCodec(),
           gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
             Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),

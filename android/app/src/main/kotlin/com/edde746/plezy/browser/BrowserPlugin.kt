@@ -317,7 +317,11 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     })
     binding.platformViewRegistry.registerViewFactory(PLAYER_VIEW_TYPE, object : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
       override fun create(context: Context, viewId: Int, args: Any?): PlatformView =
-        createPlayerView(activity ?: context, (args as? Map<*, *>)?.get("url") as? String ?: "")
+        createPlayerView(
+          activity ?: context,
+          (args as? Map<*, *>)?.get("url") as? String ?: "",
+          (args as? Map<*, *>)?.get("plexToken") as? String ?: "",
+        )
     })
   }
 
@@ -327,10 +331,23 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
    * protection, the automatic consent answer and autoplay; it goes when
    * the page closes.
    */
-  private fun createPlayerView(context: Context, url: String): PlatformView {
+  private fun createPlayerView(context: Context, url: String, plexToken: String): PlatformView {
     val tab = Tab(PLAYER_TAB, false)
     val container = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
     val web = createWebView(tab)
+    if (plexToken.isNotEmpty() && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+      // Plex Web signed in with the app's Plex account: it keeps its sign-in
+      // in local storage. Only for app.plex.tv; another account's stored
+      // user list is dropped so the new one is read.
+      val quoted = org.json.JSONObject.quote(plexToken)
+      WebViewCompat.addDocumentStartJavaScript(
+        web,
+        "(()=>{try{const t=$quoted;const s=localStorage;if(s.getItem('myPlexAccessToken')!==t){" +
+          "s.removeItem('users');s.setItem('myPlexAccessToken',t);}}catch(_){}})()",
+        setOf("https://app.plex.tv"),
+      )
+      Log.i(TAG, "Free on plex.tv: Plex Web signed in with the app's account")
+    }
     container.addView(web, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     if (url.isNotEmpty()) load(tab, url)
     main.postDelayed({ web.requestFocus() }, 300)
