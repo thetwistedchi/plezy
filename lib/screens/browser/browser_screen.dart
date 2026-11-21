@@ -8,6 +8,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../focus/focusable_text_field.dart';
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/adblock_lists.dart';
 import '../../services/file_picker_service.dart';
@@ -1404,6 +1405,50 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final loading = tab?.loading ?? false;
     final bookmarked = _bookmarks.contains(tab?.url);
     final secure = tab?.isSecure ?? true;
+    final addressDecoration = InputDecoration(
+      isDense: true,
+      hintText: RetroStrings.addressHint(_settings.searchLabel),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      filled: true,
+      fillColor: t.surface,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: t.accent.withValues(alpha: 0.6)),
+      ),
+      prefixIcon: internal
+          ? const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: BrowserIcon(Symbols.settings_rounded, size: 16),
+            )
+          : hasPage
+          ? Tooltip(
+              message: secure ? RetroStrings.secureConnection : RetroStrings.insecureConnection,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: secure
+                    ? const BrowserIcon(Symbols.lock_rounded, size: 16)
+                    : AppIcon(Symbols.lock_open_rounded, size: 16, color: Theme.of(context).colorScheme.error),
+              ),
+            )
+          : const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: BrowserIcon(Symbols.search_rounded, size: 16),
+            ),
+      prefixIconConstraints: const BoxConstraints(minWidth: 36),
+      suffixIcon: hasPage
+          ? IconButton(
+              icon: BrowserIcon(
+                bookmarked ? Symbols.bookmark_rounded : Symbols.bookmark_add_rounded,
+                size: 18,
+                fill: bookmarked ? 1 : null,
+              ),
+              tooltip: bookmarked ? RetroStrings.removeBookmark : RetroStrings.addBookmark,
+              onPressed: () => unawaited(_toggleBookmark()),
+              visualDensity: VisualDensity.compact,
+            )
+          : null,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 6, 8, 6),
       child: Focus(
@@ -1440,7 +1485,23 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   onKeyEvent: _onAddressKey,
                   child: SizedBox(
               height: 36,
-              child: TextField(
+              child: PlatformDetector.isTV()
+                  // TV: the remote's arrows leave the field, OK opens the keyboard.
+                  ? FocusableTextField(
+                      controller: _address,
+                      focusNode: _addressFocus,
+                      keyboardType: TextInputType.url,
+                      textInputAction: TextInputAction.go,
+                      autocorrect: false,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: addressDecoration,
+                      onSubmitted: (v) => unawaited(_submit(v)),
+                      onNavigateUp: () => _addressFocus.focusInDirection(TraversalDirection.up),
+                      onNavigateDown: () => _addressFocus.focusInDirection(TraversalDirection.down),
+                      onNavigateLeft: () => _addressFocus.focusInDirection(TraversalDirection.left),
+                      onNavigateRight: () => _addressFocus.focusInDirection(TraversalDirection.right),
+                    )
+                  : TextField(
                 controller: _address,
                 focusNode: _addressFocus,
                 onSubmitted: (v) => unawaited(_submit(_highlighted >= 0 && _highlighted < _suggestions.length ? _suggestions[_highlighted].url : v)),
@@ -1472,50 +1533,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 textInputAction: TextInputAction.go,
                 autocorrect: false,
                 style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: RetroStrings.addressHint(_settings.searchLabel),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                  filled: true,
-                  fillColor: t.surface,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide(color: t.accent.withValues(alpha: 0.6)),
-                  ),
-                  prefixIcon: internal
-                      ? const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: BrowserIcon(Symbols.settings_rounded, size: 16),
-                        )
-                      : hasPage
-                      ? Tooltip(
-                          message: secure ? RetroStrings.secureConnection : RetroStrings.insecureConnection,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: secure
-                                ? const BrowserIcon(Symbols.lock_rounded, size: 16)
-                                : AppIcon(Symbols.lock_open_rounded, size: 16, color: Theme.of(context).colorScheme.error),
-                          ),
-                        )
-                      : const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: BrowserIcon(Symbols.search_rounded, size: 16),
-                        ),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 36),
-                  suffixIcon: hasPage
-                      ? IconButton(
-                          icon: BrowserIcon(
-                            bookmarked ? Symbols.bookmark_rounded : Symbols.bookmark_add_rounded,
-                            size: 18,
-                            fill: bookmarked ? 1 : null,
-                          ),
-                          tooltip: bookmarked ? RetroStrings.removeBookmark : RetroStrings.addBookmark,
-                          onPressed: () => unawaited(_toggleBookmark()),
-                          visualDensity: VisualDensity.compact,
-                        )
-                      : null,
-                ),
+                decoration: addressDecoration,
               ),
             ),
                   ),
