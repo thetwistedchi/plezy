@@ -60,21 +60,55 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
   bool _loading = true;
   String? _error;
 
+  // The catalog changes rarely: kept for the app run, refreshed in the
+  // background when older than [_cacheFor].
+  static List<MediaHub>? _cachedHubs;
+  static DateTime? _cachedAt;
+  static const _cacheFor = Duration(minutes: 30);
+
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    final cached = _cachedHubs;
+    if (cached != null && cached.isNotEmpty) {
+      _hubs = cached;
+      _loading = false;
+      final fresh = _cachedAt != null && DateTime.now().difference(_cachedAt!) < _cacheFor;
+      unawaited(_load(quiet: true, connectOnly: fresh));
+    } else {
+      unawaited(_load());
+    }
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  MediaHub? _hubOf(String id, String title, PlexDiscoverPage page) {
+    final items = _mapper.mediaItems(page.items);
+    if (items.isEmpty) return null;
+    return MediaHub(
+      id: id,
+      identifier: id.replaceFirst(':', '.'),
+      title: title,
+      type: 'mixed',
+      items: items,
+      size: page.totalResults ?? items.length,
+      more: page.hasMore,
+    );
+  }
+
+  /// Loads the full list and Plex's shelves at the same time; the full list
+  /// shows as soon as it is there. [quiet] keeps what is on screen while it
+  /// loads; [connectOnly] only prepares the client for "View all".
+  Future<void> _load({bool quiet = false, bool connectOnly = false}) async {
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final session = await context.read<CatalogSourcesProvider>().resolvePlexSession();
       if (!mounted) return;
       if (session == null) {
+        if (quiet) return;
         setState(() {
           _loading = false;
           _error = RetroStrings.freeOnPlexNoAccount;
@@ -83,63 +117,58 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
       }
       final client = _client ??= PlexDiscoverClient(session, baseUri: PlexDiscoverClient.vodBaseUri);
       _mapperOrNull ??= _VodMapper(client);
+      if (connectOnly) return;
 
-      final hubs = <MediaHub>[];
-      // Everything in the catalog first, like a library's Browse.
+      final allFuture = client.getPage(_allKey, limit: _rowLimit);
+      final shelvesFuture = client.getHomeHubs(section: _section, limit: _rowLimit, concurrency: 10);
+      // Handled where it is awaited below; this keeps an early failure from
+      // counting as unhandled meanwhile.
+      unawaited(shelvesFuture.then((_) {}, onError: (_) {}));
+
+      MediaHub? all;
       try {
-        final all = await client.getPage(_allKey, limit: _rowLimit);
-        final items = _mapper.mediaItems(all.items);
-        if (items.isNotEmpty) {
-          hubs.add(
-            MediaHub(
-              id: 'vod:all',
-              identifier: 'vod.all',
-              title: RetroStrings.freeOnPlexAll,
-              type: 'mixed',
-              items: items,
-              size: all.totalResults ?? items.length,
-              more: all.hasMore,
-            ),
-          );
-        }
+        all = _hubOf('vod:all', RetroStrings.freeOnPlexAll, await allFuture);
       } catch (e) {
         appLogger.w('Free on Plex: full list unavailable', error: e);
       }
-      // Then Plex's own shelves for the catalog.
-      final shelves = await client.getHomeHubs(section: _section, limit: _rowLimit);
+      // Everything in the catalog first, like a library's Browse, already
+      // while the shelves still load.
+      if (all != null && mounted && !quiet) {
+        setState(() {
+          _hubs = [all!];
+          _loading = false;
+        });
+      }
+
+      final shelves = await shelvesFuture;
+      final hubs = <MediaHub>[?all];
       for (final shelf in shelves) {
-        final items = _mapper.mediaItems(shelf.page.items);
-        if (items.isEmpty) continue;
-        hubs.add(
-          MediaHub(
-            id: 'vod:${shelf.id}',
-            identifier: 'vod.${shelf.id}',
-            title: shelf.title,
-            type: 'mixed',
-            items: items,
-            size: shelf.page.totalResults ?? items.length,
-            more: shelf.page.hasMore,
-          ),
-        );
+        final hub = _hubOf('vod:${shelf.id}', shelf.title, shelf.page);
+        if (hub == null) continue;
+        hubs.add(hub);
         _shelfKeys['vod:${shelf.id}'] = shelf.key;
+      }
+      if (hubs.isNotEmpty) {
+        _cachedHubs = hubs;
+        _cachedAt = DateTime.now();
       }
       if (!mounted) return;
       setState(() {
-        _hubs = hubs;
+        _hubs = hubs.isNotEmpty ? hubs : _hubs;
         _loading = false;
-        _error = hubs.isEmpty ? RetroStrings.freeOnPlexEmpty : null;
+        _error = _hubs.isEmpty ? RetroStrings.freeOnPlexEmpty : null;
       });
     } catch (e) {
       appLogger.w('Free on Plex failed to load', error: e);
-      if (!mounted) return;
+      if (!mounted || quiet) return;
       setState(() {
         _loading = false;
-        _error = RetroStrings.freeOnPlexFailed;
+        _error = _hubs.isEmpty ? RetroStrings.freeOnPlexFailed : null;
       });
     }
   }
 
-  final Map<String, String> _shelfKeys = {};
+  static final Map<String, String> _shelfKeys = {};
 
   /// "View all" for a row: the whole list, up to [_viewAllCap] titles.
   Future<List<MediaItem>> _loadAll(MediaHub hub) async {
