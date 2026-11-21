@@ -176,8 +176,24 @@ class TubiClient {
 
   static Map<String, dynamic> _map(Object? v) => v is Map<String, dynamic> ? v : const {};
 
-  /// Tubi's home rows.
+  /// Tubi's home rows. Tubi sometimes sends a slimmed page whose titles
+  /// load later in the browser: then it is asked again, a few times.
   Future<List<TubiRow>> home() async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        final rows = await _home();
+        if (rows.isNotEmpty || attempt >= 3) return rows;
+      } on TubiUnavailableException {
+        rethrow;
+      } catch (e) {
+        if (attempt >= 3) rethrow;
+        appLogger.d('Tubi home attempt $attempt failed: $e');
+      }
+      await Future<void>.delayed(Duration(seconds: 2 * attempt));
+    }
+  }
+
+  Future<List<TubiRow>> _home() async {
     final html = await _html('/home');
     final data = await _state(html, '__data');
     if (data == null) {
@@ -188,6 +204,13 @@ class TubiClient {
     }
     final videos = _map(_map(data['video'])['byId']);
     final container = _map(data['container']);
+    if (videos.isEmpty) {
+      appLogger.w(
+        'Tubi sent a page without titles (${(container['containerIdMap'] as Map?)?.length ?? 0} rows, '
+        '${(container['containerChildrenIdMap'] as Map?)?.length ?? 0} with title lists)',
+      );
+      return const [];
+    }
     if (!_structureLogged) {
       _structureLogged = true;
       final sample = videos.values.whereType<Map>().firstOrNull;
