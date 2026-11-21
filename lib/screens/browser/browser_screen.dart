@@ -872,6 +872,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         ),
         _menuItem('remote', Symbols.phone_android_rounded, RetroStrings.phoneRemote),
       ],
+      if (!Platform.isAndroid)
       _menuItem(
         'external',
         Symbols.open_in_new_rounded,

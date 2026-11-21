@@ -35,11 +35,11 @@
 <body>
 <header><div id="dot"></div><div id="page">Connecting…</div></header>
 <div id="msg"></div>
-<form id="addressForm" class="row" autocomplete="off">
-  <input id="address" type="url" inputmode="url" enterkeyhint="go" autocapitalize="off" spellcheck="false" placeholder="Address or search">
+<form id="addressForm" class="row" autocomplete="off" novalidate>
+  <input id="address" type="text" inputmode="url" enterkeyhint="go" autocapitalize="off" spellcheck="false" placeholder="Address or search">
   <button id="open" type="submit" class="accent small">Open</button>
 </form>
-<form id="textForm" class="row" autocomplete="off">
+<form id="textForm" class="row" autocomplete="off" novalidate>
   <input id="text" type="text" enterkeyhint="send" autocapitalize="off" spellcheck="false" placeholder="Type into the selected field">
   <button id="type" type="submit" class="small">Type</button>
 </form>
