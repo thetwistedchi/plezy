@@ -33,6 +33,7 @@ import '../providers/multi_server_provider.dart';
 import '../providers/seerr_account_provider.dart';
 import '../services/browser/browser_native.dart';
 import '../services/catalog/catalog_library_matcher.dart';
+import '../services/plex_discover_client.dart';
 import '../services/catalog/catalog_source.dart';
 import '../services/catalog/community_ratings.dart';
 import '../services/catalog/seerr_catalog_source.dart';
@@ -64,6 +65,7 @@ import '../widgets/seerr_request_sheet.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/stat_chip.dart';
 import 'browser/browser_screen.dart';
+import 'free_on_plex_screen.dart' show FreeOnPlexScreen;
 
 /// Detail screen for a catalog item (Explore tab). Renders from provider
 /// data — no media server required — and resolves library availability in
@@ -150,6 +152,7 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
     _syncDetailCollections(widget.item);
     unawaited(_resolveMatches(widget.item));
     unawaited(_loadDetail());
+    unawaited(_checkFreeOnPlex());
     if (isTvosRunner) unawaited(_checkYouTubeApp());
     final sources = context.read<CatalogSourcesProvider>();
     _watchlistSource = sources.watchlistSourceFor(widget.item);
@@ -430,7 +433,37 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   /// Fork: a Free on plex.tv title's link to where it plays, shown as the
   /// first, highlighted action.
   CatalogLink? get _freePlexLink =>
-      _streamingLinks.firstWhereOrNull((link) => Uri.tryParse(link.url)?.host == 'app.plex.tv');
+      _streamingLinks.firstWhereOrNull((link) => Uri.tryParse(link.url)?.host == 'app.plex.tv') ??
+      (_freeVodUrl == null
+          ? null
+          : CatalogLink(label: RetroStrings.freeOnPlexWatch, url: _freeVodUrl!, isStreaming: true));
+
+  /// Set when a title opened from Explore (Plex Discover) is also in Plex's
+  /// free catalog, so it gets the same "Watch free on Plex" button.
+  String? _freeVodUrl;
+
+  /// Rating key -> whether Plex's free catalog has it, for this app run.
+  static final Map<String, bool> _freeVodKnown = {};
+
+  Future<void> _checkFreeOnPlex() async {
+    final key = widget.item.ids.plex;
+    if (key == null || key.isEmpty || isTvosRunner) return;
+    if ((widget.item.links ?? const []).any((l) => Uri.tryParse(l.url)?.host == 'app.plex.tv')) return;
+    var free = _freeVodKnown[key];
+    if (free == null) {
+      try {
+        final session = await context.read<CatalogSourcesProvider>().resolvePlexSession();
+        if (session == null) return;
+        final vod = PlexDiscoverClient(session, baseUri: PlexDiscoverClient.vodBaseUri);
+        free = await vod.getMetadata(key) != null;
+        _freeVodKnown[key] = free;
+      } catch (e) {
+        appLogger.d('Free on plex.tv lookup failed', error: e);
+        return;
+      }
+    }
+    if (free && mounted) setState(() => _freeVodUrl = FreeOnPlexScreen.watchUrl(key));
+  }
 
   bool get _hasLibraryMatches => _libraryMatchFocusNodes.isNotEmpty;
 
@@ -852,6 +885,9 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
       }
       add(score, icon: Symbols.star_rounded, iconColor: Colors.amber);
     }
+    // Fork: the attributed scores (IMDb, Rotten Tomatoes, trackers) in the
+    // same row as the other facts, above the description.
+    chips.addAll(_ratingChips(Theme.of(context)));
     if (item.airStatus case final status?) add(statusLabel(status));
     if (item.episodeCount case final count?) add(t.explore.episodeCount(n: count));
     if (item.unairedEpisodeCount case final count?) add(t.explore.detail.unairedEpisodes(n: count));
@@ -916,7 +952,7 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   /// one — the same marks the media detail screen draws — with the connected
   /// trackers' scores merged in as they arrive. Sources without a mark
   /// (`critic`, `audience`) keep their written label.
-  Widget? _buildRatingsSection(ThemeData theme) {
+  List<Widget> _ratingChips(ThemeData theme) {
     final compact = NumberFormat.compact(locale: LocaleSettings.currentLocale.intlLocaleName);
     final chips = <Widget>[];
     for (final rating in withCommunityRatings(_item.ratings ?? const [], _communityRatings)) {
@@ -942,15 +978,7 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
               ),
       );
     }
-    if (chips.isEmpty) return null;
-    return Column(
-      crossAxisAlignment: .start,
-      children: [
-        Text(t.explore.detail.ratings, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Wrap(spacing: 8, runSpacing: 8, children: chips),
-      ],
-    );
+    return chips;
   }
 
   Widget? _buildScheduleSection(ThemeData theme) {
@@ -1600,10 +1628,6 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
                               if (_buildRecommendersSection(theme) case final Widget recommenders) ...[
                                 const SizedBox(height: 24),
                                 recommenders,
-                              ],
-                              if (_buildRatingsSection(theme) case final Widget ratings) ...[
-                                const SizedBox(height: 24),
-                                ratings,
                               ],
                               if (_buildScheduleSection(theme) case final Widget schedule) ...[
                                 const SizedBox(height: 24),
