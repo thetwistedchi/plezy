@@ -1072,7 +1072,9 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
 
   private fun mediaKey(event: android.view.KeyEvent): Boolean? {
     val code = event.keyCode
-    val inFullscreen = fullscreenView != null
+    // The Plex player page is a player too: OK and Left/Right control it.
+    val playerPage = fullscreenView == null && playerTab?.webView?.isAttachedToWindow == true
+    val inFullscreen = fullscreenView != null || playerPage
     val command: Any = when (code) {
       android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, android.view.KeyEvent.KEYCODE_HEADSETHOOK -> "toggle"
       android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> "play"
@@ -1082,10 +1084,11 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER -> if (inFullscreen) "toggle" else return null
       android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> if (inFullscreen) 10 else return null
       android.view.KeyEvent.KEYCODE_DPAD_LEFT -> if (inFullscreen) -10 else return null
-      android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN -> if (inFullscreen) "none" else return null
+      android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN -> if (fullscreenView != null) "none" else return null
       else -> return null
     }
     val tab = when {
+      playerPage -> playerTab
       inFullscreen -> if (fullscreenTab == playerTab?.id) playerTab else tabs[fullscreenTab]
       playerTab?.webView?.isAttachedToWindow == true -> playerTab
       shownPage?.hasFocus() == true -> tabs[activeId]
@@ -1093,13 +1096,26 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     } ?: return null
     val web = tab.webView ?: return null
     if (event.action != android.view.KeyEvent.ACTION_DOWN) return true
+    if (playerPage && command == "toggle" && code != android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE &&
+      code != android.view.KeyEvent.KEYCODE_HEADSETHOOK) {
+      // OK pauses once a video is there; before (Plex's dialogs and buttons)
+      // it still clicks what is selected.
+      val down = android.view.KeyEvent(event)
+      web.evaluateJavascript("(()=>{const v=document.querySelector('video');return !!(v&&v.readyState>0);})()") { has ->
+        if (has == "true") {
+          plexSpace(web)
+        } else {
+          if (!web.hasFocus()) web.requestFocus()
+          web.dispatchKeyEvent(down)
+          web.dispatchKeyEvent(android.view.KeyEvent.changeAction(down, android.view.KeyEvent.ACTION_UP))
+        }
+      }
+      return true
+    }
     // Plex Web keeps its own player state (it starts a paused video again):
     // its Space shortcut pauses and plays.
     if (command is String && command != "none" && (web.url ?: "").startsWith("https://app.plex.tv/")) {
-      if (!web.hasFocus()) web.requestFocus()
-      val now = android.os.SystemClock.uptimeMillis()
-      web.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_SPACE, 0))
-      web.dispatchKeyEvent(android.view.KeyEvent(now, now + 40, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_SPACE, 0))
+      plexSpace(web)
       return true
     }
     val message = when (command) {
@@ -1109,6 +1125,14 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     }
     web.evaluateJavascript("window.postMessage($message,'*');", null)
     return true
+  }
+
+  /** Plex Web's Space shortcut: pause and play. */
+  private fun plexSpace(web: WebView) {
+    if (!web.hasFocus()) web.requestFocus()
+    val now = android.os.SystemClock.uptimeMillis()
+    web.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_SPACE, 0))
+    web.dispatchKeyEvent(android.view.KeyEvent(now, now + 40, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_SPACE, 0))
   }
 
   /** The tab whose page fills the screen without the browser's bars (Plex's player). */
