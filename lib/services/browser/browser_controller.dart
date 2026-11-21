@@ -167,6 +167,11 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   Future<String?> startPhoneRemote() => _native.remoteStart();
   Future<void> stopPhoneRemote() => _native.remoteStop();
 
+  final StreamController<void> _focusAddress = StreamController<void>.broadcast();
+
+  /// Android TV: Up three times quickly on the page, to the address bar.
+  Stream<void> get addressRequested => _focusAddress.stream;
+
   /// Moves the remote's focus from the page to the toolbar.
   void leavePage() => _leavePage.add(null);
 
@@ -750,6 +755,10 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     }
     if (e.type == 'leavePage') {
       _leavePage.add(null);
+      return;
+    }
+    if (e.type == 'focusAddress') {
+      _focusAddress.add(null);
       return;
     }
     if (e.type == 'togglePointer') {

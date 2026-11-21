@@ -110,6 +110,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
         (first ?? _keys).requestFocus();
       }),
     );
+    _subs.add(
+      _controller.addressRequested.listen((_) {
+        _addressFocus.requestFocus();
+        _address.selection = TextSelection(baseOffset: 0, extentOffset: _address.text.length);
+      }),
+    );
     _addressFocus.addListener(_onAddressFocus);
     _address.addListener(_onAddressText);
     unawaited(_bookmarks.load());

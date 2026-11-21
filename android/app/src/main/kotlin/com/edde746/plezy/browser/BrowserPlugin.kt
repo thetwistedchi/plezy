@@ -418,6 +418,12 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
 
   internal fun onPageTouched() = send(0, "pageFocus")
 
+  /** Up three times quickly on the page: the keys go to the address bar. */
+  internal fun onFocusAddress(view: BrowserPageView) {
+    view.returnFocusToFlutter()
+    send(0, "focusAddress")
+  }
+
   /** Holding OK on the page: Dart switches the pointer for the site. */
   internal fun onTogglePointer() = send(0, "togglePointer")
 

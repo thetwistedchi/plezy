@@ -50,6 +50,8 @@ internal class BrowserPageView(
   }
   private var lastUpAtTop = 0L
   private var okLong = false
+  private var dragging = false
+  private val upPresses = ArrayDeque<Long>()
 
   /** The remote moves a pointer (on) or selects the page's elements (off). */
   var pointerMode = false
@@ -154,6 +156,17 @@ internal class BrowserPageView(
       if (!pointerMode) web.dispatchKeyEvent(KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED))
       return true
     }
+    // Up three times quickly: straight to the address bar.
+    if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+      val now = SystemClock.uptimeMillis()
+      upPresses.addLast(now)
+      while (upPresses.isNotEmpty() && now - upPresses.first() > 750) upPresses.removeFirst()
+      if (upPresses.size >= 3) {
+        upPresses.clear()
+        plugin.onFocusAddress(this)
+        return true
+      }
+    }
     if (!pointerMode) return selectKey(web, event)
     when (event.keyCode) {
       KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
@@ -200,7 +213,7 @@ internal class BrowserPageView(
       // The page itself at the top (fields and inner scroll areas may still
       // take Up): a second quick Up goes back to the toolbar.
       val atTop = web.scrollY <= 0 || !web.canScrollVertically(-1)
-      if (!handled || (atTop && lastUpAtTop != 0L && now - lastUpAtTop < 700)) {
+      if (!handled && atTop) {
         lastUpAtTop = 0
         plugin.onLeavePage(this)
         return true
@@ -261,26 +274,35 @@ internal class BrowserPageView(
    * pixels; positive [dy] shows more of the page below.
    */
   private fun touchScroll(web: WebView, dx: Float, dy: Float) {
+    if (dragging) return
     val startX = if (cursorX >= 0) cursorX else width / 2f
     val startY = if (cursorY >= 0) cursorY else height / 2f
     // Keep the drag on screen: start where there is room for it.
     val fromY = (startY + dy / 2f).coerceIn(height * 0.1f, height * 0.9f)
     val fromX = (startX + dx / 2f).coerceIn(width * 0.1f, width * 0.9f)
-    val t0 = SystemClock.uptimeMillis()
-    fun send(action: Int, time: Long, x: Float, y: Float) {
-      val event = MotionEvent.obtain(t0, time, action, x, y, 0)
+    // Sent in real time: Chromium measures the speed itself, and events
+    // all at once looked like a fast flick that flung to the page's end.
+    val down = SystemClock.uptimeMillis()
+    fun send(action: Int, x: Float, y: Float) {
+      val event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, x, y, 0)
       event.source = InputDevice.SOURCE_TOUCHSCREEN
       web.dispatchTouchEvent(event)
       event.recycle()
     }
-    send(MotionEvent.ACTION_DOWN, t0, fromX, fromY)
-    val steps = 6
+    dragging = true
+    send(MotionEvent.ACTION_DOWN, fromX, fromY)
+    val steps = 8
     for (i in 1..steps) {
-      send(MotionEvent.ACTION_MOVE, t0 + i * 16L, fromX - dx * i / steps, fromY - dy * i / steps)
+      postDelayed({ send(MotionEvent.ACTION_MOVE, fromX - dx * i / steps, fromY - dy * i / steps) }, i * 16L)
     }
-    send(MotionEvent.ACTION_MOVE, t0 + steps * 16L + 200, fromX - dx, fromY - dy)
-    send(MotionEvent.ACTION_UP, t0 + steps * 16L + 220, fromX - dx, fromY - dy)
+    // Held still, then lifted: no fling.
+    postDelayed({ send(MotionEvent.ACTION_MOVE, fromX - dx, fromY - dy) }, steps * 16L + 120)
+    postDelayed({
+      send(MotionEvent.ACTION_UP, fromX - dx, fromY - dy)
+      dragging = false
+    }, steps * 16L + 160)
   }
+
 
   /**
    * Scrolls the scrollable element under the pointer (else the page) by
