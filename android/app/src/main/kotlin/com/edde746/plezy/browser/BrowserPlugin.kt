@@ -695,25 +695,42 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
    * click would not count as the user's, and the video would not start).
    */
   /**
-   * Plex Web's cookie notice: answered once with "decline" (only the
-   * necessary cookies), which Plex remembers in its own cookie, so it does
-   * not cover the page or the player again.
+   * Plex Web's consent dialog (personalised advertising, shown before the
+   * first free title plays): answered with "I Do Not Agree", which Plex
+   * remembers. The free titles still play, with ads that are not
+   * personalised. Matched by the button's exact label only.
    */
-  private val plexConsentScript = "(function(){if(window.__plezyConsent)return;window.__plezyConsent=1;" +
-    "var words=['decline','reject','disagree','do not agree','not agree','only necessary','necessary only'," +
-    "'ablehnen','alle ablehnen','nicht zustimmen','nur notwendige','nur erforderliche'];" +
-    "var t=Date.now();var iv=setInterval(function(){" +
-    "var b=Array.from(document.querySelectorAll('button,[role=button],a')).find(function(e){" +
-    "var l=(e.getAttribute('aria-label')||e.textContent||'').trim().toLowerCase();" +
-    "if(!l||l.length>40)return false;var box=e.closest('[class*=onsent],[id*=onsent],[class*=ookie],[id*=ookie],[role=dialog]');" +
-    "return box&&words.some(function(w){return l.indexOf(w)>=0;});});" +
-    "if(b){clearInterval(iv);b.click();}else if(Date.now()-t>15000)clearInterval(iv);},500);})();"
+  private val plexConsentScript = "(function(){var w=['i do not agree','do not agree','i don\u2019t agree'," +
+    "'ich stimme nicht zu','nicht zustimmen','ablehnen','alle ablehnen','decline','reject all'];" +
+    "var b=Array.from(document.querySelectorAll('button,[role=button]')).find(function(e){" +
+    "var l=(e.textContent||e.getAttribute('aria-label')||'').replace(/\\s+/g,' ').trim().toLowerCase();" +
+    "return w.indexOf(l)>=0&&e.offsetParent!==null;});if(!b)return false;b.click();return true;})()"
+
+  /** Watches a Plex Web page for the consent dialog for a while. */
+  private fun watchPlexConsent(tab: Tab, url: String) {
+    val started = System.currentTimeMillis()
+    fun check() {
+      val web = tab.webView ?: return
+      if (web.url?.startsWith("https://app.plex.tv/") != true || System.currentTimeMillis() - started > 120_000) return
+      web.evaluateJavascript(plexConsentScript) { value ->
+        if (value == "true") {
+          Log.i(TAG, "Plex consent declined")
+          // The dialog stopped playback from starting: press Play again.
+          tab.autoplayFor = null
+          main.postDelayed({ tab.webView?.url?.let { maybeAutoplayPlex(tab, it) } }, 1500)
+        } else {
+          main.postDelayed({ check() }, 800)
+        }
+      }
+    }
+    check()
+  }
 
   private fun maybeAutoplayPlex(tab: Tab, url: String) {
-    if (url.startsWith("https://app.plex.tv/")) tab.webView?.evaluateJavascript(plexConsentScript, null)
     if (!url.startsWith("https://app.plex.tv/") || !url.contains("tv.plex.provider.vod") || !url.contains("details")) return
     if (tab.autoplayFor == url) return
     tab.autoplayFor = url
+    watchPlexConsent(tab, url)
     val started = System.currentTimeMillis()
     val find = "(function(){var b=document.querySelector('[data-testid=\"preplay-play\"]')||" +
       "Array.from(document.querySelectorAll('button')).find(function(e){var l=(e.getAttribute('aria-label')||e.textContent||'').trim().toLowerCase();" +
