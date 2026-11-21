@@ -73,31 +73,64 @@ internal class RemoteTouch(private val activity: () -> Activity?) {
     view.pulse()
   }
 
+  /** The phone's scroll bar is held: the pointer shows scroll arrows. */
+  fun scrollShape(on: Boolean) {
+    val (_, view) = ready() ?: return
+    barHeld = on
+    view.scrolling = on || dragDown != 0L
+  }
+
+  private var barHeld = false
+
   /** The content follows the fingers, like a touch screen. */
   fun scroll(dx: Float, dy: Float) {
     val (activity, view) = ready() ?: return
     view.place(x, y)
+    val decor = activity.window.decorView
+    val h = decor.height.toFloat()
+    val w = decor.width.toFloat()
     val scale = activity.resources.displayMetrics.density * 1.2f
+    var mx = dx * scale
+    var my = dy * scale
+    // A long scroll is several drags: one that would leave the screen ends
+    // (held still, so no fling) and the next starts where there is room.
+    if (dragDown != 0L && (dragY + my !in h * 0.08f..h * 0.92f || dragX + mx !in w * 0.05f..w * 0.95f)) finishDrag()
     val now = SystemClock.uptimeMillis()
     if (dragDown == 0L) {
       dragDown = now
-      dragX = x
-      dragY = y
+      // Starts at the pointer (inner scroll areas under it scroll), kept
+      // off the toolbar and with room in the direction of travel.
+      dragX = x.coerceIn(w * 0.1f, w * 0.9f)
+      dragY = when {
+        my < 0 -> y.coerceIn(h * 0.5f, h * 0.85f)
+        my > 0 -> y.coerceIn(h * 0.2f, h * 0.5f)
+        else -> y.coerceIn(h * 0.2f, h * 0.85f)
+      }
       send(activity, now, now, MotionEvent.ACTION_DOWN, dragX, dragY)
     }
-    dragX += dx * scale
-    dragY += dy * scale
+    // Large jumps (network bursts) are split so the speed stays even.
+    mx = mx.coerceIn(-w * 0.3f, w * 0.3f)
+    my = my.coerceIn(-h * 0.3f, h * 0.3f)
+    dragX += mx
+    dragY += my
     send(activity, dragDown, now, MotionEvent.ACTION_MOVE, dragX, dragY)
+    view.scrolling = true
     main.removeCallbacks(endDrag)
-    main.postDelayed(endDrag, 180)
+    main.postDelayed(endDrag, 250)
   }
 
   private fun finishDrag() {
     main.removeCallbacks(endDrag)
     if (dragDown == 0L) return
     val activity = activity()
-    if (activity != null) send(activity, dragDown, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, dragX, dragY)
+    if (activity != null) {
+      // Held still a moment before lifting: no fling to the page's end.
+      val now = SystemClock.uptimeMillis()
+      send(activity, dragDown, now, MotionEvent.ACTION_MOVE, dragX, dragY)
+      send(activity, dragDown, now + 120, MotionEvent.ACTION_UP, dragX, dragY)
+    }
     dragDown = 0L
+    cursor?.scrolling = barHeld
   }
 
   fun dispose() {
@@ -126,6 +159,19 @@ internal class RemoteTouch(private val activity: () -> Activity?) {
     private var cx = 0f
     private var cy = 0f
     private var pressed = 0L
+    private val arrow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      color = Color.WHITE
+      style = Paint.Style.FILL
+    }
+    private val path = android.graphics.Path()
+
+    /** Scroll arrows instead of the dot. */
+    var scrolling = false
+      set(value) {
+        if (field == value) return
+        field = value
+        invalidate()
+      }
 
     init {
       isClickable = false
@@ -149,6 +195,26 @@ internal class RemoteTouch(private val activity: () -> Activity?) {
     }
 
     override fun onDraw(canvas: Canvas) {
+      if (scrolling) {
+        // A pill with an arrow up and down.
+        val d = resources.displayMetrics.density
+        val hw = 8f * d
+        val hh = 16f * d
+        canvas.drawRoundRect(cx - hw, cy - hh, cx + hw, cy + hh, hw, hw, fill)
+        canvas.drawRoundRect(cx - hw, cy - hh, cx + hw, cy + hh, hw, hw, ring)
+        val a = 4.5f * d
+        path.reset()
+        path.moveTo(cx, cy - hh + 4f * d)
+        path.lineTo(cx - a, cy - hh + 4f * d + a)
+        path.lineTo(cx + a, cy - hh + 4f * d + a)
+        path.close()
+        path.moveTo(cx, cy + hh - 4f * d)
+        path.lineTo(cx - a, cy + hh - 4f * d - a)
+        path.lineTo(cx + a, cy + hh - 4f * d - a)
+        path.close()
+        canvas.drawPath(path, arrow)
+        return
+      }
       val r = if (SystemClock.uptimeMillis() - pressed < 150) radius * 0.7f else radius
       canvas.drawCircle(cx, cy, r, fill)
       canvas.drawCircle(cx, cy, r, ring)

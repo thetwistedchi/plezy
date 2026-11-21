@@ -133,7 +133,11 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     @JvmStatic
     fun dispatchToPage(event: android.view.KeyEvent): Boolean? {
       val page = shownPage ?: return null
-      if (!page.isAttachedToWindow || !page.hasFocus()) return null
+      if (!page.isAttachedToWindow) return null
+      // Up three times quickly from the page: the address bar. Counted here
+      // so presses still count when the first one left the page.
+      if (page.tripleUp(event, page.hasFocus())) return true
+      if (!page.hasFocus()) return null
       return when (event.keyCode) {
         android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN,
         android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
@@ -1157,6 +1161,7 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
         "move" -> remoteTouch.move(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
         "scroll" -> remoteTouch.scroll(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
         "tap" -> remoteTouch.tap()
+        "bar" -> remoteTouch.scrollShape(e.optInt("v") == 1)
         "dpad" -> {
           val code = when (e.optString("v")) {
             "up" -> android.view.KeyEvent.KEYCODE_DPAD_UP

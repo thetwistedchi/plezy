@@ -70,30 +70,7 @@
   var de = (navigator.language || '').toLowerCase().indexOf('de') === 0;
   if (de) {
     var t = { back:'◀ Zurück', forward:'Vor ▶', reload:'⟳ Neu laden' };
-    // The bar on the right: one finger along it scrolls the page.
-  var bar = document.getElementById('bar');
-  var barY = null;
-  bar.addEventListener('pointerdown', function (e) {
-    e.stopPropagation();
-    // Only a fresh touch on the bar scrolls: not while a finger is
-    // already moving the pointer on the touchpad.
-    if (Object.keys(points).length > 0) return;
-    bar.setPointerCapture(e.pointerId);
-    barY = e.clientY;
-    bar.className = 'on';
-  });
-  bar.addEventListener('pointermove', function (e) {
-    e.stopPropagation();
-    if (barY === null) return;
-    // Like a scroll bar: down moves the page down (the content up).
-    sy -= (e.clientY - barY) * 2;
-    barY = e.clientY;
-  });
-  function barUp(e) { e.stopPropagation(); barY = null; bar.className = ''; }
-  bar.addEventListener('pointerup', barUp);
-  bar.addEventListener('pointercancel', barUp);
-
-  document.querySelectorAll('[data-nav]').forEach(function (b) { b.textContent = t[b.dataset.nav]; });
+    document.querySelectorAll('[data-nav]').forEach(function (b) { b.textContent = t[b.dataset.nav]; });
     document.getElementById('hint').textContent = 'Bewegen: ein Finger · Klicken: tippen · Scrollen: zwei Finger oder die Leiste rechts';
     document.getElementById('address').placeholder = 'Adresse oder Suche';
     document.getElementById('text').placeholder = 'In das gewählte Feld tippen';
@@ -167,6 +144,36 @@
   }
   pad.addEventListener('pointerup', up);
   pad.addEventListener('pointercancel', up);
+
+  // The bar on the right: one finger along it scrolls the page.
+  var bar = document.getElementById('bar');
+  var barY = null;
+  bar.addEventListener('pointerdown', function (e) {
+    e.stopPropagation();
+    // Only a fresh touch on the bar scrolls: not while a finger is
+    // already moving the pointer on the touchpad.
+    if (Object.keys(points).length > 0) return;
+    bar.setPointerCapture(e.pointerId);
+    barY = e.clientY;
+    bar.className = 'on';
+    send({ t:'bar', v:1 });
+  });
+  bar.addEventListener('pointermove', function (e) {
+    e.stopPropagation();
+    if (barY === null) return;
+    // Like a scroll bar: down moves the page down (the content up).
+    sy -= (e.clientY - barY) * 2;
+    barY = e.clientY;
+  });
+  function barUp(e) {
+    e.stopPropagation();
+    if (barY === null) return;
+    barY = null; bar.className = '';
+    send({ t:'bar', v:0 });
+  }
+  bar.addEventListener('pointerup', barUp);
+  bar.addEventListener('pointercancel', barUp);
+
 
   document.querySelectorAll('[data-nav]').forEach(function (b) {
     b.addEventListener('click', function () { send({ t:'nav', v:b.dataset.nav }); });

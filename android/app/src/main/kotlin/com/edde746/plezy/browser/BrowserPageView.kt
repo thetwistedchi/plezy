@@ -43,6 +43,8 @@ internal class BrowserPageView(
     const val SNAPSHOT = "(()=>{const s=[];const d=document.scrollingElement||document.documentElement;s.push(d.scrollTop);" +
       "const m=window.__plezyScroller;if(m&&m.isConnected)s.push(m.scrollTop);" +
       "window.__plezyKeySnap={a:document.activeElement,s:s.join(',')};})()"
+    const val BLUR_HIDDEN = "(()=>{const a=document.activeElement;if(!a||a===document.body)return;" +
+      "const r=a.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)a.blur();})()"
     const val UNCHANGED = "(()=>{const p=window.__plezyKeySnap;if(!p)return false;const s=[];" +
       "const d=document.scrollingElement||document.documentElement;s.push(d.scrollTop);" +
       "const m=window.__plezyScroller;if(m&&m.isConnected)s.push(m.scrollTop);" +
@@ -52,6 +54,10 @@ internal class BrowserPageView(
   private var okLong = false
   private var dragging = false
   private val upPresses = ArrayDeque<Long>()
+  private var lastCountedUp = -1L
+  // Until then, Up/Down scroll the page directly (the key found nothing to
+  // select or scroll by itself, so held keys don't go back to the page).
+  private var keyScrollUntil = 0L
 
   /** The remote moves a pointer (on) or selects the page's elements (off). */
   var pointerMode = false
@@ -133,6 +139,26 @@ internal class BrowserPageView(
   }
 
   /** The remote's arrows and OK on a TV: the pointer. False when not handled. */
+  /**
+   * Up three times within about a second, starting on the page: focus goes
+   * to the address bar. True when this press completed it.
+   */
+  fun tripleUp(event: KeyEvent, onPage: Boolean): Boolean {
+    if (event.keyCode != KeyEvent.KEYCODE_DPAD_UP || event.action != KeyEvent.ACTION_DOWN || event.repeatCount != 0) return false
+    if (!tv || current == null || event.downTime == lastCountedUp) return false
+    val now = SystemClock.uptimeMillis()
+    while (upPresses.isNotEmpty() && now - upPresses.first() > 1100) upPresses.removeFirst()
+    // The first press must be on the page; the others may follow it out.
+    if (!onPage && upPresses.isEmpty()) return false
+    lastCountedUp = event.downTime
+    upPresses.addLast(now)
+    if (upPresses.size < 3) return false
+    upPresses.clear()
+    android.util.Log.d("PlezyBrowser", "up three times: address bar")
+    plugin.onFocusAddress(this)
+    return true
+  }
+
   fun handleRemoteKey(event: KeyEvent): Boolean {
     if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
       android.util.Log.d("PlezyBrowser", "page key ${event.keyCode} (page shown: ${current != null})")
@@ -156,17 +182,7 @@ internal class BrowserPageView(
       if (!pointerMode) web.dispatchKeyEvent(KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED))
       return true
     }
-    // Up three times quickly: straight to the address bar.
-    if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-      val now = SystemClock.uptimeMillis()
-      upPresses.addLast(now)
-      while (upPresses.isNotEmpty() && now - upPresses.first() > 750) upPresses.removeFirst()
-      if (upPresses.size >= 3) {
-        upPresses.clear()
-        plugin.onFocusAddress(this)
-        return true
-      }
-    }
+    if (tripleUp(event, true)) return true
     if (!pointerMode) return selectKey(web, event)
     when (event.keyCode) {
       KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
@@ -194,17 +210,30 @@ internal class BrowserPageView(
   private fun selectKey(web: WebView, event: KeyEvent): Boolean {
     if (!web.hasFocus()) web.requestFocus()
     val vertical = event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-    if (vertical && event.action == KeyEvent.ACTION_DOWN) {
-      web.evaluateJavascript(SNAPSHOT, null)
+    val down = event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+    val now = SystemClock.uptimeMillis()
+    // Scrolling by touch already: further presses (and held keys) keep
+    // scrolling instead of going back to the page's own navigation.
+    if (vertical && now < keyScrollUntil) {
+      if (event.action == KeyEvent.ACTION_DOWN) {
+        keyScrollUntil = now + 900
+        touchScroll(web, 0f, (if (down) 1 else -1) * height * 0.3f)
+      }
+      return true
     }
+    // Held keys repeat too fast for the check below: only presses are checked.
+    val check = vertical && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0
+    if (check) web.evaluateJavascript(SNAPSHOT, null)
     val handled = web.dispatchKeyEvent(event)
-    if (vertical && event.action == KeyEvent.ACTION_DOWN) {
+    if (check) {
       // Pages that scroll inside an element: when the key neither moved
       // the selection nor scrolled anything, the page is scrolled here.
-      val down = event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
       postDelayed({
         web.evaluateJavascript(UNCHANGED) { value ->
-          if (value == "true") touchScroll(web, 0f, (if (down) 1 else -1) * height * 0.3f)
+          if (value == "true") {
+            keyScrollUntil = SystemClock.uptimeMillis() + 900
+            touchScroll(web, 0f, (if (down) 1 else -1) * height * 0.3f)
+          }
         }
       }, 150)
     }
@@ -300,6 +329,9 @@ internal class BrowserPageView(
     postDelayed({
       send(MotionEvent.ACTION_UP, fromX - dx, fromY - dy)
       dragging = false
+      // A selected element now out of view would pull the page back to it
+      // on the next key: let go of it, so navigation starts from the view.
+      web.evaluateJavascript(BLUR_HIDDEN, null)
     }, steps * 16L + 160)
   }
 
