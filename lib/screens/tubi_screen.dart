@@ -100,7 +100,7 @@ class _TubiScreenState extends State<TubiScreen> {
       return;
     }
     setState(() {
-      _loading = _hubs.isEmpty;
+      _loading = true;
       _error = null;
     });
     try {
@@ -125,7 +125,8 @@ class _TubiScreenState extends State<TubiScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = _hubs.isEmpty ? RetroStrings.tubiFailed : null;
+        // The reason too: this beta reads Tubi's website, which can change.
+        _error = _hubs.isEmpty ? '${RetroStrings.tubiFailed}\n$e' : null;
       });
     }
   }
@@ -173,7 +174,17 @@ class _TubiScreenState extends State<TubiScreen> {
     final shown = _shown;
     final theme = Theme.of(context);
     final slivers = <Widget>[
-      CustomAppBar(title: Text('${RetroStrings.tubi} (beta)'), pinned: true),
+      CustomAppBar(
+        title: Text('${RetroStrings.tubi} (beta)'),
+        pinned: true,
+        actions: [
+          IconButton(
+            tooltip: RetroStrings.reload,
+            icon: const Icon(Symbols.refresh_rounded),
+            onPressed: _loading ? null : () => unawaited(_load(force: true)),
+          ),
+        ],
+      ),
       SliverToBoxAdapter(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
