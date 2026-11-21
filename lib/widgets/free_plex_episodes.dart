@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 import '../i18n/retro_strings.dart';
 
 /// Fork: a show's seasons and episodes in Plex's free catalog, on its details
-/// page. Seasons in a row (Left/Right), episodes below (Up/Down), OK plays.
+/// page. Seasons in a row (Left/Right); OK on one lists its episodes below
+/// (Up/Down, OK plays), OK on it again hides them.
 class FreePlexEpisodes extends StatefulWidget {
   const FreePlexEpisodes({
     super.key,
@@ -27,7 +28,8 @@ class FreePlexEpisodes extends StatefulWidget {
 }
 
 class FreePlexEpisodesState extends State<FreePlexEpisodes> {
-  int _season = 0;
+  /// The season whose episodes are listed, -1 for none (less clutter).
+  int _season = -1;
   List<({String key, String title, int? index, String? summary, int? minutes})>? _episodes;
   bool _failed = false;
   int _load = 0;
@@ -37,12 +39,6 @@ class FreePlexEpisodesState extends State<FreePlexEpisodes> {
   static List<FocusNode> _nodes(int n, String label) => [for (var i = 0; i < n; i++) FocusNode(debugLabel: 'free_plex_$label$i')];
 
   @override
-  void initState() {
-    super.initState();
-    _loadSeason(0);
-  }
-
-  @override
   void didUpdateWidget(FreePlexEpisodes old) {
     super.didUpdateWidget(old);
     if (old.seasons.length != widget.seasons.length) {
@@ -50,7 +46,7 @@ class FreePlexEpisodesState extends State<FreePlexEpisodes> {
         n.dispose();
       }
       _seasonNodes = _nodes(widget.seasons.length, 'season');
-      if (_season >= widget.seasons.length) _loadSeason(0);
+      if (_season >= widget.seasons.length) setState(() => _season = -1);
     }
   }
 
@@ -65,6 +61,18 @@ class FreePlexEpisodesState extends State<FreePlexEpisodes> {
   Future<void> _loadSeason(int index) async {
     if (widget.seasons.isEmpty) return;
     final run = ++_load;
+    if (index == _season) {
+      // Again: the list closes.
+      for (final n in _episodeNodes) {
+        n.dispose();
+      }
+      setState(() {
+        _season = -1;
+        _episodes = null;
+        _episodeNodes = const [];
+      });
+      return;
+    }
     setState(() {
       _season = index;
       _episodes = null;
@@ -207,8 +215,10 @@ class FreePlexEpisodesState extends State<FreePlexEpisodes> {
               ],
             ),
           ),
-        const SizedBox(height: 10),
-        if (_failed)
+        if (_season >= 0) const SizedBox(height: 10),
+        if (_season < 0)
+          const SizedBox.shrink()
+        else if (_failed)
           Text(RetroStrings.freeOnPlexFailed, style: theme.textTheme.bodySmall)
         else if (episodes == null)
           const Padding(padding: EdgeInsets.all(8), child: LinearProgressIndicator(minHeight: 3))
