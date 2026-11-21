@@ -6,7 +6,7 @@
 > [!WARNING]
 > **Disclaimer:** This fork is 100% vibecoded (written entirely with AI assistance) and is intended only for my personal use and preferences. It comes with no support, no guarantees and no promise of stability. Use it at your own risk; for a maintained client, use the original [Plezy](https://github.com/edde746/plezy).
 
-A fork of [Plezy](https://github.com/edde746/plezy) for Windows and Android / Android TV with a retrowave look, ratings from every major site, Plex's and Tubi's free catalogs, a YouTube tab and a built-in browser. Everything Plezy does still works; this fork only adds to it.
+A fork of [Plezy](https://github.com/edde746/plezy) for Windows and Android / Android TV with a retrowave look, ratings from every major site, Plex's free catalog, a YouTube tab and a built-in browser. Everything Plezy does still works; this fork only adds to it.
 
 Current version: **1.0**. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
 
@@ -44,9 +44,8 @@ The app updates itself from this page (Windows installer and Android in place).
 **Player**
 - Play from start, trailers, tracks and zoom remembered per title, a 4K / HDR badge, letterbox cropping and a neon **Skip intro / credits**.
 
-**Free catalogs**
+**Free on plex.tv**
 - **Free on plex.tv**: Plex's free, ad-supported movies and shows with search, your watchlist, continue watching and a season / episode list. Plays in Plex Web, on Android full screen with remote control.
-- **Tubi (beta)**: Tubi's free catalog with rows, search and episodes (only in Tubi's countries).
 
 **Browser** (Windows; Android beta)
 - Tabs, bookmarks, private tabs, a pop-up blocker, HTTPS upgrades, tracking prevention, Dark Reader and an ad blocker (Brave's adblock-rust with uBlock Origin's lists).
@@ -61,8 +60,8 @@ The app updates itself from this page (Windows installer and Android in place).
 ## Known limitations
 
 - Windows is the main platform; Android gets less testing, macOS is experimental.
-- Letterboxd, Tubi and parts of the YouTube player use unofficial interfaces and can break when those sites change.
-- Free on plex.tv and Tubi show ads; their players only work in a browser.
+- Letterboxd and parts of the YouTube player use unofficial interfaces and can break when those sites change.
+- Free on plex.tv shows ads; its player only works in a browser.
 - Building needs the Rust toolchain for the browser's ad blocker, for Android also `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
 - SponsorBlock and DeArrow data: [sponsor.ajay.app](https://sponsor.ajay.app) (CC BY-NC-SA 4.0). Dislike estimates: [Return YouTube Dislike](https://returnyoutubedislike.com).
 

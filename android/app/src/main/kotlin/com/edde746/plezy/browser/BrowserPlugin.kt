@@ -825,7 +825,9 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       allowContentAccess = false
       setGeolocationEnabled(false)
       mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-      mediaPlaybackRequiresUserGesture = true
+      // The player page plays by itself, ads included: an ad started from
+      // a script (Plex's ad player) otherwise stays black with its countdown.
+      mediaPlaybackRequiresUserGesture = tab.id != PLAYER_TAB
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) safeBrowsingEnabled = true
       // Pages see Chrome, not an embedded WebView.
       userAgentString = userAgentString.replace("; wv)", ")").replace(Regex("Version/\\d+\\.\\d+ "), "")
