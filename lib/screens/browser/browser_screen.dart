@@ -8,7 +8,9 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../focus/dpad_navigator.dart';
 import '../../focus/focusable_text_field.dart';
+import '../../focus/key_event_utils.dart';
 import '../../i18n/retro_strings.dart';
 import '../../services/browser/adblock_lists.dart';
 import '../../services/file_picker_service.dart';
@@ -965,7 +967,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
         final screen = MediaQuery.sizeOf(context);
         final t = tokens(context);
         final left = (alignLeft ? anchor.left : anchor.right - width).clamp(8.0, screen.width - width - 8);
-        return Stack(
+        return _PopupFocus(
+          child: Stack(
           children: [
             Positioned(
               left: left,
@@ -982,6 +985,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               ),
             ),
           ],
+          ),
         );
       },
       transitionBuilder: (context, animation, _, child) => FadeTransition(opacity: animation, child: child),
@@ -1205,6 +1209,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
       canPop: !Platform.isAndroid,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        final popup = _popupContext;
+        if (popup != null && popup.mounted) {
+          Navigator.pop(popup);
+          return;
+        }
         if (await _controller.exitPageFullscreen()) return;
         if (_controller.active?.canGoBack ?? false) {
           await _controller.back();
@@ -1481,6 +1490,15 @@ class _BrowserScreenState extends State<BrowserScreen> {
       padding: const EdgeInsets.fromLTRB(4, 6, 8, 6),
       child: Focus(
         focusNode: _toolbarFocus,
+        // Down from the toolbar: into the page (Android TV).
+        onKeyEvent: (node, event) {
+          if (!Platform.isAndroid || event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.arrowDown) {
+            return KeyEventResult.ignored;
+          }
+          if (_suggestions.isNotEmpty || _browserPageFocus.context == null) return KeyEventResult.ignored;
+          _browserPageFocus.requestFocus();
+          return KeyEventResult.handled;
+        },
         child: Row(
         children: [
           _iconButton(
@@ -1525,7 +1543,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       decoration: addressDecoration,
                       onSubmitted: (v) => unawaited(_submit(v)),
                       onNavigateUp: () => _addressFocus.focusInDirection(TraversalDirection.up),
-                      onNavigateDown: () => _addressFocus.focusInDirection(TraversalDirection.down),
+                      onNavigateDown: () => _browserPageFocus.context != null
+                          ? _browserPageFocus.requestFocus()
+                          : _addressFocus.focusInDirection(TraversalDirection.down),
                       onNavigateLeft: () => _addressFocus.focusInDirection(TraversalDirection.left),
                       onNavigateRight: () => _addressFocus.focusInDirection(TraversalDirection.right),
                     )
@@ -2082,6 +2102,60 @@ class _PageTile extends StatelessWidget {
   }
 }
 
+/// The page's focus on Android (the remote's Down from the toolbar).
+final FocusNode _browserPageFocus = FocusNode(debugLabel: 'browser-page');
+
+/// Popups (menus, panels): the remote lands on their first entry, and Back
+/// closes the popup rather than the browser.
+class _PopupFocus extends StatefulWidget {
+  const _PopupFocus({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_PopupFocus> createState() => _PopupFocusState();
+}
+
+class _PopupFocusState extends State<_PopupFocus> {
+  final _node = FocusNode(debugLabel: 'browser-popup');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !PlatformDetector.isTV()) return;
+      final first = _node.traversalDescendants.where((n) => n.canRequestFocus).firstOrNull;
+      (first ?? _node).requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _node.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      focusNode: _node,
+      onKeyEvent: (node, event) {
+        final back = handleBackKeyAction(event, () => Navigator.of(context).maybePop());
+        if (back != KeyEventResult.ignored) return back;
+        if (event is KeyDownEvent && node.hasPrimaryFocus && event.logicalKey.isDpadDirection) {
+          final first = node.traversalDescendants.where((n) => n.canRequestFocus).firstOrNull;
+          if (first != null) {
+            first.requestFocus();
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: widget.child,
+    );
+  }
+}
+
 /// Reports where the native page goes, in physical pixels.
 class _PageSlot extends StatefulWidget {
   const _PageSlot();
@@ -2120,6 +2194,7 @@ class _PageSlotState extends State<_PageSlot> {
       // The page is a platform view; focusing it (the remote's Down from the
       // toolbar) hands the keys to the page and its pointer.
       return Focus(
+        focusNode: _browserPageFocus,
         onFocusChange: (focused) {
           if (focused) unawaited(BrowserController.instance.focusPage());
         },
