@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
 
+import '../focus/hub_vertical_navigation.dart';
 import '../focus/locked_hub_controller.dart';
 import '../i18n/retro_strings.dart';
 import '../media/media_backend.dart';
@@ -79,6 +80,10 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
   static const _viewAllCap = 500;
 
   final _focusMemory = HubFocusMemory();
+  final Map<String, GlobalKey<HubSectionState>> _hubKeys = {};
+  /// One per row (rows can share an id), for moving the focus between them.
+  GlobalKey<HubSectionState> _hubKey(int index) =>
+      _hubKeys.putIfAbsent('${_hubs[index].id}#$index', GlobalKey<HubSectionState>.new);
   PlexDiscoverClient? _client;
   _VodMapper? _mapperOrNull;
   _VodMapper get _mapper => _mapperOrNull!;
@@ -299,10 +304,19 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
           child: StateMessageWidget(message: _error!, icon: Symbols.error_outline_rounded, iconSize: 64),
         )
       else
-        for (final hub in _hubs)
+        for (final (index, hub) in _hubs.indexed)
           SliverToBoxAdapter(
             child: HubSection(
+              key: _hubKey(index),
               hub: hub,
+              // Up/Down move between the rows (the remote).
+              onVerticalNavigation: (isUp) => navigateVerticalHubRows(
+                hubCount: _hubs.length,
+                hubIndex: index,
+                isUp: isUp,
+                propagateTopBoundary: true,
+                requestFocus: (target) => _hubKey(target).currentState?.requestFocusFromMemory(),
+              ),
               focusMemory: _focusMemory,
               icon: hub.id == 'vod:all' ? Symbols.local_activity_rounded : Symbols.movie_rounded,
               loadMoreItems: hub.more ? () => _loadAll(hub) : null,
