@@ -90,20 +90,16 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
   // background when older than [_cacheFor].
   static List<MediaHub>? _cachedHubs;
   static DateTime? _cachedAt;
+
+  /// Whose catalog is kept (the Plex profile's token, hashed): another
+  /// profile loads its own.
+  static int? _cachedFor;
   static const _cacheFor = Duration(minutes: 30);
 
   @override
   void initState() {
     super.initState();
-    final cached = _cachedHubs;
-    if (cached != null && cached.isNotEmpty) {
-      _hubs = cached;
-      _loading = false;
-      final fresh = _cachedAt != null && DateTime.now().difference(_cachedAt!) < _cacheFor;
-      unawaited(_load(quiet: true, connectOnly: fresh));
-    } else {
-      unawaited(_load());
-    }
+    unawaited(_load(useCache: true));
   }
 
   MediaHub? _hubOf(String id, String title, PlexDiscoverPage page) {
@@ -123,7 +119,7 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
   /// Loads the full list and Plex's shelves at the same time; the full list
   /// shows as soon as it is there. [quiet] keeps what is on screen while it
   /// loads; [connectOnly] only prepares the client for "View all".
-  Future<void> _load({bool quiet = false, bool connectOnly = false}) async {
+  Future<void> _load({bool quiet = false, bool connectOnly = false, bool useCache = false}) async {
     if (!quiet) {
       setState(() {
         _loading = true;
@@ -143,6 +139,18 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
       }
       final client = _client ??= PlexDiscoverClient(session, baseUri: PlexDiscoverClient.vodBaseUri);
       _mapperOrNull ??= _VodMapper(client);
+      final owner = session.accessToken.hashCode;
+      final cached = _cachedHubs;
+      if (useCache && cached != null && cached.isNotEmpty && _cachedFor == owner) {
+        setState(() {
+          _hubs = cached;
+          _loading = false;
+          _error = null;
+        });
+        final fresh = _cachedAt != null && DateTime.now().difference(_cachedAt!) < _cacheFor;
+        if (fresh) return;
+        quiet = true;
+      }
       if (connectOnly) return;
 
       final allFuture = client.getPage(_allKey, limit: _rowLimit);
@@ -186,6 +194,7 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
       if (hubs.isNotEmpty) {
         _cachedHubs = hubs;
         _cachedAt = DateTime.now();
+        _cachedFor = owner;
       }
       if (!mounted) return;
       setState(() {
