@@ -176,8 +176,14 @@ class TubiClient {
 
   /// Tubi's home rows.
   Future<List<TubiRow>> home() async {
-    final data = await _state(await _html('/home'), '__data');
-    if (data == null) throw Exception('Tubi page carried no data');
+    final html = await _html('/home');
+    final data = await _state(html, '__data');
+    if (data == null) {
+      // What came instead (a check page, a redirect, a notice).
+      final text = html.replaceAll(RegExp(r'\s+'), ' ');
+      appLogger.w('Tubi page without data: ${text.substring(0, text.length.clamp(0, 1500))}');
+      throw Exception('Tubi page carried no data');
+    }
     final videos = _map(_map(data['video'])['byId']);
     final container = _map(data['container']);
     if (!_structureLogged) {
