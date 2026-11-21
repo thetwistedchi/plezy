@@ -106,12 +106,33 @@ class BrowserSettings extends ChangeNotifier {
     darkContrast = p.getInt('${_prefix}darkContrast') ?? darkContrast;
     darkExcluded = p.getStringList('${_prefix}darkExcluded') ?? const [];
     clearSiteDataOnExit = p.getBool('${_prefix}clearSiteDataOnExit') ?? clearSiteDataOnExit;
+    pointerSites = {
+      for (final entry in p.getStringList('${_prefix}pointerSites') ?? const <String>[])
+        if (entry.lastIndexOf('|') > 0)
+          entry.substring(0, entry.lastIndexOf('|')): entry.substring(entry.lastIndexOf('|') + 1) == '1',
+    };
     permissions = {
       for (final entry in p.getStringList('${_prefix}permissions') ?? const <String>[])
         if (entry.lastIndexOf('|') > 0)
           entry.substring(0, entry.lastIndexOf('|')): entry.substring(entry.lastIndexOf('|') + 1) == '1',
     };
     cacheLimitMb = p.getInt('${_prefix}cacheLimitMb') ?? cacheLimitMb;
+    notifyListeners();
+  }
+
+  /// Android TV: pointer on (true) or off per website, overriding [tvPointer].
+  Map<String, bool> pointerSites = const {};
+
+  Future<void> setPointerForSite(String host, bool value) async {
+    await load();
+    final sites = {...pointerSites};
+    if (value == tvPointer) {
+      sites.remove(host);
+    } else {
+      sites[host] = value;
+    }
+    pointerSites = sites;
+    await _prefs!.setStringList('${_prefix}pointerSites', [for (final e in sites.entries) '${e.key}|${e.value ? 1 : 0}']);
     notifyListeners();
   }
 

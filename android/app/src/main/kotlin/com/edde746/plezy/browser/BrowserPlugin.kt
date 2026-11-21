@@ -90,6 +90,21 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
     private val ALL_ORIGINS = setOf("*")
 
+    /**
+     * In every frame: reports whether the frame plays sound
+     * ('plezy-audio:1/0') and mutes its media on the app's message, passed
+     * on to its own frames (embedded players included).
+     */
+    private val MEDIA_SCRIPT = """(()=>{const w=window.$BRIDGE;let muted=false,last=-1;
+const media=()=>Array.from(document.querySelectorAll('video,audio'));
+const report=()=>{const on=media().some(m=>!m.paused&&!m.ended&&!m.muted&&m.volume>0)?1:0;
+if(on!==last){last=on;try{w&&w.postMessage('plezy-audio:'+on);}catch(_){}}};
+const apply=()=>{for(const m of media())m.muted=muted;};
+addEventListener('message',e=>{const d=e.data;if(!d||typeof d.plezyMute!=='boolean')return;muted=d.plezyMute;apply();
+for(const f of document.querySelectorAll('iframe')){try{f.contentWindow.postMessage(d,'*');}catch(_){}}report();});
+for(const t of ['play','playing','pause','ended','volumechange','emptied'])
+document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' in e.target)e.target.muted=true;report();},true);})();"""
+
     /** The page view on screen, for [dispatchToPage]. */
     @Volatile private var shownPage: BrowserPageView? = null
 
@@ -135,6 +150,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
     var muted = false
     var suspended = false
     var autoplayFor: String? = null
+    val audioFrames = mutableSetOf<Int>()
   }
 
   private class PendingDownload(
@@ -179,6 +195,29 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
   private var fullscreenTab = 0
 
   // ---------------------------------------------------------------- plugin
+
+  /**
+   * Requests a site makes from its service worker skip the tabs'
+   * shouldInterceptRequest: checked here, against the page that asked
+   * (Referer) or else the request's own site.
+   */
+  private fun installServiceWorkerBlocking() {
+    try {
+      android.webkit.ServiceWorkerController.getInstance().setServiceWorkerClient(object : android.webkit.ServiceWorkerClient() {
+        override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
+          val url = request.url.toString()
+          val engine = adblock
+          if (engine == 0L || !url.startsWith("http")) return null
+          val source = request.requestHeaders.entries.firstOrNull { it.key.equals("Referer", true) }?.value ?: url
+          if (!adblockActive(source)) return null
+          val verdict = AdblockEngine.check(engine, url, source, requestType(request)) ?: return null
+          return if (verdict.isEmpty()) blockedResponse() else dataResponse(verdict) ?: blockedResponse()
+        }
+      })
+    } catch (e: Throwable) {
+      Log.d(TAG, "service worker blocking unavailable: $e")
+    }
+  }
 
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     appContext = binding.applicationContext
@@ -240,8 +279,29 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
     disposeAll()
   }
 
-  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+  private var activityBinding: ActivityPluginBinding? = null
+
+  // Websites' file pickers (<input type=file>): the system's picker.
+  private var fileCallback: android.webkit.ValueCallback<Array<Uri>>? = null
+  private val fileRequest = 0x50E7
+
+  private val resultListener = io.flutter.plugin.common.PluginRegistry.ActivityResultListener { requestCode, resultCode, data ->
+    if (requestCode != fileRequest) return@ActivityResultListener false
+    val callback = fileCallback
+    fileCallback = null
+    callback?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data))
+    true
+  }
+
+  private fun bindActivity(binding: ActivityPluginBinding) {
+    activityBinding?.removeActivityResultListener(resultListener)
+    activityBinding = binding
     activity = binding.activity
+    binding.addActivityResultListener(resultListener)
+  }
+
+  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    bindActivity(binding)
   }
 
   override fun onDetachedFromActivityForConfigChanges() {
@@ -249,11 +309,13 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
   }
 
   override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-    activity = binding.activity
+    bindActivity(binding)
   }
 
   override fun onDetachedFromActivity() {
     exitFullscreen()
+    activityBinding?.removeActivityResultListener(resultListener)
+    activityBinding = null
     activity = null
   }
 
@@ -341,6 +403,16 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
   /** Adblock request type from what Android tells about a request. */
   private fun requestType(request: WebResourceRequest): String {
+    // Chromium's own label, when the headers carry it.
+    when (request.requestHeaders.entries.firstOrNull { it.key.equals("Sec-Fetch-Dest", true) }?.value?.lowercase(Locale.ROOT)) {
+      "script", "serviceworker", "sharedworker", "worker" -> return "script"
+      "style" -> return "stylesheet"
+      "image" -> return "image"
+      "font" -> return "font"
+      "audio", "video", "track" -> return "media"
+      "iframe", "frame" -> return "sub_frame"
+      "empty" -> return "xmlhttprequest"
+    }
     val accept = request.requestHeaders["Accept"]?.lowercase(Locale.ROOT) ?: ""
     val path = request.url.path?.lowercase(Locale.ROOT) ?: ""
     return when {
@@ -449,15 +521,18 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
     }
   }
 
+  /** Mutes or unmutes the tab's media, in every frame (see MEDIA_SCRIPT). */
   private fun applyMute(tab: Tab) {
     val muted = if (tab.muted) "true" else "false"
-    tab.webView?.evaluateJavascript(
-      "(()=>{const m=$muted;window.__plezyMuted=m;document.querySelectorAll('video,audio').forEach(e=>e.muted=m);" +
-        "if(!window.__plezyMuteObs){window.__plezyMuteObs=new MutationObserver(()=>{if(window.__plezyMuted)" +
-        "document.querySelectorAll('video,audio').forEach(e=>e.muted=true);});" +
-        "window.__plezyMuteObs.observe(document.documentElement,{childList:true,subtree:true});}})();",
-      null,
-    )
+    tab.webView?.evaluateJavascript("window.postMessage({plezyMute:$muted},'*');", null)
+  }
+
+  /** A frame started or stopped playing sound; the tab is audible while any frame is. */
+  private fun onAudio(tab: Tab, frame: Int, playing: Boolean) {
+    val was = tab.audioFrames.isNotEmpty()
+    if (playing) tab.audioFrames.add(frame) else tab.audioFrames.remove(frame)
+    val now = tab.audioFrames.isNotEmpty()
+    if (was != now) send(tab.id, "audio", mapOf("value" to now))
   }
 
   private fun onBridgeMessage(tab: Tab, message: String) {
@@ -506,8 +581,13 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
     CookieManager.getInstance().setAcceptThirdPartyCookies(web, tracking < 2)
 
     if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
-      WebViewCompat.addWebMessageListener(web, BRIDGE, ALL_ORIGINS) { _, message, _, isMainFrame, _ ->
-        if (isMainFrame) message.data?.let { onBridgeMessage(tab, it) }
+      WebViewCompat.addWebMessageListener(web, BRIDGE, ALL_ORIGINS) { _, message, _, isMainFrame, reply ->
+        val data = message.data ?: return@addWebMessageListener
+        if (data.startsWith("plezy-audio:")) {
+          onAudio(tab, reply.hashCode(), data.endsWith("1"))
+        } else if (isMainFrame) {
+          onBridgeMessage(tab, data)
+        }
       }
     } else {
       web.addJavascriptInterface(object {
@@ -518,6 +598,12 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
       }, BRIDGE)
     }
     if (documentStart) {
+      try {
+        // Before the link script, which hides the bridge from the page.
+        WebViewCompat.addDocumentStartJavaScript(web, MEDIA_SCRIPT, ALL_ORIGINS)
+      } catch (e: Exception) {
+        Log.d(TAG, "media script: $e")
+      }
       try {
         WebViewCompat.addDocumentStartJavaScript(web, LINK_SCRIPT, ALL_ORIGINS)
       } catch (e: Exception) {
@@ -603,6 +689,10 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
       override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
         tab.error = null
+        if (tab.audioFrames.isNotEmpty()) {
+          tab.audioFrames.clear()
+          send(tab.id, "audio", mapOf("value" to false))
+        }
         if (pageFullscreenTab == tab.id) exitFullscreen()
         // Back, forward and reloads skip shouldOverrideUrlLoading.
         if (url.startsWith("http") && tab.preparedFor != siteOf(hostOf(url))) preparePage(tab, url, runNow = true)
@@ -705,6 +795,24 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
       // No camera, microphone or location for websites in this app; copy
       // protected video (Widevine, e.g. Plex's free service) may play.
+      override fun onShowFileChooser(
+        view: WebView,
+        callback: android.webkit.ValueCallback<Array<Uri>>,
+        params: FileChooserParams,
+      ): Boolean {
+        val activity = activity ?: return false
+        fileCallback?.onReceiveValue(null)
+        fileCallback = callback
+        return try {
+          activity.startActivityForResult(params.createIntent(), fileRequest)
+          true
+        } catch (e: ActivityNotFoundException) {
+          fileCallback = null
+          Log.d(TAG, "no file picker: $e")
+          false
+        }
+      }
+
       override fun onPermissionRequest(request: PermissionRequest) {
         val drm = request.resources.filter { it == PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID }
         if (drm.isNotEmpty()) request.grant(drm.toTypedArray()) else request.deny()
@@ -1131,6 +1239,7 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
             if (engine != 0L) {
               val old = adblock
               adblock = engine
+              if (old == 0L) installServiceWorkerBlocking()
               // Request threads may still use the old one for a moment.
               if (old != 0L) main.postDelayed({ AdblockEngine.free(old) }, 10_000)
             }

@@ -867,8 +867,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
       if (Platform.isAndroid && PlatformDetector.isTV()) ...[
         _menuItem(
           'pointer',
-          _settings.tvPointer ? Symbols.toggle_on_rounded : Symbols.toggle_off_rounded,
-          RetroStrings.tvPointer,
+          _controller.pointerForActive ? Symbols.toggle_on_rounded : Symbols.toggle_off_rounded,
+          RetroStrings.tvPointerHere,
         ),
         _menuItem('remote', Symbols.phone_android_rounded, RetroStrings.phoneRemote),
       ],
@@ -896,7 +896,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       case 'remote':
         await _showPhoneRemote();
       case 'pointer':
-        await _controller.setTvPointer(!_settings.tvPointer);
+        await _controller.togglePointerForSite();
       case 'external':
         final uri = Uri.tryParse(url ?? '');
         if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);

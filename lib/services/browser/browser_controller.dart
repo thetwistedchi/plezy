@@ -380,7 +380,10 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         );
       }
       await _native.setPopupSites(_settings.popupSites);
-      if (Platform.isAndroid) await _native.setPointer(_settings.tvPointer);
+      if (Platform.isAndroid) {
+        _sentPointer = null;
+        _syncPointer();
+      }
       if (fresh) {
         await _syncDark();
         unawaited(AdblockManager.instance.start());
@@ -420,6 +423,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     _activeId = id;
     notifyListeners();
     _scheduleSave();
+    _syncPointer();
     if (_shown) await _show(tab);
   }
 
@@ -542,7 +546,37 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   /// Android TV: pointer or element selection for the remote.
   Future<void> setTvPointer(bool value) async {
     await _settings.update(tvPointer: value);
-    await _native.setPointer(value);
+    _syncPointer(force: true);
+    notifyListeners();
+  }
+
+  /// The pointer for the website in the active tab: remembered per site,
+  /// else the setting.
+  bool get pointerForActive {
+    final host = _host(active?.url);
+    return _settings.pointerSites[host] ?? _settings.tvPointer;
+  }
+
+  bool? _sentPointer;
+
+  void _syncPointer({bool force = false}) {
+    if (!Platform.isAndroid) return;
+    final value = pointerForActive;
+    if (!force && value == _sentPointer) return;
+    _sentPointer = value;
+    unawaited(_native.setPointer(value));
+  }
+
+  /// ⋮ menu: pointer on or off for the website in the active tab.
+  Future<void> togglePointerForSite() async {
+    final host = _host(active?.url);
+    final value = !pointerForActive;
+    if (host.isEmpty) {
+      await setTvPointer(value);
+      return;
+    }
+    await _settings.setPointerForSite(host, value);
+    _syncPointer();
     notifyListeners();
   }
 
@@ -745,6 +779,7 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
       case 'state':
         final url = e.str('url');
         if (url != null && url.isNotEmpty) tab.url = url;
+        if (tab.id == _activeId) _syncPointer();
         tab
           ..title = e.str('title') ?? tab.title
           ..canGoBack = e.flag('canGoBack')
