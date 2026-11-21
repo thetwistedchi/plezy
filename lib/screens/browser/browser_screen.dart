@@ -25,6 +25,7 @@ import '../../theme/retrowave_colors.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/platform_detector.dart';
 import '../../widgets/app_icon.dart';
+import '../../widgets/remote_shortcuts_dialog.dart';
 import '../../widgets/mini_player/video_mini_player.dart' show MinimizableRoute;
 import 'browser_icon.dart';
 import 'adblock_lists_screen.dart';
@@ -871,6 +872,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           RetroStrings.tvPointerHere,
         ),
         _menuItem('remote', Symbols.phone_android_rounded, RetroStrings.phoneRemote),
+        _menuItem('shortcuts', Symbols.settings_remote_rounded, RetroStrings.remoteShortcuts),
       ],
       if (!Platform.isAndroid)
       _menuItem(
@@ -895,6 +897,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
         await _showDownloads(anchor);
       case 'remote':
         await _showPhoneRemote();
+      case 'shortcuts':
+        await _overlay(() => showRemoteShortcuts(context));
       case 'pointer':
         await _controller.togglePointerForSite();
       case 'external':

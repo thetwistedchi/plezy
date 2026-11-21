@@ -10,6 +10,10 @@ class RetroStrings {
   static bool get _de => LocaleSettings.currentLocale == AppLocale.de;
   static String _t(String en, String de) => _de ? de : en;
 
+  static bool get isGerman => _de;
+  static String get remoteShortcuts => _t('Remote shortcuts', 'Tasten der Fernbedienung');
+  static String get remoteShortcutsSubtitle => _t('What the TV remote\'s buttons do', 'Was die Tasten der TV-Fernbedienung tun');
+
   // Home rows
   static String get hideWatched => _t('Hide watched', 'Gesehenes ausblenden');
 

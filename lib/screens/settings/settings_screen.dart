@@ -38,6 +38,7 @@ import '../../services/supporter/supporter_mode.dart';
 import '../../widgets/background_download_warning_banner.dart';
 import '../../utils/dialogs.dart';
 import '../../utils/snackbar_helper.dart';
+import '../../i18n/retro_strings.dart';
 import '../../utils/platform_detector.dart';
 import '../../widgets/desktop_app_bar.dart';
 import '../../widgets/dialog_action_button.dart';
@@ -48,6 +49,7 @@ import '../../widgets/setting_tile.dart';
 import '../../widgets/settings_builder.dart';
 import '../../widgets/settings_section.dart';
 import '../../widgets/system_bottom_inset.dart';
+import '../../widgets/remote_shortcuts_dialog.dart';
 import '../../profiles/active_profile_provider.dart';
 import '../../profiles/profile.dart';
 import '../../watch_together/services/watch_party_relays.dart';
@@ -117,6 +119,7 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
   static const _kResetSettings = 'reset_settings';
   static const _kCheckForUpdates = 'check_for_updates';
   static const _kReleaseNotes = 'release_notes';
+  static const _kRemoteShortcuts = 'remote_shortcuts';
   static const _kAutoCheckUpdatesOnStartup = 'auto_check_updates_on_startup';
   static const _kAbout = 'about';
   static const _kWatchTogetherRelay = 'watch_together_relay';
@@ -672,6 +675,14 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
           subtitle: retrowaveReleaseNotesSubtitle,
           onTap: () => unawaited(showRetrowaveReleaseNotes(context)),
         ),
+        if (PlatformDetector.isTV())
+          SettingNavigationTile(
+            focusNode: _focusTracker.get(_kRemoteShortcuts),
+            icon: Symbols.settings_remote_rounded,
+            title: RetroStrings.remoteShortcuts,
+            subtitle: RetroStrings.remoteShortcutsSubtitle,
+            onTap: () => unawaited(showRemoteShortcuts(context)),
+          ),
         _buildAutoCheckUpdatesOnStartupTile(),
       ],
     );
