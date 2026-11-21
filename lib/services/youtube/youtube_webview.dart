@@ -133,6 +133,53 @@ class YouTubeWebView {
 
   static bool _signInOpen = false;
 
+  static Future<void> _historyChain = Future<void>.value();
+  static final Set<String> _historyDone = {};
+  static bool _backfillStarted = false;
+
+  /// Once per app run with the setting on: the videos watched in the app
+  /// before (at least 30 seconds) go into the YouTube history too, one
+  /// after another in the background.
+  static Future<void> backfillHistory() async {
+    if (!isSupported || _backfillStarted) return;
+    final settings = YouTubeSettings.instance;
+    await settings.load();
+    if (!settings.syncHistory) return;
+    _backfillStarted = true;
+    final backlog = await settings.historyBacklog();
+    if (backlog.isEmpty) return;
+    appLogger.i('YouTube history: adding ${backlog.length} earlier videos in the background');
+    for (final (id, position) in backlog) {
+      addToHistory(id, position);
+    }
+  }
+
+  /// Adds [videoId] to the signed-in account's YouTube history: YouTube does
+  /// not count plays in the embedded player, so the watch page is opened
+  /// once in a hidden, muted WebView on the player's profile, at
+  /// [position] seconds, and closed again after a few seconds. One video at
+  /// a time; skipped while the sign-in page is open.
+  static void addToHistory(String videoId, double position) {
+    if (!isSupported || videoId.isEmpty || !_historyDone.add(videoId)) return;
+    _historyChain = _historyChain.then((_) async {
+      if (_signInOpen || !YouTubeSettings.instance.syncHistory) return;
+      try {
+        final url = Uri.https('www.youtube.com', '/watch', {
+          'v': videoId,
+          if (position >= 1) 't': '${position.floor()}s',
+        });
+        await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
+        await Future<void>.delayed(const Duration(seconds: 15));
+        await YouTubeSettings.instance.markHistorySynced(videoId);
+        appLogger.d('YouTube history: watch page visited');
+      } catch (e) {
+        appLogger.d('YouTube history visit failed', error: e);
+      } finally {
+        if (!_signInOpen) await closeSignIn().catchError((_) {});
+      }
+    });
+  }
+
   /// Places the sign-in view, in physical pixels of the Flutter view.
   static Future<void> setSignInRect({required int left, required int top, required int right, required int bottom}) =>
       _channel.invokeMethod<void>('authRect', {'left': left, 'top': top, 'right': right, 'bottom': bottom});

@@ -69,6 +69,8 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kDeArrowTitles = 'youtube_dearrow_titles';
   static const _kDeArrowThumbs = 'youtube_dearrow_thumbnails';
   static const _kRyd = 'youtube_return_dislikes';
+  static const _kHistorySync = 'youtube_history_sync';
+  static const _kHistorySynced = 'youtube_history_synced';
   static const _kHiddenButtons = 'youtube_hidden_player_buttons';
   static const _kChannelStrip = 'youtube_show_channel_strip';
 
@@ -208,6 +210,32 @@ class YouTubeSettings extends ChangeNotifier {
   Future<void> setDeArrowTitles(bool v) => _setBool(_kDeArrowTitles, v);
   Future<void> setDeArrowThumbnails(bool v) => _setBool(_kDeArrowThumbs, v);
   Future<void> setReturnDislikes(bool v) => _setBool(_kRyd, v);
+
+  /// Adds watched videos to the account's YouTube history (a hidden visit
+  /// of the watch page, see YouTubeWebView.addToHistory). Off by default.
+  bool get syncHistory => _prefs?.getBool(_kHistorySync) ?? false;
+  Future<void> setSyncHistory(bool v) => _setBool(_kHistorySync, v);
+
+  /// Videos already added to the YouTube history (kept to the last 3000).
+  Set<String> get historySynced => (_prefs?.getStringList(_kHistorySynced) ?? const <String>[]).toSet();
+
+  Future<void> markHistorySynced(String videoId) async {
+    await load();
+    final list = [...(_prefs!.getStringList(_kHistorySynced) ?? const <String>[]).where((id) => id != videoId), videoId];
+    await _prefs!.setStringList(_kHistorySynced, list.length > 3000 ? list.sublist(list.length - 3000) : list);
+  }
+
+  /// Videos watched in the app for at least 30 seconds that are not in the
+  /// YouTube history yet, oldest first, with where to open them.
+  Future<List<(String, double)>> historyBacklog() async {
+    await load();
+    final synced = historySynced;
+    return [
+      for (final e in _progress.entries)
+        if (!synced.contains(e.key) && e.value[0] >= 30)
+          (e.key, e.value[1] > 10 && e.value[0] >= e.value[1] * 0.95 ? e.value[1] - 5 : e.value[0]),
+    ];
+  }
   Future<void> setNotifyFavorites(bool v) => _setBool(_kNotify, v);
 
   bool isHidden(String videoId) => _hiddenVideos.contains(videoId);

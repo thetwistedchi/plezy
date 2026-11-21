@@ -205,6 +205,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     if (_current == this) _current = null;
     final mini = _mini;
     if (mini != null) VideoMiniPlayer.instance.clear(mini);
+    _syncHistory();
     _saveProgress(flush: true);
     _sleepTimer?.cancel();
     _watchdog?.cancel();
@@ -898,6 +899,15 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     }
   }
 
+  /// With the setting on, the video goes into the account's YouTube history
+  /// once it was watched for at least 30 seconds (or to the end).
+  void _syncHistory({bool ended = false}) {
+    if (!_settings.syncHistory) return;
+    if (!ended && _position < 30) return;
+    final position = ended && _duration > 10 ? _duration - 5 : _position;
+    YouTubeWebView.addToHistory(_video.id, position);
+  }
+
   /// Remembers where the current video is, so it resumes there next time.
   void _saveProgress({bool flush = false}) {
     if (_duration <= 0 || _position <= 0) return;
@@ -907,6 +917,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   void _playIndex(int index) {
     if (index < 0 || index >= _queue.length) return;
+    _syncHistory();
     _saveProgress(flush: true);
     setState(() {
       _index = index;
@@ -994,6 +1005,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       return;
     }
     if (_duration > 0) unawaited(_settings.saveProgress(_video.id, _duration, _duration));
+    _syncHistory(ended: true);
     unawaited(YouTubeWatchlist.instance.remove(_video.id));
     if (_index < _queue.length - 1) {
       _playIndex(_index + 1);

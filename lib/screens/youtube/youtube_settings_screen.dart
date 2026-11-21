@@ -486,6 +486,16 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                                 ],
                               ),
                             ),
+                            SwitchListTile(
+                              title: Text(YtStrings.historySync),
+                              subtitle: Text(YtStrings.historySyncSub),
+                              isThreeLine: true,
+                              value: _settings.syncHistory,
+                              onChanged: (v) async {
+                                await _settings.setSyncHistory(v);
+                                if (v) unawaited(YouTubeWebView.backfillHistory());
+                              },
+                            ),
                             ListTile(
                               leading: AppIcon(Symbols.storage_rounded, color: mono.textMuted),
                               title: Text(YtStrings.cacheLimit),

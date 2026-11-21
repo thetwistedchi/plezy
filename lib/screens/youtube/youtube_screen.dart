@@ -11,6 +11,7 @@ import '../../services/youtube/youtube_extras.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../services/youtube/youtube_watchlist.dart';
+import '../../services/youtube/youtube_webview.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
@@ -54,7 +55,10 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     YouTubeChannels.instance.addListener(_onSettingsChanged);
     YouTubeChannelGroups.instance.addListener(_onGroupsChanged);
     unawaited(
-      Future.wait([_settings.load(), YouTubeChannels.instance.load()]).then((_) => _onSettingsChanged()),
+      Future.wait([_settings.load(), YouTubeChannels.instance.load()]).then((_) {
+        _onSettingsChanged();
+        unawaited(YouTubeWebView.backfillHistory());
+      }),
     );
     unawaited(_watchlist.load());
     YouTubeNotifier.onOpen = (video) {

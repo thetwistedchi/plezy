@@ -158,6 +158,34 @@ void YouTubeWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     });
     return;
   }
+  if (method == "authVisit") {
+    // YouTube history: the watch page in a hidden, muted view that takes
+    // no input, beneath the Flutter UI. Dart closes it (authClose) later.
+    if (auth_webview_) {
+      result->Success();
+      return;
+    }
+    const std::string url = GetString(args, "url").value_or("");
+    auto shared = std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
+    flutter::EncodableMap visit = args;
+    visit[flutter::EncodableValue("interactive")] = flutter::EncodableValue(false);
+    AuthCreate(visit, true, [this, shared, url](bool ok, const std::string& error) {
+      if (!ok) {
+        shared->Error("INIT_FAILED", error);
+        return;
+      }
+      if (auth_host_) ::SetWindowPos(auth_host_, HWND_BOTTOM, 0, 0, 640, 360, SWP_NOACTIVATE);
+      if (auth_controller_) {
+        RECT bounds{0, 0, 640, 360};
+        auth_controller_->put_Bounds(bounds);
+      }
+      ComPtr<ICoreWebView2_8> webview8;
+      if (auth_webview_ && SUCCEEDED(auth_webview_.As(&webview8))) webview8->put_IsMuted(TRUE);
+      if (auth_webview_ && !url.empty()) auth_webview_->Navigate(ToWide(url).c_str());
+      shared->Success();
+    });
+    return;
+  }
   if (method == "authRect") {
     if (auth_host_) {
       const int left = GetInt(args, "left");
@@ -431,8 +459,11 @@ void YouTubeWebPlugin::AuthCreate(const flutter::EncodableMap& args, bool visibl
   const std::wstring arguments = ToWide(GetString(args, "arguments").value_or(""));
 
   // Not WS_DISABLED like the player's host: the sign-in page takes input.
+  // The hidden history visit (authVisit) takes none.
+  const bool interactive = GetBool(args, "interactive", true);
   const HWND view = registrar_->GetView()->GetNativeWindow();
-  auth_host_ = ::CreateWindowExW(WS_EX_NOPARENTNOTIFY, L"STATIC", L"", WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+  auth_host_ = ::CreateWindowExW(WS_EX_NOPARENTNOTIFY, L"STATIC", L"",
+                                 WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | (interactive ? 0 : WS_DISABLED),
                                  0, 0, 16, 16, view, nullptr, ::GetModuleHandle(nullptr), nullptr);
   if (!auth_host_) {
     ready(false, "Could not create the host window");
