@@ -743,6 +743,21 @@ if('value' in e){try{const s=e.selectionStart??e.value.length,n=e.selectionEnd??
 catch(_){e.value+=t;}e.dispatchEvent(new InputEvent('input',{bubbles:true,data:t,inputType:'insertText'}));
 e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
 
+  /**
+   * The phone's D-pad: the same key presses as the TV remote, through the
+   * activity, so they move between the app's buttons and the page alike.
+   */
+  private fun remoteDpad(keyCode: Int) {
+    val activity = activity ?: return
+    val now = android.os.SystemClock.uptimeMillis()
+    fun key(action: Int, time: Long) = android.view.KeyEvent(
+      now, time, action, keyCode, 0, 0, android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+      android.view.KeyEvent.FLAG_FROM_SYSTEM, android.view.InputDevice.SOURCE_DPAD,
+    )
+    activity.dispatchKeyEvent(key(android.view.KeyEvent.ACTION_DOWN, now))
+    main.postDelayed({ activity.dispatchKeyEvent(key(android.view.KeyEvent.ACTION_UP, now + 60)) }, 60)
+  }
+
   private fun onRemote(events: org.json.JSONArray) {
     val tab = tabs[activeId]
     for (i in 0 until events.length()) {
@@ -760,7 +775,7 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
             "right" -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
             else -> android.view.KeyEvent.KEYCODE_DPAD_CENTER
           }
-          page?.remoteKey(code)
+          remoteDpad(code)
         }
         "back" -> if (web?.canGoBack() == true) web.goBack()
         "nav" -> when (e.optString("v")) {
