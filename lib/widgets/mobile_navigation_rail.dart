@@ -28,6 +28,7 @@ class MobileNavigationRail extends StatelessWidget {
     this.minWidth,
     this.groupAlignment = 0,
     this.backgroundColor,
+    this.extra,
   });
 
   final List<NavigationTab> tabs;
@@ -46,6 +47,10 @@ class MobileNavigationRail extends StatelessWidget {
   /// Where the destinations sit vertically: -1 top, 0 centre, 1 bottom.
   final double groupAlignment;
   final Color? backgroundColor;
+
+  /// Fork: one more destination after the tabs that opens a page of its own
+  /// (the browser) and is never the selected one.
+  final ({IconData icon, String label, VoidCallback onTap})? extra;
 
   /// Material 3 rail indicator size; the long-press target matches it so the
   /// hold works anywhere on the visible pill, not only on the glyph.
@@ -91,23 +96,30 @@ class MobileNavigationRail extends StatelessWidget {
         // The rail's own SafeArea takes the vertical insets out of the space.
         final usableHeight = height - MediaQuery.paddingOf(context).vertical;
         final labelled =
-            showLabels && labelsFit(destinations: tabs.length, hasLeading: isOffline, height: usableHeight);
+            showLabels && labelsFit(destinations: tabs.length + (extra == null ? 0 : 1), hasLeading: isOffline, height: usableHeight);
         Widget rail = NavigationRail(
           selectedIndex: selectedIndex >= 0 ? selectedIndex : null,
-          onDestinationSelected: (index) => onDestinationSelected(tabs[index].id),
+          onDestinationSelected: (index) => index < tabs.length ? onDestinationSelected(tabs[index].id) : extra?.onTap(),
           labelType: labelled ? NavigationRailLabelType.all : NavigationRailLabelType.none,
           groupAlignment: groupAlignment,
           minWidth: minWidth,
           backgroundColor: backgroundColor,
           leading: isOffline ? _reconnectAction(context) : null,
-          destinations: [for (final tab in tabs) _destination(context, tab)],
+          destinations: [
+            for (final tab in tabs) _destination(context, tab),
+            if (extra case final e?)
+              NavigationRailDestination(
+                icon: AppIcon.retro(e.icon, fill: 1),
+                label: Text(e.label, maxLines: 1, softWrap: false, overflow: TextOverflow.ellipsis),
+              ),
+          ],
         );
         if (labelled) {
           // Like the bottom bar: shrink labels just enough to keep each on
           // one line in the rail's destination width (iPhone Duo's 84pt
           // vertical bar would otherwise break "Downloads" in two).
           rail = NavigationLabelScale(
-            labels: [for (final tab in tabs) tab.getLabel()],
+            labels: [for (final tab in tabs) tab.getLabel(), ?extra?.label],
             labelWidth: (minWidth ?? _defaultRailWidth) - _destinationHorizontalPadding,
             style: _labelStyle(context),
             child: rail,

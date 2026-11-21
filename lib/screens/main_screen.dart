@@ -2295,6 +2295,7 @@ class _MainScreenState extends State<MainScreen>
               isOffline: _isOffline,
               isReconnecting: _isReconnecting,
               onReconnect: _triggerReconnect,
+              extra: _browserRailEntry(context),
               minWidth: barWidth,
               // Bottom of the bar, within reach of the thumb.
               groupAlignment: 1,
@@ -2310,6 +2311,12 @@ class _MainScreenState extends State<MainScreen>
   /// Mobile landscape: the bottom bar's destinations on a leading rail, the
   /// content beside it. The rail absorbs the leading system inset itself, so
   /// the content must not indent for it a second time.
+  /// Fork: the browser on the landscape rail, as on the bottom bar.
+  ({IconData icon, String label, VoidCallback onTap})? _browserRailEntry(BuildContext context) =>
+      BrowserNative.isSupported && !_isOffline
+      ? (icon: Symbols.public_rounded, label: RetroStrings.browserNav, onTap: () => unawaited(BrowserScreen.open(context)))
+      : null;
+
   Widget _buildLandscapeShell(BuildContext context) {
     return Scaffold(
       body: Builder(
@@ -2331,6 +2338,7 @@ class _MainScreenState extends State<MainScreen>
                     isOffline: _isOffline,
                     isReconnecting: _isReconnecting,
                     onReconnect: _triggerReconnect,
+                    extra: _browserRailEntry(context),
                   );
                 },
               ),
