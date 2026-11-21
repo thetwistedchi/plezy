@@ -64,11 +64,24 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 
 ## Known limitations
 
-- Windows is the main platform. Android gets less testing; macOS is experimental.
-- Letterboxd and parts of the YouTube player use unofficial interfaces and can break when those sites change.
-- Free on plex.tv shows Plex's ads and plays in Plex Web, not in the app's own player.
-- Building needs the Rust toolchain for the browser's ad blocker; for Android also `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
-- SponsorBlock and DeArrow data: [sponsor.ajay.app](https://sponsor.ajay.app) (CC BY-NC-SA 4.0). Dislike estimates: [Return YouTube Dislike](https://returnyoutubedislike.com).
+- Windows is the main platform. Android gets less testing, and the macOS build is experimental (no YouTube tab, no browser).
+- The YouTube tab is Windows only.
+- The browser on Android is a beta: downloads can't be paused, websites get no camera, microphone or location access, and private tabs need a recent Android System WebView.
+- Free on plex.tv plays in Plex Web with Plex's ads, not in the app's own player.
+- Letterboxd scores and parts of the YouTube player rely on unofficial interfaces and can stop working when those sites change.
+- The builds are not code-signed, so Windows and macOS warn on first launch (see Download).
+
+## Building
+
+Building needs the Rust toolchain (rustup) for the browser's ad blocker; for Android also its targets:
+
+```
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+```
+
+## Credits
+
+SponsorBlock and DeArrow data from [sponsor.ajay.app](https://sponsor.ajay.app) (CC BY-NC-SA 4.0), dislike estimates from [Return YouTube Dislike](https://returnyoutubedislike.com), ad blocking by Brave's [adblock-rust](https://github.com/brave/adblock-rust) with [uBlock Origin](https://github.com/uBlockOrigin/uAssets)'s filter lists.
 
 ---
 
