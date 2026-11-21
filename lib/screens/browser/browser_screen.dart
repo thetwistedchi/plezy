@@ -16,6 +16,7 @@ import '../../services/browser/browser_history.dart';
 import '../../services/browser/browser_native.dart';
 import '../../services/browser/browser_settings.dart';
 import '../../theme/mono_tokens.dart';
+import '../../utils/app_logger.dart';
 import '../../theme/page_backdrop.dart';
 import '../../theme/retrowave_colors.dart';
 import '../../widgets/app_icon.dart';
@@ -99,6 +100,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _subs.add(
       _controller.pageLeft.listen((_) {
         final first = _toolbarFocus.traversalDescendants.where((n) => n.canRequestFocus).firstOrNull;
+        appLogger.d('Browser: back to the toolbar (${first?.debugLabel ?? 'no button'})');
         (first ?? _keys).requestFocus();
       }),
     );

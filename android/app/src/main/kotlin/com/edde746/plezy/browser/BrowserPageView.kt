@@ -71,7 +71,8 @@ internal class BrowserPageView(
   }
 
   fun focusPage() {
-    requestFocus()
+    val ok = requestFocus()
+    android.util.Log.d("PlezyBrowser", "page focus requested: $ok")
     if (!tv) current?.requestFocus()
   }
 
@@ -105,6 +106,9 @@ internal class BrowserPageView(
   }
 
   override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+      android.util.Log.d("PlezyBrowser", "page key ${event.keyCode} (page shown: ${current != null})")
+    }
     val web = current
     if (!tv || web == null) return super.dispatchKeyEvent(event)
     val step = { if (event.repeatCount > 0) (24f + repeat * 4f).coerceAtMost(72f) else 24f }
@@ -139,6 +143,7 @@ internal class BrowserPageView(
     // At an edge the page scrolls under the pointer instead.
     if (ny < margin && dy < 0) {
       if (!web.canScrollVertically(-1)) {
+        android.util.Log.d("PlezyBrowser", "pointer left the page at the top")
         plugin.onLeavePage(this)
         return
       }
