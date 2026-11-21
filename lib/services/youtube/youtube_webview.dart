@@ -103,22 +103,44 @@ class YouTubeWebView {
   }
 
   /// Clears the player's browser cache and keeps the YouTube sign-in.
-  static Future<void> clearCache() async =>
-      _channel.invokeMethod<void>('authRun', {...await _profileArgs(), 'action': 'clearCache'});
+  static Future<void> clearCache() => _authRun('clearCache');
 
   /// Removes the player's YouTube cookies (signs out).
-  static Future<void> clearCookies() async =>
-      _channel.invokeMethod<void>('authRun', {...await _profileArgs(), 'action': 'clearCookies'});
+  static Future<void> clearCookies() => _authRun('clearCookies');
+
+  /// Runs [action] on the sign-in view, or on a hidden one opened for it and
+  /// closed afterwards (the native side says which).
+  static Future<void> _authRun(String action) async {
+    final bool? temporary;
+    try {
+      temporary = await _channel.invokeMethod<bool>('authRun', {...await _profileArgs(), 'action': action});
+    } catch (_) {
+      if (!_signInOpen) await closeSignIn().catchError((_) {});
+      rethrow;
+    }
+    if (temporary == true && !_signInOpen) {
+      // Outside the WebView's callback, so closing it is safe.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await closeSignIn();
+    }
+  }
 
   /// Opens the interactive sign-in view on the player's profile at [url].
-  static Future<void> openSignIn(Uri url) async =>
-      _channel.invokeMethod<void>('authOpen', {...await _profileArgs(), 'url': url.toString()});
+  static Future<void> openSignIn(Uri url) async {
+    _signInOpen = true;
+    await _channel.invokeMethod<void>('authOpen', {...await _profileArgs(), 'url': url.toString()});
+  }
+
+  static bool _signInOpen = false;
 
   /// Places the sign-in view, in physical pixels of the Flutter view.
   static Future<void> setSignInRect({required int left, required int top, required int right, required int bottom}) =>
       _channel.invokeMethod<void>('authRect', {'left': left, 'top': top, 'right': right, 'bottom': bottom});
 
-  static Future<void> closeSignIn() => _channel.invokeMethod<void>('authClose');
+  static Future<void> closeSignIn() {
+    _signInOpen = false;
+    return _channel.invokeMethod<void>('authClose');
+  }
 
   static Uri playerUrl(String videoId, {double start = 0, String language = 'en'}) =>
       Uri.https(host, '/player.html', {

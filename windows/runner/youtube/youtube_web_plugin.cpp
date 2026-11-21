@@ -185,10 +185,13 @@ void YouTubeWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     const std::string action = GetString(args, "action").value_or("");
     auto shared = std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
     auto run = [this, shared, action](bool temporary) {
-      AuthRun(action, [this, shared, temporary](bool ok) {
-        if (temporary) AuthClose();
+      if (temporary && auth_host_) ::ShowWindow(auth_host_, SW_HIDE);
+      // Closing the view inside the WebView's own completion callback
+      // crashed the app; Dart closes a temporary view afterwards (authClose)
+      // when told so by the result.
+      AuthRun(action, [shared, temporary](bool ok) {
         if (ok) {
-          shared->Success();
+          shared->Success(flutter::EncodableValue(temporary));
         } else {
           shared->Error("FAILED", "The action failed");
         }
