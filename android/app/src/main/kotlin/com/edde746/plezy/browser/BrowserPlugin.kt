@@ -64,16 +64,8 @@ import org.json.JSONObject
  */
 class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
   companion object {
-    // Plex Web's play/pause button: its centre in view pixels, "hidden"
-    // while the controls are hidden, or "none".
     // Plex's main video: the largest one (others are previews or ads).
     private const val PLEX_VIDEO = "[...document.querySelectorAll('video')].sort((a,b)=>b.clientWidth*b.clientHeight-a.clientWidth*a.clientHeight)[0]"
-    // What is at the button's place and what the player is doing (XX, YY: view pixels).
-    private const val PLEX_DIAG = "(()=>{try{const d=devicePixelRatio;const e=document.elementFromPoint(XX/d,YY/d);" +
-      "const n=x=>x?(x.tagName+'#'+(x.getAttribute('data-testid')||'')+'['+(x.getAttribute('aria-label')||'')+']'+(x.disabled?'disabled':'')):'none';" +
-      "const vs=[...document.querySelectorAll('video')];const v=$PLEX_VIDEO;" +
-      "const ad=document.querySelector('[class*=\"Ad\"],[data-testid*=\"ad\" i]');" +
-      "return 'at:'+n(e)+' parent:'+n(e&&e.closest('button'))+' videos:'+vs.length+' t:'+(v?v.currentTime.toFixed(1):'-')+' ad:'+(ad?ad.className.toString().slice(0,40):'no');}catch(x){return ''+x;}})()"
     // The player's control buttons (lower part of the screen, visible), in
     // rows from left to right; ACTION: open, prev, next, press or close.
     private const val PLEX_CONTROLS = "(a=>{const W=window;" +
@@ -120,13 +112,6 @@ class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
       "W.__pzDlg=e;e.style.outline='3px solid #ec4899';e.style.outlineOffset='-3px';try{e.focus({preventScroll:true});}catch(_){}" +
       "return 'dialog '+name;})('ACTION')"
     private const val PLEX_PAUSED = "(()=>{const v=$PLEX_VIDEO;return v?v.paused:null;})()"
-    private const val PLEX_BUTTON = "(()=>{const q=s=>document.querySelector(s);" +
-      "const b=q('[data-testid=\"pauseButton\"]')||q('[data-testid=\"resumeButton\"]')||" +
-      "q('button[aria-label=\"Pause\"]')||q('button[aria-label=\"Pausieren\"]')||q('button[aria-label=\"Play\"]')||q('button[aria-label=\"Wiedergabe\"]');" +
-      "if(!b)return 'hidden none';const r=b.getBoundingClientRect();const st=getComputedStyle(b);let o=1;for(let e=b;e;e=e.parentElement)o*=+getComputedStyle(e).opacity;" +
-      "if(r.width<2||r.height<2||st.visibility==='hidden'||o<0.2||r.bottom<0||r.top>innerHeight)return 'hidden';" +
-      "const d=devicePixelRatio;return Math.round((r.left+r.width/2)*d)+','+Math.round((r.top+r.height/2)*d);})()"
-
     private const val TAG = "PlezyBrowser"
     private const val CHANNEL = "com.plezy.retrowave/browser"
     const val VIEW_TYPE = "plezy/browser_page"
@@ -1263,7 +1248,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     // Plex Web keeps its own player state (it starts a paused video again):
     // its Space shortcut pauses and plays.
     if (command is String && command != "none" && (web.url ?: "").startsWith("https://app.plex.tv/")) {
-      plexSpace(web)
+      plexPlayPause(web)
       return true
     }
     val message = when (command) {
@@ -1365,6 +1350,36 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     main.postDelayed(plexControlsIdle, 6000)
   }
 
+  /**
+   * Play/Pause for Plex Web: its own play/pause button, selected and pressed
+   * like a keyboard does (Plex ignores clicks and keys sent to the page).
+   */
+  private fun plexPlayPause(web: WebView) {
+    hoverWeb(web, web.width / 2f, web.height / 2f)
+    main.postDelayed({
+      if (!web.isAttachedToWindow) return@postDelayed
+      // Play/pause, whichever button was selected before.
+      web.evaluateJavascript(plexControlScript("close"), null)
+      web.evaluateJavascript(plexControlScript("open")) { opened ->
+        if (!opened.contains("ause") && !opened.contains("esume") && !opened.contains("lay")) {
+          Log.i(TAG, "Plex play/pause: no button ($opened)")
+          plexSpaceKey(web)
+          return@evaluateJavascript
+        }
+        web.evaluateJavascript(plexControlScript("press")) { result ->
+          if (!result.contains("focused")) return@evaluateJavascript
+          if (!web.hasFocus()) web.requestFocus()
+          val now = android.os.SystemClock.uptimeMillis()
+          web.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_ENTER, 0))
+          web.dispatchKeyEvent(android.view.KeyEvent(now, now + 40, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_ENTER, 0))
+          // Only the outline goes; Plex hides its controls by itself.
+          if (!plexControls) web.evaluateJavascript(plexControlScript("close"), null)
+          Log.i(TAG, "Plex play/pause: $result")
+        }
+      }
+    }, 300)
+  }
+
   /** OK on the player page: pauses once a video is there, else presses what Plex selected. */
   private fun plexOkDefault(web: WebView, event: android.view.KeyEvent) {
     val down = android.view.KeyEvent(event)
@@ -1373,69 +1388,12 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       if (!web.isAttachedToWindow) {
         // closed meanwhile
       } else if (has == "true") {
-        plexSpace(web)
+        // Like Up: Plex's controls, play/pause selected.
+        plexControlStep(web, android.view.KeyEvent.KEYCODE_DPAD_UP)
       } else {
         if (!web.hasFocus()) web.requestFocus()
         web.dispatchKeyEvent(down)
         web.dispatchKeyEvent(android.view.KeyEvent.changeAction(down, android.view.KeyEvent.ACTION_UP))
-      }
-    }
-  }
-
-  /**
-   * Pause and play in Plex Web with real taps, as a finger would: its own
-   * play/pause button (Plex keeps its own player state and ignores scripted
-   * clicks). With its controls hidden, a first tap shows them. Falls back
-   * to its Space shortcut.
-   */
-  private fun plexSpace(web: WebView, attempt: Int = 0) {
-    // The page may have closed meanwhile (delayed steps).
-    if (!web.isAttachedToWindow) return
-    web.evaluateJavascript(PLEX_BUTTON) { result ->
-      if (!web.isAttachedToWindow) return@evaluateJavascript
-      Log.i(TAG, "Plex play/pause: $result")
-      val parts = result.trim('"').split(',')
-      val x = parts.getOrNull(0)?.toFloatOrNull()
-      val y = parts.getOrNull(1)?.toFloatOrNull()
-      when {
-        x != null && y != null -> web.evaluateJavascript(PLEX_DIAG.replace("XX", "$x").replace("YY", "$y")) { diag ->
-          Log.i(TAG, "Plex player: $diag")
-          web.evaluateJavascript(PLEX_PAUSED) { before ->
-            tapWeb(web, x, y)
-            main.postDelayed({
-              if (!web.isAttachedToWindow) return@postDelayed
-              web.evaluateJavascript(PLEX_PAUSED) { after ->
-                Log.i(TAG, "Plex button click: paused $before -> $after")
-                if (before == after) {
-                  // Not taken: Plex's Space shortcut instead.
-                  plexSpaceKey(web)
-                  main.postDelayed({
-                    if (web.isAttachedToWindow) web.evaluateJavascript(PLEX_PAUSED) { k -> Log.i(TAG, "Plex Space: paused $after -> $k") }
-                  }, 500)
-                }
-              }
-            }, 500)
-          }
-        }
-        result.contains("hidden") && attempt == 0 -> {
-          // A mouse moving over the player shows its controls without
-          // touching the video (a tap there pauses or plays by itself).
-          hoverWeb(web, web.width / 2f, web.height / 2f)
-          main.postDelayed({ plexSpace(web, 1) }, 350)
-        }
-        result.contains("hidden") && attempt == 1 -> {
-          // The tap that shows them may already pause or play: done then.
-          web.evaluateJavascript(PLEX_PAUSED) { before ->
-            tapWeb(web, web.width / 2f, web.height / 2f)
-            main.postDelayed({
-              if (web.isAttachedToWindow) web.evaluateJavascript(PLEX_PAUSED) { after ->
-                Log.i(TAG, "Plex tap in the middle: paused $before -> $after")
-                if (before == after) plexSpace(web, 2)
-              }
-            }, 450)
-          }
-        }
-        else -> plexSpaceKey(web)
       }
     }
   }
@@ -1448,34 +1406,6 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       val e = android.view.MotionEvent.obtain(now, now + i * 30L, action, x + i * 12f, y + i * 8f, 0)
       e.source = android.view.InputDevice.SOURCE_MOUSE
       web.dispatchGenericMotionEvent(e)
-      e.recycle()
-    }
-  }
-
-  /**
-   * A mouse click at [x], [y]: one click event in the page. A touch tap gave
-   * Plex both its touch and its click handling, which paused and played
-   * again at once.
-   */
-  private fun tapWeb(web: WebView, x: Float, y: Float) {
-    if (!web.isAttachedToWindow) return
-    val now = android.os.SystemClock.uptimeMillis()
-    val props = arrayOf(android.view.MotionEvent.PointerProperties().apply {
-      id = 0
-      toolType = android.view.MotionEvent.TOOL_TYPE_MOUSE
-    })
-    val coords = arrayOf(android.view.MotionEvent.PointerCoords().apply {
-      this.x = x
-      this.y = y
-      pressure = 1f
-      size = 1f
-    })
-    for ((action, time) in listOf(android.view.MotionEvent.ACTION_DOWN to now, android.view.MotionEvent.ACTION_UP to now + 60)) {
-      val buttons = if (action == android.view.MotionEvent.ACTION_DOWN) android.view.MotionEvent.BUTTON_PRIMARY else 0
-      val e = android.view.MotionEvent.obtain(
-        now, time, action, 1, props, coords, 0, buttons, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_MOUSE, 0,
-      )
-      web.dispatchTouchEvent(e)
       e.recycle()
     }
   }
