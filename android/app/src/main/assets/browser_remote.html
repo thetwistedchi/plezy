@@ -29,6 +29,9 @@
   input:focus { outline:none; border-color:var(--accent); }
   #msg { color:#fca5a5; font-size:13px; min-height:0; }
   form.row input { flex:1; min-width:0; }
+  #bar { position:absolute; top:10px; bottom:10px; right:0; width:34px; touch-action:none; }
+  #bar i { position:absolute; top:0; bottom:0; right:10px; width:3px; border-radius:2px; background:var(--line); }
+  #bar.on i { background:var(--accent); }
   #dpad { flex:none; display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; width:min(100%, 280px); margin:0 auto; }
   #dpad button { min-height:50px; font-size:18px; }
   button.small { flex:none; min-width:64px; }
@@ -55,7 +58,7 @@
   <button data-nav="forward">Forward ▶</button>
   <button data-nav="reload">⟳ Reload</button>
 </div>
-<div id="pad"><span id="hint">Move: one finger · Click: tap · Scroll: two fingers</span></div>
+<div id="pad"><span id="hint">Move: one finger · Click: tap · Scroll: two fingers or the bar on the right</span><div id="bar"><i></i></div></div>
 <div id="dpad">
   <span></span><button data-dpad="up">▲</button><span></span>
   <button data-dpad="left">◀</button><button data-dpad="ok" class="accent">OK</button><button data-dpad="right">▶</button>
@@ -67,8 +70,27 @@
   var de = (navigator.language || '').toLowerCase().indexOf('de') === 0;
   if (de) {
     var t = { back:'◀ Zurück', forward:'Vor ▶', reload:'⟳ Neu laden' };
-    document.querySelectorAll('[data-nav]').forEach(function (b) { b.textContent = t[b.dataset.nav]; });
-    document.getElementById('hint').textContent = 'Bewegen: ein Finger · Klicken: tippen · Scrollen: zwei Finger';
+    // The bar on the right: one finger along it scrolls the page.
+  var bar = document.getElementById('bar');
+  var barY = null;
+  bar.addEventListener('pointerdown', function (e) {
+    e.stopPropagation();
+    bar.setPointerCapture(e.pointerId);
+    barY = e.clientY;
+    bar.className = 'on';
+  });
+  bar.addEventListener('pointermove', function (e) {
+    e.stopPropagation();
+    if (barY === null) return;
+    sy += (e.clientY - barY) * 1.5;
+    barY = e.clientY;
+  });
+  function barUp(e) { e.stopPropagation(); barY = null; bar.className = ''; }
+  bar.addEventListener('pointerup', barUp);
+  bar.addEventListener('pointercancel', barUp);
+
+  document.querySelectorAll('[data-nav]').forEach(function (b) { b.textContent = t[b.dataset.nav]; });
+    document.getElementById('hint').textContent = 'Bewegen: ein Finger · Klicken: tippen · Scrollen: zwei Finger oder die Leiste rechts';
     document.getElementById('address').placeholder = 'Adresse oder Suche';
     document.getElementById('text').placeholder = 'In das gewählte Feld tippen';
     document.getElementById('type').textContent = 'Tippen';
