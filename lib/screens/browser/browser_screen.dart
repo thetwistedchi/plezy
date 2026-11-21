@@ -1406,7 +1406,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
           Tooltip(
             message: RetroStrings.leaveBrowser,
             child: TextButton.icon(
-              onPressed: () => Navigator.of(context).maybePop(),
+              // Straight out of the browser; Back (maybePop) goes back in the tab first.
+              onPressed: () => Navigator.of(context).pop(),
               icon: const BrowserIcon(Symbols.home_rounded, size: 20),
               label: Text(RetroStrings.home, style: TextStyle(color: t.text)),
               style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
