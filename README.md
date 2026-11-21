@@ -6,7 +6,7 @@
 > [!WARNING]
 > **Disclaimer:** This fork is 100% vibecoded (written entirely with AI assistance) and is intended only for my personal use and preferences. It comes with no support, no guarantees and no promise of stability. Use it at your own risk; for a maintained client, use the original [Plezy](https://github.com/edde746/plezy).
 
-A fork of [Plezy](https://github.com/edde746/plezy) for Windows and Android / Android TV with a retrowave look, ratings from every major site, Plex's free catalog, a YouTube tab and a built-in browser. Everything Plezy does still works; this fork only adds to it.
+An unofficial fork of [Plezy](https://github.com/edde746/plezy) for Windows and Android / Android TV. It keeps everything Plezy does and adds a retrowave look, ratings from the major movie sites, Plex's free movies and shows, a YouTube tab and a built-in browser.
 
 Current version: **1.0.1**. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
 
@@ -27,42 +27,47 @@ The builds are not code-signed:
 - **macOS:** move the app to Applications and open it once, then **System Settings > Privacy & Security > Open Anyway**.
 - **Android:** install by sideloading, e.g. `adb install plezy-retrowave-arm64.apk`.
 
-The app updates itself from this page (Windows installer and Android in place).
+Plezy Retrowave installs as its own app, next to an existing Plezy.
 
-## Main features
+## What is different from Plezy
 
 **Look**
-- **Retrowave theme**: night purple, violet, magenta and cyan, with AI-generated outrun-style icons and app icon. Other themes still work.
+- A **Retrowave** theme (night purple, violet, magenta and cyan) as the default, with AI-generated outrun-style icons and app icon. Plezy's other themes are still available.
 
-**Ratings and details**
-- **Ratings & links** on every movie and show: Letterboxd, Trakt, IMDb, Rotten Tomatoes, TMDB, Metacritic, MyAnimeList, plus a **rating median** on posters.
-- Quality, HDR and audio language pills on posters, a hover preview on desktop, studio, producer and director on the details page.
+**Details and ratings**
+- A **Ratings & links** row on every movie and show (Letterboxd, Trakt, IMDb, Rotten Tomatoes, TMDB, Metacritic, MyAnimeList) and a **rating median** on posters.
+- Quality, HDR and audio language pills on posters, studio, producer and director on the details page, a larger **Play** button, and on desktop a poster preview on hover.
 
 **Libraries and Home**
-- Quick filters, saved filter sets, **Surprise me**, a library search box, a startup library and **hide watched** per Home row.
+- Quick filters, saved filter sets, **Surprise me**, a search box per library, a startup library, and **Hide watched** per Home row.
 
 **Player**
-- Play from start, trailers, tracks and zoom remembered per title, a 4K / HDR badge, letterbox cropping and a neon **Skip intro / credits**.
+- **Play from start** next to Resume, trailers in the player, audio, subtitles and zoom remembered per title, a 4K / HDR badge, cropping of black bars and a neon **Skip intro / credits** button.
 
 **Free on plex.tv**
-- **Free on plex.tv**: Plex's free, ad-supported movies and shows with search, your watchlist, continue watching and a season / episode list. Plays in Plex Web, on Android full screen with remote control.
+- Plex's free, ad-supported movies and shows as their own section, with search, the Plex watchlist, continue watching and a season and episode list. Titles play in Plex Web.
 
-**Browser** (Windows; Android beta)
+**Browser** (Windows; Android as a beta)
 - Tabs, bookmarks, private tabs, a pop-up blocker, HTTPS upgrades, tracking prevention, Dark Reader and an ad blocker (Brave's adblock-rust with uBlock Origin's lists).
-- On TVs: remote navigation, an optional pointer and the **phone as remote** (QR code).
 
-**YouTube** (Windows)
-- A tab with the newest videos of the channels you follow (no account needed, optional Google sign-in), played with retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist and Return YouTube Dislike. YouTube Premium works through the player sign-in. **How it works** in the tab explains the setup.
+**YouTube** (Windows only)
+- A tab with the newest videos of the channels you follow, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
 
-**TV**
-- Full remote control, holding Back goes home, and **Remote shortcuts** under Settings lists every button.
+**Android and Android TV**
+- Free on plex.tv plays full screen in the app, controlled with the remote.
+- The browser works with the remote: it selects links and buttons, offers an optional pointer, and a phone can be used as remote through a QR code.
+- Holding Back goes to the home screen, and **Remote shortcuts** under Settings lists what each button does.
+- No YouTube tab.
+
+**Updates**
+- The app checks this fork's releases and updates itself (Windows installer and Android in place, the portable build opens the download page). After an update it shows what is new.
 
 ## Known limitations
 
-- Windows is the main platform; Android gets less testing, macOS is experimental.
+- Windows is the main platform. Android gets less testing; macOS is experimental.
 - Letterboxd and parts of the YouTube player use unofficial interfaces and can break when those sites change.
-- Free on plex.tv shows ads; its player only works in a browser.
-- Building needs the Rust toolchain for the browser's ad blocker, for Android also `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
+- Free on plex.tv shows Plex's ads and plays in Plex Web, not in the app's own player.
+- Building needs the Rust toolchain for the browser's ad blocker; for Android also `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
 - SponsorBlock and DeArrow data: [sponsor.ajay.app](https://sponsor.ajay.app) (CC BY-NC-SA 4.0). Dislike estimates: [Return YouTube Dislike](https://returnyoutubedislike.com).
 
 ---
