@@ -66,7 +66,9 @@ class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
   companion object {
     // Plex Web's play/pause button: its centre in view pixels, "hidden"
     // while the controls are hidden, or "none".
-    private const val PLEX_PAUSED = "(()=>{const v=document.querySelector('video');return v?v.paused:null;})()"
+    // Plex's main video: the largest one (others are previews or ads).
+    private const val PLEX_VIDEO = "[...document.querySelectorAll('video')].sort((a,b)=>b.clientWidth*b.clientHeight-a.clientWidth*a.clientHeight)[0]"
+    private const val PLEX_PAUSED = "(()=>{const v=$PLEX_VIDEO;return v?v.paused:null;})()"
     private const val PLEX_BUTTON = "(()=>{const q=s=>document.querySelector(s);" +
       "const b=q('[data-testid=\"pauseButton\"]')||q('[data-testid=\"resumeButton\"]')||" +
       "q('button[aria-label=\"Pause\"]')||q('button[aria-label=\"Pausieren\"]')||q('button[aria-label=\"Play\"]')||q('button[aria-label=\"Wiedergabe\"]');" +
@@ -1204,7 +1206,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       // OK pauses once a video is there; before (Plex's dialogs and buttons)
       // it still clicks what is selected.
       val down = android.view.KeyEvent(event)
-      web.evaluateJavascript("(()=>{const v=document.querySelector('video');return !!(v&&v.readyState>0);})()") { has ->
+      web.evaluateJavascript("(()=>{const v=$PLEX_VIDEO;return !!(v&&v.readyState>0);})()") { has ->
         Log.d(TAG, "Plex OK: video loaded $has")
         if (!web.isAttachedToWindow) {
           // closed meanwhile
@@ -1290,12 +1292,29 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     }
   }
 
+  /**
+   * A mouse click at [x], [y]: one click event in the page. A touch tap gave
+   * Plex both its touch and its click handling, which paused and played
+   * again at once.
+   */
   private fun tapWeb(web: WebView, x: Float, y: Float) {
     if (!web.isAttachedToWindow) return
     val now = android.os.SystemClock.uptimeMillis()
-    for ((action, time) in listOf(android.view.MotionEvent.ACTION_DOWN to now, android.view.MotionEvent.ACTION_UP to now + 50)) {
-      val e = android.view.MotionEvent.obtain(now, time, action, x, y, 0)
-      e.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+    val props = arrayOf(android.view.MotionEvent.PointerProperties().apply {
+      id = 0
+      toolType = android.view.MotionEvent.TOOL_TYPE_MOUSE
+    })
+    val coords = arrayOf(android.view.MotionEvent.PointerCoords().apply {
+      this.x = x
+      this.y = y
+      pressure = 1f
+      size = 1f
+    })
+    for ((action, time) in listOf(android.view.MotionEvent.ACTION_DOWN to now, android.view.MotionEvent.ACTION_UP to now + 60)) {
+      val buttons = if (action == android.view.MotionEvent.ACTION_DOWN) android.view.MotionEvent.BUTTON_PRIMARY else 0
+      val e = android.view.MotionEvent.obtain(
+        now, time, action, 1, props, coords, 0, buttons, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_MOUSE, 0,
+      )
       web.dispatchTouchEvent(e)
       e.recycle()
     }
