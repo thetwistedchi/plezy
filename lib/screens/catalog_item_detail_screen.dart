@@ -480,14 +480,14 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   /// (season, then episode), or Plex's own pick (where it continues).
   Future<void> _playFreePlex(CatalogLink free) async {
     final key = _item.ids.plex;
-    if (_item.kind != MediaKind.show || key == null || key.isEmpty) return _openExternalUrl(free.url);
+    if (_item.kind != MediaKind.show || key == null || key.isEmpty) return await _openExternalUrl(free.url);
     try {
       final session = await context.read<CatalogSourcesProvider>().resolvePlexSession();
-      if (session == null || !mounted) return _openExternalUrl(free.url);
+      if (session == null || !mounted) return await _openExternalUrl(free.url);
       final vod = PlexDiscoverClient(session, baseUri: PlexDiscoverClient.vodBaseUri);
       final seasons = (await vod.getPage('/library/metadata/$key/children', limit: 100)).items;
       if (!mounted) return;
-      if (seasons.isEmpty) return _openExternalUrl(free.url);
+      if (seasons.isEmpty) return await _openExternalUrl(free.url);
       String? seasonKey;
       if (seasons.length == 1) {
         seasonKey = seasons.first['ratingKey']?.toString();
@@ -503,9 +503,9 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
           ],
         );
         if (seasonKey == null || !mounted) return;
-        if (seasonKey.isEmpty) return _openExternalUrl(free.url);
+        if (seasonKey.isEmpty) return await _openExternalUrl(free.url);
       }
-      if (seasonKey == null) return _openExternalUrl(free.url);
+      if (seasonKey == null) return await _openExternalUrl(free.url);
       final episodes = (await vod.getPage('/library/metadata/$seasonKey/children', limit: 100)).items;
       if (!mounted) return;
       final episode = await showOptionPickerDialog<String>(
@@ -519,10 +519,10 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
         ],
       );
       if (episode == null || !mounted) return;
-      return _openExternalUrl(episode.isEmpty ? free.url : FreeOnPlexScreen.watchUrl(episode));
+      return await _openExternalUrl(episode.isEmpty ? free.url : FreeOnPlexScreen.watchUrl(episode));
     } catch (e) {
       appLogger.d('Free on plex.tv: episodes not loaded', error: e);
-      if (mounted) return _openExternalUrl(free.url);
+      if (mounted) return await _openExternalUrl(free.url);
     }
   }
 

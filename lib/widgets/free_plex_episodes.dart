@@ -39,9 +39,9 @@ class FreePlexEpisodesState extends State<FreePlexEpisodes> {
   static List<FocusNode> _nodes(int n, String label) => [for (var i = 0; i < n; i++) FocusNode(debugLabel: 'free_plex_$label$i')];
 
   @override
-  void didUpdateWidget(FreePlexEpisodes old) {
-    super.didUpdateWidget(old);
-    if (old.seasons.length != widget.seasons.length) {
+  void didUpdateWidget(FreePlexEpisodes oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.seasons.length != widget.seasons.length) {
       for (final n in _seasonNodes) {
         n.dispose();
       }
