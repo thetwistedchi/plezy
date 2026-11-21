@@ -184,13 +184,37 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
       }
 
       final shelves = await shelvesFuture;
-      final hubs = <MediaHub>[?all];
+      final hubs = <MediaHub>[];
       for (final shelf in shelves) {
         final hub = _hubOf('vod:${shelf.id}', shelf.title, shelf.page);
         if (hub == null) continue;
         hubs.add(hub);
         _shelfKeys['vod:${shelf.id}'] = shelf.key;
       }
+      if (shelves.isNotEmpty) appLogger.d('Free on Plex: shelf addresses ${shelves.take(3).map((s) => s.key).join(', ')}');
+      // Without Plex's full list: everything the shelves hold, each title once.
+      if (all == null && hubs.isNotEmpty) {
+        final seen = <String>{};
+        final items = [
+          for (final hub in hubs)
+            for (final item in hub.items)
+              if (seen.add(item.id)) item,
+        ];
+        _allFromShelves = true;
+        all = MediaHub(
+          id: 'vod:all',
+          identifier: 'vod.all',
+          title: RetroStrings.freeOnPlexAll,
+          type: 'mixed',
+          items: items,
+          size: items.length,
+          more: true,
+        );
+      } else if (all != null) {
+        _allFromShelves = false;
+      }
+      final allHub = all;
+      if (allHub != null) hubs.insert(0, allHub);
       if (hubs.isNotEmpty) {
         _cachedHubs = hubs;
         _cachedAt = DateTime.now();
@@ -214,10 +238,30 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
 
   static final Map<String, String> _shelfKeys = {};
 
+  /// Plex's full list is not available: "All" is made of the shelves.
+  static bool _allFromShelves = false;
+
   /// "View all" for a row: the whole list, up to [_viewAllCap] titles.
   Future<List<MediaItem>> _loadAll(MediaHub hub) async {
     final client = _client;
     if (client == null) return hub.items;
+    if (hub.id == 'vod:all' && _allFromShelves) {
+      // Every shelf in full, each title once.
+      final seen = <String>{};
+      final items = <MediaItem>[];
+      for (final key in _shelfKeys.values) {
+        if (items.length >= _viewAllCap) break;
+        try {
+          final page = await client.getHub(key, limit: 100);
+          for (final item in _mapper.mediaItems(page.items)) {
+            if (seen.add(item.id)) items.add(item);
+          }
+        } catch (e) {
+          appLogger.d('Free on Plex: shelf not loaded for the full list: $e');
+        }
+      }
+      return items;
+    }
     if (hub.id == 'vod:all') {
       final items = <MediaItem>[];
       var offset = 0;
