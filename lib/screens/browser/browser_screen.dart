@@ -1541,6 +1541,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
               ),
             ),
           const SizedBox(width: 4),
+          if (Platform.isAndroid && PlatformDetector.isTV())
+            _iconButton(Symbols.phone_android_rounded, RetroStrings.phoneRemote, () => unawaited(_showPhoneRemote())),
           _buildDownloadsButton(t),
           _buildShieldButton(t, tab),
           Builder(
