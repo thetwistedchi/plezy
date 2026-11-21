@@ -100,10 +100,28 @@ const media=()=>Array.from(document.querySelectorAll('video,audio'));
 const report=()=>{const on=media().some(m=>!m.paused&&!m.ended&&!m.muted&&m.volume>0)?1:0;
 if(on!==last){last=on;try{w&&w.postMessage('plezy-audio:'+on);}catch(_){}}};
 const apply=()=>{for(const m of media())m.muted=muted;};
-addEventListener('message',e=>{const d=e.data;if(!d||typeof d.plezyMute!=='boolean')return;muted=d.plezyMute;apply();
-for(const f of document.querySelectorAll('iframe')){try{f.contentWindow.postMessage(d,'*');}catch(_){}}report();});
+const pass=d=>{for(const f of document.querySelectorAll('iframe')){try{f.contentWindow.postMessage(d,'*');}catch(_){}}};
+addEventListener('message',e=>{const d=e.data;if(!d)return;
+if(typeof d.plezyMute==='boolean'){muted=d.plezyMute;apply();pass(d);report();return;}
+if(typeof d.plezyMedia!=='string')return;pass(d);
+const vs=media().filter(m=>m.tagName==='VIDEO'||!m.paused);if(!vs.length)return;
+const v=vs.find(m=>!m.paused)||vs.sort((a,b)=>b.clientWidth*b.clientHeight-a.clientWidth*a.clientHeight)[0];
+if(d.plezyMedia==='toggle'){if(v.paused)v.play().catch(()=>{});else v.pause();}
+else if(d.plezyMedia==='play')v.play().catch(()=>{});else if(d.plezyMedia==='pause')v.pause();
+else if(d.plezyMedia==='seek'&&isFinite(v.duration))v.currentTime=Math.max(0,Math.min(v.duration,v.currentTime+(d.by||0)));});
 for(const t of ['play','playing','pause','ended','volumechange','emptied'])
 document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' in e.target)e.target.muted=true;report();},true);})();"""
+
+    @Volatile private var instance: BrowserPlugin? = null
+
+    /**
+     * The remote's media keys (and, in a video's fullscreen, OK and the
+     * arrows) for the video on screen: in a page's fullscreen, the Plex
+     * player page, or the browser page with the focus. Null when they are
+     * not the browser's.
+     */
+    @JvmStatic
+    fun dispatchMedia(event: android.view.KeyEvent): Boolean? = instance?.mediaKey(event)
 
     /** The page view on screen, for [dispatchToPage]. */
     @Volatile private var shownPage: BrowserPageView? = null
@@ -151,6 +169,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     var suspended = false
     var autoplayFor: String? = null
     val audioFrames = mutableSetOf<Int>()
+    var crashed = false
   }
 
   private class PendingDownload(
@@ -219,8 +238,48 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     }
   }
 
+  /**
+   * When Android runs low on memory, background tabs that play nothing give
+   * up their WebView (about 50-150 MB each); they load their page again
+   * when shown (their back history is lost).
+   */
+  private val memoryCallbacks = object : android.content.ComponentCallbacks2 {
+    override fun onTrimMemory(level: Int) {
+      if (level < android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) return
+      main.post { discardBackgroundTabs() }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {}
+
+    @Deprecated("Deprecated in Java")
+    override fun onLowMemory() {
+      main.post { discardBackgroundTabs() }
+    }
+  }
+
+  private fun discardBackgroundTabs() {
+    var count = 0
+    for (tab in tabs.values) {
+      if (tab.id == activeId && visible) continue
+      val web = tab.webView ?: continue
+      if (tab.audioFrames.isNotEmpty() || tab.id == fullscreenTab) continue
+      (web.parent as? ViewGroup)?.removeView(web)
+      web.stopLoading()
+      web.destroy()
+      tab.webView = null
+      tab.pageScript = null
+      tab.pageScriptText = null
+      tab.preparedFor = null
+      tab.darkScript = null
+      count++
+    }
+    if (count > 0) Log.i(TAG, "Low memory: $count background tabs released")
+  }
+
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+    instance = this
     appContext = binding.applicationContext
+    appContext.registerComponentCallbacks(memoryCallbacks)
     tv = TvDetection.isTv(appContext)
     channel = MethodChannel(binding.binaryMessenger, CHANNEL).also { it.setMethodCallHandler(this) }
     EventChannel(binding.binaryMessenger, "$CHANNEL/events").setStreamHandler(object : EventChannel.StreamHandler {
@@ -274,6 +333,8 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
   private var playerTab: Tab? = null
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+    appContext.unregisterComponentCallbacks(memoryCallbacks)
+    if (instance === this) instance = null
     channel?.setMethodCallHandler(null)
     channel = null
     disposeAll()
@@ -362,6 +423,16 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
 
   private fun applyLayout() {
     val tab = tabs[activeId]
+    // A tab released for memory comes back with its page when shown.
+    if (visible && tab != null && tab.webView == null && !tab.suspended && !tab.crashed && tab.lastUrl.isNotEmpty()) {
+      try {
+        createWebView(tab)
+        load(tab, tab.lastUrl)
+        if (tab.muted) applyMute(tab)
+      } catch (e: Exception) {
+        Log.w(TAG, "tab reload failed", e)
+      }
+    }
     val web = if (visible && tab != null && !tab.suspended) tab.webView else null
     page?.show(web)
   }
@@ -735,6 +806,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
         (view.parent as? ViewGroup)?.removeView(view)
         view.destroy()
         if (tab.webView === view) tab.webView = null
+        tab.crashed = true
         send(tab.id, "crashed", mapOf("kind" to 1, "reason" to (if (detail.didCrash()) 1 else 0), "exitCode" to 0))
         return true
       }
@@ -949,6 +1021,38 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     fullscreenCallback = callback
     fullscreenTab = tabId
     send(tabId, "fullscreen", mapOf("value" to true))
+  }
+
+  private fun mediaKey(event: android.view.KeyEvent): Boolean? {
+    val code = event.keyCode
+    val inFullscreen = fullscreenView != null
+    val command: Any = when (code) {
+      android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, android.view.KeyEvent.KEYCODE_HEADSETHOOK -> "toggle"
+      android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> "play"
+      android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> "pause"
+      android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> 10
+      android.view.KeyEvent.KEYCODE_MEDIA_REWIND -> -10
+      android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER -> if (inFullscreen) "toggle" else return null
+      android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> if (inFullscreen) 10 else return null
+      android.view.KeyEvent.KEYCODE_DPAD_LEFT -> if (inFullscreen) -10 else return null
+      android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN -> if (inFullscreen) "none" else return null
+      else -> return null
+    }
+    val tab = when {
+      inFullscreen -> if (fullscreenTab == playerTab?.id) playerTab else tabs[fullscreenTab]
+      playerTab?.webView?.isAttachedToWindow == true -> playerTab
+      shownPage?.hasFocus() == true -> tabs[activeId]
+      else -> null
+    } ?: return null
+    val web = tab.webView ?: return null
+    if (event.action != android.view.KeyEvent.ACTION_DOWN) return true
+    val message = when (command) {
+      is Int -> "{plezyMedia:'seek',by:$command}"
+      "none" -> return true
+      else -> "{plezyMedia:'$command'}"
+    }
+    web.evaluateJavascript("window.postMessage($message,'*');", null)
+    return true
   }
 
   /** The tab whose page fills the screen without the browser's bars (Plex's player). */
@@ -1329,6 +1433,7 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
 
   /** A tab whose page process died gets a new WebView, loading its last page. */
   private fun revive(tab: Tab): WebView? {
+    tab.crashed = false
     tab.webView?.let { return it }
     createWebView(tab)
     applyLayout()

@@ -632,6 +632,8 @@ class PlezyActivity : FlutterActivity() {
         return super.dispatchKeyEvent(KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED))
       }
     }
+    // Fork: media keys (and a video's fullscreen) for the in-app browser.
+    com.edde746.plezy.browser.BrowserPlugin.dispatchMedia(event)?.let { return it }
     // Fork: the in-app browser's page takes the remote's arrows and OK
     // directly while it has the focus (its pointer), before Flutter.
     com.edde746.plezy.browser.BrowserPlugin.dispatchToPage(event)?.let { return it }
