@@ -38,7 +38,6 @@ import '../widgets/backend_badge.dart';
 import '../i18n/retro_strings.dart';
 import '../i18n/strings.g.dart';
 import '../screens/free_on_plex_screen.dart' show FreeOnPlexScreen, hasPlexServer;
-import '../screens/tubi_screen.dart';
 
 enum _LibraryNavSection { visible, hidden }
 
@@ -482,7 +481,6 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
   static const _kYouTube = 'youtube';
   static const _kBrowser = 'browser';
   static const _kFreeOnPlex = 'free_on_plex';
-  static const _kTubi = 'tubi';
   static const _kSettings = 'settings';
   static const _kReconnect = 'reconnect';
   static const _kFullscreen = 'fullscreen';
@@ -700,7 +698,6 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
       _kYouTube,
       _kBrowser,
       _kFreeOnPlex,
-      _kTubi,
       if (_showDownloads) _kDownloads,
       _kSettings,
       _kReconnect,
@@ -794,7 +791,6 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
           ],
           // Fork entries; an unmounted one is skipped by the D-pad scan.
           if (hasPlexServer(context)) _kFreeOnPlex,
-          if (SettingsService.instance.read(SettingsService.tubi)) _kTubi,
         ],
         if (hasLiveTv) 'liveTv',
         if (hasExplore) _kExplore,
@@ -1400,7 +1396,6 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                     if (_hiddenLibrariesExpanded) _buildLibraryGroupedColumn(hiddenRows, t),
                   ],
                   if (hasPlexServer(context)) _buildFreeOnPlexItem(t),
-                  if (SettingsService.instance.read(SettingsService.tubi)) _buildTubiItem(t),
                 ],
               ],
             ),
@@ -1567,26 +1562,6 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
         Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FreeOnPlexScreen())),
       ),
       focusNode: _focusTracker.get(_kFreeOnPlex),
-      iconSize: 18,
-      expandedHeight: 40,
-      suppressSelectedBackground: widget.isSidebarFocused,
-      onNavigateRight: widget.onNavigateToContent,
-    );
-  }
-
-  /// Fork: Tubi (beta), when switched on in the settings.
-  Widget _buildTubiItem(dynamic t) {
-    return NavigationRailItem(
-      icon: Symbols.live_tv_rounded,
-      selectedIcon: Symbols.live_tv_rounded,
-      label: Text(
-        '${RetroStrings.tubi} (beta)',
-        style: TextStyle(fontSize: 13, color: t.textMuted),
-        overflow: .ellipsis,
-      ),
-      isSelected: false,
-      onTap: () => unawaited(Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const TubiScreen()))),
-      focusNode: _focusTracker.get(_kTubi),
       iconSize: 18,
       expandedHeight: 40,
       suppressSelectedBackground: widget.isSidebarFocused,

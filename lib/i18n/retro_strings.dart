@@ -20,29 +20,6 @@ class RetroStrings {
   // Free on Plex (Plex's ad-supported Movies & Shows)
   static String get freeOnPlex => _t('Free on plex.tv', 'Kostenlos auf plex.tv');
   static String get freeOnPlexAll => _t('All titles', 'Alle Titel');
-
-  // Tubi (beta)
-  static String get tubi => 'Tubi';
-  static String get tubiSetting => _t('Show Tubi (beta)', 'Tubi anzeigen (Beta)');
-  static String get tubiSettingDescription => _t(
-    'Tubi\'s free, ad-supported movies and shows. Only available in some countries (e.g. USA, Canada, UK, Australia).',
-    'Die kostenlosen, werbefinanzierten Filme und Serien von Tubi. Nur in einigen Ländern verfügbar (z. B. USA, Kanada, Großbritannien, Australien).',
-  );
-  static String get tubiHint => _t(
-    'Tubi\'s free, ad-supported movies and shows. Open a title and press "Watch free on Tubi".',
-    'Die kostenlosen, werbefinanzierten Filme und Serien von Tubi. Titel öffnen und „Kostenlos auf Tubi ansehen" drücken.',
-  );
-  static String get tubiPlay => _t('Watch free on Tubi', 'Kostenlos auf Tubi ansehen');
-  static String get tubiWatch => _t('Tubi (free, with ads)', 'Tubi (kostenlos, mit Werbung)');
-  static String get tubiSearch => _t('Search Tubi', 'Tubi durchsuchen');
-  static String tubiResults(String query) => _t('Results for "$query"', 'Treffer für „$query"');
-  static String tubiSearching(String query) => _t('Searching Tubi for "$query"…', 'Suche auf Tubi nach „$query“…');
-  static String get tubiUnavailable => _t(
-    'Tubi is not available in your region. It works in countries like the USA, Canada, the UK or Australia.',
-    'Tubi ist in deiner Region nicht verfügbar. Es funktioniert in Ländern wie den USA, Kanada, Großbritannien oder Australien.',
-  );
-  static String get tubiNoResults => _t('Nothing found on Tubi.', 'Auf Tubi nichts gefunden.');
-  static String get tubiFailed => _t('Tubi could not be loaded.', 'Tubi konnte nicht geladen werden.');
   static String get freeOnPlexEpisodes => _t('Episodes (free on Plex)', 'Folgen (kostenlos auf Plex)');
   static String get freeOnPlexChooseSeason => _t('Choose a season', 'Staffel wählen');
   static String get freeOnPlexChooseEpisode => _t('Choose an episode', 'Folge wählen');
