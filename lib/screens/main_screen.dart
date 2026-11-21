@@ -38,6 +38,7 @@ import '../navigation/navigation_tabs.dart';
 import '../widgets/shortcuts_overlay.dart';
 import '../widgets/retrowave_update_dialog.dart';
 import '../services/retrowave/retrowave_updater.dart';
+import '../main.dart' show rootNavigatorKey;
 import '../navigation/profile_navigation_scope.dart';
 import '../navigation/settings_shortcut.dart';
 import '../profiles/active_profile_binder.dart';
@@ -1020,6 +1021,12 @@ class _MainScreenState extends State<MainScreen>
     receiver.onTabSearch = () => _selectTab(NavigationTabId.search);
     receiver.onTabDownloads = () => _selectTab(NavigationTabId.downloads);
     receiver.onTabSettings = () => _selectTab(NavigationTabId.settings);
+    // Fork: holding the remote's Back (PlezyActivity) goes straight home.
+    if (Platform.isAndroid) {
+      _remoteChannel.setMethodCallHandler((call) async {
+        if (call.method == 'goHome' && mounted) _goHome();
+      });
+    }
     receiver.onHome = () {
       final tabs = _getVisibleTabs(_isOffline);
       if (tabs.isEmpty) return;
@@ -1053,8 +1060,18 @@ class _MainScreenState extends State<MainScreen>
     }
   }
 
+  static const _remoteChannel = MethodChannel('com.plezy.retrowave/remote');
+
+  /// Back to the home tab with every page and dialog on top of it closed.
+  void _goHome() {
+    profileNavigationRegistry.navigator?.popUntil((route) => route.isFirst);
+    rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    _selectTab(NavigationTabId.discover);
+  }
+
   @override
   void dispose() {
+    if (Platform.isAndroid) _remoteChannel.setMethodCallHandler(null);
     _retrowaveRecheck?.cancel();
     if (LibraryJump.openLibrary == _selectLibrary) LibraryJump.openLibrary = null;
     ShortcutsOverlay.uninstall();

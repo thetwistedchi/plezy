@@ -601,6 +601,8 @@ class PlezyActivity : FlutterActivity() {
     handleDeepLinkIntent(intent)
   }
 
+  private var backHomeSent = false
+
   override fun dispatchKeyEvent(event: KeyEvent): Boolean {
     if (isDpadKeyCode(event.keyCode)) {
       logTextInputDiag { "activity.dispatchKeyEvent before ${describeKeyEvent(event)} ${describeImeState()}" }
@@ -608,6 +610,28 @@ class PlezyActivity : FlutterActivity() {
     // Reaching the activity means the ImeInputStage already declined this
     // key, so consumption below cannot starve a healthy IME.
     if (consumeLeakedImeNavigationKey(event)) return true
+    // Fork: holding Back for 1.5 s goes home (Dart: main_screen _goHome);
+    // the repeats and the release of that press are not a normal Back.
+    if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+      if (event.action == KeyEvent.ACTION_DOWN) {
+        if (event.repeatCount == 0) {
+          backHomeSent = false
+        } else {
+          if (!backHomeSent && event.eventTime - event.downTime >= 1500) {
+            backHomeSent = true
+            flutterEngine?.dartExecutor?.binaryMessenger?.let {
+              io.flutter.plugin.common.MethodChannel(it, "com.plezy.retrowave/remote").invokeMethod("goHome", null)
+            }
+          }
+          return true
+        }
+      } else if (event.action == KeyEvent.ACTION_UP && backHomeSent) {
+        backHomeSent = false
+        // Flutter still sees the key go up (no stuck key), but cancelled, so
+        // Android does not turn it into a Back.
+        return super.dispatchKeyEvent(KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED))
+      }
+    }
     // Fork: the in-app browser's page takes the remote's arrows and OK
     // directly while it has the focus (its pointer), before Flutter.
     com.edde746.plezy.browser.BrowserPlugin.dispatchToPage(event)?.let { return it }
