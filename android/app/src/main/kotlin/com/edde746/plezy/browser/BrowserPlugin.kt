@@ -619,7 +619,9 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
         enterFullscreen(tab.id, view, callback)
       }
 
-      override fun onHideCustomView() = exitFullscreen()
+      override fun onHideCustomView() {
+        exitFullscreen()
+      }
 
       // No camera, microphone or location for websites in this app; copy
       // protected video (Widevine, e.g. Plex's free service) may play.
