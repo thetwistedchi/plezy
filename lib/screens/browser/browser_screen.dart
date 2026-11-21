@@ -1134,6 +1134,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
         child: Focus(
           focusNode: _keys,
           autofocus: true,
+          // Remote or keyboard arrows while nothing in the browser has the
+          // focus (e.g. after the page let go of it): start at the toolbar.
+          onKeyEvent: (node, event) {
+            if (event is! KeyDownEvent || !_keys.hasPrimaryFocus) return KeyEventResult.ignored;
+            final key = event.logicalKey;
+            if (key != LogicalKeyboardKey.arrowUp &&
+                key != LogicalKeyboardKey.arrowDown &&
+                key != LogicalKeyboardKey.arrowLeft &&
+                key != LogicalKeyboardKey.arrowRight) {
+              return KeyEventResult.ignored;
+            }
+            final first = _toolbarFocus.traversalDescendants.where((n) => n.canRequestFocus).firstOrNull;
+            if (first == null) return KeyEventResult.ignored;
+            first.requestFocus();
+            return KeyEventResult.handled;
+          },
           child: Column(
             children: [
               if (!fullscreen)
@@ -1985,6 +2001,25 @@ class _PageSlotState extends State<_PageSlot> {
       return Focus(
         onFocusChange: (focused) {
           if (focused) unawaited(BrowserController.instance.focusPage());
+        },
+        // Keys only arrive here while the page itself doesn't have them yet:
+        // Up goes to the toolbar, the others hand the keys to the page.
+        onKeyEvent: (node, event) {
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          final key = event.logicalKey;
+          if (key == LogicalKeyboardKey.arrowUp) {
+            BrowserController.instance.leavePage();
+            return KeyEventResult.handled;
+          }
+          if (key == LogicalKeyboardKey.arrowDown ||
+              key == LogicalKeyboardKey.arrowLeft ||
+              key == LogicalKeyboardKey.arrowRight ||
+              key == LogicalKeyboardKey.select ||
+              key == LogicalKeyboardKey.enter) {
+            unawaited(BrowserController.instance.focusPage());
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
         },
         child: const AndroidView(
           viewType: BrowserNative.androidViewType,

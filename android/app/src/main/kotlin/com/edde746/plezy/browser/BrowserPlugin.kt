@@ -209,7 +209,14 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
   internal fun attachPage(view: BrowserPageView) {
     page = view
     applyLayout()
+    // Asked for before the platform view existed (a new tab's first page).
+    if (focusPending) {
+      focusPending = false
+      main.post { if (page === view) view.focusPage() }
+    }
   }
+
+  private var focusPending = false
 
   internal fun detachPage(view: BrowserPageView) {
     if (page === view) page = null
@@ -992,7 +999,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
       "forward" -> if (web.canGoForward()) web.goForward()
       "reload" -> web.reload()
       "stop" -> web.stopLoading()
-      "focus" -> page?.focusPage()
+      "focus" -> page?.focusPage() ?: run { focusPending = true }
       "proceedBlocked" -> {
         val url = call.argument<String>("url") ?: ""
         hostOf(url).takeIf { it.isNotEmpty() }?.let { tab.allowedHosts.add(it) }

@@ -158,6 +158,9 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   /// Android TV: the remote's Up at the top of the page, back to the toolbar.
   Stream<void> get pageLeft => _leavePage.stream;
 
+  /// Moves the remote's focus from the page to the toolbar.
+  void leavePage() => _leavePage.add(null);
+
   /// Whether private tabs can open (Android needs a recent System WebView).
   bool get privateTabsSupported => _native.privateTabs;
 
