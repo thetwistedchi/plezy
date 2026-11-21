@@ -346,8 +346,8 @@ class RetroStrings {
   static String get trackingPrevention => _t('Tracking prevention', 'Schutz vor Tracking');
   static String get trackingDescription => Platform.isAndroid ? _trackingAndroid : _trackingWindows;
   static String get _trackingAndroid => _t(
-    'Balanced and Strict block third-party cookies, which other sites use to follow you across pages. Turn it down if a sign-in on another site stops working.',
-    'Ausgewogen und Streng blockieren Drittanbieter-Cookies, mit denen fremde Seiten dich über Seiten hinweg verfolgen. Stell es niedriger, wenn eine Anmeldung über eine andere Seite nicht mehr klappt.',
+    'Balanced and Strict block third-party cookies, which other sites use to follow you across pages, and tell pages not to track you or sell your data (Global Privacy Control). Turn it down if a sign-in on another site stops working.',
+    'Ausgewogen und Streng blockieren Drittanbieter-Cookies, mit denen fremde Seiten dich über Seiten hinweg verfolgen, und teilen Seiten mit, dich nicht zu verfolgen und deine Daten nicht zu verkaufen (Global Privacy Control). Stell es niedriger, wenn eine Anmeldung über eine andere Seite nicht mehr klappt.',
   );
   static String get _trackingWindows => _t(
     'Blocks known trackers and fingerprinting services, like in Microsoft Edge. Strict blocks the most and may break some sites.',

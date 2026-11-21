@@ -170,6 +170,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     var autoplayFor: String? = null
     val audioFrames = mutableSetOf<Int>()
     var crashed = false
+    var privacyScript: ScriptHandler? = null
   }
 
   private class PendingDownload(
@@ -581,6 +582,28 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     if (runNow || !documentStart) web.evaluateJavascript(js, null)
   }
 
+  /**
+   * Tracking prevention at Balanced and Strict, beyond blocking third-party
+   * cookies: pages are told not to track and not to sell or share data
+   * (Global Privacy Control), as far as a page can read it.
+   */
+  private fun installPrivacyScript(tab: Tab) {
+    val web = tab.webView ?: return
+    tab.privacyScript?.remove()
+    tab.privacyScript = null
+    if (tracking < 2 || !documentStart) return
+    try {
+      tab.privacyScript = WebViewCompat.addDocumentStartJavaScript(
+        web,
+        "(()=>{try{Object.defineProperty(Navigator.prototype,'globalPrivacyControl',{get:()=>true,configurable:true});" +
+          "Object.defineProperty(Navigator.prototype,'doNotTrack',{get:()=>'1',configurable:true});}catch(_){}})();",
+        ALL_ORIGINS,
+      )
+    } catch (e: Exception) {
+      Log.d(TAG, "privacy script: $e")
+    }
+  }
+
   private fun installDarkScript(tab: Tab) {
     val web = tab.webView ?: return
     tab.darkScript?.remove()
@@ -904,6 +927,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
 
     web.setOnFocusChangeListener { _, focused -> if (focused) send(0, "pageFocus") }
     tab.webView = web
+    installPrivacyScript(tab)
     installDarkScript(tab)
     return web
   }
@@ -1278,7 +1302,10 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
       }
       "setTrackingPrevention" -> {
         tracking = call.argument<Int>("level") ?: 2
-        for (tab in tabs.values) tab.webView?.let { CookieManager.getInstance().setAcceptThirdPartyCookies(it, tracking < 2) }
+        for (tab in tabs.values) {
+          tab.webView?.let { CookieManager.getInstance().setAcceptThirdPartyCookies(it, tracking < 2) }
+          installPrivacyScript(tab)
+        }
         result.success(null)
       }
       "setDarkScript" -> {
