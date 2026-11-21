@@ -340,46 +340,21 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     tab.plexToken = plexToken
     val web = createWebView(tab)
     container.addView(web, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-    if (plexToken.isNotEmpty() && url.isNotEmpty() && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-      // Plex Web signed in with the app's Plex account, the way plex.tv/link
-      // signs in a TV: Plex Web gets a device ID of its own, a code for it
-      // is approved with the app's account, and the sign-in this gives it is
-      // stored in its local storage before the page starts. app.plex.tv only.
-      Thread {
-        val account = try {
-          plexWebAccount(plexToken)
-        } catch (e: Exception) {
-          Log.w(TAG, "Free on plex.tv: Plex Web sign-in failed", e)
-          null
-        }
-        main.post {
-          if (tab.autoplayFor == "closed") return@post
-          if (account != null) {
-            val (clientId, token, user) = account
-            val users = org.json.JSONObject().put("users", org.json.JSONArray().put(user)).toString()
-            val q = { v: String -> org.json.JSONObject.quote(v) }
-            WebViewCompat.addDocumentStartJavaScript(
-              web,
-              "(()=>{try{const s=localStorage;const t=${q(token)};" +
-                "if(s.getItem('myPlexAccessToken')!==t||!s.getItem('users')){s.setItem('clientID',${q(clientId)});" +
-                "s.setItem('myPlexAccessToken',t);s.setItem('users',${q(users)});}" +
-                "}catch(_){}})()",
-              setOf("https://app.plex.tv"),
-            )
-            Log.i(TAG, "Free on plex.tv: Plex Web signed in as ${user.optString("username")}")
-          }
-          load(tab, url)
-          main.postDelayed({
-            if (tab.autoplayFor == "closed") return@postDelayed
-            web.evaluateJavascript(
-              "(()=>{try{return location.host+location.pathname+location.hash.slice(0,30)+' keys:'+Object.keys(localStorage).join(',');}catch(e){return ''+e;}})()",
-            ) { Log.i(TAG, "Free on plex.tv: Plex Web state $it") }
-          }, 8000)
-        }
-      }.start()
-    } else if (url.isNotEmpty()) {
-      load(tab, url)
+    // Signed in by approving Plex's own sign-in page (maybeApprovePlexSignIn):
+    // Plex Web then holds a sign-in of its own, as after a normal login.
+    // Once: a sign-in an earlier version wrote into Plex Web is removed
+    // (Plex called it expired), so Plex Web signs in again by itself.
+    val prefs = appContext.getSharedPreferences("plezy_plex_web", Context.MODE_PRIVATE)
+    if (!prefs.getBoolean("cleared", false) && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+      prefs.edit().putBoolean("cleared", true).remove("clientId").apply()
+      WebViewCompat.addDocumentStartJavaScript(
+        web,
+        "(()=>{try{if(sessionStorage.getItem('plezyCleared'))return;sessionStorage.setItem('plezyCleared','1');" +
+          "['myPlexAccessToken','users','clientID'].forEach(k=>localStorage.removeItem(k));}catch(_){}})()",
+        setOf("https://app.plex.tv"),
+      )
     }
+    if (url.isNotEmpty()) load(tab, url)
     main.postDelayed({ web.requestFocus() }, 300)
     playerTab = tab
     return object : PlatformView {
@@ -465,46 +440,6 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       return null
     }
     return if (text.isBlank()) org.json.JSONObject() else org.json.JSONObject(text)
-  }
-
-  /**
-   * Plex Web's own sign-in for the app's account [appToken]: its device ID,
-   * token and account. Kept per account, so it stays one device at Plex.
-   */
-  private fun plexWebAccount(appToken: String): Triple<String, String, org.json.JSONObject>? {
-    val prefs = appContext.getSharedPreferences("plezy_plex_web", Context.MODE_PRIVATE)
-    val key = "token_" + appToken.hashCode()
-    val clientId = prefs.getString("clientId", null) ?: java.util.UUID.randomUUID().toString().also {
-      prefs.edit().putString("clientId", it).apply()
-    }
-    val web = mapOf("X-Plex-Client-Identifier" to clientId)
-    fun user(token: String) = plexRequest("GET", "https://plex.tv/api/v2/user", web + ("X-Plex-Token" to token))
-    prefs.getString(key, null)?.let { kept ->
-      user(kept)?.let { return Triple(clientId, kept, it.apply { if (!has("authToken")) put("authToken", kept) }) }
-    }
-    // A code for Plex Web's device, approved with the app's account.
-    val pin = plexRequest("POST", "https://plex.tv/api/v2/pins", web, "strong=false") ?: return null
-    val id = pin.optLong("id")
-    val code = pin.optString("code")
-    if (id == 0L || code.isEmpty()) return null
-    plexRequest(
-      "PUT",
-      "https://plex.tv/api/v2/pins/link",
-      mapOf("X-Plex-Client-Identifier" to "plezy-retrowave-link", "X-Plex-Token" to appToken),
-      "code=" + java.net.URLEncoder.encode(code, "UTF-8"),
-    ) ?: return null
-    var token = ""
-    for (i in 0 until 10) {
-      token = plexRequest("GET", "https://plex.tv/api/v2/pins/$id", web)?.optString("authToken").orEmpty()
-      if (token.isNotEmpty() && token != "null") break
-      Thread.sleep(300)
-    }
-    if (token.isEmpty() || token == "null") return null
-    prefs.edit().putString(key, token).apply()
-    val account = user(token) ?: return null
-    if (!account.has("authToken")) account.put("authToken", token)
-    Log.i(TAG, "Free on plex.tv: Plex Web linked to the account")
-    return Triple(clientId, token, account)
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
