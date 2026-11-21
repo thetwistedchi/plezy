@@ -36,6 +36,7 @@ import '../services/catalog/catalog_library_matcher.dart';
 import '../services/plex_discover_client.dart';
 import '../services/catalog/catalog_source.dart';
 import '../services/catalog/community_ratings.dart';
+import '../services/catalog/plex_catalog_source.dart';
 import '../services/catalog/seerr_catalog_source.dart';
 import '../services/data_aggregation_service.dart';
 import '../utils/app_logger.dart';
@@ -339,8 +340,26 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   /// opening item visible and leave provider-only sections hidden. The
   /// trackers' scores are asked for afterwards, with the detail's ids (a Plex
   /// Discover row carries only its rating key).
+  /// Fork: a Plex title (e.g. from Free on plex.tv) while Plex Discover is
+  /// not among the connected catalog sources: its details (ratings, facts,
+  /// cast) come from Discover through the account's Plex session anyway.
+  Future<CatalogSource?> _plexFallbackSource() async {
+    if (widget.item.source != CatalogSourceId.plex) return null;
+    final key = widget.item.ids.plex;
+    if (key == null || key.isEmpty) return null;
+    try {
+      final session = await context.read<CatalogSourcesProvider>().resolvePlexSession();
+      if (session == null) return null;
+      return PlexCatalogSource(PlexDiscoverClient(session));
+    } catch (e) {
+      appLogger.d('Plex detail fallback unavailable', error: e);
+      return null;
+    }
+  }
+
   Future<void> _loadDetail() async {
-    final source = _ownSource;
+    final source = _ownSource ?? await _plexFallbackSource();
+    if (!mounted) return;
     if (source != null) {
       try {
         final detail = await source.fetchDetail(widget.item);
@@ -375,7 +394,7 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
           unawaited(_resolveMatches(detail.item));
         }
       } catch (e) {
-        appLogger.d('Catalog detail load failed for ${widget.item.identityKey}', error: e);
+        appLogger.i('Catalog detail load failed for ${widget.item.identityKey}', error: e);
       }
     }
     if (!mounted) return;
