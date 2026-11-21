@@ -279,6 +279,15 @@ class PlexDiscoverClient {
     );
   }
 
+  /// Fork: the provider's catalog sections (`/library/sections`), each with
+  /// its `key`, `type` and `title`; used to find the free catalog's movie
+  /// list when its usual address is not there.
+  Future<List<Map<String, dynamic>>> getSections() async {
+    final data = await _request('GET', '/library/sections');
+    final container = _mediaContainer(data!);
+    return flexibleMapList(container['Directory']);
+  }
+
   Future<List<PlexDiscoverSearchResult>> search(String query, {int limit = 30}) async {
     final data = await _request(
       'GET',

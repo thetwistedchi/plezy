@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:provider/provider.dart';
@@ -48,7 +49,32 @@ class FreeOnPlexScreen extends StatefulWidget {
 
 class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
   static const _section = '/hubs/sections/movies';
-  static const _allKey = '/library/sections/movies/all';
+  static const _defaultAllKey = '/library/sections/movies/all';
+
+  /// The full movie list's address: the usual one, or the movie section
+  /// Plex lists when that one answers 404.
+  static String _allKey = _defaultAllKey;
+  static bool _allKeyResolved = false;
+
+  /// Finds the movie section in the provider's section list.
+  Future<String?> _resolveAllKey(PlexDiscoverClient client) async {
+    if (_allKeyResolved) return null;
+    _allKeyResolved = true;
+    try {
+      final sections = await client.getSections();
+      final movies = sections.firstWhereOrNull((s) => s['type'] == 'movie') ??
+          sections.firstWhereOrNull((s) => '${s['title']}'.toLowerCase().contains('movie'));
+      final key = movies?['key']?.toString();
+      if (key == null || key.isEmpty) return null;
+      final path = key.startsWith('/') ? key : '/library/sections/$key';
+      _allKey = path.endsWith('/all') ? path : '$path/all';
+      appLogger.i('Free on Plex: full list found at the movie section');
+      return _allKey;
+    } catch (e) {
+      appLogger.w('Free on Plex: section list unavailable', error: e);
+      return null;
+    }
+  }
   static const _rowLimit = 30;
   static const _viewAllCap = 500;
 
@@ -130,6 +156,15 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
         all = _hubOf('vod:all', RetroStrings.freeOnPlexAll, await allFuture);
       } catch (e) {
         appLogger.w('Free on Plex: full list unavailable', error: e);
+        // The usual address is gone: look the movie section up once.
+        final key = await _resolveAllKey(client);
+        if (key != null) {
+          try {
+            all = _hubOf('vod:all', RetroStrings.freeOnPlexAll, await client.getPage(key, limit: _rowLimit));
+          } catch (e) {
+            appLogger.w('Free on Plex: movie section list unavailable', error: e);
+          }
+        }
       }
       // Everything in the catalog first, like a library's Browse, already
       // while the shelves still load.
