@@ -1776,7 +1776,7 @@ class _MenuEntry {
   final bool enabled;
 }
 
-class _TabChip extends StatelessWidget {
+class _TabChip extends StatefulWidget {
   const _TabChip({
     required this.tab,
     required this.width,
@@ -1794,6 +1794,45 @@ class _TabChip extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onMute;
   final ValueChanged<Offset> onMenu;
+
+  @override
+  State<_TabChip> createState() => _TabChipState();
+}
+
+class _TabChipState extends State<_TabChip> {
+  final _chipFocus = FocusNode(debugLabel: 'browser-tab');
+  final _closeFocus = FocusNode(debugLabel: 'browser-tab-close');
+
+  BrowserTabState get tab => widget.tab;
+  bool get active => widget.active;
+  double get width => widget.width;
+  VoidCallback get onTap => widget.onTap;
+  VoidCallback get onClose => widget.onClose;
+  VoidCallback get onMute => widget.onMute;
+  ValueChanged<Offset> get onMenu => widget.onMenu;
+
+  @override
+  void dispose() {
+    _chipFocus.dispose();
+    _closeFocus.dispose();
+    super.dispose();
+  }
+
+  /// The remote: Right from a tab goes to its own close button first, Left
+  /// from there back to the tab (both lie inside the tab, so the arrows'
+  /// normal search would skip the button).
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight && _chipFocus.hasPrimaryFocus) {
+      _closeFocus.requestFocus();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft && _closeFocus.hasPrimaryFocus) {
+      _chipFocus.requestFocus();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1845,7 +1884,13 @@ class _TabChip extends StatelessWidget {
                     side: BorderSide(color: t.accent.withValues(alpha: 0.55)),
                   )
                 : null,
-            child: InkWell(
+            child: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onKeyEvent: _onKey,
+              child: InkWell(
+              focusNode: _chipFocus,
+              focusColor: t.accent.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(t.radiusSm),
               onTap: onTap,
               onSecondaryTapDown: (d) => onMenu(d.globalPosition),
@@ -1891,6 +1936,7 @@ class _TabChip extends StatelessWidget {
                         constraints: const BoxConstraints(minWidth: 24, minHeight: 28),
                       ),
                     IconButton(
+                      focusNode: _closeFocus,
                       icon: BrowserIcon(Symbols.close_rounded, size: 14, opacity: active ? 1 : 0.6),
                       tooltip: RetroStrings.closeTab,
                       onPressed: onClose,
@@ -1902,6 +1948,7 @@ class _TabChip extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
             ),
           ),
         ),
