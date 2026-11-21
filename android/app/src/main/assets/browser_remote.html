@@ -29,6 +29,8 @@
   input:focus { outline:none; border-color:var(--accent); }
   #msg { color:#fca5a5; font-size:13px; min-height:0; }
   form.row input { flex:1; min-width:0; }
+  #dpad { flex:none; display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; width:min(100%, 300px); margin:0 auto; }
+  #dpad button { min-height:52px; font-size:18px; }
   button.small { flex:none; min-width:76px; }
 </style>
 </head>
@@ -54,6 +56,11 @@
   <button data-nav="reload">⟳ Reload</button>
 </div>
 <div id="pad"><span id="hint">Move: one finger · Click: tap · Scroll: two fingers</span></div>
+<div id="dpad">
+  <span></span><button data-dpad="up">▲</button><span></span>
+  <button data-dpad="left">◀</button><button data-dpad="ok" class="accent">OK</button><button data-dpad="right">▶</button>
+  <span></span><button data-dpad="down">▼</button><span></span>
+</div>
 <script>
 (function () {
   var key = new URLSearchParams(location.search).get('k') || '';
@@ -137,6 +144,9 @@
 
   document.querySelectorAll('[data-nav]').forEach(function (b) {
     b.addEventListener('click', function () { send({ t:'nav', v:b.dataset.nav }); });
+  });
+  document.querySelectorAll('[data-dpad]').forEach(function (b) {
+    b.addEventListener('click', function () { send({ t:'dpad', v:b.dataset.dpad }); });
   });
   document.querySelectorAll('[data-key]').forEach(function (b) {
     b.addEventListener('click', function () { send({ t:'key', v:b.dataset.key }); });

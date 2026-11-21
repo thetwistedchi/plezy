@@ -752,6 +752,16 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
         "move" -> page?.remoteMove(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
         "scroll" -> page?.remoteScroll(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
         "tap" -> page?.remoteTap()
+        "dpad" -> {
+          val code = when (e.optString("v")) {
+            "up" -> android.view.KeyEvent.KEYCODE_DPAD_UP
+            "down" -> android.view.KeyEvent.KEYCODE_DPAD_DOWN
+            "left" -> android.view.KeyEvent.KEYCODE_DPAD_LEFT
+            "right" -> android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+            else -> android.view.KeyEvent.KEYCODE_DPAD_CENTER
+          }
+          page?.remoteKey(code)
+        }
         "back" -> if (web?.canGoBack() == true) web.goBack()
         "nav" -> when (e.optString("v")) {
           "back" -> if (web?.canGoBack() == true) web.goBack()

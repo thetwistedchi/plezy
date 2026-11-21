@@ -203,28 +203,29 @@ internal class BrowserPageView(
     cursor?.place(cursorX, cursorY)
   }
 
-  /** A mouse wheel turn at the pointer: scrolls whatever is under it. */
-  private fun scroll(web: WebView, x: Float, y: Float) = wheel(web, x * 2f, -y * 2f)
+  /** At the pointer's edge: scrolls whatever is under it by a step. */
+  private fun scroll(web: WebView, x: Float, y: Float) {
+    val step = 120f
+    scrollBy(web, x * step, y * step)
+  }
 
-  /** [h] and [v] in wheel steps; positive [v] scrolls up. */
-  private fun wheel(web: WebView, h: Float, v: Float) {
-    val now = SystemClock.uptimeMillis()
-    val props = MotionEvent.PointerProperties().apply {
-      id = 0
-      toolType = MotionEvent.TOOL_TYPE_MOUSE
-    }
-    val coords = MotionEvent.PointerCoords().apply {
-      this.x = cursorX
-      this.y = cursorY
-      setAxisValue(MotionEvent.AXIS_VSCROLL, v)
-      setAxisValue(MotionEvent.AXIS_HSCROLL, h)
-    }
-    val event = MotionEvent.obtain(
-      now, now, MotionEvent.ACTION_SCROLL, 1, arrayOf(props), arrayOf(coords), 0, 0, 1f, 1f, 0, 0,
-      InputDevice.SOURCE_MOUSE, 0,
+  /**
+   * Scrolls the scrollable element under the pointer (else the page) by
+   * [dx], [dy] CSS pixels, in the page itself: WebView ignores synthetic
+   * wheel events.
+   */
+  private fun scrollBy(web: WebView, dx: Float, dy: Float) {
+    val density = resources.displayMetrics.density
+    val x = (cursorX.coerceAtLeast(0f) / density).toInt()
+    val y = (cursorY.coerceAtLeast(0f) / density).toInt()
+    web.evaluateJavascript(
+      "(function(x,y,dx,dy){var e=document.elementFromPoint(x,y);" +
+        "while(e&&e!==document.body&&e!==document.documentElement){var s=getComputedStyle(e);" +
+        "if((/(auto|scroll)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight&&dy)||" +
+        "(/(auto|scroll)/.test(s.overflowX)&&e.scrollWidth>e.clientWidth&&dx)){e.scrollBy(dx,dy);return;}" +
+        "e=e.parentElement;}window.scrollBy(dx,dy);})($x,$y,$dx,$dy)",
+      null,
     )
-    web.dispatchGenericMotionEvent(event)
-    event.recycle()
   }
 
   // ---- Phone remote (PhoneRemoteServer) ----
@@ -257,7 +258,17 @@ internal class BrowserPageView(
   /** Two-finger swipe on the phone: the page follows the fingers. */
   fun remoteScroll(dx: Float, dy: Float) {
     val web = remoteReady() ?: return
-    wheel(web, -dx / 24f, dy / 24f)
+    // The page follows the fingers, like a touch screen.
+    scrollBy(web, -dx * 1.5f, -dy * 1.5f)
+  }
+
+  /** The phone's D-pad buttons: like the remote's keys. */
+  fun remoteKey(keyCode: Int) {
+    if (current == null) return
+    if (!hasFocus()) focusPage()
+    val now = SystemClock.uptimeMillis()
+    handleRemoteKey(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0))
+    handleRemoteKey(KeyEvent(now, now + 50, KeyEvent.ACTION_UP, keyCode, 0))
   }
 
   fun remoteTap() {
