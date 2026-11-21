@@ -1110,7 +1110,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                                         _buildNavItem(
                                           icon: Symbols.public_rounded,
                                           selectedIcon: Symbols.public_rounded,
-                                          label: RetroStrings.browser,
+                                          label: RetroStrings.browserNav,
                                           isSelected: false,
                                           onTap: () => unawaited(BrowserScreen.open(context)),
                                           focusNode: _focusTracker.get(_kBrowser),

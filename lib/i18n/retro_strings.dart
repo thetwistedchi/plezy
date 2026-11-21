@@ -75,6 +75,9 @@ class RetroStrings {
 
   // In-app browser
   static String get browser => _t('Browser', 'Browser');
+
+  /// The browser's menu entry; still a beta on Android.
+  static String get browserNav => Platform.isAndroid ? _t('Browser (Beta)', 'Browser (Beta)') : browser;
   /// Same label as the sidebar's Home entry.
   static String get home => t.common.home;
   static String get newTab => _t('New tab', 'Neuer Tab');

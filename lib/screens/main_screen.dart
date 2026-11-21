@@ -1994,11 +1994,11 @@ class _MainScreenState extends State<MainScreen>
           overflow: TextOverflow.ellipsis,
           child: NavigationDestination(
             icon: const AppIcon.retro(Symbols.public_rounded, fill: 1, retroOpacity: 0.7),
-            label: RetroStrings.browser,
+            label: RetroStrings.browserNav,
           ),
         ),
       );
-      labels.insert(browserIndex, RetroStrings.browser);
+      labels.insert(browserIndex, RetroStrings.browserNav);
     }
     final selectedIndex = tabs.indexWhere((tab) => tab.id == _currentTab);
     final navigationBar = NavigationBar(
