@@ -68,8 +68,6 @@ class RetroStrings {
 
   // Details page
   static String get playFromStart => _t('Play from start', 'Von vorne abspielen');
-  static String resumeAt(String time) => _t('Resume at $time', 'Fortsetzen bei $time');
-  static String get trailer => 'Trailer';
   static String get noTrailer => _t('No trailer found', 'Kein Trailer gefunden');
   static String allScores(int median) => _t('All scores · median $median', 'Alle Wertungen · Median $median');
   static String get similarInLibrary => _t('Similar in your library', 'Ähnliches in deiner Mediathek');
@@ -197,7 +195,6 @@ class RetroStrings {
   static String get change => _t('Change', 'Ändern');
   static String get reset => _t('Reset', 'Zurücksetzen');
   static String get askWhereToSave => _t('Ask where to save each file', 'Bei jeder Datei fragen, wo sie gespeichert wird');
-  static String get downloadsFolder => _t('Saved to your Downloads folder.', 'Wird in deinem Download-Ordner gespeichert.');
 
   static String get tabSleeping =>
       _t('Sleeping: paused to save resources, continues when opened', 'Schläft: pausiert, um Ressourcen zu sparen, läuft beim Öffnen weiter');
@@ -207,7 +204,6 @@ class RetroStrings {
     'Private tab: cookies, history and site data of private tabs are deleted when the last private tab closes. Downloads and bookmarks stay.',
     'Privater Tab: Cookies, Verlauf und Websitedaten privater Tabs werden gelöscht, sobald der letzte private Tab geschlossen wird. Downloads und Lesezeichen bleiben.',
   );
-  static String get reopenClosedTab => _t('Reopen closed tab', 'Geschlossenen Tab wieder öffnen');
   static String get recentlyClosed => _t('Recently closed tabs…', 'Kürzlich geschlossene Tabs…');
   static String reopenAllClosed(int n) => _t('Reopen all ($n)', 'Alle wieder öffnen ($n)');
   static String get duplicateTab => _t('Duplicate tab', 'Tab duplizieren');
@@ -240,7 +236,6 @@ class RetroStrings {
   );
   static String get updateLists => _t('Update now', 'Jetzt aktualisieren');
   static String get updatingLists => _t('Updating…', 'Wird aktualisiert…');
-  static String listsUpdated(String when) => _t('Last checked $when', 'Zuletzt geprüft $when');
   static String listRules(int n) => _t('$n rules', '$n Regeln');
   static String get listNotLoaded => _t('Not downloaded yet', 'Noch nicht heruntergeladen');
   static String get listFailed => _t('Download failed', 'Download fehlgeschlagen');

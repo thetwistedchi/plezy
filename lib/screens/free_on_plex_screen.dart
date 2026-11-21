@@ -343,7 +343,6 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
         hubs.add(hub);
         _shelfKeys['vod:${shelf.id}'] = shelf.key;
       }
-      if (shelves.isNotEmpty) appLogger.d('Free on Plex: shelf addresses ${shelves.take(3).map((s) => s.key).join(', ')}');
       // Without Plex's full list: everything the shelves hold, each title once.
       if (all == null && hubs.isNotEmpty) {
         final seen = <String>{};

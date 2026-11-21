@@ -41,16 +41,13 @@ internal class BrowserPageView(
   private companion object {
     // What the selection and the scroll positions were before a key.
     const val SNAPSHOT = "(()=>{const s=[];const d=document.scrollingElement||document.documentElement;s.push(d.scrollTop);" +
-      "const m=window.__plezyScroller;if(m&&m.isConnected)s.push(m.scrollTop);" +
       "window.__plezyKeySnap={a:document.activeElement,s:s.join(',')};})()"
     const val BLUR_HIDDEN = "(()=>{const a=document.activeElement;if(!a||a===document.body)return;" +
       "const r=a.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight)a.blur();})()"
     const val UNCHANGED = "(()=>{const p=window.__plezyKeySnap;if(!p)return false;const s=[];" +
       "const d=document.scrollingElement||document.documentElement;s.push(d.scrollTop);" +
-      "const m=window.__plezyScroller;if(m&&m.isConnected)s.push(m.scrollTop);" +
       "return p.a===document.activeElement&&p.s===s.join(',');})()"
   }
-  private var lastUpAtTop = 0L
   private var okLong = false
   private var dragging = false
   private val upPresses = ArrayDeque<Long>()
@@ -103,9 +100,7 @@ internal class BrowserPageView(
 
   fun focusPage() {
     flutterFocused = true
-    val had = current?.hasFocus() == true
-    val ok = requestFocus()
-    android.util.Log.d("PlezyBrowser", "page focus requested: $ok (had it: $had)")
+    requestFocus()
     if (!tv) current?.requestFocus()
   }
 
@@ -124,7 +119,7 @@ internal class BrowserPageView(
   /** The pointer shows while the page (or the WebView in it) has the focus. */
   private fun updateCursor() {
     val c = cursor ?: return
-    val shown = current != null && ((pointerMode && hasFocus()) || remoteActive)
+    val shown = current != null && pointerMode && hasFocus()
     c.visibility = if (shown) View.VISIBLE else View.GONE
     if (shown && cursorX < 0 && width > 0) {
       cursorX = width / 2f
@@ -244,9 +239,6 @@ internal class BrowserPageView(
   }
 
   fun handleRemoteKey(event: KeyEvent): Boolean {
-    if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-      android.util.Log.d("PlezyBrowser", "page key ${event.keyCode} (page shown: ${current != null})")
-    }
     val web = current
     if (!tv || web == null) return false
     // Holding OK switches between pointer and selection for this site (as
@@ -316,16 +308,12 @@ internal class BrowserPageView(
       }, 150)
     }
     if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-      val now = SystemClock.uptimeMillis()
-      // The page itself at the top (fields and inner scroll areas may still
-      // take Up): a second quick Up goes back to the toolbar.
+      // Up with nothing further up on the page goes back to the toolbar.
       val atTop = web.scrollY <= 0 || !web.canScrollVertically(-1)
       if (!handled && atTop) {
-        lastUpAtTop = 0
         plugin.onLeavePage(this)
         return true
       }
-      lastUpAtTop = if (atTop) now else 0
     }
     return true
   }
@@ -415,97 +403,7 @@ internal class BrowserPageView(
     }, steps * 16L + 160)
   }
 
-
-  /**
-   * Scrolls the scrollable element under the pointer (else the page) by
-   * [dx], [dy] CSS pixels, in the page itself: WebView ignores synthetic
-   * wheel events.
-   */
-  private fun scrollBy(web: WebView, dx: Float, dy: Float) {
-    val density = resources.displayMetrics.density
-    val x = (cursorX.coerceAtLeast(0f) / density).toInt()
-    val y = (cursorY.coerceAtLeast(0f) / density).toInt()
-    web.evaluateJavascript(
-      "(function(x,y,dx,dy){" +
-        "function sc(e){var s=getComputedStyle(e);return (/(auto|scroll|overlay)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight+2)||" +
-        "(/(auto|scroll|overlay)/.test(s.overflowX)&&e.scrollWidth>e.clientWidth+2);}" +
-        "var e=document.elementFromPoint(x,y);" +
-        "while(e&&e!==document.body&&e!==document.documentElement){if(sc(e)){e.scrollBy({left:dx,top:dy,behavior:'instant'});return 'element under the pointer';}e=e.parentElement;}" +
-        "var d=document.scrollingElement||document.documentElement;" +
-        "if(d.scrollHeight>window.innerHeight+2||d.scrollWidth>window.innerWidth+2){var t=d.scrollTop,l=d.scrollLeft;" +
-        "window.scrollBy({left:dx,top:dy,behavior:'instant'});if(d.scrollTop!==t||d.scrollLeft!==l||!dy)return 'page';}" +
-        // Pages that scroll inside an element (the window itself doesn't):
-        // the largest scrollable element, remembered for the next steps.
-        "var m=window.__plezyScroller;if(!m||!m.isConnected||!sc(m)){m=null;var best=0;" +
-        "for(var n of document.querySelectorAll('body *')){if(n.clientHeight<200)continue;if(!sc(n))continue;" +
-        "var a=n.clientWidth*n.clientHeight;if(a>best){best=a;m=n;}}window.__plezyScroller=m;}" +
-        "if(m){m.scrollBy({left:dx,top:dy,behavior:'instant'});return 'largest scroll area';}return 'nothing scrollable';})($x,$y,$dx,$dy)",
-    ) { result ->
-      val now = SystemClock.uptimeMillis()
-      if (now - lastScrollLog > 2000) {
-        lastScrollLog = now
-        android.util.Log.d("PlezyBrowser", "scroll: $result")
-      }
-    }
-  }
-
-  // ---- Phone remote (PhoneRemoteServer) ----
-
-  private var remoteActive = false
-  private var lastScrollLog = 0L
-
-  private fun remoteReady(): WebView? {
-    val web = current ?: return null
-    if (cursor == null) return null
-    remoteActive = true
-    if (cursorX < 0) {
-      cursorX = width / 2f
-      cursorY = height / 3f
-    }
-    updateCursor()
-    return web
-  }
-
-  /** Moves the pointer by the phone's finger movement (CSS pixels). */
-  fun remoteMove(dx: Float, dy: Float) {
-    val web = remoteReady() ?: return
-    val scale = resources.displayMetrics.density * 0.75f
-    val margin = 2f
-    cursorX = (cursorX + dx * scale).coerceIn(margin, (width - margin).coerceAtLeast(margin))
-    cursorY = (cursorY + dy * scale).coerceIn(margin, (height - margin).coerceAtLeast(margin))
-    placeCursor()
-    hover(web)
-  }
-
-  /** Two-finger swipe on the phone: the page follows the fingers. */
-  fun remoteScroll(dx: Float, dy: Float) {
-    val web = remoteReady() ?: return
-    // The page follows the fingers, like a touch screen.
-    scrollBy(web, -dx * 1.5f, -dy * 1.5f)
-  }
-
-  /** The phone's D-pad buttons: like the remote's keys. */
-  fun remoteKey(keyCode: Int) {
-    val web = current ?: return
-    val now = SystemClock.uptimeMillis()
-    val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0)
-    val up = KeyEvent(now, now + 50, KeyEvent.ACTION_UP, keyCode, 0)
-    // Straight to the page: the TV's own focus (toolbar or page) stays as it
-    // is, and Up at the top doesn't jump to the toolbar.
-    if (pointerMode) {
-      handleRemoteKey(down)
-      handleRemoteKey(up)
-    } else {
-      web.dispatchKeyEvent(down)
-      web.dispatchKeyEvent(up)
-    }
-  }
-
-  fun remoteTap() {
-    val web = remoteReady() ?: return
-    click(web)
-  }
-
+  /** The pointer hovers what it is over (menus that open on hover). */
   private fun hover(web: WebView) {
     val now = SystemClock.uptimeMillis()
     val event = MotionEvent.obtain(now, now, MotionEvent.ACTION_HOVER_MOVE, cursorX, cursorY, 0)
