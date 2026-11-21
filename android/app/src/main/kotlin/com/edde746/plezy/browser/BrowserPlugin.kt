@@ -167,6 +167,9 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     var webView: WebView? = null
     var lastUrl: String = ""
     @Volatile var pageUrl: String = ""
+    /** Free on plex.tv's player: the app's Plex sign-in, to approve Plex's own sign-in page. */
+    var plexToken: String = ""
+    var plexApproved = mutableSetOf<String>()
     val blocked = AtomicInteger()
     val checked = AtomicInteger()
     @Volatile var blockedReport = 0L
@@ -334,6 +337,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
   private fun createPlayerView(context: Context, url: String, plexToken: String): PlatformView {
     val tab = Tab(PLAYER_TAB, false)
     val container = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
+    tab.plexToken = plexToken
     val web = createWebView(tab)
     container.addView(web, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     if (plexToken.isNotEmpty() && url.isNotEmpty() && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
@@ -394,6 +398,49 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
   }
 
   private var playerTab: Tab? = null
+
+  /**
+   * Plex's sign-in page (app.plex.tv/auth) asks to approve a code for the
+   * device that sent the page there, as plex.tv/link does. With the app's
+   * Plex sign-in that code is approved here; Plex then continues signed in.
+   */
+  private fun maybeApprovePlexSignIn(tab: Tab, web: WebView, url: String) {
+    val token = tab.plexToken
+    if (token.isEmpty() || !url.startsWith("https://app.plex.tv/auth")) return
+    val hash = url.substringAfter('#', "").substringAfter('?', "")
+    val params = hash.split('&').mapNotNull {
+      val i = it.indexOf('=')
+      if (i <= 0) null else it.substring(0, i) to Uri.decode(it.substring(i + 1))
+    }.toMap()
+    Log.i(TAG, "Plex sign-in page: ${params.keys.joinToString(",")}")
+    val code = params["code"] ?: return
+    // At most a few per page: no loop when Plex keeps asking.
+    if (code in tab.plexApproved || tab.plexApproved.size >= 3) return
+    tab.plexApproved.add(code)
+    val forward = params["forwardUrl"]
+    Thread {
+      val ok = try {
+        plexRequest(
+          "PUT",
+          "https://plex.tv/api/v2/pins/link",
+          mapOf("X-Plex-Client-Identifier" to "plezy-retrowave-link", "X-Plex-Token" to token),
+          "code=" + java.net.URLEncoder.encode(code, "UTF-8"),
+        ) != null
+      } catch (e: Exception) {
+        Log.w(TAG, "Plex sign-in code not approved", e)
+        false
+      }
+      Log.i(TAG, "Plex sign-in code approved: $ok (continues to ${forward?.let { Uri.parse(it).host } ?: "the page"})")
+      if (!ok) return@Thread
+      main.postDelayed({
+        if (tab.webView !== web || !web.isAttachedToWindow) return@postDelayed
+        // Plex's page notices the approval itself; if not, go on.
+        if (web.url?.startsWith("https://app.plex.tv/auth") == true) {
+          if (!forward.isNullOrEmpty()) web.loadUrl(forward) else web.goBack()
+        }
+      }, 2500)
+    }.start()
+  }
 
   private fun plexRequest(method: String, url: String, headers: Map<String, String>, body: String? = null): org.json.JSONObject? {
     val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
@@ -939,6 +986,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       }
 
       override fun onPageFinished(view: WebView, url: String) {
+        maybeApprovePlexSignIn(tab, view, url)
         reportBlocked(tab, true)
         val checked = tab.checked.get()
         if (checked > 0) {
@@ -961,6 +1009,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
         sendState(tab)
         maybeAutoplayPlex(tab, url)
+        maybeApprovePlexSignIn(tab, view, url)
       }
 
       override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
