@@ -264,11 +264,19 @@ internal class BrowserPageView(
 
   /** The phone's D-pad buttons: like the remote's keys. */
   fun remoteKey(keyCode: Int) {
-    if (current == null) return
-    if (!hasFocus()) focusPage()
+    val web = current ?: return
     val now = SystemClock.uptimeMillis()
-    handleRemoteKey(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0))
-    handleRemoteKey(KeyEvent(now, now + 50, KeyEvent.ACTION_UP, keyCode, 0))
+    val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0)
+    val up = KeyEvent(now, now + 50, KeyEvent.ACTION_UP, keyCode, 0)
+    // Straight to the page: the TV's own focus (toolbar or page) stays as it
+    // is, and Up at the top doesn't jump to the toolbar.
+    if (pointerMode) {
+      handleRemoteKey(down)
+      handleRemoteKey(up)
+    } else {
+      web.dispatchKeyEvent(down)
+      web.dispatchKeyEvent(up)
+    }
   }
 
   fun remoteTap() {
