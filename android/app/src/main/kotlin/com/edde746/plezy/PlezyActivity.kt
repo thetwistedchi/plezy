@@ -608,6 +608,9 @@ class PlezyActivity : FlutterActivity() {
     // Reaching the activity means the ImeInputStage already declined this
     // key, so consumption below cannot starve a healthy IME.
     if (consumeLeakedImeNavigationKey(event)) return true
+    // Fork: the in-app browser's page takes the remote's arrows and OK
+    // directly while it has the focus (its pointer), before Flutter.
+    com.edde746.plezy.browser.BrowserPlugin.dispatchToPage(event)?.let { return it }
     val handled = super.dispatchKeyEvent(event)
     if (isDpadKeyCode(event.keyCode)) {
       logTextInputDiag {

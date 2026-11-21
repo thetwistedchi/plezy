@@ -87,6 +87,27 @@ if(m.type==='attributes'){ad(m.target);if(!tm)tm=setTimeout(fl,120);}else for(co
 if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:true});else st();})();"""
 
     private val ALL_ORIGINS = setOf("*")
+
+    /** The page view on screen, for [dispatchToPage]. */
+    @Volatile private var shownPage: BrowserPageView? = null
+
+    /**
+     * The activity's key dispatch: while the browser page has the focus, the
+     * D-pad and OK go straight to it. Null for every other key or state.
+     */
+    @JvmStatic
+    fun dispatchToPage(event: android.view.KeyEvent): Boolean? {
+      val page = shownPage ?: return null
+      if (!page.isAttachedToWindow || !page.hasFocus()) return null
+      return when (event.keyCode) {
+        android.view.KeyEvent.KEYCODE_DPAD_UP, android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+        android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+        android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER,
+        android.view.KeyEvent.KEYCODE_NUMPAD_ENTER, android.view.KeyEvent.KEYCODE_BUTTON_A,
+        -> page.handleRemoteKey(event)
+        else -> null
+      }
+    }
   }
 
   private class Tab(val id: Int, val private: Boolean) {
@@ -213,6 +234,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
   internal fun attachPage(view: BrowserPageView) {
     page = view
+    shownPage = view
     applyLayout()
     // Asked for before the platform view existed (a new tab's first page).
     if (focusPending) {
@@ -225,6 +247,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
   internal fun detachPage(view: BrowserPageView) {
     if (page === view) page = null
+    if (shownPage === view) shownPage = null
   }
 
   internal fun onPageTouched() = send(0, "pageFocus")

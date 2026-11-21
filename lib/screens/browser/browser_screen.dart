@@ -241,8 +241,17 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   KeyEventResult _onAddressKey(FocusNode node, KeyEvent event) {
-    if (_suggestions.isEmpty || event is KeyUpEvent) return KeyEventResult.ignored;
+    if (event is KeyUpEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    // TV: the on-screen keyboard moves the caret, so Left and Right always
+    // leave the field.
+    if (PlatformDetector.isTV() && (key == LogicalKeyboardKey.arrowLeft || key == LogicalKeyboardKey.arrowRight)) {
+      _addressFocus.focusInDirection(
+        key == LogicalKeyboardKey.arrowLeft ? TraversalDirection.left : TraversalDirection.right,
+      );
+      return KeyEventResult.handled;
+    }
+    if (_suggestions.isEmpty) return KeyEventResult.ignored;
     if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.arrowUp) {
       final n = _suggestions.length;
       setState(() {
@@ -1173,6 +1182,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final fullscreen = tab?.fullscreen ?? false;
     final t = tokens(context);
     final chrome = BoxDecoration(color: Theme.of(context).pageColor);
+    // A clear mark on the focused button, for the TV remote and the keyboard.
+    final focusRing = ButtonStyle(
+      side: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.focused) ? BorderSide(color: t.accent, width: 2.5) : null,
+      ),
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.focused) ? t.accent.withValues(alpha: 0.3) : null,
+      ),
+    );
+    final theme = Theme.of(context);
+    final browserTheme = theme.copyWith(
+      iconButtonTheme: IconButtonThemeData(style: focusRing.merge(theme.iconButtonTheme.style)),
+      textButtonTheme: TextButtonThemeData(style: focusRing.merge(theme.textButtonTheme.style)),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: focusRing.merge(theme.outlinedButtonTheme.style)),
+      filledButtonTheme: FilledButtonThemeData(style: focusRing.merge(theme.filledButtonTheme.style)),
+    );
 
     // Android's Back key: leaves a page's video fullscreen, then goes back in
     // the tab, and only then closes the browser.
@@ -1187,6 +1212,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
         }
         if (context.mounted) Navigator.of(context).pop();
       },
+      child: Theme(
+      data: browserTheme,
       child: Scaffold(
       // Transparent: the native page shows through the page area.
       backgroundColor: Colors.transparent,
@@ -1247,6 +1274,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ],
           ),
         ),
+      ),
       ),
       ),
     );

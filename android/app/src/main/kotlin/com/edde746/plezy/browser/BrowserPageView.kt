@@ -106,11 +106,17 @@ internal class BrowserPageView(
   }
 
   override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    if (tv && current != null && handleRemoteKey(event)) return true
+    return super.dispatchKeyEvent(event)
+  }
+
+  /** The remote's arrows and OK on a TV: the pointer. False when not handled. */
+  fun handleRemoteKey(event: KeyEvent): Boolean {
     if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
       android.util.Log.d("PlezyBrowser", "page key ${event.keyCode} (page shown: ${current != null})")
     }
     val web = current
-    if (!tv || web == null) return super.dispatchKeyEvent(event)
+    if (!tv || web == null) return false
     val step = { if (event.repeatCount > 0) (24f + repeat * 4f).coerceAtMost(72f) else 24f }
     when (event.keyCode) {
       KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
@@ -124,7 +130,7 @@ internal class BrowserPageView(
         return true
       }
     }
-    return super.dispatchKeyEvent(event)
+    return false
   }
 
   private fun move(key: Int, distance: Float) {
@@ -255,6 +261,7 @@ internal class BrowserPageView(
   fun returnFocusToFlutter() {
     var parent = this.parent
     while (parent != null && parent !is FlutterView) parent = parent.parent
+    findFocus()?.clearFocus()
     clearFocus()
     (parent as? View)?.requestFocus()
   }
