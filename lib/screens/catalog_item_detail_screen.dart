@@ -55,6 +55,7 @@ import '../utils/rating_utils.dart';
 import '../utils/snackbar_helper.dart';
 import '../utils/trailer_urls.dart';
 import '../utils/video_player_navigation.dart';
+import '../widgets/free_plex_episodes.dart';
 import '../widgets/app_bar_back_button.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/backend_badge.dart';
@@ -525,10 +526,67 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
     }
   }
 
+  /// Fork: a free show's seasons, for the episode list on this page.
+  List<({String key, String title})>? _freeSeasons;
+  final _episodesKey = GlobalKey<FreePlexEpisodesState>();
+  bool get _hasEpisodes => _freeSeasons?.isNotEmpty ?? false;
+  PlexDiscoverClient? _vodClient;
+
+  Future<PlexDiscoverClient?> _vod() async {
+    if (_vodClient != null) return _vodClient;
+    final session = await context.read<CatalogSourcesProvider>().resolvePlexSession();
+    if (session == null) return null;
+    return _vodClient = PlexDiscoverClient(session, baseUri: PlexDiscoverClient.vodBaseUri);
+  }
+
+  Future<void> _loadFreeSeasons() async {
+    final key = widget.item.ids.plex;
+    if (widget.item.kind != MediaKind.show || key == null || key.isEmpty || _freeSeasons != null) return;
+    try {
+      final vod = await _vod();
+      if (vod == null) return;
+      final seasons = (await vod.getPage('/library/metadata/$key/children', limit: 100)).items;
+      if (!mounted) return;
+      setState(() {
+        _freeSeasons = [
+          for (final s in seasons)
+            if (s['ratingKey']?.toString() case final String k when k.isNotEmpty) (key: k, title: '${s['title'] ?? k}'),
+        ];
+      });
+    } catch (e) {
+      appLogger.d('Free on plex.tv: seasons not loaded', error: e);
+    }
+  }
+
+  Future<List<({String key, String title, int? index, String? summary, int? minutes})>> _loadFreeEpisodes(
+    String seasonKey,
+  ) async {
+    final vod = await _vod();
+    if (vod == null) return const [];
+    final episodes = (await vod.getPage('/library/metadata/$seasonKey/children', limit: 100)).items;
+    return [
+      for (final e in episodes)
+        if (e['ratingKey']?.toString() case final String k when k.isNotEmpty)
+          (
+            key: k,
+            title: '${e['title'] ?? k}',
+            index: int.tryParse('${e['index']}'),
+            summary: e['summary']?.toString(),
+            minutes: switch (int.tryParse('${e['duration']}')) {
+              final int ms when ms > 0 => (ms / 60000).round(),
+              _ => null,
+            },
+          ),
+    ];
+  }
+
   Future<void> _checkFreeOnPlex() async {
     final key = widget.item.ids.plex;
     if (key == null || key.isEmpty || isTvosRunner) return;
-    if (_plexLink != null || (widget.item.links ?? const []).any((l) => Uri.tryParse(l.url)?.host == 'app.plex.tv')) return;
+    if (_plexLink != null || (widget.item.links ?? const []).any((l) => Uri.tryParse(l.url)?.host == 'app.plex.tv')) {
+      unawaited(_loadFreeSeasons());
+      return;
+    }
     var free = _freeVodKnown[key];
     if (free == null) {
       try {
@@ -542,7 +600,10 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
         return;
       }
     }
-    if (free && mounted) setState(() => _freeVodUrl = FreeOnPlexScreen.watchUrl(key));
+    if (free && mounted) {
+      setState(() => _freeVodUrl = FreeOnPlexScreen.watchUrl(key));
+      unawaited(_loadFreeSeasons());
+    }
   }
 
   bool get _hasLibraryMatches => _libraryMatchFocusNodes.isNotEmpty;
@@ -704,6 +765,14 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   }
 
   void _focusSectionBelowTextStops() {
+    if (_hasEpisodes) {
+      _episodesKey.currentState?.focusFirst();
+    } else {
+      _focusSectionBelowEpisodes();
+    }
+  }
+
+  void _focusSectionBelowEpisodes() {
     if (_hasDetailActions) {
       _requestFirstDetailActionFocus();
     } else {
@@ -720,6 +789,14 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   }
 
   void _focusSectionAboveDetailActions() {
+    if (_hasEpisodes) {
+      _episodesKey.currentState?.focusLast();
+    } else {
+      _focusSectionAboveEpisodes();
+    }
+  }
+
+  void _focusSectionAboveEpisodes() {
     if (_hasBackground) {
       _requestBackgroundFocus();
     } else {
@@ -1700,6 +1777,17 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
                               if (item.background?.trim() case final background? when background.isNotEmpty) ...[
                                 const SizedBox(height: 24),
                                 _buildBackgroundSection(theme, background, isMobile: isMobile),
+                              ],
+                              if (_freeSeasons case final seasons? when seasons.isNotEmpty) ...[
+                                const SizedBox(height: 24),
+                                FreePlexEpisodes(
+                                  key: _episodesKey,
+                                  seasons: seasons,
+                                  loadEpisodes: _loadFreeEpisodes,
+                                  onPlay: (episode) => unawaited(_openExternalUrl(FreeOnPlexScreen.watchUrl(episode))),
+                                  onNavigateUp: _focusSectionAboveEpisodes,
+                                  onNavigateDown: _focusSectionBelowEpisodes,
+                                ),
                               ],
                               if (_buildFactsSection(theme) case final Widget facts) ...[
                                 const SizedBox(height: 24),

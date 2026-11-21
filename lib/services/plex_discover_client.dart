@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:http/http.dart' as http;
 
 import '../i18n/app_locale_utils.dart';
@@ -414,10 +415,16 @@ class PlexDiscoverClient {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw PlexDiscoverException(response.statusCode, _errorMessage(response.body));
     }
-    if (response.body.isEmpty) return const <String, dynamic>{};
-    final decoded = jsonDecode(response.body);
+    if (response.bodyBytes.isEmpty) return const <String, dynamic>{};
+    // Fork: large answers (shelves of a catalog) are read off the UI thread,
+    // so scrolling and focus stay smooth while they load.
+    final decoded = response.bodyBytes.length > 24 * 1024
+        ? await compute(_decodeJson, response.bodyBytes)
+        : jsonDecode(response.body);
     return decoded is Map<String, dynamic> ? decoded : const <String, dynamic>{};
   }
+
+  static Object? _decodeJson(List<int> bytes) => jsonDecode(utf8.decode(bytes));
 
   static Map<String, dynamic> _mediaContainer(Map<String, dynamic> data) =>
       firstFlexibleMap(data['MediaContainer']) ?? const <String, dynamic>{};

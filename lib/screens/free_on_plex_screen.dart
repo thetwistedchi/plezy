@@ -284,7 +284,9 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
       _mapperOrNull ??= _VodMapper(client);
       final firstSession = _session == null;
       _session = session;
-      if (firstSession && !connectOnly) unawaited(_loadWatchlist());
+      // The watchlist after the rows (its lookups would slow them down), or
+      // at once when the rows come from the kept catalog.
+      final loadWatchlist = firstSession && !connectOnly;
       final owner = session.accessToken.hashCode;
       final cached = _cachedHubs;
       if (useCache && cached != null && cached.isNotEmpty && _cachedFor == owner) {
@@ -294,10 +296,14 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
           _error = null;
         });
         final fresh = _cachedAt != null && DateTime.now().difference(_cachedAt!) < _cacheFor;
-        if (fresh) return;
+        if (fresh) {
+          if (loadWatchlist) unawaited(_loadWatchlist());
+          return;
+        }
         quiet = true;
       }
       if (connectOnly) return;
+      if (loadWatchlist && quiet) unawaited(_loadWatchlist());
 
       final allFuture = client.getPage(_allKey, limit: _rowLimit);
       final shelvesFuture = client.getHomeHubs(section: _section, limit: _rowLimit, concurrency: 10);
@@ -372,6 +378,7 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
         _loading = false;
         _error = _hubs.isEmpty ? RetroStrings.freeOnPlexEmpty : null;
       });
+      if (loadWatchlist && _watchlistHub == null) unawaited(_loadWatchlist());
     } catch (e) {
       appLogger.w('Free on Plex failed to load', error: e);
       if (!mounted || quiet) return;
