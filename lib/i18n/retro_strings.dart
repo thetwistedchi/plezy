@@ -26,6 +26,7 @@ class RetroStrings {
   static String get freeOnPlexWatchlist => _t('Free on your watchlist', 'Kostenlos auf deiner Merkliste');
   static String get freeOnPlexSearch => _t('Search Plex\'s free titles', 'Kostenlose Titel von Plex suchen');
   static String freeOnPlexResults(String query) => _t('Free results for "$query"', 'Kostenlose Treffer für „$query"');
+  static String freeOnPlexSearching(String query) => _t('Searching Plex\'s free titles for "$query"…', 'Suche in den kostenlosen Titeln von Plex nach „$query“…');
   static String get freeOnPlexNoResults => _t('No free titles found.', 'Keine kostenlosen Titel gefunden.');
   static String get freeOnPlexPlay => _t('Watch free on Plex', 'Kostenlos auf Plex ansehen');
   static String get freeOnPlexWatch => _t('Plex (free, with ads)', 'Plex (kostenlos, mit Werbung)');

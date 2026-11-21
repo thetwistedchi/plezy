@@ -466,6 +466,26 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
           ),
         ),
       ),
+      if (_searching)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  RetroStrings.freeOnPlexSearching(_searchText.text.trim()),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 6),
+                const ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(2)),
+                  child: LinearProgressIndicator(minHeight: 3),
+                ),
+              ],
+            ),
+          ),
+        ),
       if (_searchMessage != null)
         SliverToBoxAdapter(
           child: Padding(
