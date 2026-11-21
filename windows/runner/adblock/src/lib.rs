@@ -323,3 +323,6 @@ mod tests {
         assert_send_sync::<PlezyAdblock>();
     }
 }
+
+#[cfg(target_os = "android")]
+mod jni;

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -23,10 +22,8 @@ import '../widgets/loading_indicator_box.dart';
 import 'libraries/state_messages.dart';
 
 /// Whether to offer the free catalog: a Plex server is connected (it needs
-/// a Plex account). Not on Android: phones would only reach the titles
-/// through a browser and most TVs have none.
+/// a Plex account). On Android the titles play in the in-app browser.
 bool hasPlexServer(BuildContext context) =>
-    !Platform.isAndroid &&
     context
     .read<MultiServerProvider>()
     .serverManager

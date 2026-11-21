@@ -153,6 +153,26 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   /// The user clicked into the page (it took the keyboard focus).
   Stream<void> get pageFocused => _pageFocus.stream;
 
+  final StreamController<void> _leavePage = StreamController<void>.broadcast();
+
+  /// Android TV: the remote's Up at the top of the page, back to the toolbar.
+  Stream<void> get pageLeft => _leavePage.stream;
+
+  /// Whether private tabs can open (Android needs a recent System WebView).
+  bool get privateTabsSupported => _native.privateTabs;
+
+  /// Whether downloads can pause (not on Android).
+  bool get canPauseDownloads => _native.pauseDownloads;
+
+  /// Opens a finished download: Android hands it to the app for its type.
+  Future<bool> openDownload(BrowserDownload d) => _native.openDownload(d.path);
+
+  /// Android: the system's downloads list.
+  Future<void> showDownloadsFolder() => _native.showDownloads();
+
+  /// Android: ends a page's video fullscreen (the Back key); true when one was shown.
+  Future<bool> exitPageFullscreen() => _native.exitFullscreen();
+
   final Map<int, (Rect, double)> _cutouts = {};
   bool _cutoutsQueued = false;
 
@@ -672,6 +692,10 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   void _onEvent(BrowserEvent e) {
     if (e.type == 'pageFocus') {
       _pageFocus.add(null);
+      return;
+    }
+    if (e.type == 'leavePage') {
+      _leavePage.add(null);
       return;
     }
     if (e.type == 'downloadState') {

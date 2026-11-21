@@ -71,6 +71,10 @@ val mpvNativeDir = layout.buildDirectory.dir("mpv-android").get().asFile
 val mpvFfmpegJniDir = File(mpvNativeDir, "ffmpeg/jni")
 val mpvLibcxxJniDir = File(mpvNativeDir, "libcxx/jni")
 val mpvAbis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+// Fork: the browser ad blocker's Rust crate and its built libraries (buildAdblock).
+val adblockCrateDir = rootProject.file("../windows/runner/adblock")
+val adblockJniDir = layout.buildDirectory.dir("adblock-jni").get().asFile
+val adblockTargetDir = layout.buildDirectory.dir("adblock-target").get().asFile
 val extractMpvNatives = tasks.register<Sync>("extractMpvNatives") {
   from(provider { zipTree(mpvAarNatives.singleFile) }) {
     include("jni/*/libavcodec.so", "jni/*/libavutil.so", "jni/*/libswresample.so")
@@ -421,6 +425,7 @@ android {
       // is extractMpvNatives' output (the AAR's 16 KB-capable libc++), wired
       // below via the JniLibFolders dependency.
       jniLibs.srcDir(mpvLibcxxJniDir)
+      jniLibs.srcDir(adblockJniDir)
     }
   }
 
@@ -484,6 +489,73 @@ tasks.matching { it.name.startsWith("merge") && it.name.endsWith("JniLibFolders"
   dependsOn(extractMpvNatives)
 }
 
+// Fork: the in-app browser's ad block engine (Brave's adblock-rust, the
+// same crate as the Windows build in windows/runner/adblock), built as a
+// shared library per ABI with the Rust toolchain and the NDK's clang.
+// Needs rustup with the Android targets:
+//   rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+val adblockAbis = mapOf(
+  "arm64-v8a" to ("aarch64-linux-android" to "aarch64-linux-android"),
+  "armeabi-v7a" to ("armv7-linux-androideabi" to "armv7a-linux-androideabi"),
+  "x86_64" to ("x86_64-linux-android" to "x86_64-linux-android"),
+)
+val buildAdblock = tasks.register("buildAdblock") {
+  inputs.dir(File(adblockCrateDir, "src"))
+  inputs.dir(File(adblockCrateDir, "js"))
+  inputs.file(File(adblockCrateDir, "Cargo.toml"))
+  inputs.file(File(adblockCrateDir, "Cargo.lock"))
+  outputs.dir(adblockJniDir)
+  doLast {
+    val home = System.getProperty("user.home")
+    val windows = System.getProperty("os.name").lowercase().contains("windows")
+    val cargo = listOf(
+      File(home, ".cargo/bin/cargo" + if (windows) ".exe" else ""),
+      System.getenv("CARGO_HOME")?.let { File(it, "bin/cargo" + if (windows) ".exe" else "") },
+    ).firstOrNull { it != null && it.isFile }?.absolutePath ?: "cargo"
+    val ndk = android.ndkDirectory
+    val hostTag = when {
+      windows -> "windows-x86_64"
+      System.getProperty("os.name").lowercase().contains("mac") -> "darwin-x86_64"
+      else -> "linux-x86_64"
+    }
+    val bin = File(ndk, "toolchains/llvm/prebuilt/$hostTag/bin")
+    if (!bin.isDirectory) throw GradleException("NDK toolchain not found at $bin")
+    val minApi = 25
+    for ((abi, triples) in adblockAbis) {
+      val (rustTarget, clangTarget) = triples
+      val clang = File(bin, "$clangTarget$minApi-clang" + if (windows) ".cmd" else "")
+      val envKey = rustTarget.uppercase().replace('-', '_')
+      val ccKey = rustTarget.replace('-', '_')
+      val output = providers.exec {
+        commandLine(
+          cargo, "rustc", "--release", "--locked", "--lib", "--crate-type", "cdylib",
+          "--manifest-path", File(adblockCrateDir, "Cargo.toml").absolutePath,
+          "--target", rustTarget,
+          "--target-dir", adblockTargetDir.absolutePath,
+        )
+        environment("CARGO_TARGET_${envKey}_LINKER", clang.absolutePath)
+        environment("CC_$ccKey", clang.absolutePath)
+        environment("AR_$ccKey", File(bin, "llvm-ar" + if (windows) ".exe" else "").absolutePath)
+        isIgnoreExitValue = true
+      }
+      val result = output.result.get().exitValue
+      if (result != 0) {
+        throw GradleException(
+          "Building the ad blocker for $abi failed:\n${output.standardError.asText.get()}\n" +
+            "Install the Rust target with: rustup target add $rustTarget"
+        )
+      }
+      val built = File(adblockTargetDir, "$rustTarget/release/libplezy_adblock.so")
+      val dest = File(adblockJniDir, "$abi/libplezy_adblock.so")
+      dest.parentFile.mkdirs()
+      built.copyTo(dest, overwrite = true)
+    }
+  }
+}
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("JniLibFolders") }.configureEach {
+  dependsOn(buildAdblock)
+}
+
 dependencies {
   // mpv-build's mpv-android library: libmpv, FFmpeg and the JNI glue with
   // its Kotlin API (com.edde746.mpv), including the playback policies the
@@ -500,6 +572,8 @@ dependencies {
   // devices. Same version background_downloader pins, so the merged
   // classpath stays coherent.
   implementation("androidx.work:work-runtime-ktx:2.11.0")
+  // Fork: the in-app browser (document-start scripts, message bridge, private profile).
+  implementation("androidx.webkit:webkit:1.14.0")
 
   // Media3 ExoPlayer for Android
   implementation("androidx.media3:media3-decoder:$media3Version")

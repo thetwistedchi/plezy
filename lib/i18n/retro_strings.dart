@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'strings.g.dart';
 
 /// Texts for the fork's 0.8 additions, English and German. Kept out of the
@@ -153,6 +155,11 @@ class RetroStrings {
   static String get downloadSection => _t('Downloads', 'Downloads');
   static String get downloadFolder => _t('Download folder', 'Download-Ordner');
   static String get downloadFolderDefault => _t('Windows Downloads folder', 'Windows-Download-Ordner');
+  static String get privateTabsUnsupported => _t(
+    'Private tabs need a newer Android System WebView. Update it in the Play Store.',
+    'Private Tabs brauchen ein neueres Android System WebView. Aktualisiere es im Play Store.',
+  );
+  static String get openDownloads => _t('Open downloads', 'Downloads öffnen');
   static String get change => _t('Change', 'Ändern');
   static String get reset => _t('Reset', 'Zurücksetzen');
   static String get askWhereToSave => _t('Ask where to save each file', 'Bei jeder Datei fragen, wo sie gespeichert wird');
@@ -310,7 +317,12 @@ class RetroStrings {
     'Seiten, für die du den Dunkelmodus ausschaltest (⋮-Menü), erscheinen hier.',
   );
   static String get trackingPrevention => _t('Tracking prevention', 'Schutz vor Tracking');
-  static String get trackingDescription => _t(
+  static String get trackingDescription => Platform.isAndroid ? _trackingAndroid : _trackingWindows;
+  static String get _trackingAndroid => _t(
+    'Balanced and Strict block third-party cookies, which other sites use to follow you across pages. Turn it down if a sign-in on another site stops working.',
+    'Ausgewogen und Streng blockieren Drittanbieter-Cookies, mit denen fremde Seiten dich über Seiten hinweg verfolgen. Stell es niedriger, wenn eine Anmeldung über eine andere Seite nicht mehr klappt.',
+  );
+  static String get _trackingWindows => _t(
     'Blocks known trackers and fingerprinting services, like in Microsoft Edge. Strict blocks the most and may break some sites.',
     'Blockiert bekannte Tracker und Fingerprinting-Dienste wie in Microsoft Edge. Streng blockiert am meisten und kann einzelne Seiten stören.',
   );
@@ -341,7 +353,12 @@ class RetroStrings {
   static String get blocked => _t('Blocked', 'Blockiert');
 
   static String get browserProtection => _t('Built-in protection', 'Eingebauter Schutz');
-  static String get browserProtectionDescription => _t(
+  static String get browserProtectionDescription => Platform.isAndroid ? _browserProtectionAndroid : _browserProtectionWindows;
+  static String get _browserProtectionAndroid => _t(
+    'Pop-ups only open from a clicked link or within the same site, pages can\'t jump to another site right after opening one, websites get no access to the camera, microphone or location, and Google Safe Browsing warns about known dangerous sites.',
+    'Pop-ups öffnen sich nur über einen angeklickten Link oder innerhalb derselben Seite, Seiten können nach einem Pop-up nicht sofort zu einer anderen Seite springen, Websites erhalten keinen Zugriff auf Kamera, Mikrofon oder Standort und Google Safe Browsing warnt vor bekannten gefährlichen Seiten.',
+  );
+  static String get _browserProtectionWindows => _t(
     'Pop-ups only open from a clicked link or within the same site, pages can\'t jump to another site right after opening one, notification requests are declined, passwords and form data are not saved, and Microsoft Defender SmartScreen warns about known dangerous sites and downloads.',
     'Pop-ups öffnen sich nur über einen angeklickten Link oder innerhalb derselben Seite, Seiten können nach einem Pop-up nicht sofort zu einer anderen Seite springen, Benachrichtigungsanfragen werden abgelehnt, Passwörter und Formulardaten werden nicht gespeichert und Microsoft Defender SmartScreen warnt vor bekannten gefährlichen Seiten und Downloads.',
   );

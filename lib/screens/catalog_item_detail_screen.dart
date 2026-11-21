@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +30,7 @@ import '../models/catalog/catalog_metadata.dart';
 import '../providers/catalog_sources_provider.dart';
 import '../providers/multi_server_provider.dart';
 import '../providers/seerr_account_provider.dart';
+import '../services/browser/browser_native.dart';
 import '../services/catalog/catalog_library_matcher.dart';
 import '../services/catalog/catalog_source.dart';
 import '../services/catalog/community_ratings.dart';
@@ -60,6 +62,7 @@ import '../widgets/overlay_sheet.dart';
 import '../widgets/seerr_request_sheet.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/stat_chip.dart';
+import 'browser/browser_screen.dart';
 
 /// Detail screen for a catalog item (Explore tab). Renders from provider
 /// data — no media server required — and resolves library availability in
@@ -678,6 +681,11 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
 
   Future<void> _openExternalUrl(String value) async {
     final uri = Uri.tryParse(value);
+    // Fork: on Android, Plex's free titles play in the in-app browser.
+    if (Platform.isAndroid && uri != null && uri.host == 'app.plex.tv' && BrowserNative.isSupported) {
+      await BrowserScreen.open(context, url: value);
+      return;
+    }
     if (uri != null && uri.hasScheme && await openExternalUrl(uri)) return;
     appLogger.d('Catalog external URL could not be opened: $value');
     if (mounted) showErrorSnackBar(context, t.explore.detail.linkUnavailable);

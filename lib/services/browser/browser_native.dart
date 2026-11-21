@@ -34,11 +34,29 @@ class BrowserNative {
       },
       onError: (Object e) => appLogger.d('Browser event: $e'),
     );
+    if (Platform.isAndroid) {
+      privateTabs = false;
+      pauseDownloads = false;
+      unawaited(
+        _channel.invokeMapMethod<String, Object?>('capabilities').then((caps) {
+          privateTabs = caps?['privateTabs'] == true;
+          pauseDownloads = caps?['pauseDownloads'] == true;
+        }, onError: (_) {}),
+      );
+    }
   }
 
   static final BrowserNative instance = BrowserNative._();
 
-  static bool get isSupported => Platform.isWindows;
+  static bool get isSupported => Platform.isWindows || Platform.isAndroid;
+
+  /// Android's platform view the page shows in (android/.../browser).
+  static const androidViewType = 'plezy/browser_page';
+
+  /// What this platform's browser can do. Windows: everything. Android:
+  /// private tabs need a recent System WebView, downloads can't pause.
+  bool privateTabs = true;
+  bool pauseDownloads = true;
 
   static const MethodChannel _channel = MethodChannel('com.plezy.retrowave/browser');
   static const EventChannel _events = EventChannel('com.plezy.retrowave/browser/events');
@@ -153,8 +171,26 @@ class BrowserNative {
     (f) => f.path.split(Platform.pathSeparator).any(_cacheFolders.contains),
   );
 
+  /// Android: opens a finished download with the app for its type.
+  Future<bool> openDownload(String path) async =>
+      await _channel.invokeMethod<bool>('openDownload', {'path': path}).catchError((_) => false) ?? false;
+
+  /// Android: the system's downloads list.
+  Future<void> showDownloads() => _channel.invokeMethod<void>('showDownloads').catchError((_) {});
+
+  /// Android: leaves a page's video fullscreen; true when there was one.
+  Future<bool> exitFullscreen() async =>
+      await _channel.invokeMethod<bool>('exitFullscreen').catchError((_) => false) ?? false;
+
   /// Bytes used by the browser's caches (not its cookies or site sign-ins).
   static Future<int> cacheSize() async {
+    if (Platform.isAndroid) {
+      try {
+        return await _channel.invokeMethod<int>('cacheSize') ?? 0;
+      } catch (_) {
+        return 0;
+      }
+    }
     final profile = await _profileDir();
     if (!await profile.exists()) return 0;
     var total = 0;
@@ -178,10 +214,13 @@ class BrowserNative {
   };
 
   /// Deletes the cache folders. Only while no browser process uses them.
-  static Future<void> deleteCache() => _deleteFolders(_cacheFolders);
+  static Future<void> deleteCache() =>
+      Platform.isAndroid ? _channel.invokeMethod<void>('clearCache').catchError((_) {}) : _deleteFolders(_cacheFolders);
 
   /// Deletes cookies and site data. Only while no browser process uses them.
-  static Future<void> deleteSiteData() => _deleteFolders(_siteDataFolders);
+  static Future<void> deleteSiteData() => Platform.isAndroid
+      ? _channel.invokeMethod<void>('clearSiteData').catchError((_) {})
+      : _deleteFolders(_siteDataFolders);
 
   static Future<void> _deleteFolders(Set<String> names) async {
     final profile = await _profileDir();

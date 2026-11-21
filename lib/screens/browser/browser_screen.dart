@@ -13,6 +13,7 @@ import '../../services/file_picker_service.dart';
 import '../../services/browser/browser_bookmarks.dart';
 import '../../services/browser/browser_controller.dart';
 import '../../services/browser/browser_history.dart';
+import '../../services/browser/browser_native.dart';
 import '../../services/browser/browser_settings.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/page_backdrop.dart';
@@ -65,6 +66,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   final _address = TextEditingController();
   final _addressFocus = FocusNode(debugLabel: 'browser-address');
   final _keys = FocusNode(debugLabel: 'browser');
+  final _toolbarFocus = FocusNode(debugLabel: 'browser-toolbar', canRequestFocus: false, skipTraversal: true);
   final List<StreamSubscription<Object?>> _subs = [];
   _Notice? _notice;
   int _overlays = 0;
@@ -93,6 +95,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
         if (_addressFocus.hasFocus) _addressFocus.unfocus();
       }),
     );
+    // Android TV: Up at the top of the page returns to the toolbar.
+    _subs.add(
+      _controller.pageLeft.listen((_) {
+        final first = _toolbarFocus.traversalDescendants.where((n) => n.canRequestFocus).firstOrNull;
+        (first ?? _keys).requestFocus();
+      }),
+    );
     _addressFocus.addListener(_onAddressFocus);
     _address.addListener(_onAddressText);
     unawaited(_bookmarks.load());
@@ -117,6 +126,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     _address.dispose();
     _addressFocus.dispose();
     _keys.dispose();
+    _toolbarFocus.dispose();
     super.dispose();
   }
 
@@ -442,7 +452,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final defaultFolder = path.contains(Platform.pathSeparator)
         ? path.substring(0, path.lastIndexOf(Platform.pathSeparator))
         : '';
-    final shownFolder = folder.isNotEmpty ? folder : defaultFolder;
+    final shownFolder = Platform.isAndroid ? RetroStrings.downloads : (folder.isNotEmpty ? folder : defaultFolder);
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -476,6 +486,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text(RetroStrings.cancel)),
+          if (!Platform.isAndroid)
           TextButton(
             onPressed: () async {
               final picked = await FilePickerService.instance.saveFile(
@@ -486,11 +497,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
             },
             child: Text(RetroStrings.saveAs),
           ),
-          if (!_settings.askWhereToSave)
+          if (!_settings.askWhereToSave || Platform.isAndroid)
             FilledButton(
               onPressed: () => Navigator.pop(
                 context,
-                folder.isNotEmpty && name.isNotEmpty ? _uniquePath(folder, name) : '',
+                !Platform.isAndroid && folder.isNotEmpty && name.isNotEmpty ? _uniquePath(folder, name) : '',
               ),
               child: Text(RetroStrings.download),
             ),
@@ -531,6 +542,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   void _newTab({bool private = false}) {
+    if (private && !_controller.privateTabsSupported) {
+      _setNotice(_Notice(RetroStrings.privateTabsUnsupported, warning: true));
+      return;
+    }
     unawaited(_controller.newTab(private: private));
     if (_settings.newTabPage != BrowserNewTabPage.custom) _addressFocus.requestFocus();
   }
@@ -756,7 +771,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final internal = _controller.active?.isInternal ?? false;
     final picked = await _menu(anchor, [
       _menuItem('new', Symbols.add_rounded, RetroStrings.newTab),
-      _menuItem('private', Symbols.visibility_off_rounded, RetroStrings.newPrivateTab),
+      _menuItem(
+        'private',
+        Symbols.visibility_off_rounded,
+        RetroStrings.newPrivateTab,
+        enabled: _controller.privateTabsSupported,
+      ),
       _menuItem('reopen', Symbols.history_rounded, RetroStrings.recentlyClosed, enabled: _controller.canReopen),
       _MenuEntry.divider,
       _menuItem('history', Symbols.history_rounded, RetroStrings.history),
@@ -1078,7 +1098,20 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final t = tokens(context);
     final chrome = BoxDecoration(color: Theme.of(context).pageColor);
 
-    return Scaffold(
+    // Android's Back key: leaves a page's video fullscreen, then goes back in
+    // the tab, and only then closes the browser.
+    return PopScope(
+      canPop: !Platform.isAndroid,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (await _controller.exitPageFullscreen()) return;
+        if (_controller.active?.canGoBack ?? false) {
+          await _controller.back();
+          return;
+        }
+        if (context.mounted) Navigator.of(context).pop();
+      },
+      child: Scaffold(
       // Transparent: the native page shows through the page area.
       backgroundColor: Colors.transparent,
       body: CallbackShortcuts(
@@ -1122,6 +1155,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -1207,7 +1241,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
       );
     }
     // While Flutter content covers the page, the page is hidden.
-    if (_overlays > 0) {
+    // (Android keeps its platform view in place, so it isn't rebuilt.)
+    if (_overlays > 0 && !Platform.isAndroid) {
       return DecoratedBox(decoration: pageDecoration(Theme.of(context)), child: const _PageSlot());
     }
     return const _PageSlot();
@@ -1280,7 +1315,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final secure = tab?.isSecure ?? true;
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 6, 8, 6),
-      child: Row(
+      child: Focus(
+        focusNode: _toolbarFocus,
+        child: Row(
         children: [
           _iconButton(
             Symbols.arrow_back_rounded,
@@ -1421,6 +1458,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
             }),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1741,17 +1779,23 @@ class _DownloadRow extends StatelessWidget {
           Text(status, style: TextStyle(color: t.textMuted, fontSize: 12)),
         ],
       ),
-      onTap: done ? () => unawaited(launchUrl(Uri.file(d.path))) : null,
+      onTap: done
+          ? () => unawaited(Platform.isAndroid ? controller.openDownload(d) : launchUrl(Uri.file(d.path)))
+          : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (done)
             IconButton(
               icon: const BrowserIcon(Symbols.folder_rounded, size: 18),
-              tooltip: RetroStrings.showInFolder,
-              onPressed: () => unawaited(Process.run('explorer.exe', ['/select,', d.path])),
+              tooltip: Platform.isAndroid ? RetroStrings.openDownloads : RetroStrings.showInFolder,
+              onPressed: () => unawaited(
+                Platform.isAndroid
+                    ? controller.showDownloadsFolder()
+                    : Process.run('explorer.exe', ['/select,', d.path]),
+              ),
             ),
-          if (d.state == BrowserDownloadState.running)
+          if (d.state == BrowserDownloadState.running && controller.canPauseDownloads)
             IconButton(
               icon: const BrowserIcon(Symbols.pause_rounded, size: 18),
               tooltip: RetroStrings.pause,
@@ -1933,6 +1977,19 @@ class _PageSlotState extends State<_PageSlot> {
 
   @override
   Widget build(BuildContext context) {
+    if (Platform.isAndroid) {
+      // The page is a platform view; focusing it (the remote's Down from the
+      // toolbar) hands the keys to the page and its pointer.
+      return Focus(
+        onFocusChange: (focused) {
+          if (focused) unawaited(BrowserController.instance.focusPage());
+        },
+        child: const AndroidView(
+          viewType: BrowserNative.androidViewType,
+          creationParamsCodec: StandardMessageCodec(),
+        ),
+      );
+    }
     MediaQuery.devicePixelRatioOf(context);
     return LayoutBuilder(
       builder: (context, constraints) {

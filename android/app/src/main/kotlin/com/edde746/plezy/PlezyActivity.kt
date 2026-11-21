@@ -878,6 +878,8 @@ class PlezyActivity : FlutterActivity() {
     flutterEngine.plugins.add(MpvPlayerPlugin())
     flutterEngine.plugins.add(ExoPlayerPlugin())
     flutterEngine.plugins.add(MpvAudioPlayerPlugin())
+    // Fork: the in-app browser (Android WebView + the adblock-rust engine).
+    flutterEngine.plugins.add(com.edde746.plezy.browser.BrowserPlugin())
 
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEVICE_CHANNEL).setMethodCallHandler { call, result ->
       when (call.method) {

@@ -61,8 +61,8 @@ A feature overview. What changed in each version is in the [release notes](https
 - A **search box** next to the library tabs that narrows the current library.
 - Libraries remember their scroll position; a **startup library** can be set under Settings › General.
 - Each Home row can **hide watched** titles.
-- **Free on plex.tv** (desktop) under the libraries lists Plex's free, ad-supported Movies & Shows; titles open in Plex Web to play, since that service's copy protection and ads only work in Plex's own apps.
-- **Browser** (Windows) in the sidebar: tabs, bookmarks, Ecosia search by default, background tabs that pause to save resources, a pop-up blocker with HTTPS upgrades, private tabs, tracking prevention, dark mode for websites (Dark Reader) and a built-in ad blocker (Brave's adblock-rust with uBlock Origin's filter lists). Building the Windows app needs the Rust toolchain (rustup).
+- **Free on plex.tv** under the libraries lists Plex's free, ad-supported Movies & Shows; titles open in Plex Web to play (on Android in the in-app browser), since that service's copy protection and ads only work in Plex's own apps.
+- **Browser** (Windows and Android) in the sidebar: tabs, bookmarks, Ecosia search by default, background tabs that pause to save resources, a pop-up blocker with HTTPS upgrades, private tabs, tracking prevention, dark mode for websites (Dark Reader) and a built-in ad blocker (Brave's adblock-rust with uBlock Origin's filter lists). Building the app needs the Rust toolchain (rustup); for Android also its targets: `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`.
 
 ### Posters
 

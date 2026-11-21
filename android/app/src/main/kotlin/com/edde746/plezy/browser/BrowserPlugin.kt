@@ -1,0 +1,1068 @@
+package com.edde746.plezy.browser
+
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.DownloadManager
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
+import android.util.Base64
+import android.util.Log
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
+import android.webkit.JavascriptInterface
+import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.URLUtil
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebStorage
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.FrameLayout
+import androidx.webkit.ProfileStore
+import androidx.webkit.ScriptHandler
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import com.edde746.plezy.TvDetection
+import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.StandardMessageCodec
+import io.flutter.plugin.platform.PlatformView
+import io.flutter.plugin.platform.PlatformViewFactory
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.Collections
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import org.json.JSONObject
+
+/**
+ * The in-app browser on Android: the same channel as the Windows runner's
+ * browser (windows/runner/browser), with Android's WebView for the tabs and
+ * the same adblock-rust engine. The active tab shows in [BrowserPageView],
+ * a platform view the Dart page places like the Windows page rect.
+ */
+class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
+  companion object {
+    private const val TAG = "PlezyBrowser"
+    private const val CHANNEL = "com.plezy.retrowave/browser"
+    const val VIEW_TYPE = "plezy/browser_page"
+    private const val PRIVATE_PROFILE = "Private"
+    private const val BRIDGE = "plezyBridge"
+
+    /** Link clicks and class/id names, reported from the top page (see the Windows kLinkScript). */
+    private val LINK_SCRIPT = """(()=>{if(window.top!==window)return;const w=window.$BRIDGE;if(!w)return;
+try{delete window.$BRIDGE;}catch(_){}
+const r=e=>{const p=e.composedPath?e.composedPath():[];const a=p.find(n=>n&&n.tagName==='A'&&n.href);
+try{w.postMessage('plezy-link:'+(a?a.href:''));}catch(_){}};
+addEventListener('click',r,true);addEventListener('auxclick',r,true);
+const sc=new Set(),si=new Set();let pc=[],pi=[],tm=0;
+const fl=()=>{tm=0;if(!pc.length&&!pi.length)return;try{w.postMessage('plezy-cosm:'+JSON.stringify({c:pc,i:pi}));}catch(_){}pc=[];pi=[];};
+const ad=e=>{if(sc.size>20000)return;const id=e.id;if(id&&typeof id==='string'&&!si.has(id)){si.add(id);pi.push(id);}
+const cl=e.classList;if(cl)for(const c of cl)if(!sc.has(c)){sc.add(c);pc.push(c);}};
+const sn=n=>{if(!n||n.nodeType!==1)return;ad(n);if(n.querySelectorAll)for(const e of n.querySelectorAll('[id],[class]'))ad(e);if(!tm)tm=setTimeout(fl,120);};
+const st=()=>{sn(document.documentElement);new MutationObserver(ms=>{for(const m of ms){
+if(m.type==='attributes'){ad(m.target);if(!tm)tm=setTimeout(fl,120);}else for(const n of m.addedNodes)sn(n);}})
+.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','id']});};
+if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:true});else st();})();"""
+
+    private val ALL_ORIGINS = setOf("*")
+  }
+
+  private class Tab(val id: Int, val private: Boolean) {
+    var webView: WebView? = null
+    var lastUrl: String = ""
+    @Volatile var pageUrl: String = ""
+    val blocked = AtomicInteger()
+    val checked = AtomicInteger()
+    @Volatile var blockedReport = 0L
+    var checkNanos = 0L
+    @Volatile var cosmeticExceptions = "[]"
+    @Volatile var generichide = false
+    var pageScript: ScriptHandler? = null
+    var pageScriptText: String? = null
+    var preparedFor: String? = null
+    var darkScript: ScriptHandler? = null
+    val allowedHosts: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
+    val httpHosts = mutableSetOf<String>()
+    var lastLink = ""
+    var linkAt = 0L
+    var popupAt = 0L
+    var error: Int? = null
+    var muted = false
+    var suspended = false
+  }
+
+  private class PendingDownload(
+    val tab: Int, val url: String, val userAgent: String, val mime: String?, val name: String, val referer: String,
+  )
+
+  private lateinit var appContext: Context
+  private var activity: Activity? = null
+  private var channel: MethodChannel? = null
+  private var events: EventChannel.EventSink? = null
+  private val main = Handler(Looper.getMainLooper())
+
+  private val tabs = HashMap<Int, Tab>()
+  private var activeId = 0
+  private var visible = false
+  private var page: BrowserPageView? = null
+  private var tv = false
+
+  private var httpsUpgrade = true
+  private var tracking = 2
+  private var popupSites = emptySet<String>()
+  private var darkScript = ""
+
+  @Volatile private var adblock = 0L
+  @Volatile private var adblockEnabled = true
+  @Volatile private var adblockOffSites = emptySet<String>()
+  private var adblockGeneration = 0
+
+  private var nextRequest = 1
+  private val pendingDownloads = HashMap<Int, PendingDownload>()
+  private val downloads = HashMap<Int, Pair<Int, Long>>() // request -> (tab, DownloadManager id)
+  private var polling = false
+  private val finished = HashMap<String, Long>() // path -> DownloadManager id
+
+  private var fullscreenView: View? = null
+  private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
+  private var fullscreenTab = 0
+
+  // ---------------------------------------------------------------- plugin
+
+  override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+    appContext = binding.applicationContext
+    tv = TvDetection.isTv(appContext)
+    channel = MethodChannel(binding.binaryMessenger, CHANNEL).also { it.setMethodCallHandler(this) }
+    EventChannel(binding.binaryMessenger, "$CHANNEL/events").setStreamHandler(object : EventChannel.StreamHandler {
+      override fun onListen(arguments: Any?, sink: EventChannel.EventSink?) {
+        events = sink
+      }
+
+      override fun onCancel(arguments: Any?) {
+        events = null
+      }
+    })
+    binding.platformViewRegistry.registerViewFactory(VIEW_TYPE, object : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
+      override fun create(context: Context, viewId: Int, args: Any?): PlatformView =
+        BrowserPageView(activity ?: context, this@BrowserPlugin, tv)
+    })
+  }
+
+  override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+    channel?.setMethodCallHandler(null)
+    channel = null
+    disposeAll()
+  }
+
+  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    activity = binding.activity
+  }
+
+  override fun onDetachedFromActivityForConfigChanges() {
+    activity = null
+  }
+
+  override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+    activity = binding.activity
+  }
+
+  override fun onDetachedFromActivity() {
+    exitFullscreen()
+    activity = null
+  }
+
+  private fun send(tab: Int, type: String, data: Map<String, Any?> = emptyMap()) {
+    val event = HashMap<String, Any?>(data)
+    event["type"] = type
+    event["tab"] = tab
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      events?.success(event)
+    } else {
+      main.post { events?.success(event) }
+    }
+  }
+
+  // ------------------------------------------------------------- page view
+
+  internal fun attachPage(view: BrowserPageView) {
+    page = view
+    applyLayout()
+  }
+
+  internal fun detachPage(view: BrowserPageView) {
+    if (page === view) page = null
+  }
+
+  internal fun onPageTouched() = send(0, "pageFocus")
+
+  internal fun onLeavePage(view: BrowserPageView) {
+    view.returnFocusToFlutter()
+    send(0, "leavePage")
+  }
+
+  private fun applyLayout() {
+    val tab = tabs[activeId]
+    val web = if (visible && tab != null && !tab.suspended) tab.webView else null
+    page?.show(web)
+  }
+
+  // ------------------------------------------------------------ helpers
+
+  private fun hostOf(url: String): String = try {
+    Uri.parse(url).host?.lowercase(Locale.ROOT) ?: ""
+  } catch (_: Exception) {
+    ""
+  }
+
+  /** Roughly the registrable domain, like the Windows SiteOf. */
+  private fun siteOf(host: String): String {
+    val labels = host.split('.')
+    if (labels.size <= 2) return host
+    val keep = if (labels.last().length == 2 && labels[labels.size - 2].length <= 3) 3 else 2
+    if (labels.size <= keep) return host
+    return labels.takeLast(keep).joinToString(".")
+  }
+
+  private fun isLocalHost(host: String): Boolean {
+    if (host.isEmpty() || host == "localhost" || host.startsWith("[")) return true
+    if (!host.contains('.')) return true
+    if (host.endsWith(".local") || host.endsWith(".lan") || host.endsWith(".home.arpa")) return true
+    val parts = host.split('.').mapNotNull { it.toIntOrNull() }
+    if (parts.size == 4) {
+      val (a, b) = parts
+      return a == 10 || a == 127 || (a == 192 && b == 168) || (a == 172 && b in 16..31) ||
+        (a == 169 && b == 254) || (a == 100 && b in 64..127)
+    }
+    return false
+  }
+
+  private fun adblockActive(pageUrl: String): Boolean {
+    if (adblock == 0L || !adblockEnabled || pageUrl.isEmpty()) return false
+    return siteOf(hostOf(pageUrl)) !in adblockOffSites
+  }
+
+  /** Adblock request type from what Android tells about a request. */
+  private fun requestType(request: WebResourceRequest): String {
+    val accept = request.requestHeaders["Accept"]?.lowercase(Locale.ROOT) ?: ""
+    val path = request.url.path?.lowercase(Locale.ROOT) ?: ""
+    return when {
+      accept.startsWith("text/html") -> "sub_frame"
+      accept.startsWith("text/css") || path.endsWith(".css") -> "stylesheet"
+      accept.startsWith("image/") || path.endsWith(".png") || path.endsWith(".jpg") || path.endsWith(".jpeg") ||
+        path.endsWith(".gif") || path.endsWith(".webp") || path.endsWith(".svg") || path.endsWith(".ico") -> "image"
+      path.endsWith(".js") || path.endsWith(".mjs") -> "script"
+      path.endsWith(".woff") || path.endsWith(".woff2") || path.endsWith(".ttf") || path.endsWith(".otf") -> "font"
+      path.endsWith(".mp4") || path.endsWith(".webm") || path.endsWith(".m3u8") || path.endsWith(".mp3") -> "media"
+      request.requestHeaders["X-Requested-With"] == "XMLHttpRequest" -> "xmlhttprequest"
+      accept.contains("application/json") -> "xmlhttprequest"
+      else -> "other"
+    }
+  }
+
+  private fun dataResponse(url: String): WebResourceResponse? {
+    if (!url.startsWith("data:")) return null
+    val comma = url.indexOf(',')
+    if (comma < 0) return null
+    var meta = url.substring(5, comma)
+    val base64 = meta.endsWith(";base64")
+    if (base64) meta = meta.removeSuffix(";base64")
+    val data = url.substring(comma + 1)
+    val bytes = if (base64) Base64.decode(data, Base64.DEFAULT) else Uri.decode(data).toByteArray()
+    return WebResourceResponse(
+      meta.ifEmpty { "text/plain" }, "utf-8", 200, "OK",
+      mapOf("Access-Control-Allow-Origin" to "*"), ByteArrayInputStream(bytes),
+    )
+  }
+
+  private fun blockedResponse() =
+    WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+
+  private fun reportBlocked(tab: Tab, force: Boolean) {
+    val now = System.currentTimeMillis()
+    if (!force && now - tab.blockedReport < 400) return
+    tab.blockedReport = now
+    send(tab.id, "blocked", mapOf("count" to tab.blocked.get()))
+  }
+
+  private fun sendState(tab: Tab) {
+    val web = tab.webView ?: return
+    val url = web.url ?: ""
+    if (url.isNotEmpty() && url != "about:blank") tab.lastUrl = url
+    send(
+      tab.id, "state",
+      mapOf("url" to url, "title" to (web.title ?: ""), "canGoBack" to web.canGoBack(), "canGoForward" to web.canGoForward()),
+    )
+  }
+
+  // ------------------------------------------------------- page scripts
+
+  private val documentStart get() = WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
+
+  /** The next page's hiding rules and scriptlets; replaces the last page's. */
+  private fun preparePage(tab: Tab, url: String, runNow: Boolean) {
+    val web = tab.webView ?: return
+    tab.pageUrl = url
+    tab.preparedFor = siteOf(hostOf(url))
+    tab.blocked.set(0)
+    tab.checked.set(0)
+    tab.checkNanos = 0
+    tab.cosmeticExceptions = "[]"
+    tab.generichide = false
+    var script: String? = null
+    if (adblockActive(url)) {
+      AdblockEngine.pageScript(adblock, url)?.let { json ->
+        try {
+          val o = JSONObject(json)
+          script = if (o.isNull("script")) null else o.getString("script")
+          tab.cosmeticExceptions = o.optString("exceptions", "[]")
+          tab.generichide = o.optBoolean("generichide", false)
+        } catch (_: Exception) {
+        }
+      }
+    }
+    if (script == tab.pageScriptText && (tab.pageScript != null || script == null)) {
+      if (runNow && script != null) web.evaluateJavascript(script!!, null)
+      return
+    }
+    tab.pageScript?.remove()
+    tab.pageScript = null
+    tab.pageScriptText = script
+    val js = script ?: return
+    if (documentStart) {
+      try {
+        tab.pageScript = WebViewCompat.addDocumentStartJavaScript(web, js, ALL_ORIGINS)
+      } catch (e: Exception) {
+        Log.d(TAG, "page script: $e")
+      }
+    }
+    if (runNow || !documentStart) web.evaluateJavascript(js, null)
+  }
+
+  private fun installDarkScript(tab: Tab) {
+    val web = tab.webView ?: return
+    tab.darkScript?.remove()
+    tab.darkScript = null
+    if (darkScript.isEmpty() || !documentStart) return
+    try {
+      tab.darkScript = WebViewCompat.addDocumentStartJavaScript(web, darkScript, ALL_ORIGINS)
+    } catch (e: Exception) {
+      Log.d(TAG, "dark script: $e")
+    }
+  }
+
+  private fun applyMute(tab: Tab) {
+    val muted = if (tab.muted) "true" else "false"
+    tab.webView?.evaluateJavascript(
+      "(()=>{const m=$muted;window.__plezyMuted=m;document.querySelectorAll('video,audio').forEach(e=>e.muted=m);" +
+        "if(!window.__plezyMuteObs){window.__plezyMuteObs=new MutationObserver(()=>{if(window.__plezyMuted)" +
+        "document.querySelectorAll('video,audio').forEach(e=>e.muted=true);});" +
+        "window.__plezyMuteObs.observe(document.documentElement,{childList:true,subtree:true});}})();",
+      null,
+    )
+  }
+
+  private fun onBridgeMessage(tab: Tab, message: String) {
+    if (message.startsWith("plezy-cosm:") && message.length < 512 * 1024) {
+      if (tab.generichide || !adblockActive(tab.pageUrl)) return
+      val script = AdblockEngine.genericScript(adblock, message.removePrefix("plezy-cosm:"), tab.cosmeticExceptions)
+      if (script != null) tab.webView?.evaluateJavascript(script, null)
+      return
+    }
+    if (message.length > 4096 || !message.startsWith("plezy-link:")) return
+    tab.lastLink = message.removePrefix("plezy-link:")
+    tab.linkAt = System.currentTimeMillis()
+  }
+
+  // ------------------------------------------------------------ WebView
+
+  @SuppressLint("SetJavaScriptEnabled", "JavascriptInterface", "RequiresFeature")
+  private fun createWebView(tab: Tab): WebView {
+    val web = WebView(activity ?: appContext)
+    if (tab.private && WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+      ProfileStore.getInstance().getOrCreateProfile(PRIVATE_PROFILE)
+      WebViewCompat.setProfile(web, PRIVATE_PROFILE)
+    }
+    web.setBackgroundColor(Color.WHITE)
+    with(web.settings) {
+      javaScriptEnabled = true
+      domStorageEnabled = true
+      @Suppress("DEPRECATION")
+      databaseEnabled = true
+      setSupportMultipleWindows(true)
+      javaScriptCanOpenWindowsAutomatically = true
+      builtInZoomControls = true
+      displayZoomControls = false
+      useWideViewPort = true
+      loadWithOverviewMode = true
+      allowFileAccess = false
+      allowContentAccess = false
+      setGeolocationEnabled(false)
+      mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+      mediaPlaybackRequiresUserGesture = true
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) safeBrowsingEnabled = true
+      // Pages see Chrome, not an embedded WebView.
+      userAgentString = userAgentString.replace("; wv)", ")").replace(Regex("Version/\\d+\\.\\d+ "), "")
+      if (tab.private) cacheMode = WebSettings.LOAD_NO_CACHE
+    }
+    CookieManager.getInstance().setAcceptThirdPartyCookies(web, tracking < 2)
+
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+      WebViewCompat.addWebMessageListener(web, BRIDGE, ALL_ORIGINS) { _, message, _, isMainFrame, _ ->
+        if (isMainFrame) message.data?.let { onBridgeMessage(tab, it) }
+      }
+    } else {
+      web.addJavascriptInterface(object {
+        @JavascriptInterface
+        fun postMessage(message: String) {
+          main.post { onBridgeMessage(tab, message) }
+        }
+      }, BRIDGE)
+    }
+    if (documentStart) {
+      try {
+        WebViewCompat.addDocumentStartJavaScript(web, LINK_SCRIPT, ALL_ORIGINS)
+      } catch (e: Exception) {
+        Log.d(TAG, "link script: $e")
+      }
+    }
+
+    web.webViewClient = object : WebViewClient() {
+      override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+        if (!request.isForMainFrame) return false
+        val url = request.url.toString()
+        val lower = url.lowercase(Locale.ROOT)
+        if (lower.startsWith("file:") || lower.startsWith("javascript:") || lower.startsWith("content:")) {
+          send(tab.id, "blockedScheme", mapOf("url" to url))
+          return true
+        }
+        if (!lower.startsWith("http:") && !lower.startsWith("https:") && !lower.startsWith("about:") &&
+          !lower.startsWith("data:") && !lower.startsWith("blob:")
+        ) {
+          // Links to apps (intent:, market:, mailto:): the fallback page
+          // for intent: links, nothing for the others.
+          if (lower.startsWith("intent:")) {
+            Regex("S\\.browser_fallback_url=([^;]+)").find(url)?.groupValues?.get(1)?.let {
+              view.loadUrl(Uri.decode(it))
+            }
+          }
+          return true
+        }
+        if (httpsUpgrade && lower.startsWith("http://")) {
+          val host = hostOf(url)
+          if (!isLocalHost(host) && host !in tab.httpHosts) {
+            view.loadUrl("https://" + url.substring(7))
+            send(tab.id, "upgraded", mapOf("url" to url))
+            return true
+          }
+        }
+        // Tab-under: right after opening a pop-up, the page moves to another
+        // site without a click.
+        if (tab.popupAt != 0L && System.currentTimeMillis() - tab.popupAt < 10_000) {
+          val from = view.url ?: ""
+          val fromSite = siteOf(hostOf(from))
+          val site = siteOf(hostOf(url))
+          if (!request.hasGesture() && !request.isRedirect && fromSite !in popupSites && site.isNotEmpty() &&
+            site != fromSite
+          ) {
+            send(tab.id, "popupBlocked", mapOf("url" to url, "site" to fromSite, "redirect" to true))
+            return true
+          }
+        }
+        preparePage(tab, url, runNow = false)
+        return false
+      }
+
+      override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+        val url = request.url.toString()
+        if (!url.startsWith("http")) return null
+        val engine = adblock
+        if (request.isForMainFrame) {
+          tab.pageUrl = url
+          if (engine == 0L || !adblockActive(url) || hostOf(url) in tab.allowedHosts) return null
+          // Pages on a filter list are kept closed; the app shows a warning.
+          if (AdblockEngine.check(engine, url, url, "main_frame") != null) {
+            main.post {
+              tab.webView?.stopLoading()
+              send(tab.id, "pageBlocked", mapOf("url" to url))
+            }
+            return blockedResponse()
+          }
+          return null
+        }
+        val pageUrl = tab.pageUrl
+        if (!adblockActive(pageUrl)) return null
+        val started = System.nanoTime()
+        val verdict = AdblockEngine.check(engine, url, pageUrl, requestType(request))
+        tab.checkNanos += System.nanoTime() - started
+        tab.checked.incrementAndGet()
+        verdict ?: return null
+        tab.blocked.incrementAndGet()
+        val now = System.currentTimeMillis()
+        if (now - tab.blockedReport >= 400) main.post { reportBlocked(tab, false) }
+        return if (verdict.isEmpty()) blockedResponse() else dataResponse(verdict) ?: blockedResponse()
+      }
+
+      override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+        tab.error = null
+        // Back, forward and reloads skip shouldOverrideUrlLoading.
+        if (url.startsWith("http") && tab.preparedFor != siteOf(hostOf(url))) preparePage(tab, url, runNow = true)
+        else tab.pageUrl = url
+        reportBlocked(tab, true)
+        send(tab.id, "loading", mapOf("url" to url))
+        sendState(tab)
+        if (tab.muted) applyMute(tab)
+      }
+
+      override fun onPageFinished(view: WebView, url: String) {
+        reportBlocked(tab, true)
+        val checked = tab.checked.get()
+        if (checked > 0) {
+          send(
+            tab.id, "adblockStats",
+            mapOf("checked" to checked, "blocked" to tab.blocked.get(), "ms" to tab.checkNanos / 1_000_000.0),
+          )
+        }
+        val error = tab.error
+        send(tab.id, "loaded", mapOf("ok" to (error == null), "error" to (error ?: 0)))
+        sendState(tab)
+        if (tab.muted) applyMute(tab)
+      }
+
+      override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+        if (request.isForMainFrame) tab.error = error.errorCode
+      }
+
+      override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
+        sendState(tab)
+      }
+
+      override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+        // The WebView can't be used again: the tab gets a new one on reload.
+        Log.w(TAG, "Tab ${tab.id}: render process gone (crash=${detail.didCrash()})")
+        if (page != null && tabs[activeId] === tab) page?.show(null)
+        (view.parent as? ViewGroup)?.removeView(view)
+        view.destroy()
+        if (tab.webView === view) tab.webView = null
+        send(tab.id, "crashed", mapOf("kind" to 1, "reason" to (if (detail.didCrash()) 1 else 0), "exitCode" to 0))
+        return true
+      }
+    }
+
+    web.webChromeClient = object : WebChromeClient() {
+      override fun onReceivedTitle(view: WebView, title: String?) = sendState(tab)
+
+      override fun onReceivedIcon(view: WebView, icon: Bitmap?) {
+        if (icon == null) return
+        val out = ByteArrayOutputStream()
+        icon.compress(Bitmap.CompressFormat.PNG, 100, out)
+        send(tab.id, "favicon", mapOf("data" to out.toByteArray()))
+      }
+
+      override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
+        // The address of the new window only shows once it starts loading:
+        // a throwaway WebView catches it.
+        val catcher = WebView(activity ?: appContext)
+        if (tab.private && WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+          try {
+            WebViewCompat.setProfile(catcher, PRIVATE_PROFILE)
+          } catch (_: Exception) {
+          }
+        }
+        var done = false
+        val opener = view.url ?: ""
+        fun take(url: String) {
+          if (done) return
+          done = true
+          main.post { catcher.destroy() }
+          onNewWindow(tab, url, opener, isUserGesture)
+        }
+        catcher.webViewClient = object : WebViewClient() {
+          override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
+            take(request.url.toString())
+            return true
+          }
+
+          override fun onPageStarted(v: WebView, url: String, favicon: Bitmap?) {
+            if (url != "about:blank") take(url)
+            v.stopLoading()
+          }
+        }
+        val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
+        transport.webView = catcher
+        resultMsg.sendToTarget()
+        return true
+      }
+
+      override fun onShowCustomView(view: View, callback: CustomViewCallback) {
+        enterFullscreen(tab.id, view, callback)
+      }
+
+      override fun onHideCustomView() = exitFullscreen()
+
+      // No camera, microphone or location for websites in this app; copy
+      // protected video (Widevine, e.g. Plex's free service) may play.
+      override fun onPermissionRequest(request: PermissionRequest) {
+        val drm = request.resources.filter { it == PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID }
+        if (drm.isNotEmpty()) request.grant(drm.toTypedArray()) else request.deny()
+      }
+
+      override fun onGeolocationPermissionsShowPrompt(origin: String, callback: GeolocationPermissions.Callback) =
+        callback.invoke(origin, false, false)
+    }
+
+    web.setDownloadListener { url, userAgent, contentDisposition, mime, length ->
+      val request = nextRequest++
+      val name = URLUtil.guessFileName(url, contentDisposition, mime)
+      pendingDownloads[request] = PendingDownload(tab.id, url, userAgent, mime, name, web.url ?: "")
+      send(tab.id, "download", mapOf("request" to request, "url" to url, "path" to name, "size" to length))
+    }
+
+    web.setOnFocusChangeListener { _, focused -> if (focused) send(0, "pageFocus") }
+    tab.webView = web
+    installDarkScript(tab)
+    return web
+  }
+
+  private fun onNewWindow(tab: Tab, url: String, opener: String, userGesture: Boolean) {
+    val openerSite = siteOf(hostOf(opener))
+    fun open() {
+      tab.popupAt = System.currentTimeMillis()
+      send(tab.id, "openTab", mapOf("url" to url))
+    }
+    if (openerSite in popupSites) return open()
+    if (!userGesture) {
+      send(tab.id, "popupBlocked", mapOf("url" to url, "site" to openerSite))
+      return
+    }
+    val target = siteOf(hostOf(url))
+    if (target.isNotEmpty() && target == openerSite) return open()
+    val trim = { u: String -> u.trimEnd('/') }
+    if (tab.lastLink.isNotEmpty() && System.currentTimeMillis() - tab.linkAt < 3000 && trim(tab.lastLink) == trim(url)) {
+      tab.lastLink = ""
+      open()
+    } else {
+      send(tab.id, "popupBlocked", mapOf("url" to url, "site" to openerSite))
+    }
+  }
+
+  private fun enterFullscreen(tabId: Int, view: View, callback: WebChromeClient.CustomViewCallback) {
+    val decor = activity?.window?.decorView as? FrameLayout
+    if (decor == null) {
+      callback.onCustomViewHidden()
+      return
+    }
+    exitFullscreen()
+    view.setBackgroundColor(Color.BLACK)
+    decor.addView(view, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    fullscreenView = view
+    fullscreenCallback = callback
+    fullscreenTab = tabId
+    send(tabId, "fullscreen", mapOf("value" to true))
+  }
+
+  /** Leaves a page's video fullscreen; true when there was one. */
+  fun exitFullscreen(): Boolean {
+    val view = fullscreenView ?: return false
+    (view.parent as? ViewGroup)?.removeView(view)
+    fullscreenView = null
+    val callback = fullscreenCallback
+    fullscreenCallback = null
+    callback?.onCustomViewHidden()
+    send(fullscreenTab, "fullscreen", mapOf("value" to false))
+    return true
+  }
+
+  // ------------------------------------------------------------ downloads
+
+  private val downloadManager get() = appContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+
+  private fun startDownload(request: Int, pending: PendingDownload) {
+    if (!pending.url.startsWith("http")) {
+      send(pending.tab, "downloadState", mapOf("download" to request, "state" to "failed", "url" to pending.url, "path" to pending.name))
+      return
+    }
+    try {
+      val r = DownloadManager.Request(Uri.parse(pending.url))
+        .setTitle(pending.name)
+        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .addRequestHeader("User-Agent", pending.userAgent)
+      CookieManager.getInstance().getCookie(pending.url)?.let { r.addRequestHeader("Cookie", it) }
+      if (pending.referer.startsWith("http")) r.addRequestHeader("Referer", pending.referer)
+      pending.mime?.let { r.setMimeType(it) }
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, pending.name)
+      } else {
+        r.setDestinationInExternalFilesDir(appContext, Environment.DIRECTORY_DOWNLOADS, pending.name)
+      }
+      downloads[request] = pending.tab to downloadManager.enqueue(r)
+      send(pending.tab, "downloadState", mapOf("download" to request, "state" to "running", "url" to pending.url, "path" to pending.name))
+      poll()
+    } catch (e: Exception) {
+      Log.w(TAG, "download failed to start", e)
+      send(pending.tab, "downloadState", mapOf("download" to request, "state" to "failed", "url" to pending.url, "path" to pending.name))
+    }
+  }
+
+  private fun poll() {
+    if (polling) return
+    polling = true
+    main.postDelayed(object : Runnable {
+      override fun run() {
+        for ((request, entry) in downloads.toMap()) {
+          val (tab, id) = entry
+          val cursor = downloadManager.query(DownloadManager.Query().setFilterById(id)) ?: continue
+          cursor.use { c ->
+            if (!c.moveToFirst()) {
+              downloads.remove(request)
+              send(tab, "downloadState", mapOf("download" to request, "state" to "failed"))
+              return@use
+            }
+            val status = c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+            val received = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+            val total = c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+            val local = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI)) ?: ""
+            val uri = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_URI)) ?: ""
+            val state = when (status) {
+              DownloadManager.STATUS_SUCCESSFUL -> "completed"
+              DownloadManager.STATUS_FAILED -> "failed"
+              else -> "running"
+            }
+            val path = Uri.parse(local).path ?: local
+            send(
+              tab, "downloadState",
+              mapOf("download" to request, "state" to state, "received" to received, "total" to total.coerceAtLeast(0), "path" to path, "url" to uri),
+            )
+            if (state == "completed") finished[path] = id
+            if (state != "running") downloads.remove(request)
+          }
+        }
+        if (downloads.isEmpty()) {
+          polling = false
+        } else {
+          main.postDelayed(this, 700)
+        }
+      }
+    }, 300)
+  }
+
+  // ------------------------------------------------------------- methods
+
+  private fun list(call: MethodCall, key: String): Set<String> =
+    (call.argument<List<Any?>>(key) ?: emptyList()).filterIsInstance<String>().map { it.lowercase(Locale.ROOT) }.toSet()
+
+  override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    when (call.method) {
+      "initialize" -> {
+        httpsUpgrade = call.argument<Boolean>("httpsUpgrade") ?: true
+        tracking = call.argument<Int>("tracking") ?: 2
+        result.success(true)
+      }
+      "capabilities" -> result.success(
+        mapOf(
+          "privateTabs" to WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE),
+          "adblock" to AdblockEngine.available,
+          "pauseDownloads" to false,
+        ),
+      )
+      "dispose" -> {
+        disposeAll()
+        result.success(null)
+      }
+      "setRect", "setCutouts" -> result.success(null)
+      "setVisible" -> {
+        visible = call.argument<Boolean>("visible") ?: false
+        applyLayout()
+        result.success(null)
+      }
+      "setActive" -> {
+        activeId = call.argument<Int>("id") ?: 0
+        applyLayout()
+        result.success(null)
+      }
+      "setPopupSites" -> {
+        popupSites = list(call, "sites")
+        result.success(null)
+      }
+      "setHttpsUpgrade" -> {
+        httpsUpgrade = call.argument<Boolean>("value") ?: true
+        result.success(null)
+      }
+      "setTrackingPrevention" -> {
+        tracking = call.argument<Int>("level") ?: 2
+        for (tab in tabs.values) tab.webView?.let { CookieManager.getInstance().setAcceptThirdPartyCookies(it, tracking < 2) }
+        result.success(null)
+      }
+      "setDarkScript" -> {
+        darkScript = call.argument<String>("script") ?: ""
+        for (tab in tabs.values) {
+          installDarkScript(tab)
+          val web = tab.webView ?: continue
+          web.evaluateJavascript(
+            darkScript.ifEmpty { "try{window.__plezyDark&&window.__plezyDark.disable();}catch(e){}" }, null,
+          )
+        }
+        result.success(null)
+      }
+      "answerPermission" -> result.success(null)
+      "answerDownload" -> {
+        val request = call.argument<Int>("request") ?: 0
+        val pending = pendingDownloads.remove(request)
+        if (pending != null && call.argument<Boolean>("allow") == true) startDownload(request, pending)
+        result.success(null)
+      }
+      "cancelDownload" -> {
+        val request = call.argument<Int>("download") ?: 0
+        downloads.remove(request)?.let { (tab, id) ->
+          downloadManager.remove(id)
+          send(tab, "downloadState", mapOf("download" to request, "state" to "failed"))
+        }
+        result.success(null)
+      }
+      "pauseDownload", "resumeDownload" -> result.success(null)
+      "openDownload" -> {
+        val path = call.argument<String>("path") ?: ""
+        result.success(openDownload(path))
+      }
+      "showDownloads" -> {
+        try {
+          activity?.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+          result.success(true)
+        } catch (_: ActivityNotFoundException) {
+          result.success(false)
+        }
+      }
+      "adblockLoad" -> {
+        val config = call.argument<String>("config") ?: "{}"
+        val generation = ++adblockGeneration
+        val started = System.currentTimeMillis()
+        if (!AdblockEngine.available) {
+          send(0, "adblockReady", mapOf("ok" to false, "ms" to 0))
+          result.success(null)
+          return
+        }
+        Thread {
+          val engine = try {
+            AdblockEngine.load(config)
+          } catch (e: Throwable) {
+            Log.w(TAG, "adblock load", e)
+            0L
+          }
+          main.post {
+            if (generation != adblockGeneration) {
+              if (engine != 0L) AdblockEngine.free(engine)
+              return@post
+            }
+            if (engine != 0L) {
+              val old = adblock
+              adblock = engine
+              // Request threads may still use the old one for a moment.
+              if (old != 0L) main.postDelayed({ AdblockEngine.free(old) }, 10_000)
+            }
+            send(0, "adblockReady", mapOf("ok" to (engine != 0L), "ms" to (System.currentTimeMillis() - started)))
+          }
+        }.start()
+        result.success(null)
+      }
+      "adblockSetEnabled" -> {
+        adblockEnabled = call.argument<Boolean>("value") ?: true
+        result.success(null)
+      }
+      "adblockSetOffSites" -> {
+        adblockOffSites = list(call, "sites")
+        result.success(null)
+      }
+      "clearCache" -> {
+        WebView(appContext).apply {
+          clearCache(true)
+          destroy()
+        }
+        result.success(null)
+      }
+      "clearSiteData" -> {
+        WebStorage.getInstance().deleteAllData()
+        CookieManager.getInstance().removeAllCookies { CookieManager.getInstance().flush(); result.success(null) }
+      }
+      "cacheSize" -> Thread {
+        val size = listOf(File(appContext.cacheDir, "WebView"), File(appContext.cacheDir, "org.chromium.android_webview"))
+          .sumOf { dir -> dir.walkTopDown().filter { it.isFile }.sumOf { it.length() } }
+        main.post { result.success(size) }
+      }.start()
+      "exitFullscreen" -> result.success(exitFullscreen())
+      "createTab" -> createTab(call, result)
+      "closeTab" -> {
+        closeTab(call.argument<Int>("id") ?: 0)
+        result.success(null)
+      }
+      else -> tabMethod(call, result)
+    }
+  }
+
+  private fun createTab(call: MethodCall, result: MethodChannel.Result) {
+    val id = call.argument<Int>("id") ?: 0
+    if (tabs.containsKey(id)) {
+      result.success(true)
+      return
+    }
+    val private = call.argument<Boolean>("private") ?: false
+    if (private && !WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+      result.error("CREATE_FAILED", "Private tabs need a newer Android System WebView", null)
+      return
+    }
+    val tab = Tab(id, private)
+    tabs[id] = tab
+    try {
+      createWebView(tab)
+    } catch (e: Exception) {
+      tabs.remove(id)
+      result.error("CREATE_FAILED", e.toString(), null)
+      return
+    }
+    val url = call.argument<String>("url") ?: ""
+    applyLayout()
+    if (url.isNotEmpty()) load(tab, url)
+    result.success(true)
+  }
+
+  private fun load(tab: Tab, url: String) {
+    val web = tab.webView ?: return
+    tab.lastUrl = url
+    if (url.startsWith("http")) preparePage(tab, url, runNow = false)
+    web.loadUrl(url)
+  }
+
+  /** A tab whose page process died gets a new WebView, loading its last page. */
+  private fun revive(tab: Tab): WebView? {
+    tab.webView?.let { return it }
+    createWebView(tab)
+    applyLayout()
+    if (tab.lastUrl.isNotEmpty()) load(tab, tab.lastUrl)
+    if (tab.muted) applyMute(tab)
+    return tab.webView
+  }
+
+  private fun tabMethod(call: MethodCall, result: MethodChannel.Result) {
+    val tab = tabs[call.argument<Int>("id") ?: 0]
+    if (tab == null) {
+      result.error("NO_TAB", "No such browser tab", null)
+      return
+    }
+    if (call.method == "reload" && tab.webView == null) {
+      revive(tab)
+      result.success(null)
+      return
+    }
+    val web = tab.webView
+    if (web == null) {
+      result.error("NO_TAB", "The tab has no page", null)
+      return
+    }
+    when (call.method) {
+      "navigate" -> {
+        val url = call.argument<String>("url") ?: ""
+        if (call.argument<Boolean>("allowHttp") == true) {
+          hostOf(url).takeIf { it.isNotEmpty() }?.let { tab.httpHosts.add(it) }
+        }
+        load(tab, url)
+      }
+      "back" -> if (web.canGoBack()) web.goBack()
+      "forward" -> if (web.canGoForward()) web.goForward()
+      "reload" -> web.reload()
+      "stop" -> web.stopLoading()
+      "focus" -> page?.focusPage()
+      "proceedBlocked" -> {
+        val url = call.argument<String>("url") ?: ""
+        hostOf(url).takeIf { it.isNotEmpty() }?.let { tab.allowedHosts.add(it) }
+        load(tab, url)
+      }
+      "setMuted" -> {
+        tab.muted = call.argument<Boolean>("value") ?: false
+        applyMute(tab)
+      }
+      "suspend" -> {
+        tab.suspended = true
+        web.onPause()
+        applyLayout()
+      }
+      "resume" -> {
+        tab.suspended = false
+        web.onResume()
+        applyLayout()
+      }
+      else -> {
+        result.notImplemented()
+        return
+      }
+    }
+    result.success(null)
+  }
+
+  private fun openDownload(path: String): Boolean {
+    val activity = activity ?: return false
+    return try {
+      val id = finished[path] ?: return false
+      val uri = downloadManager.getUriForDownloadedFile(id) ?: return false
+      val mime = downloadManager.getMimeTypeForDownloadedFile(id) ?: "*/*"
+      activity.startActivity(
+        Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+      )
+      true
+    } catch (e: Exception) {
+      Log.d(TAG, "open download: $e")
+      false
+    }
+  }
+
+  private fun closeTab(id: Int) {
+    val tab = tabs.remove(id) ?: return
+    if (fullscreenTab == id) exitFullscreen()
+    tab.webView?.let { web ->
+      (web.parent as? ViewGroup)?.removeView(web)
+      web.stopLoading()
+      web.destroy()
+    }
+    tab.webView = null
+    applyLayout()
+    // Nothing of private tabs stays once the last one closes.
+    if (tab.private && tabs.values.none { it.private }) deletePrivateProfile()
+  }
+
+  private fun deletePrivateProfile() {
+    if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) return
+    main.postDelayed({
+      if (tabs.values.any { it.private }) return@postDelayed
+      try {
+        ProfileStore.getInstance().deleteProfile(PRIVATE_PROFILE)
+      } catch (e: Exception) {
+        Log.d(TAG, "private profile: $e")
+      }
+    }, 1000)
+  }
+
+  private fun disposeAll() {
+    exitFullscreen()
+    for (id in tabs.keys.toList()) closeTab(id)
+    page?.show(null)
+  }
+}

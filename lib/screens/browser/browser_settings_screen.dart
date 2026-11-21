@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -275,6 +276,8 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                       _SectionTitle(RetroStrings.browserCache),
                       _Card(
                         children: [
+                          // Android's WebView has no cache limit.
+                          if (!Platform.isAndroid)
                           ListTile(
                             leading: AppIcon(Symbols.storage_rounded, color: tokens(context).textMuted),
                             title: Text(RetroStrings.browserCacheLimit),
@@ -309,6 +312,8 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                           ),
                         ],
                       ),
+                      // Android saves downloads to its Downloads folder.
+                      if (!Platform.isAndroid) ...[
                       const SizedBox(height: 24),
                       _SectionTitle(RetroStrings.downloadSection),
                       _Card(
@@ -347,6 +352,7 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                           ),
                         ],
                       ),
+                      ],
                       const SizedBox(height: 24),
                       _SectionTitle(RetroStrings.darkMode),
                       _Card(
