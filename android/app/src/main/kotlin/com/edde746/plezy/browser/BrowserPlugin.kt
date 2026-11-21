@@ -1265,7 +1265,7 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
 
   private fun closeTab(id: Int) {
     val tab = tabs.remove(id) ?: return
-    if (fullscreenTab == id) exitFullscreen()
+    if (fullscreenTab == id || pageFullscreenTab == id) exitFullscreen()
     tab.webView?.let { web ->
       (web.parent as? ViewGroup)?.removeView(web)
       web.stopLoading()
