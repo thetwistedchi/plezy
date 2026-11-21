@@ -64,6 +64,11 @@ import org.json.JSONObject
  */
 class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandler {
   companion object {
+    private const val PLEX_TOGGLE = "(()=>{const q=s=>document.querySelector(s);" +
+      "const b=q('[data-testid=\"pauseButton\"]')||q('[data-testid=\"resumeButton\"]')||" +
+      "q('button[aria-label=\"Pause\"]')||q('button[aria-label=\"Pausieren\"]');" +
+      "if(b){b.click();return 'button';}return 'none';})()"
+
     private const val TAG = "PlezyBrowser"
     private const val CHANNEL = "com.plezy.retrowave/browser"
     const val VIEW_TYPE = "plezy/browser_page"
@@ -1096,12 +1101,14 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     } ?: return null
     val web = tab.webView ?: return null
     if (event.action != android.view.KeyEvent.ACTION_DOWN) return true
+    Log.d(TAG, "media key $code: $command (player page: $playerPage, fullscreen: ${fullscreenView != null})")
     if (playerPage && command == "toggle" && code != android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE &&
       code != android.view.KeyEvent.KEYCODE_HEADSETHOOK) {
       // OK pauses once a video is there; before (Plex's dialogs and buttons)
       // it still clicks what is selected.
       val down = android.view.KeyEvent(event)
       web.evaluateJavascript("(()=>{const v=document.querySelector('video');return !!(v&&v.readyState>0);})()") { has ->
+        Log.d(TAG, "Plex OK: video loaded $has")
         if (has == "true") {
           plexSpace(web)
         } else {
@@ -1127,8 +1134,19 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     return true
   }
 
-  /** Plex Web's Space shortcut: pause and play. */
+  /**
+   * Pause and play in Plex Web: its own play/pause button when there is one
+   * (Plex keeps its own player state and restarts a video paused under it),
+   * else its Space shortcut.
+   */
   private fun plexSpace(web: WebView) {
+    web.evaluateJavascript(PLEX_TOGGLE) { result ->
+      Log.i(TAG, "Plex play/pause: $result")
+      if (result != "\"button\"") plexSpaceKey(web)
+    }
+  }
+
+  private fun plexSpaceKey(web: WebView) {
     if (!web.hasFocus()) web.requestFocus()
     val now = android.os.SystemClock.uptimeMillis()
     web.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_SPACE, 0))
