@@ -335,21 +335,50 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     val tab = Tab(PLAYER_TAB, false)
     val container = FrameLayout(context).apply { setBackgroundColor(Color.BLACK) }
     val web = createWebView(tab)
-    if (plexToken.isNotEmpty() && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-      // Plex Web signed in with the app's Plex account: it keeps its sign-in
-      // in local storage. Only for app.plex.tv; another account's stored
-      // user list is dropped so the new one is read.
-      val quoted = org.json.JSONObject.quote(plexToken)
-      WebViewCompat.addDocumentStartJavaScript(
-        web,
-        "(()=>{try{const t=$quoted;const s=localStorage;if(s.getItem('myPlexAccessToken')!==t){" +
-          "s.removeItem('users');s.setItem('myPlexAccessToken',t);}}catch(_){}})()",
-        setOf("https://app.plex.tv"),
-      )
-      Log.i(TAG, "Free on plex.tv: Plex Web signed in with the app's account")
-    }
     container.addView(web, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-    if (url.isNotEmpty()) load(tab, url)
+    if (plexToken.isNotEmpty() && url.isNotEmpty() && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+      // Plex Web signed in with the app's Plex account: it keeps the account
+      // (with its token) in local storage, which is filled in before the
+      // page starts. Only for app.plex.tv.
+      Thread {
+        val user = try {
+          val c = java.net.URL("https://plex.tv/api/v2/user").openConnection() as java.net.HttpURLConnection
+          c.setRequestProperty("Accept", "application/json")
+          c.setRequestProperty("X-Plex-Token", plexToken)
+          c.setRequestProperty("X-Plex-Product", "Plezy Retrowave")
+          c.connectTimeout = 5000
+          c.readTimeout = 5000
+          if (c.responseCode == 200) org.json.JSONObject(c.inputStream.bufferedReader().readText()) else null
+        } catch (e: Exception) {
+          Log.w(TAG, "Free on plex.tv: Plex account not read", e)
+          null
+        }
+        main.post {
+          if (tab.autoplayFor == "closed") return@post
+          if (user != null) {
+            if (!user.has("authToken")) user.put("authToken", plexToken)
+            val users = org.json.JSONObject().put("users", org.json.JSONArray().put(user)).toString()
+            WebViewCompat.addDocumentStartJavaScript(
+              web,
+              "(()=>{try{const s=localStorage;const t=${org.json.JSONObject.quote(plexToken)};" +
+                "if(s.getItem('myPlexAccessToken')!==t||!s.getItem('users')){s.setItem('myPlexAccessToken',t);s.setItem('users',${org.json.JSONObject.quote(users)});}" +
+                "}catch(_){}})()",
+              setOf("https://app.plex.tv"),
+            )
+            Log.i(TAG, "Free on plex.tv: Plex Web gets the app's account (${user.optString("username")})")
+          }
+          load(tab, url)
+          main.postDelayed({
+            if (tab.autoplayFor == "closed") return@postDelayed
+            web.evaluateJavascript(
+              "(()=>{try{return location.host+location.hash.slice(0,40)+' token:'+!!localStorage.getItem('myPlexAccessToken')+' users:'+!!localStorage.getItem('users');}catch(e){return ''+e;}})()",
+            ) { Log.i(TAG, "Free on plex.tv: Plex Web state $it") }
+          }, 8000)
+        }
+      }.start()
+    } else if (url.isNotEmpty()) {
+      load(tab, url)
+    }
     main.postDelayed({ web.requestFocus() }, 300)
     playerTab = tab
     return object : PlatformView {
