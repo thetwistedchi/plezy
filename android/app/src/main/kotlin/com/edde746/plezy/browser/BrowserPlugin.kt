@@ -74,6 +74,23 @@ class BrowserPlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHand
       "const vs=[...document.querySelectorAll('video')];const v=$PLEX_VIDEO;" +
       "const ad=document.querySelector('[class*=\"Ad\"],[data-testid*=\"ad\" i]');" +
       "return 'at:'+n(e)+' parent:'+n(e&&e.closest('button'))+' videos:'+vs.length+' t:'+(v?v.currentTime.toFixed(1):'-')+' ad:'+(ad?ad.className.toString().slice(0,40):'no');}catch(x){return ''+x;}})()"
+    // The player's control buttons (lower part of the screen, visible), in
+    // rows from left to right; ACTION: open, prev, next, press or close.
+    private const val PLEX_CONTROLS = "(a=>{const W=window;" +
+      "const vis=b=>{const r=b.getBoundingClientRect();if(r.width<4||r.height<4||r.bottom<0||r.top>innerHeight)return false;" +
+      "let o=1;for(let e=b;e;e=e.parentElement)o*=+getComputedStyle(e).opacity;return o>0.2;};" +
+      "const clear=()=>{const s=W.__pzSel;if(s){s.style.outline=W.__pzOld||'';s.style.outlineOffset='';W.__pzSel=null;}};" +
+      "if(a==='close'){clear();return 'closed';}" +
+      "const list=[...document.querySelectorAll('button')].filter(b=>b.getBoundingClientRect().top>innerHeight*0.55&&vis(b))" +
+      ".sort((x,y)=>{const p=x.getBoundingClientRect(),q=y.getBoundingClientRect();return Math.abs(p.top-q.top)>24?p.top-q.top:p.left-q.left;});" +
+      "if(!list.length){clear();return 'none';}" +
+      "let i=W.__pzSel?list.indexOf(W.__pzSel):-1;" +
+      "if(i<0){i=list.findIndex(b=>/pause|resume|play/i.test(b.getAttribute('data-testid')||''));if(i<0)i=0;}" +
+      "else if(a==='next')i=Math.min(list.length-1,i+1);else if(a==='prev')i=Math.max(0,i-1);" +
+      "const b=list[i];const name=(b.getAttribute('data-testid')||b.getAttribute('aria-label')||'button')+' '+(i+1)+'/'+list.length;" +
+      "if(a==='press'){b.focus();return 'focused '+name;}" +
+      "if(W.__pzSel!==b){clear();W.__pzOld=b.style.outline;W.__pzSel=b;}" +
+      "b.style.outline='3px solid #ec4899';b.style.outlineOffset='2px';return name;})('ACTION')"
     private const val PLEX_PAUSED = "(()=>{const v=$PLEX_VIDEO;return v?v.paused:null;})()"
     private const val PLEX_BUTTON = "(()=>{const q=s=>document.querySelector(s);" +
       "const b=q('[data-testid=\"pauseButton\"]')||q('[data-testid=\"resumeButton\"]')||" +
@@ -1184,6 +1201,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     val code = event.keyCode
     // The Plex player page is a player too: OK and Left/Right control it.
     val playerPage = fullscreenView == null && playerTab?.webView?.isAttachedToWindow == true
+    if (playerPage) plexControlKey(event)?.let { return it }
     val inFullscreen = fullscreenView != null || playerPage
     val command: Any = when (code) {
       android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, android.view.KeyEvent.KEYCODE_HEADSETHOOK -> "toggle"
@@ -1238,6 +1256,71 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       else -> "{plezyMedia:'$command'}"
     }
     web.evaluateJavascript("window.postMessage($message,'*');", null)
+    return true
+  }
+
+  /** Up on the Plex player page selects its control buttons until Down or a few idle seconds. */
+  private var plexControls = false
+  private val plexControlsIdle = Runnable { closePlexControls() }
+
+  private fun plexControlScript(action: String) = PLEX_CONTROLS.replace("ACTION", action)
+
+  private fun closePlexControls() {
+    main.removeCallbacks(plexControlsIdle)
+    if (!plexControls) return
+    plexControls = false
+    playerTab?.webView?.takeIf { it.isAttachedToWindow }?.evaluateJavascript(plexControlScript("close"), null)
+  }
+
+  /**
+   * The player page's control buttons with the remote: Up shows them and
+   * selects play/pause, Left/Right move between them, OK presses the one
+   * selected, Down hides the selection. Null for keys it leaves alone.
+   */
+  private fun plexControlKey(event: android.view.KeyEvent): Boolean? {
+    val web = playerTab?.webView ?: return null
+    val code = event.keyCode
+    val ok = code == android.view.KeyEvent.KEYCODE_DPAD_CENTER || code == android.view.KeyEvent.KEYCODE_ENTER
+    val handled = when (code) {
+      android.view.KeyEvent.KEYCODE_DPAD_UP -> true
+      android.view.KeyEvent.KEYCODE_DPAD_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+      android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> plexControls
+      else -> ok && plexControls
+    }
+    if (!handled) return null
+    if (event.action != android.view.KeyEvent.ACTION_DOWN) return true
+    main.removeCallbacks(plexControlsIdle)
+    if (code == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
+      closePlexControls()
+      return true
+    }
+    // Keeps Plex's controls on screen.
+    hoverWeb(web, web.width / 2f, web.height / 2f)
+    val action = when (code) {
+      android.view.KeyEvent.KEYCODE_DPAD_UP -> "open"
+      android.view.KeyEvent.KEYCODE_DPAD_LEFT -> "prev"
+      android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> "next"
+      else -> "press"
+    }
+    plexControls = true
+    main.postDelayed({
+      if (!web.isAttachedToWindow) return@postDelayed
+      web.evaluateJavascript(plexControlScript(action)) { result ->
+        Log.i(TAG, "Plex controls $action: $result")
+        if (action == "press" && result.contains("focused")) {
+          // Pressed like a keyboard does: Enter on the focused button.
+          if (!web.hasFocus()) web.requestFocus()
+          val now = android.os.SystemClock.uptimeMillis()
+          web.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_ENTER, 0))
+          web.dispatchKeyEvent(android.view.KeyEvent(now, now + 40, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_ENTER, 0))
+          main.postDelayed({
+            if (web.isAttachedToWindow) web.evaluateJavascript(PLEX_PAUSED) { p -> Log.i(TAG, "Plex after press: paused $p") }
+          }, 500)
+        }
+        if (result.contains("none")) plexControls = false
+      }
+    }, if (action == "open") 300L else 0L)
+    main.postDelayed(plexControlsIdle, 6000)
     return true
   }
 
