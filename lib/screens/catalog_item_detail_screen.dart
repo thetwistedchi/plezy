@@ -35,6 +35,7 @@ import '../providers/seerr_account_provider.dart';
 import '../services/browser/browser_native.dart';
 import '../services/catalog/catalog_library_matcher.dart';
 import '../services/plex_discover_client.dart';
+import '../services/tubi/tubi_client.dart';
 import '../services/catalog/catalog_source.dart';
 import '../services/catalog/community_ratings.dart';
 import '../services/catalog/plex_catalog_source.dart';
@@ -68,6 +69,7 @@ import '../widgets/overlay_sheet.dart';
 import '../widgets/seerr_request_sheet.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/stat_chip.dart';
+import 'browser/browser_screen.dart';
 import 'free_plex_player_screen.dart';
 import 'free_on_plex_screen.dart' show FreeOnPlexScreen;
 
@@ -157,6 +159,7 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
     unawaited(_resolveMatches(widget.item));
     unawaited(_loadDetail());
     unawaited(_checkFreeOnPlex());
+    if (_isTubi) unawaited(_loadFreeSeasons());
     if (isTvosRunner) unawaited(_checkYouTubeApp());
     final sources = context.read<CatalogSourcesProvider>();
     _watchlistSource = sources.watchlistSourceFor(widget.item);
@@ -326,14 +329,16 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
     CatalogLink? plexLink;
     for (final link in isTvosRunner ? const <CatalogLink>[] : item.links ?? const <CatalogLink>[]) {
       if (link.label.trim().isEmpty || link.url.trim().isEmpty) continue;
-      // Fork: Plex's free catalog has its own button, not a "Watch on" link.
-      if (Uri.tryParse(link.url)?.host == 'app.plex.tv') {
+      // Fork: Plex's free catalog and Tubi have their own button, not a
+      // "Watch on" link.
+      if (_isFreeHost(Uri.tryParse(link.url)?.host)) {
         plexLink ??= link;
         continue;
       }
       (link.isStreaming ? streamingLinks : otherLinks).add(link);
     }
-    _plexLink = plexLink;
+    // Richer details from another source keep the opening item's play link.
+    _plexLink = plexLink ?? _plexLink;
     for (final node in _linkFocusNodes) {
       node.dispose();
     }
@@ -463,6 +468,14 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   /// first, highlighted action.
   CatalogLink? _plexLink;
 
+  static bool _isFreeHost(String? host) => host == 'app.plex.tv' || host == 'tubitv.com';
+
+  bool get _isTubi => Uri.tryParse(_plexLink?.url ?? '')?.host == 'tubitv.com';
+
+  /// A Tubi series' id, from its link.
+  String? get _tubiSeriesId => _isTubi ? RegExp(r'/series/(\d+)').firstMatch(_plexLink!.url)?.group(1) : null;
+  final Map<String, List<TubiEpisode>> _tubiEpisodes = {};
+
   CatalogLink? get _freePlexLink =>
       _plexLink ??
       (_freeVodUrl == null
@@ -479,6 +492,7 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   /// Fork: a free title plays; for a show an episode can be chosen first
   /// (season, then episode), or Plex's own pick (where it continues).
   Future<void> _playFreePlex(CatalogLink free) async {
+    if (Uri.tryParse(free.url)?.host == 'tubitv.com') return _openExternalUrl(free.url);
     final key = _item.ids.plex;
     if (_item.kind != MediaKind.show || key == null || key.isEmpty) return await _openExternalUrl(free.url);
     try {
@@ -540,6 +554,26 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   }
 
   Future<void> _loadFreeSeasons() async {
+    final tubiSeries = _tubiSeriesId;
+    if (tubiSeries != null) {
+      if (_freeSeasons != null) return;
+      final tubi = TubiClient();
+      try {
+        final seasons = await tubi.seasons(tubiSeries);
+        if (!mounted) return;
+        setState(() {
+          for (final s in seasons) {
+            _tubiEpisodes[s.number] = s.episodes;
+          }
+          _freeSeasons = [for (final s in seasons) (key: s.number, title: '${t.common.mediaKind.season} ${s.number}')];
+        });
+      } catch (e) {
+        appLogger.d('Tubi: seasons not loaded', error: e);
+      } finally {
+        tubi.dispose();
+      }
+      return;
+    }
     final key = widget.item.ids.plex;
     if (widget.item.kind != MediaKind.show || key == null || key.isEmpty || _freeSeasons != null) return;
     try {
@@ -561,6 +595,9 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   Future<List<({String key, String title, int? index, String? summary, int? minutes})>> _loadFreeEpisodes(
     String seasonKey,
   ) async {
+    if (_tubiEpisodes[seasonKey] case final episodes?) {
+      return [for (final e in episodes) (key: e.id, title: e.title, index: e.number, summary: e.summary, minutes: e.minutes)];
+    }
     final vod = await _vod();
     if (vod == null) return const [];
     final episodes = (await vod.getPage('/library/metadata/$seasonKey/children', limit: 100)).items;
@@ -878,8 +915,13 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
   Future<void> _openExternalUrl(String value) async {
     final uri = Uri.tryParse(value);
     // Fork: on Android, Plex's free titles play in their own Plex Web page.
-    if (Platform.isAndroid && uri != null && uri.host == 'app.plex.tv' && BrowserNative.isSupported) {
+    if (Platform.isAndroid && uri != null && _isFreeHost(uri.host) && BrowserNative.isSupported) {
       await FreePlexPlayerScreen.open(context, value);
+      return;
+    }
+    // Tubi on Windows: in the app's browser (its player needs a browser).
+    if (uri != null && uri.host == 'tubitv.com' && BrowserNative.isSupported) {
+      await BrowserScreen.open(context, url: value);
       return;
     }
     if (uri != null && uri.hasScheme && await openExternalUrl(uri)) return;
@@ -1713,6 +1755,7 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
                                                   tooltip: RetroStrings.freeOnPlexPlay,
                                                   onPressed: () => unawaited(_playFreePlex(free)),
                                                   builder: (context, state) => _FreePlexButton(
+                                                    label: _isTubi ? RetroStrings.tubiPlay : RetroStrings.freeOnPlexPlay,
                                                     focused: state.showFocus,
                                                     onPressed: () => unawaited(_playFreePlex(free)),
                                                   ),
@@ -1784,7 +1827,9 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
                                   key: _episodesKey,
                                   seasons: seasons,
                                   loadEpisodes: _loadFreeEpisodes,
-                                  onPlay: (episode) => unawaited(_openExternalUrl(FreeOnPlexScreen.watchUrl(episode))),
+                                  onPlay: (episode) => unawaited(
+                                    _openExternalUrl(_isTubi ? TubiClient.episodeUrl(episode) : FreeOnPlexScreen.watchUrl(episode)),
+                                  ),
                                   onNavigateUp: _focusSectionAboveEpisodes,
                                   onNavigateDown: _focusSectionBelowEpisodes,
                                 ),
@@ -1855,7 +1900,9 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
 /// Fork: the highlighted "Watch free on Plex" action of a Free on plex.tv
 /// title, a glowing magenta pill.
 class _FreePlexButton extends StatelessWidget {
-  const _FreePlexButton({required this.focused, required this.onPressed});
+  const _FreePlexButton({required this.focused, required this.onPressed, required this.label});
+
+  final String label;
 
   final bool focused;
   final VoidCallback onPressed;
@@ -1888,7 +1935,7 @@ class _FreePlexButton extends StatelessWidget {
                 const AppIcon(Symbols.play_arrow_rounded, fill: 1, size: 24, color: Colors.white),
                 const SizedBox(width: 8),
                 Text(
-                  RetroStrings.freeOnPlexPlay,
+                  label,
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
                 ),
               ],

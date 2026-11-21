@@ -177,6 +177,12 @@ class AppearanceSettingsScreen extends StatelessWidget {
                 title: YtStrings.posterInfoPills,
                 subtitle: YtStrings.posterInfoPillsDescription,
               ),
+            SettingSwitchTile(
+              pref: SettingsService.tubi,
+              icon: Symbols.live_tv_rounded,
+              title: RetroStrings.tubiSetting,
+              subtitle: RetroStrings.tubiSettingDescription,
+            ),
             if (PlatformDetector.isDesktopOS() && !PlatformDetector.isTV())
               SettingSwitchTile(
                 pref: SettingsService.hoverPreview,

@@ -1041,6 +1041,9 @@ class SettingsService extends BaseSharedPreferencesService {
   /// Poster hover preview with plot, runtime and genres (desktop).
   static const hoverPreview = BoolPref('hover_preview', defaultValue: true);
 
+  /// Fork: Tubi in the navigation (off: it is only offered in some countries).
+  static const tubi = BoolPref('tubi_enabled', defaultValue: false);
+
   /// Delay before the poster hover preview appears, in milliseconds.
   static const hoverPreviewDelayMs = IntPref('hover_preview_delay_ms', defaultValue: 650);
 
@@ -1670,6 +1673,7 @@ class SettingsService extends BaseSharedPreferencesService {
     startupLibrary,
     hoverPreview,
     hoverPreviewDelayMs,
+    tubi,
     rememberTitleTracks,
   ];
 

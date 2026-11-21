@@ -121,7 +121,9 @@ class BrowserNative {
   Future<void> setCutouts(List<int> rects) => _call('setCutouts', {'rects': rects});
   Future<void> adblockLoad(String config) => _call('adblockLoad', {'config': config});
   Future<void> adblockSetEnabled(bool value) => _call('adblockSetEnabled', {'value': value});
-  Future<void> adblockSetOffSites(List<String> sites) => _call('adblockSetOffSites', {'sites': sites});
+  /// Tubi's player stops when its ads are blocked: never blocked there.
+  Future<void> adblockSetOffSites(List<String> sites) =>
+      _call('adblockSetOffSites', {'sites': {...sites, 'tubitv.com'}.toList()});
   Future<void> proceedBlocked(int id, String url) => _call('proceedBlocked', {'id': id, 'url': url});
   Future<void> setDarkScript(String script) => _call('setDarkScript', {'script': script});
   Future<void> setTrackingPrevention(int level) => _call('setTrackingPrevention', {'level': level});
