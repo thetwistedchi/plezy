@@ -91,7 +91,7 @@ internal class BrowserPageView(
   /** The pointer shows while the page (or the WebView in it) has the focus. */
   private fun updateCursor() {
     val c = cursor ?: return
-    val shown = current != null && hasFocus()
+    val shown = current != null && (hasFocus() || remoteActive)
     c.visibility = if (shown) View.VISIBLE else View.GONE
     if (shown && cursorX < 0 && width > 0) {
       cursorX = width / 2f
@@ -166,7 +166,10 @@ internal class BrowserPageView(
   }
 
   /** A mouse wheel turn at the pointer: scrolls whatever is under it. */
-  private fun scroll(web: WebView, x: Float, y: Float) {
+  private fun scroll(web: WebView, x: Float, y: Float) = wheel(web, x * 2f, -y * 2f)
+
+  /** [h] and [v] in wheel steps; positive [v] scrolls up. */
+  private fun wheel(web: WebView, h: Float, v: Float) {
     val now = SystemClock.uptimeMillis()
     val props = MotionEvent.PointerProperties().apply {
       id = 0
@@ -175,8 +178,8 @@ internal class BrowserPageView(
     val coords = MotionEvent.PointerCoords().apply {
       this.x = cursorX
       this.y = cursorY
-      setAxisValue(MotionEvent.AXIS_VSCROLL, -y * 2f)
-      setAxisValue(MotionEvent.AXIS_HSCROLL, x * 2f)
+      setAxisValue(MotionEvent.AXIS_VSCROLL, v)
+      setAxisValue(MotionEvent.AXIS_HSCROLL, h)
     }
     val event = MotionEvent.obtain(
       now, now, MotionEvent.ACTION_SCROLL, 1, arrayOf(props), arrayOf(coords), 0, 0, 1f, 1f, 0, 0,
@@ -184,6 +187,44 @@ internal class BrowserPageView(
     )
     web.dispatchGenericMotionEvent(event)
     event.recycle()
+  }
+
+  // ---- Phone remote (PhoneRemoteServer) ----
+
+  private var remoteActive = false
+
+  private fun remoteReady(): WebView? {
+    val web = current ?: return null
+    if (cursor == null) return null
+    remoteActive = true
+    if (cursorX < 0) {
+      cursorX = width / 2f
+      cursorY = height / 3f
+    }
+    updateCursor()
+    return web
+  }
+
+  /** Moves the pointer by the phone's finger movement (CSS pixels). */
+  fun remoteMove(dx: Float, dy: Float) {
+    val web = remoteReady() ?: return
+    val scale = resources.displayMetrics.density * 0.75f
+    val margin = 2f
+    cursorX = (cursorX + dx * scale).coerceIn(margin, (width - margin).coerceAtLeast(margin))
+    cursorY = (cursorY + dy * scale).coerceIn(margin, (height - margin).coerceAtLeast(margin))
+    placeCursor()
+    hover(web)
+  }
+
+  /** Two-finger swipe on the phone: the page follows the fingers. */
+  fun remoteScroll(dx: Float, dy: Float) {
+    val web = remoteReady() ?: return
+    wheel(web, -dx / 24f, dy / 24f)
+  }
+
+  fun remoteTap() {
+    val web = remoteReady() ?: return
+    click(web)
   }
 
   private fun hover(web: WebView) {

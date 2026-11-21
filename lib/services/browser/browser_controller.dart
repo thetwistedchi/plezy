@@ -158,6 +158,14 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   /// Android TV: the remote's Up at the top of the page, back to the toolbar.
   Stream<void> get pageLeft => _leavePage.stream;
 
+  final StreamController<void> _remoteConnected = StreamController<void>.broadcast();
+
+  /// The phone remote's page was opened on a phone.
+  Stream<void> get remoteConnected => _remoteConnected.stream;
+
+  Future<String?> startPhoneRemote() => _native.remoteStart();
+  Future<void> stopPhoneRemote() => _native.remoteStop();
+
   /// Moves the remote's focus from the page to the toolbar.
   void leavePage() => _leavePage.add(null);
 
@@ -699,6 +707,15 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     }
     if (e.type == 'leavePage') {
       _leavePage.add(null);
+      return;
+    }
+    if (e.type == 'remoteConnected') {
+      _remoteConnected.add(null);
+      return;
+    }
+    if (e.type == 'remoteUrl') {
+      final url = e.str('url');
+      if (url != null && url.trim().isNotEmpty) unawaited(go(url));
       return;
     }
     if (e.type == 'downloadState') {

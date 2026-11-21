@@ -160,6 +160,18 @@ class RetroStrings {
     'Private Tabs brauchen ein neueres Android System WebView. Aktualisiere es im Play Store.',
   );
   static String get openDownloads => _t('Open downloads', 'Downloads öffnen');
+  static String get phoneRemote => _t('Phone as remote', 'Handy als Fernbedienung');
+  static String get phoneRemoteHint => _t(
+    'Scan the code with a phone in the same network. The page that opens moves the pointer, clicks, scrolls and types into the browser. Only the first phone that opens it is accepted.',
+    'Scanne den Code mit einem Handy im selben Netzwerk. Die Seite, die sich öffnet, bewegt den Zeiger, klickt, scrollt und tippt in den Browser. Nur das erste Handy, das sie öffnet, wird angenommen.',
+  );
+  static String get phoneRemoteConnected => _t('Phone connected', 'Handy verbunden');
+  static String get phoneRemoteNoNetwork => _t(
+    'No local network found for the phone remote.',
+    'Kein lokales Netzwerk für die Handy-Fernbedienung gefunden.',
+  );
+  static String get stopRemote => _t('Stop', 'Beenden');
+
   static String get change => _t('Change', 'Ändern');
   static String get reset => _t('Reset', 'Zurücksetzen');
   static String get askWhereToSave => _t('Ask where to save each file', 'Bei jeder Datei fragen, wo sie gespeichert wird');

@@ -145,6 +145,11 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
   private var polling = false
   private val finished = HashMap<String, Long>() // path -> DownloadManager id
 
+  @Volatile private var remoteState = JSONObject()
+  private val remote by lazy {
+    PhoneRemoteServer(appContext, { events -> main.post { onRemote(events) } }, { remoteState })
+  }
+
   private var fullscreenView: View? = null
   private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
   private var fullscreenTab = 0
@@ -317,6 +322,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
     val web = tab.webView ?: return
     val url = web.url ?: ""
     if (url.isNotEmpty() && url != "about:blank") tab.lastUrl = url
+    if (tab.id == activeId) remoteState = JSONObject().put("url", url).put("title", web.title ?: "")
     send(
       tab.id, "state",
       mapOf("url" to url, "title" to (web.title ?: ""), "canGoBack" to web.canGoBack(), "canGoForward" to web.canGoForward()),
@@ -703,6 +709,51 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
     return true
   }
 
+  // --------------------------------------------------------- phone remote
+
+  private val insertTextScript = """(t=>{const e=document.activeElement;if(!e)return;
+if(e.isContentEditable){document.execCommand('insertText',false,t);return;}
+if('value' in e){try{const s=e.selectionStart??e.value.length,n=e.selectionEnd??s;e.setRangeText(t,s,n,'end');}
+catch(_){e.value+=t;}e.dispatchEvent(new InputEvent('input',{bubbles:true,data:t,inputType:'insertText'}));
+e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
+
+  private fun onRemote(events: org.json.JSONArray) {
+    val tab = tabs[activeId]
+    for (i in 0 until events.length()) {
+      val e = events.optJSONObject(i) ?: continue
+      val web = tab?.webView
+      when (e.optString("t")) {
+        "move" -> page?.remoteMove(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
+        "scroll" -> page?.remoteScroll(e.optDouble("dx").toFloat(), e.optDouble("dy").toFloat())
+        "tap" -> page?.remoteTap()
+        "back" -> if (web?.canGoBack() == true) web.goBack()
+        "nav" -> when (e.optString("v")) {
+          "back" -> if (web?.canGoBack() == true) web.goBack()
+          "forward" -> if (web?.canGoForward() == true) web.goForward()
+          "reload" -> if (web != null) web.reload() else tab?.let { revive(it) }
+        }
+        "key" -> {
+          val code = when (e.optString("v")) {
+            "Enter" -> android.view.KeyEvent.KEYCODE_ENTER
+            "Backspace" -> android.view.KeyEvent.KEYCODE_DEL
+            "Tab" -> android.view.KeyEvent.KEYCODE_TAB
+            else -> null
+          }
+          if (web != null && code != null) {
+            if (!web.hasFocus()) web.requestFocus()
+            web.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
+            web.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))
+          }
+        }
+        "text" -> if (web != null) {
+          if (!web.hasFocus()) web.requestFocus()
+          web.evaluateJavascript("$insertTextScript(${JSONObject.quote(e.optString("v"))});", null)
+        }
+        "url" -> send(0, "remoteUrl", mapOf("url" to e.optString("v")))
+      }
+    }
+  }
+
   // ------------------------------------------------------------ downloads
 
   private val downloadManager get() = appContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
@@ -919,6 +970,18 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
         main.post { result.success(size) }
       }.start()
       "exitFullscreen" -> result.success(exitFullscreen())
+      "remoteStart" -> {
+        remote.onConnected = { main.post { send(0, "remoteConnected") } }
+        val server = remote
+        Thread {
+          val url = server.start()
+          main.post { result.success(url) }
+        }.start()
+      }
+      "remoteStop" -> {
+        if (remote.running) remote.stop()
+        result.success(null)
+      }
       "createTab" -> createTab(call, result)
       "closeTab" -> {
         closeTab(call.argument<Int>("id") ?: 0)
@@ -1071,6 +1134,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',st,{once:
 
   private fun disposeAll() {
     exitFullscreen()
+    if (remote.running) remote.stop()
     for (id in tabs.keys.toList()) closeTab(id)
     page?.show(null)
   }

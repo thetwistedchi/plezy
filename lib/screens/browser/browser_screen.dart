@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../i18n/retro_strings.dart';
@@ -19,6 +20,7 @@ import '../../theme/mono_tokens.dart';
 import '../../theme/page_backdrop.dart';
 import '../../theme/retrowave_colors.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/platform_detector.dart';
 import '../../widgets/app_icon.dart';
 import '../../widgets/mini_player/video_mini_player.dart' show MinimizableRoute;
 import 'browser_icon.dart';
@@ -125,6 +127,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     AdblockManager.instance.removeListener(_onChanged);
     MinimizableRoute.minimizedRevision.removeListener(_onChanged);
     unawaited(_controller.setShown(false));
+    if (_remoteStarted) unawaited(_controller.stopPhoneRemote());
     _address.dispose();
     _addressFocus.dispose();
     _keys.dispose();
@@ -577,6 +580,72 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
+  bool _remoteStarted = false;
+
+  /// Android TV: a QR code for the phone remote (PhoneRemoteServer).
+  Future<void> _showPhoneRemote() async {
+    final url = await _controller.startPhoneRemote();
+    if (!mounted) return;
+    if (url == null) {
+      _setNotice(_Notice(RetroStrings.phoneRemoteNoNetwork, warning: true));
+      return;
+    }
+    _remoteStarted = true;
+    BuildContext? dialog;
+    final sub = _controller.remoteConnected.listen((_) {
+      final d = dialog;
+      if (d != null && d.mounted) Navigator.pop(d);
+      if (mounted) _setNotice(_Notice(RetroStrings.phoneRemoteConnected));
+    });
+    try {
+      await _overlay(
+        () => showDialog<void>(
+          context: context,
+          builder: (dialogContext) {
+            dialog = dialogContext;
+            return AlertDialog(
+              title: Text(RetroStrings.phoneRemote),
+              content: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(8)),
+                      child: QrImageView(data: url, size: 220, backgroundColor: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+                    SelectableText(url, style: TextStyle(color: tokens(context).textMuted, fontSize: 12)),
+                    const SizedBox(height: 12),
+                    Text(RetroStrings.phoneRemoteHint),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    _remoteStarted = false;
+                    unawaited(_controller.stopPhoneRemote());
+                    Navigator.pop(dialogContext);
+                  },
+                  child: Text(RetroStrings.stopRemote),
+                ),
+                FilledButton(
+                  autofocus: true,
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(RetroStrings.close),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    } finally {
+      dialog = null;
+      await sub.cancel();
+    }
+  }
+
   Future<void> _openSettings() => _controller.openInternal(BrowserController.settingsPage);
 
   Rect? _rectOf(BuildContext anchor) {
@@ -783,6 +852,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
       _MenuEntry.divider,
       _menuItem('history', Symbols.history_rounded, RetroStrings.history),
       _menuItem('downloads', Symbols.download_rounded, RetroStrings.downloads),
+      if (Platform.isAndroid && PlatformDetector.isTV())
+        _menuItem('remote', Symbols.phone_android_rounded, RetroStrings.phoneRemote),
       _menuItem(
         'external',
         Symbols.open_in_new_rounded,
@@ -803,6 +874,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
         await _controller.openInternal(BrowserController.historyPage);
       case 'downloads':
         await _showDownloads(anchor);
+      case 'remote':
+        await _showPhoneRemote();
       case 'external':
         final uri = Uri.tryParse(url ?? '');
         if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);

@@ -175,6 +175,12 @@ class BrowserNative {
   Future<bool> openDownload(String path) async =>
       await _channel.invokeMethod<bool>('openDownload', {'path': path}).catchError((_) => false) ?? false;
 
+  /// Android TV: starts the phone remote's web server; its address for the
+  /// QR code, or null without a network.
+  Future<String?> remoteStart() => _channel.invokeMethod<String>('remoteStart').catchError((_) => null);
+
+  Future<void> remoteStop() => _channel.invokeMethod<void>('remoteStop').catchError((_) {});
+
   /// Android: the system's downloads list.
   Future<void> showDownloads() => _channel.invokeMethod<void>('showDownloads').catchError((_) {});
 
