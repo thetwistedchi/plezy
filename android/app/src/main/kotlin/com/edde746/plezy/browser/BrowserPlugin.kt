@@ -1160,7 +1160,9 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
       val down = android.view.KeyEvent(event)
       web.evaluateJavascript("(()=>{const v=document.querySelector('video');return !!(v&&v.readyState>0);})()") { has ->
         Log.d(TAG, "Plex OK: video loaded $has")
-        if (has == "true") {
+        if (!web.isAttachedToWindow) {
+          // closed meanwhile
+        } else if (has == "true") {
           plexSpace(web)
         } else {
           if (!web.hasFocus()) web.requestFocus()
@@ -1192,7 +1194,10 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
    * to its Space shortcut.
    */
   private fun plexSpace(web: WebView, attempt: Int = 0) {
+    // The page may have closed meanwhile (delayed steps).
+    if (!web.isAttachedToWindow) return
     web.evaluateJavascript(PLEX_BUTTON) { result ->
+      if (!web.isAttachedToWindow) return@evaluateJavascript
       Log.i(TAG, "Plex play/pause: $result")
       val parts = result.trim('"').split(',')
       val x = parts.getOrNull(0)?.toFloatOrNull()
@@ -1201,7 +1206,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
         x != null && y != null -> web.evaluateJavascript(PLEX_PAUSED) { before ->
           tapWeb(web, x, y)
           main.postDelayed({
-            web.evaluateJavascript(PLEX_PAUSED) { after -> Log.i(TAG, "Plex button tap: paused $before -> $after") }
+            if (web.isAttachedToWindow) web.evaluateJavascript(PLEX_PAUSED) { after -> Log.i(TAG, "Plex button tap: paused $before -> $after") }
           }, 500)
         }
         result.contains("hidden") && attempt == 0 -> {
@@ -1215,7 +1220,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
           web.evaluateJavascript(PLEX_PAUSED) { before ->
             tapWeb(web, web.width / 2f, web.height / 2f)
             main.postDelayed({
-              web.evaluateJavascript(PLEX_PAUSED) { after ->
+              if (web.isAttachedToWindow) web.evaluateJavascript(PLEX_PAUSED) { after ->
                 Log.i(TAG, "Plex tap in the middle: paused $before -> $after")
                 if (before == after) plexSpace(web, 2)
               }
@@ -1228,6 +1233,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
   }
 
   private fun hoverWeb(web: WebView, x: Float, y: Float) {
+    if (!web.isAttachedToWindow) return
     val now = android.os.SystemClock.uptimeMillis()
     for ((i, action) in listOf(android.view.MotionEvent.ACTION_HOVER_ENTER, android.view.MotionEvent.ACTION_HOVER_MOVE,
       android.view.MotionEvent.ACTION_HOVER_MOVE).withIndex()) {
@@ -1239,6 +1245,7 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
   }
 
   private fun tapWeb(web: WebView, x: Float, y: Float) {
+    if (!web.isAttachedToWindow) return
     val now = android.os.SystemClock.uptimeMillis()
     for ((action, time) in listOf(android.view.MotionEvent.ACTION_DOWN to now, android.view.MotionEvent.ACTION_UP to now + 50)) {
       val e = android.view.MotionEvent.obtain(now, time, action, x, y, 0)
