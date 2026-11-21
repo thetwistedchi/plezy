@@ -228,6 +228,17 @@ class PlexDiscoverClient {
   /// One Discover hub in full. The provider ignores container offsets on hub
   /// keys and truncates with `limit` instead, so a hub is always a single
   /// page and [PlexDiscoverPage.hasMore] never reports one.
+  /// Fork: the hubs a section lists (id, key, title), without loading them.
+  Future<List<({String id, String key, String title})>> listHubs(String section) async {
+    final data = await _request('GET', section, query: {'includeMeta': 1}, allowNotFound: true);
+    if (data == null) return const [];
+    return [
+      for (final hub in flexibleMapList(_mediaContainer(data)['Hub']))
+        if ((_nonEmptyString(hub['key'] ?? hub['hubKey']), _nonEmptyString(hub['title'])) case (final String key, final String title))
+          (id: _nonEmptyString(hub['hubIdentifier']) ?? key, key: key, title: title),
+    ];
+  }
+
   Future<PlexDiscoverPage> getHub(String key, {int limit = 100, bool includeImageVariants = false}) async {
     final safeLimit = limit.clamp(1, 500);
     final data = await _request(

@@ -93,6 +93,9 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
   String? _searchMessage;
   int _searchRun = 0;
   MediaHub? _watchlistHub;
+  MediaHub? _continueHub;
+  static MediaHub? _cachedContinue;
+  static int? _cachedContinueFor;
 
   /// Rating key -> the free catalog's entry (null: not free), for the app run.
   static final Map<String, Map<String, dynamic>?> _freeEntries = {};
@@ -102,12 +105,14 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
   /// The rows on screen: search results, the full list, the watchlist,
   /// then Plex's shelves.
   List<MediaHub> get _shown {
-    final rows = <MediaHub>[?_searchHub];
+    final rows = <MediaHub>[?_searchHub, ?_continueHub];
     for (final hub in _hubs) {
       rows.add(hub);
       if (hub.id == 'vod:all' && _watchlistHub != null) rows.add(_watchlistHub!);
     }
-    if (_watchlistHub != null && !_hubs.any((h) => h.id == 'vod:all')) rows.insert(_searchHub == null ? 0 : 1, _watchlistHub!);
+    if (_watchlistHub != null && !_hubs.any((h) => h.id == 'vod:all')) {
+      rows.insert([_searchHub, _continueHub].where((h) => h != null).length, _watchlistHub!);
+    }
     return rows;
   }
 
@@ -163,6 +168,62 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
       if (mounted) setState(() => _watchlistHub = hub);
     } catch (e) {
       appLogger.w('Free on Plex: watchlist not loaded', error: e);
+    }
+  }
+
+  /// What the account started watching (Plex's own "Continue Watching",
+  /// asked again each time the screen opens, as it changes with watching),
+  /// found among Plex's home rows), the free titles of it. Episodes count
+  /// for their show, which Plex then continues.
+  bool _continueLoading = false;
+
+  Future<void> _loadContinue({bool useCache = false}) async {
+    final session = _session;
+    if (session == null || _mapperOrNull == null || _continueLoading) return;
+    final owner = session.accessToken.hashCode;
+    if (useCache && _cachedContinueFor == owner) {
+      setState(() => _continueHub = _cachedContinue);
+      return;
+    }
+    _continueLoading = true;
+    try {
+      final discover = PlexDiscoverClient(session);
+      ({String id, String key, String title})? found;
+      for (final (client, section) in [
+        (_client!, '/hubs/sections/home'),
+        (discover, '/hubs/sections/home'),
+        (discover, '/hubs/home'),
+      ]) {
+        final hubs = await client.listHubs(section);
+        found = hubs.firstWhereOrNull(
+          (h) => RegExp(r'continue|inprogress|in_progress|ondeck|on_deck', caseSensitive: false).hasMatch('${h.id} ${h.key}'),
+        );
+        if (found != null) {
+          appLogger.i('Free on Plex: continue watching from ${client == _client ? 'the free catalog' : 'Discover'} (${found.id})');
+          final page = await client.getHub(found.key, limit: 40);
+          final keys = <String>[];
+          for (final entry in page.items) {
+            final type = entry['type']?.toString();
+            final key = (type == 'episode' || type == 'season'
+                    ? entry['grandparentRatingKey'] ?? entry['parentRatingKey']
+                    : entry['ratingKey'])
+                ?.toString();
+            if (key != null && key.isNotEmpty && !keys.contains(key)) keys.add(key);
+          }
+          final hub = _hubFrom('vod:continue', RetroStrings.freeOnPlexContinue, await _freeOf(keys));
+          _cachedContinue = hub;
+          _cachedContinueFor = owner;
+          if (mounted) setState(() => _continueHub = hub);
+          return;
+        }
+      }
+      appLogger.i('Free on Plex: no continue watching row found');
+      _cachedContinueFor = owner;
+      _cachedContinue = null;
+    } catch (e) {
+      appLogger.w('Free on Plex: continue watching not loaded', error: e);
+    } finally {
+      _continueLoading = false;
     }
   }
 
@@ -297,13 +358,19 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
         });
         final fresh = _cachedAt != null && DateTime.now().difference(_cachedAt!) < _cacheFor;
         if (fresh) {
-          if (loadWatchlist) unawaited(_loadWatchlist());
+          if (loadWatchlist) {
+            unawaited(_loadWatchlist());
+            unawaited(_loadContinue());
+          }
           return;
         }
         quiet = true;
       }
       if (connectOnly) return;
-      if (loadWatchlist && quiet) unawaited(_loadWatchlist());
+      if (loadWatchlist && quiet) {
+        unawaited(_loadWatchlist());
+        unawaited(_loadContinue());
+      }
 
       final allFuture = client.getPage(_allKey, limit: _rowLimit);
       final shelvesFuture = client.getHomeHubs(section: _section, limit: _rowLimit, concurrency: 10);
@@ -378,6 +445,7 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
         _error = _hubs.isEmpty ? RetroStrings.freeOnPlexEmpty : null;
       });
       if (loadWatchlist && _watchlistHub == null) unawaited(_loadWatchlist());
+      if (loadWatchlist && _continueHub == null) unawaited(_loadContinue());
     } catch (e) {
       appLogger.w('Free on Plex failed to load', error: e);
       if (!mounted || quiet) return;
@@ -526,6 +594,7 @@ class _FreeOnPlexScreenState extends State<FreeOnPlexScreen> {
                 'vod:all' => Symbols.local_activity_rounded,
                 'vod:search' => Symbols.search_rounded,
                 'vod:watchlist' => Symbols.bookmark_rounded,
+                'vod:continue' => Symbols.history_rounded,
                 _ => Symbols.movie_rounded,
               },
               loadMoreItems: hub.more ? () => _loadAll(hub) : null,
