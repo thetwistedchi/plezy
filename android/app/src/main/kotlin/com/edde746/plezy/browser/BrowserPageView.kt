@@ -221,18 +221,33 @@ internal class BrowserPageView(
     val x = (cursorX.coerceAtLeast(0f) / density).toInt()
     val y = (cursorY.coerceAtLeast(0f) / density).toInt()
     web.evaluateJavascript(
-      "(function(x,y,dx,dy){var e=document.elementFromPoint(x,y);" +
-        "while(e&&e!==document.body&&e!==document.documentElement){var s=getComputedStyle(e);" +
-        "if((/(auto|scroll)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight&&dy)||" +
-        "(/(auto|scroll)/.test(s.overflowX)&&e.scrollWidth>e.clientWidth&&dx)){e.scrollBy(dx,dy);return;}" +
-        "e=e.parentElement;}window.scrollBy(dx,dy);})($x,$y,$dx,$dy)",
-      null,
-    )
+      "(function(x,y,dx,dy){" +
+        "function sc(e){var s=getComputedStyle(e);return (/(auto|scroll|overlay)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight+2)||" +
+        "(/(auto|scroll|overlay)/.test(s.overflowX)&&e.scrollWidth>e.clientWidth+2);}" +
+        "var e=document.elementFromPoint(x,y);" +
+        "while(e&&e!==document.body&&e!==document.documentElement){if(sc(e)){e.scrollBy({left:dx,top:dy,behavior:'instant'});return 'element under the pointer';}e=e.parentElement;}" +
+        "var d=document.scrollingElement||document.documentElement;" +
+        "if(d.scrollHeight>window.innerHeight+2||d.scrollWidth>window.innerWidth+2){var t=d.scrollTop,l=d.scrollLeft;" +
+        "window.scrollBy({left:dx,top:dy,behavior:'instant'});if(d.scrollTop!==t||d.scrollLeft!==l||!dy)return 'page';}" +
+        // Pages that scroll inside an element (the window itself doesn't):
+        // the largest scrollable element, remembered for the next steps.
+        "var m=window.__plezyScroller;if(!m||!m.isConnected||!sc(m)){m=null;var best=0;" +
+        "for(var n of document.querySelectorAll('body *')){if(n.clientHeight<200)continue;if(!sc(n))continue;" +
+        "var a=n.clientWidth*n.clientHeight;if(a>best){best=a;m=n;}}window.__plezyScroller=m;}" +
+        "if(m){m.scrollBy({left:dx,top:dy,behavior:'instant'});return 'largest scroll area';}return 'nothing scrollable';})($x,$y,$dx,$dy)",
+    ) { result ->
+      val now = SystemClock.uptimeMillis()
+      if (now - lastScrollLog > 2000) {
+        lastScrollLog = now
+        android.util.Log.d("PlezyBrowser", "scroll: $result")
+      }
+    }
   }
 
   // ---- Phone remote (PhoneRemoteServer) ----
 
   private var remoteActive = false
+  private var lastScrollLog = 0L
 
   private fun remoteReady(): WebView? {
     val web = current ?: return null
