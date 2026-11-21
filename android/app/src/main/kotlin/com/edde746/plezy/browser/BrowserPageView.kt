@@ -37,6 +37,8 @@ internal class BrowserPageView(
   private var cursorX = -1f
   private var cursorY = -1f
   private var repeat = 0
+  private var lastKey = 0
+  private var lastPress = 0L
 
   init {
     setBackgroundColor(Color.TRANSPARENT)
@@ -117,12 +119,18 @@ internal class BrowserPageView(
     }
     val web = current
     if (!tv || web == null) return false
-    val step = { if (event.repeatCount > 0) (24f + repeat * 4f).coerceAtMost(72f) else 24f }
     when (event.keyCode) {
       KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
         if (event.action != KeyEvent.ACTION_DOWN) return true
-        repeat = if (event.repeatCount > 0) repeat + 1 else 0
-        move(event.keyCode, step() * resources.displayMetrics.density / 2f)
+        // A press moves about 1/30 of the screen; quick presses in the same
+        // direction and holding the key speed it up to about 1/8.
+        val now = SystemClock.uptimeMillis()
+        val quick = event.keyCode == lastKey && now - lastPress < 400
+        repeat = if (event.repeatCount > 0 || quick) (repeat + 1).coerceAtMost(12) else 0
+        lastKey = event.keyCode
+        lastPress = now
+        val base = (width.coerceAtLeast(height) / 30f).coerceAtLeast(24f)
+        move(event.keyCode, base * (1f + repeat * 0.25f))
         return true
       }
       KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BUTTON_A -> {
