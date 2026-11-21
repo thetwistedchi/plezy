@@ -23,6 +23,7 @@ import '../../theme/mono_tokens.dart';
 import '../../theme/page_backdrop.dart';
 import '../../theme/retrowave_colors.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/dialogs.dart';
 import '../../utils/platform_detector.dart';
 import '../../widgets/app_icon.dart';
 import '../../widgets/remote_shortcuts_dialog.dart';
@@ -419,7 +420,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   Future<(bool, bool)?> _askPermission(int kind, String url, {required bool canRemember}) {
     final host = Uri.tryParse(url)?.host ?? url;
     var remember = false;
-    return showDialog<(bool, bool)>(
+    return showScopedDialog<(bool, bool)>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
@@ -477,7 +478,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         ? path.substring(0, path.lastIndexOf(Platform.pathSeparator))
         : '';
     final shownFolder = Platform.isAndroid ? RetroStrings.downloads : (folder.isNotEmpty ? folder : defaultFolder);
-    return showDialog<String>(
+    return showScopedDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(RetroStrings.downloadTitle),
@@ -618,7 +619,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
     });
     try {
       await _overlay(
-        () => showDialog<void>(
+        () => showScopedDialog<void>(
           context: context,
           builder: (dialogContext) {
             dialog = dialogContext;

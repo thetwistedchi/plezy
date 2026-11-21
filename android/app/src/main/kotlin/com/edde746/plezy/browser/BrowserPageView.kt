@@ -164,6 +164,85 @@ internal class BrowserPageView(
     return true
   }
 
+  private var lastMoveKey = 0
+  private var lastMoveAt = 0L
+  private var okHoldStart = 0L
+  private var okLastUp = 0L
+  private var okChained = false
+  private var okPending: Runnable? = null
+  private var okDownEvent: KeyEvent? = null
+  /** Remotes seen resending OK while held: their clicks wait a moment. */
+  private val resendingDevices = HashSet<Int>()
+
+  /**
+   * Holding OK switches between pointer and selection for this site (as TV
+   * browsers do with a long press); the press itself then clicks nothing.
+   * Works with real key repeats and with remotes that resend presses.
+   * True when the event was dealt with here.
+   */
+  private fun okKey(web: WebView, event: KeyEvent): Boolean {
+    val now = event.eventTime
+    if (event.action == KeyEvent.ACTION_DOWN) {
+      if (event.repeatCount > 0) {
+        if (!okLong && now - event.downTime >= 700) toggleByOk()
+        return true
+      }
+      if (now - okLastUp < 350) {
+        // Another press right after the last: the button is being held.
+        if (okChained) resendingDevices.add(event.deviceId)
+        okChained = true
+        okPending?.let { removeCallbacks(it) }
+        okPending = null
+        okDownEvent = null
+        if (!okLong && now - okHoldStart >= 700) toggleByOk()
+        return true
+      }
+      okHoldStart = now
+      okLong = false
+      okChained = false
+      okDownEvent = null
+      if (event.deviceId in resendingDevices) {
+        // Held back until it is clear this is a click, not a hold.
+        okDownEvent = KeyEvent(event)
+        return true
+      }
+      return false
+    }
+    if (event.action != KeyEvent.ACTION_UP) return false
+    okLastUp = now
+    if (okLong) {
+      if (!pointerMode && !okChained && okDownEvent == null) {
+        web.dispatchKeyEvent(KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED))
+      }
+      return true
+    }
+    if (okChained) return true
+    val down = okDownEvent ?: return false
+    okDownEvent = null
+    val up = KeyEvent(event)
+    val run = Runnable {
+      okPending = null
+      if (current !== web) return@Runnable
+      if (pointerMode) {
+        click(web)
+      } else {
+        web.dispatchKeyEvent(down)
+        web.dispatchKeyEvent(up)
+      }
+    }
+    okPending = run
+    postDelayed(run, 360)
+    return true
+  }
+
+  private fun toggleByOk() {
+    okLong = true
+    okPending?.let { removeCallbacks(it) }
+    okPending = null
+    okDownEvent = null
+    plugin.onTogglePointer()
+  }
+
   fun handleRemoteKey(event: KeyEvent): Boolean {
     if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
       android.util.Log.d("PlezyBrowser", "page key ${event.keyCode} (page shown: ${current != null})")
@@ -174,19 +253,7 @@ internal class BrowserPageView(
     // TV browsers do with a long press); the press itself then clicks nothing.
     val ok = event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || event.keyCode == KeyEvent.KEYCODE_ENTER ||
       event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER || event.keyCode == KeyEvent.KEYCODE_BUTTON_A
-    if (ok && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) okLong = false
-    if (ok && event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0) {
-      if (!okLong && event.eventTime - event.downTime >= 700) {
-        okLong = true
-        plugin.onTogglePointer()
-      }
-      return true
-    }
-    if (ok && event.action == KeyEvent.ACTION_UP && okLong) {
-      okLong = false
-      if (!pointerMode) web.dispatchKeyEvent(KeyEvent.changeFlags(event, event.flags or KeyEvent.FLAG_CANCELED))
-      return true
-    }
+    if (ok && okKey(web, event)) return true
     if (tripleUp(event, true)) return true
     if (!pointerMode) return selectKey(web, event)
     when (event.keyCode) {
@@ -194,7 +261,13 @@ internal class BrowserPageView(
         if (event.action != KeyEvent.ACTION_DOWN) return true
         // A press moves a small step (about 1/80 of the screen) for detail;
         // holding the key speeds it up to about 1/12.
-        repeat = if (event.repeatCount > 0) (repeat + 1).coerceAtMost(20) else 0
+        // Some remotes (LG Magic Remote) resend single presses while held
+        // instead of repeats: quick presses of the same key count as held.
+        val now = SystemClock.uptimeMillis()
+        val held = event.repeatCount > 0 || (event.keyCode == lastMoveKey && now - lastMoveAt < 350)
+        lastMoveKey = event.keyCode
+        lastMoveAt = now
+        repeat = if (held) (repeat + 1).coerceAtMost(20) else 0
         val base = (width.coerceAtLeast(height) / 80f).coerceAtLeast(10f)
         move(event.keyCode, base * (1f + repeat * 0.27f))
         return true

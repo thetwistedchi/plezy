@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../i18n/retro_strings.dart';
+import '../utils/dialogs.dart';
 import '../theme/mono_tokens.dart';
 
 /// Fork: what the TV remote's buttons do (Settings, and the browser's ⋮ menu).
-Future<void> showRemoteShortcuts(BuildContext context) => showDialog<void>(
+Future<void> showRemoteShortcuts(BuildContext context) => showScopedDialog<void>(
   context: context,
   builder: (context) {
     final t = tokens(context);
