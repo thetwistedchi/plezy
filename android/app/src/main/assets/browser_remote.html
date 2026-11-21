@@ -82,7 +82,8 @@
   bar.addEventListener('pointermove', function (e) {
     e.stopPropagation();
     if (barY === null) return;
-    sy += (e.clientY - barY) * 1.5;
+    // Like a scroll bar: down moves the page down (the content up).
+    sy -= (e.clientY - barY) * 2;
     barY = e.clientY;
   });
   function barUp(e) { e.stopPropagation(); barY = null; bar.className = ''; }
