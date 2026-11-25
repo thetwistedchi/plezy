@@ -94,6 +94,7 @@ class YouTubeSettings extends ChangeNotifier {
     'captions',
     'sleep',
     'chapters',
+    'description',
     'fullscreen',
   ];
 

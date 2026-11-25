@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../focus/card_focus_scope.dart';
 import '../../../focus/focus_theme.dart';
 import '../../../theme/player_style.dart';
+import '../../../theme/retrowave_colors.dart';
 
 /// Focus chrome for a round player control sitting on video.
 ///
@@ -46,6 +47,30 @@ class PlayerFocusDisc extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final showFocus = CardFocusScope.maybeOf(context) ?? false;
+    // Fork: the retrowave theme marks the focused control with a neon rim
+    // and a soft glow on a dark disc instead of a white disc.
+    if (RetroColors.isActive(context)) {
+      const neon = RetroColors.magenta;
+      return AnimatedContainer(
+        duration: FocusTheme.getAnimationDuration(context),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          shape: borderRadius == null ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: borderRadius,
+          color: showFocus ? RetroColors.night80 : Colors.transparent,
+          border: Border.all(color: showFocus ? const Color(0xFFF2A7DD) : Colors.transparent, width: 2),
+          boxShadow: showFocus
+              ? [BoxShadow(color: neon.withValues(alpha: 0.55), blurRadius: 12, spreadRadius: 1)]
+              : const [],
+        ),
+        child: builder(
+          context,
+          showFocus
+              ? (isActive ? (PlayerStyle.of(context).active ?? _activeFill) : RetroColors.moon.withValues(alpha: iconColor.a))
+              : iconColor,
+        ),
+      );
+    }
     return AnimatedContainer(
       duration: FocusTheme.getAnimationDuration(context),
       curve: Curves.easeOutCubic,

@@ -44,8 +44,9 @@ enum WatchedIndicatorSize {
 /// stamps watch state onto a poster/thumbnail. Callers that must react to
 /// [SettingsService.showWatchedIndicators] or [SettingsService.showUnwatchedCount]
 /// flipping wrap themselves in a [SettingsBuilder] on those prefs.
-const _watchedFill = Color(0xFFC8379B);
-const _watchedRim = Color(0xFFF07AC8);
+// The theme's own magenta and its pill rim colour.
+const _watchedFill = Color(0xFFC10093);
+const _watchedRim = Color(0xFFF2A7DD);
 
 class WatchedIndicator extends StatelessWidget {
   final MediaItem item;
@@ -98,7 +99,7 @@ class WatchedIndicator extends StatelessWidget {
                 Symbols.check_rounded,
                 fill: 1,
                 weight: 700,
-                color: retro ? Colors.white : tokens(context).bg,
+                color: retro ? const Color(0xFFF2EEFF) : tokens(context).bg,
                 size: (size.pillHeight * 1.1 * 0.66).roundToDouble(),
               ),
             ),

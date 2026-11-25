@@ -97,6 +97,8 @@ class YtStrings {
   static String get speed => _t('Playback speed', 'Geschwindigkeit');
   static String get chapters => _t('Chapters', 'Kapitel');
   static String get comments => _t('Comments', 'Kommentare');
+  static String get description => _t('Description', 'Beschreibung');
+  static String get noDescription => _t('No description.', 'Keine Beschreibung.');
   static String get fullscreen => _t('Fullscreen', 'Vollbild');
   static String get exitFullscreen => _t('Exit fullscreen', 'Vollbild beenden');
   static String get openOnYouTube => _t('Open on YouTube', 'Auf YouTube öffnen');
@@ -253,6 +255,7 @@ class YtStrings {
   static String buttonLabel(String id) => switch (id) {
     'watchlist' => watchlist,
     'comments' => comments,
+    'description' => description,
     'channelVideos' => moreFromChannel,
     'openChannel' => openChannel,
     'share' => share,

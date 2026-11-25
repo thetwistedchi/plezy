@@ -643,7 +643,8 @@ class MediaContextMenuState extends State<MediaContextMenu> {
         _MenuAction(value: 'watch', icon: Symbols.check_circle_outline_rounded, label: t.mediaMenu.markAsWatched),
       if (mediaItem.isWatched || isPartiallyWatched || hasActiveProgress)
         _MenuAction(value: 'unwatch', icon: Symbols.remove_circle_outline_rounded, label: t.mediaMenu.markAsUnwatched),
-      if (widget.isInContinueWatching && menu.canRemoveFromContinueWatching)
+      // Fork: offered on every server; those that cannot remove it hide it here.
+      if (widget.isInContinueWatching && mediaItem.serverId != null)
         _MenuAction(
           value: 'remove_from_continue_watching',
           icon: Symbols.close_rounded,

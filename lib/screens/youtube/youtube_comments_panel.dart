@@ -9,6 +9,7 @@ import '../../services/youtube/youtube_settings.dart';
 import '../../theme/player_style.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/app_icon.dart';
+import 'youtube_linkified_text.dart';
 import 'youtube_strings.dart';
 import '../../theme/retrowave_colors.dart';
 
@@ -16,11 +17,20 @@ import '../../theme/retrowave_colors.dart';
 /// Comments of a video, shown beside the player: top or newest first,
 /// replies on demand, and writing, editing and deleting your own comments.
 class YouTubeCommentsPanel extends StatefulWidget {
-  const YouTubeCommentsPanel({super.key, required this.videoId, required this.commentCount, required this.onClose});
+  const YouTubeCommentsPanel({
+    super.key,
+    required this.videoId,
+    required this.commentCount,
+    required this.onClose,
+    this.onSeek,
+  });
 
   final String videoId;
   final int? commentCount;
   final VoidCallback onClose;
+
+  /// Fork: a timestamp in a comment was clicked.
+  final ValueChanged<double>? onSeek;
 
   @override
   State<YouTubeCommentsPanel> createState() => _YouTubeCommentsPanelState();
@@ -310,6 +320,7 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _CommentTile(
+              onSeek: widget.onSeek,
               comment: comment,
               own: _isOwn(comment),
               canWrite: _settings.canWrite,
@@ -347,6 +358,7 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
                         children: [
                           for (final reply in replies ?? const <YtComment>[])
                             _CommentTile(
+                              onSeek: widget.onSeek,
                               comment: reply,
                               own: _isOwn(reply),
                               canWrite: _settings.canWrite,
@@ -460,7 +472,10 @@ class _CommentTile extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     this.small = false,
+    this.onSeek,
   });
+
+  final ValueChanged<double>? onSeek;
 
   final YtComment comment;
   final bool own;
@@ -511,9 +526,10 @@ class _CommentTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                SelectableText(
+                YouTubeLinkifiedText(
                   comment.text,
                   style: TextStyle(color: PlayerChrome.of(context).text, fontSize: 14, height: 1.4),
+                  onSeek: onSeek,
                 ),
                 const SizedBox(height: 6),
                 Row(

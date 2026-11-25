@@ -11,6 +11,7 @@ import '../providers/offline_watch_provider.dart';
 import '../utils/provider_extensions.dart';
 import '../utils/watch_state_notifier.dart';
 import 'trackers/tracker_coordinator.dart';
+import 'retrowave/hidden_continue_watching.dart';
 
 enum WatchMarkOutcome {
   /// Queued for later sync (offline). The offline provider emitted the event.
@@ -82,7 +83,12 @@ class WatchActions {
   /// pre-existing menu behaviour so callers surface an error snackbar).
   static Future<void> removeFromContinueWatching(BuildContext context, MediaItem item) async {
     final client = context.getMediaClientForServer(ServerId(item.serverId!));
-    await client.removeFromContinueWatching(item);
+    if (client.capabilities.continueWatchingRemoval) {
+      await client.removeFromContinueWatching(item);
+    } else {
+      // Fork: the server cannot remove it (Jellyfin); hidden on this device.
+      await HiddenContinueWatching.instance.hide(item);
+    }
     WatchStateNotifier().notifyRemovedFromContinueWatching(item: item);
   }
 }

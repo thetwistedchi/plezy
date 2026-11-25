@@ -19,6 +19,7 @@ import '../utils/media_server_http_client.dart';
 import '../utils/media_server_timeouts.dart';
 import 'local_playback_history.dart';
 import 'multi_server_manager.dart';
+import 'retrowave/hidden_continue_watching.dart';
 
 /// A row a successful response actually returned, paired with the immutable
 /// cache scope of the client that fetched it.
@@ -319,7 +320,10 @@ class DataAggregationService {
       },
     );
     // Filter out items from hidden libraries
-    final filteredOnDeck = _withoutHiddenLibraries(fetched.items, hiddenLibraryKeys);
+    // Fork: and without titles removed on this device (servers that cannot).
+    final filteredOnDeck = await HiddenContinueWatching.instance.filter(
+      _withoutHiddenLibraries(fetched.items, hiddenLibraryKeys),
+    );
 
     // Sort by most recently viewed, falling back to addedAt for unwatched items.
     // Same key as JellyfinClient's continue-watching merge (MediaItem.recencySortKey)

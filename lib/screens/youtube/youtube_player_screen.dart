@@ -29,6 +29,7 @@ import '../../widgets/app_icon.dart';
 import 'youtube_channel_panel.dart';
 import 'youtube_channel_screen.dart';
 import 'youtube_comments_panel.dart';
+import 'youtube_description_panel.dart';
 import 'youtube_queue_panel.dart';
 import 'youtube_strings.dart';
 import 'youtube_routes.dart';
@@ -85,7 +86,7 @@ class YouTubePlayerScreen extends StatefulWidget {
   State<YouTubePlayerScreen> createState() => _YouTubePlayerScreenState();
 }
 
-enum _SidePanel { none, comments, channel, queue }
+enum _SidePanel { none, comments, channel, queue, description }
 
 class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   static _YouTubePlayerScreenState? _current;
@@ -147,6 +148,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   YtVideoInfo? _info;
   List<YtChapter> _chapters = const [];
+  String? _description;
   List<SponsorSegment> _segments = const [];
   List<YouTubeVideo> _channelVideos = const [];
   String _rating = 'none';
@@ -251,6 +253,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     setState(() {
       _info = null;
       _chapters = const [];
+      _description = null;
       _segments = const [];
       _channelVideos = const [];
       _rating = 'none';
@@ -274,7 +277,10 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
           if (page.publishDate != null) _published = page.publishDate;
           final spec = page.storyboardSpec;
           if (_storyboard == null && spec != null) _storyboard = _Storyboard.parse(spec);
-          if (_chapters.isEmpty && page.description != null) _chapters = parseChapters(page.description!);
+          if (page.description != null) {
+            _description ??= page.description;
+            if (_chapters.isEmpty) _chapters = parseChapters(page.description!);
+          }
         });
         _maybeApplyCaptions();
       }),
@@ -315,6 +321,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
         setState(() {
           _info = info;
           _chapters = info == null ? const [] : parseChapters(info.description);
+          if (info != null) _description = info.description;
         });
       } catch (e) {
         appLogger.d('YouTube video info failed: $e');
@@ -329,7 +336,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
         } catch (_) {}
       }
       if (mounted && generation == _metaGeneration && description != null) {
-        setState(() => _chapters = parseChapters(description!));
+        setState(() {
+          _chapters = parseChapters(description!);
+          _description ??= description;
+        });
+      } else if (mounted && generation == _metaGeneration) {
+        setState(() => _description ??= '');
       }
     }
     if (_settings.canWrite) {
@@ -1295,6 +1307,17 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   videoId: _video.id,
                   commentCount: _info?.commentCount,
                   onClose: () => _setPanel(_SidePanel.none),
+                  onSeek: _seek,
+                ),
+              ),
+            if (_panel == _SidePanel.description)
+              SizedBox(
+                width: 440,
+                child: YouTubeDescriptionPanel(
+                  title: _settings.deArrowTitles ? DeArrow.instance.titleFor(_video) : (_info?.title ?? _video.title),
+                  description: _description,
+                  onSeek: _seek,
+                  onClose: () => _setPanel(_SidePanel.none),
                 ),
               ),
             if (_panel == _SidePanel.queue)
@@ -1877,6 +1900,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                     height: 48,
                     child: Center(child: AppIcon(Symbols.list_rounded, color: Colors.white)),
                   ),
+                ),
+              if (_show('description'))
+                _PlayerButton(
+                  icon: Symbols.description_rounded,
+                  tooltip: YtStrings.description,
+                  active: _panel == _SidePanel.description,
+                  onPressed: () => _togglePanel(_SidePanel.description),
                 ),
               if (_show('fullscreen'))
                 _PlayerButton(
