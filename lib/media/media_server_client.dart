@@ -29,7 +29,9 @@ import 'playback_report_metadata.dart';
 import 'server_capabilities.dart';
 
 /// Default number of items requested for horizontal hub previews.
-const int defaultHubPreviewLimit = 20;
+/// Fork: 40 instead of 20, so rows such as Recently Added go further before
+/// the "more" tile.
+const int defaultHubPreviewLimit = 40;
 
 /// Default number of people [MediaServerClient.searchPeople] returns.
 const int defaultPeopleSearchLimit = 20;
