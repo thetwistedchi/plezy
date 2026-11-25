@@ -275,9 +275,10 @@ class _ScrollBarState extends State<_ScrollBar> {
           duration: const Duration(milliseconds: 120),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: _hover ? 0.62 : 0.42),
+            // Rounded on the outer side only; the side facing the posters is straight.
             borderRadius: widget.leftEdge
-                ? BorderRadius.horizontal(right: radius)
-                : BorderRadius.horizontal(left: radius),
+                ? BorderRadius.horizontal(left: radius)
+                : BorderRadius.horizontal(right: radius),
           ),
           alignment: Alignment.center,
           child: AppIcon(widget.icon, fill: 1, color: Colors.white.withValues(alpha: _hover ? 1 : 0.85), size: 28),
