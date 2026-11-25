@@ -113,6 +113,9 @@ abstract final class RetroGlyphs {
   static const _description = '<path d="M6.5 3.5h7.5l4.5 4.5v12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-15.5a1 1 0 0 1 1-1Z"/>|<path d="M9 12.5h6M9 16h6"/>';
   static const _thumbDown = '<path d="M17 14l-4 7c-1.5 0-2.5-1-2.5-2.5V15h-5a2 2 0 0 1-2-2.3l1.3-7A2 2 0 0 1 6.8 4H17"/>|<path d="M17 14V4h3v10Z"/>';
   static const _accountBox = '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/>|<circle cx="12" cy="10" r="2.6"/><path d="M7.5 17.5a5 3.8 0 0 1 9 0"/>';
+  static const _fitScreen = '<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/>|<rect x="7" y="9" width="10" height="6" rx="1"/>';
+  static const _aspectRatio = '<rect x="3" y="5" width="18" height="14" rx="2.5"/>|<path d="M7 11V9h3M17 13v2h-3"/>';
+  static const _overscan = '<rect x="3" y="5" width="18" height="14" rx="2.5"/>|<path d="M6.5 12h11M8.5 10l-2 2 2 2M15.5 10l2 2-2 2"/>';
   static const _comment = '<path d="M4 5.5a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 5.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-5 3.5Z"/>|<path d="M8 9h8M8 12.5h5"/>';
 
   static final Map<IconData, String> _byIcon = {
@@ -143,6 +146,9 @@ abstract final class RetroGlyphs {
     Symbols.description_rounded: _description,
     Symbols.thumb_down_rounded: _thumbDown,
     Symbols.comment_rounded: _comment,
+    Symbols.fit_screen_rounded: _fitScreen,
+    Symbols.aspect_ratio_rounded: _aspectRatio,
+    Symbols.settings_overscan_rounded: _overscan,
     Symbols.account_box_rounded: _accountBox,
     Symbols.home_rounded: _home,
     Symbols.video_library_rounded: _libraries,
