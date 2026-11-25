@@ -292,6 +292,26 @@ class YouTubeWebView {
       }
     };
     let action = null;
+    // Current responses: the comment's view model names its toolbar entity,
+    // whose payload carries likeCommand / unlikeCommand.
+    let surfaceKey = null;
+    walk(data, (o) => {
+      if (!surfaceKey && o.commentId === commentId && o.toolbarSurfaceKey) surfaceKey = o.toolbarSurfaceKey;
+    }, []);
+    if (surfaceKey) {
+      walk(data, (o) => {
+        if (action || o.entityKey !== surfaceKey || !o.payload) return;
+        walk(o.payload, (x, path) => {
+          const ep = x.performCommentActionEndpoint;
+          if (action || !ep || !ep.action) return;
+          const p = path.join('/').toLowerCase();
+          if (p.includes('dislike')) return;
+          if (p.includes('unlikecommand') === wantLike) return;
+          action = ep.action;
+        }, []);
+      }, []);
+    }
+    // Older responses (and a fallback): the action token that names the comment.
     walk(data, (o, path) => {
       const ep = o.performCommentActionEndpoint;
       if (action || !ep || !ep.action) return;
