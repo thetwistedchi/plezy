@@ -371,13 +371,23 @@ class YouTubeWebView {
     const res = await post('comment/perform_comment_action', { actions: [action] });
     const status = res && res.actionResults && res.actionResults[0] ? res.actionResults[0].status : null;
     // Read the state back to be sure the like landed.
+    // YouTube can take a moment to show its own change: read twice.
     let after = null;
-    try {
-      after = likeState(await post('next', { continuation: token }));
-    } catch (e) {}
-    const landed = after ? (after === 'TOOLBAR_LIKE_STATE_LIKED') === wantLike : status === 'STATUS_SUCCEEDED';
+    const reached = (state) => (state === 'TOOLBAR_LIKE_STATE_LIKED') === wantLike;
+    for (const delay of [400, 1600]) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      try {
+        after = likeState(await post('next', { continuation: token }));
+      } catch (e) {}
+      if (after && reached(after)) break;
+    }
+    let landed = after ? reached(after) : status === 'STATUS_SUCCEEDED';
+    // Accepted but not shown yet: report it as done, marked unconfirmed.
+    const unconfirmed = !landed && status === 'STATUS_SUCCEEDED';
+    if (unconfirmed) landed = true;
     return JSON.stringify({
       r: landed ? (wantLike ? 'liked' : 'unliked') : 'rejected',
+      unconfirmed: unconfirmed,
       via: via,
       status: status,
       error: res && res.error ? (res.error.message || res.error.status || 'error') : null,
