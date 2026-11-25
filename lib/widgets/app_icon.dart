@@ -20,6 +20,8 @@ class AppIcon extends StatelessWidget {
     this.textDirection,
     this.retro = false,
     this.retroOpacity,
+    this.retroSoft = false,
+    this.retroGlow = true,
   });
 
   /// Same as [AppIcon] with [retro] on.
@@ -36,6 +38,8 @@ class AppIcon extends StatelessWidget {
     this.semanticLabel,
     this.textDirection,
     this.retroOpacity,
+    this.retroSoft = false,
+    this.retroGlow = true,
   }) : retro = true;
 
   final IconData? icon;
@@ -57,13 +61,26 @@ class AppIcon extends StatelessWidget {
   /// icons stay faded.
   final double? retroOpacity;
 
+  /// Fork: the calmer player variant of the glyph (pastel, no glow).
+  final bool retroSoft;
+
+  /// Fork: whether the glyph may glow (never on TV).
+  final bool retroGlow;
+
   @override
   Widget build(BuildContext context) {
     if (icon == null) return const SizedBox.shrink();
     if (retro) {
       final paths = RetroGlyph.pathsIfActive(context, icon);
       if (paths != null) {
-        return RetroGlyph(paths, size: size, opacity: retroOpacity ?? (color?.a ?? 1), semanticLabel: semanticLabel);
+        return RetroGlyph(
+          paths,
+          size: size,
+          opacity: retroOpacity ?? (color?.a ?? 1),
+          semanticLabel: semanticLabel,
+          soft: retroSoft,
+          glow: retroGlow,
+        );
       }
     }
     return Icon(

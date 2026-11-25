@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/retrowave_colors.dart';
 import '../utils/platform_detector.dart';
 import 'app_icon.dart';
+import 'retro_glyphs.dart';
 
 /// The rim colour family of a [RetroPill].
 enum RetroPillTone {
@@ -131,7 +132,11 @@ class RetroPill extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (icon != null) ...[
-                  AppIcon(icon!, fill: 1, size: fontSize, color: tone.neonCore),
+                  // Fork: the neon glyph when there is one (no glow: long grids).
+                  if (RetroGlyphs.pathsFor(icon!) case final paths?)
+                    RetroGlyph(paths, size: fontSize + 3, glow: false)
+                  else
+                    AppIcon(icon!, fill: 1, size: fontSize, color: tone.neonCore),
                   const SizedBox(width: 3),
                 ],
                 Text(label, maxLines: 1, softWrap: false, textAlign: TextAlign.center, style: textStyle),
@@ -180,6 +185,9 @@ class NeonPillPainter extends CustomPainter {
 /// plain colour between the glyphs' cyan and magenta (was periwinkle
 /// 0xFF9DB4FF). No other text uses it.
 const retroHeadingColor = Color(0xFFC4B8FF);
+
+/// Fork: hub titles, a pink-tinted white like a lit neon sign.
+const retroTitleColor = Color(0xFFFFECFA);
 
 /// Whether the retrowave look applies (its page backdrop is installed).
 bool isRetrowave(BuildContext context) => RetroColors.isActive(context);

@@ -85,9 +85,22 @@ class VideoControlButton extends StatelessWidget {
     final label = this.label;
     final effectiveSemanticLabel = semanticLabel ?? label ?? tooltip;
 
+    // Fork: retrowave draws the calm neon glyph unless a caller picked a
+    // colour; an active toggle gets the full-strength tubes (no glow).
+    final retroGlyph = color == null;
+    Widget iconFor(Color iconColor) => AppIcon(
+      icon,
+      fill: 1,
+      color: iconColor,
+      size: iconSize,
+      retro: retroGlyph,
+      retroSoft: !isActive,
+      retroGlow: false,
+    );
+
     Widget button(Color iconColor) => label == null
         ? IconButton(
-            icon: AppIcon(icon, fill: 1, color: iconColor, size: iconSize),
+            icon: iconFor(iconColor),
             iconSize: iconSize,
             onPressed: onPressed,
             tooltip: tooltip,
@@ -105,7 +118,7 @@ class VideoControlButton extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      AppIcon(icon, fill: 1, color: iconColor, size: iconSize),
+                      iconFor(iconColor),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(

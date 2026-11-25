@@ -28,7 +28,7 @@ abstract final class RetroGlyphs {
   static const _folder = '<path d="M3.5 7.5a2 2 0 0 1 2-2h3.8l2 2h7.2a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/>|<path d="M7 11h10"/>';
   static const _expandMore = '<path d="M6 9l6 6 6-6"/>|';
   static const _expandLess = '<path d="M6 15l6-6 6 6"/>|';
-  static const _chevronRight = '<path d="M9 6l6 6-6 6"/>|';
+  static const _chevronRight = '|<path d="M9 6l6 6-6 6"/>';
   static const _freeOnPlex = '<path d="M4 6h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4V7a1 1 0 0 1 1-1Z"/>|<path d="M10 9.8v4.4l3.6-2.2Z"/>';
   static const _arrowDropDown = '|<path d="M7.5 10h9L12 15Z"/>';
   static const _arrowForward = '<path d="M4 12h15"/>|<path d="M13.5 6.5 19 12l-5.5 5.5"/>';
@@ -92,7 +92,58 @@ abstract final class RetroGlyphs {
   static const _shield = '<path d="M12 2.5 4.5 5.5v6c0 4.6 3.2 8.4 7.5 10 4.3-1.6 7.5-5.4 7.5-10v-6Z"/>|<path d="M8.5 12l2.5 2.5 4.5-5"/>';
   static const _pause = '|<path d="M8.5 5.5v13M15.5 5.5v13"/>';
 
+
+  // Player controls.
+  static const _skipNext = '<path d="M6 6v12l8.5-6Z"/>|<path d="M18 6v12"/>';
+  static const _skipPrev = '<path d="M18 6v12L9.5 12Z"/>|<path d="M6 6v12"/>';
+  static const _fastForward = '<path d="M3.5 6.5v11L11.5 12Z"/>|<path d="M12.5 6.5v11L20.5 12Z"/>';
+  static const _fastRewind = '<path d="M20.5 6.5v11L12.5 12Z"/>|<path d="M11.5 6.5v11L3.5 12Z"/>';
+  static const _replay10 = '<path d="M5 12a7 7 0 1 0 2.1-5L5 9M5 4.8V9h4.2"/>|<path d="M9.6 10.3l1.1-.8v5.3"/><rect x="12.7" y="9.5" width="2.8" height="5.3" rx="1.4"/>';
+  static const _forward10 = '<path d="M19 12a7 7 0 1 1-2.1-5L19 9M19 4.8V9h-4.2"/>|<path d="M8.6 10.3l1.1-.8v5.3"/><rect x="11.7" y="9.5" width="2.8" height="5.3" rx="1.4"/>';
+  static const _replay = '<path d="M5 12a7 7 0 1 0 2.1-5L5 9M5 4.8V9h4.2"/>|<path d="M13.5 9.5 11 12l2.5 2.5"/>';
+  static const _forward = '<path d="M19 12a7 7 0 1 1-2.1-5L19 9M19 4.8V9h-4.2"/>|<path d="M10.5 9.5 13 12l-2.5 2.5"/>';
+  static const _subtitles = '<rect x="3" y="5" width="18" height="14" rx="2.5"/>|<path d="M7 11.5h4M13 11.5h4M7 15h6M15.5 15h1.5"/>';
+  static const _subtitlesOff = '<rect x="3" y="5" width="18" height="14" rx="2.5"/>|<path d="M4 4l16 16"/>';
+  static const _audio = '<path d="M4 10v4M8 7v10M16 7v10M20 10v4"/>|<path d="M12 4.5v15"/>';
+  static const _pip = '<rect x="3" y="5" width="18" height="14" rx="2.5"/>|<rect x="12" y="12" width="6" height="4.5" rx="1"/>';
+  static const _miniPlayer = '<rect x="3" y="5" width="18" height="14" rx="2.5"/>|<path d="M7 15h10"/>';
+  static const _layers = '<path d="M12 4 3.5 8.5 12 13l8.5-4.5Z"/>|<path d="M3.5 12.5 12 17l8.5-4.5M3.5 16 12 20.5l8.5-4.5"/>';
+  static const _record = '|<circle cx="12" cy="12" r="5"/>';
+  static const _bedtime = '<path d="M19.5 14.5A8 8 0 1 1 9.5 4.5a6.5 6.5 0 0 0 10 10Z"/>|<path d="M15 4h3.5L15 8h3.5"/>';
+  static const _list = '<path d="M9 6h11M9 12h11M9 18h11"/>|<path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>';
+  static const _description = '<path d="M6.5 3.5h7.5l4.5 4.5v12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-15.5a1 1 0 0 1 1-1Z"/>|<path d="M9 12.5h6M9 16h6"/>';
+  static const _thumbDown = '<path d="M17 14l-4 7c-1.5 0-2.5-1-2.5-2.5V15h-5a2 2 0 0 1-2-2.3l1.3-7A2 2 0 0 1 6.8 4H17"/>|<path d="M17 14V4h3v10Z"/>';
+  static const _comment = '<path d="M4 5.5a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 5.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-5 3.5Z"/>|<path d="M8 9h8M8 12.5h5"/>';
+
   static final Map<IconData, String> _byIcon = {
+    Symbols.skip_next_rounded: _skipNext,
+    Symbols.skip_previous_rounded: _skipPrev,
+    Symbols.fast_forward_rounded: _fastForward,
+    Symbols.fast_rewind_rounded: _fastRewind,
+    Symbols.replay_10_rounded: _replay10,
+    Symbols.forward_10_rounded: _forward10,
+    Symbols.replay_5_rounded: _replay,
+    Symbols.replay_30_rounded: _replay,
+    Symbols.replay_rounded: _replay,
+    Symbols.forward_5_rounded: _forward,
+    Symbols.forward_30_rounded: _forward,
+    Symbols.forward_media_rounded: _forward,
+    Symbols.subtitles_rounded: _subtitles,
+    Symbols.closed_caption_rounded: _subtitles,
+    Symbols.subtitles_off_rounded: _subtitlesOff,
+    Symbols.audiotrack_rounded: _audio,
+    Symbols.picture_in_picture_alt_rounded: _pip,
+    Symbols.call_to_action_rounded: _miniPlayer,
+    Symbols.layers_rounded: _layers,
+    Symbols.queue_rounded: _playlist,
+    Symbols.fiber_manual_record_rounded: _record,
+    Symbols.keyboard_arrow_down_rounded: _expandMore,
+    Symbols.keyboard_arrow_up_rounded: _expandLess,
+    Symbols.bedtime_rounded: _bedtime,
+    Symbols.list_rounded: _list,
+    Symbols.description_rounded: _description,
+    Symbols.thumb_down_rounded: _thumbDown,
+    Symbols.comment_rounded: _comment,
     Symbols.home_rounded: _home,
     Symbols.video_library_rounded: _libraries,
     Symbols.live_tv_rounded: _liveTv,
@@ -206,7 +257,15 @@ class _NeonTone {
 /// magenta tube, each with a faint bright core and a soft glow in its own
 /// colour. The glow is skipped on TV, where blur filters cost too much.
 class RetroGlyph extends StatelessWidget {
-  const RetroGlyph(this.paths, {super.key, this.size, this.opacity = 1, this.semanticLabel});
+  const RetroGlyph(
+    this.paths, {
+    super.key,
+    this.size,
+    this.opacity = 1,
+    this.semanticLabel,
+    this.glow = true,
+    this.soft = false,
+  });
 
   /// Cyan paths and magenta paths, separated by `|`.
   final String paths;
@@ -214,14 +273,22 @@ class RetroGlyph extends StatelessWidget {
   final double opacity;
   final String? semanticLabel;
 
+  /// Draw the soft glow (never on TV). Off for small badges in long grids.
+  final bool glow;
+
+  /// Calmer variant for the player: pastel tubes, thinner, no glow.
+  final bool soft;
+
   static const _cyan = _NeonTone('#00E5FF', '#F2FCFF', '#0090FF');
   static const _magenta = _NeonTone('#FF2BD0', '#FFE6F8', '#C800E0');
+  static const _softCyan = _NeonTone('#7FEFFF', '#F2FCFF', '#0090FF');
+  static const _softMagenta = _NeonTone('#FF6FDC', '#FFE6F8', '#C800E0');
 
   @override
   Widget build(BuildContext context) {
     final s = size ?? IconTheme.of(context).size ?? 24;
     final unit = s / 24;
-    const w = RetroGlyphs.tubeWidth;
+    final w = soft ? 1.8 : RetroGlyphs.tubeWidth;
 
     Widget svg(String p, String color, double width, {double alpha = 1}) {
       Widget child = SvgPicture.string(RetroGlyphs.layer(p, color, width), width: s, height: s);
@@ -236,11 +303,11 @@ class RetroGlyph extends StatelessWidget {
 
     final split = paths.indexOf('|');
     final parts = <(String, _NeonTone)>[
-      (split < 0 ? paths : paths.substring(0, split), _cyan),
-      if (split >= 0) (paths.substring(split + 1), _magenta),
+      (split < 0 ? paths : paths.substring(0, split), soft ? _softCyan : _cyan),
+      if (split >= 0) (paths.substring(split + 1), soft ? _softMagenta : _magenta),
     ].where((p) => p.$1.isNotEmpty).toList();
 
-    final glow = !PlatformDetector.isTV();
+    final glow = this.glow && !soft && !PlatformDetector.isTV();
     Widget glyph = RepaintBoundary(
       child: Stack(
         clipBehavior: Clip.none,

@@ -1756,17 +1756,22 @@ Widget _buildEpisodeSubtitleRow(
   required bool isOffline,
 }) {
   final seasonLabel = 'S${mi.parentIndex}';
+  // Fork: retrowave shows the episode number in cyan, the title stays grey.
+  final numberStyle = RetroColors.isActive(context)
+      ? style?.copyWith(color: const Color(0xFF5FEFFF), fontWeight: FontWeight.w700)
+      : style;
   return Row(
     children: [
       if (enableDetailLinks)
         _ClickableText(
           text: seasonLabel,
-          style: style,
+          style: numberStyle,
           onTap: () => _navigateToFocusedDetail(context, mi, isOffline: isOffline),
         )
       else
-        ExcludeSemantics(child: Text(seasonLabel, style: style)),
-      ExcludeSemantics(child: Text('${_episodeNumberSuffix(mi)} · ', style: style)),
+        ExcludeSemantics(child: Text(seasonLabel, style: numberStyle)),
+      ExcludeSemantics(child: Text(_episodeNumberSuffix(mi), style: numberStyle)),
+      ExcludeSemantics(child: Text(' · ', style: style)),
       Expanded(
         child: ExcludeSemantics(
           child: Text(mi.displaySubtitle ?? mi.displayTitle, maxLines: 1, overflow: .ellipsis, style: style),

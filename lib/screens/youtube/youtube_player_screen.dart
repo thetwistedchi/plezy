@@ -1843,6 +1843,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                       Symbols.closed_caption_rounded,
                       fill: 1,
                       color: _ccTracks.isEmpty ? Colors.white30 : (_ccCurrent != null ? accent : Colors.white),
+                      retro: true,
+                      retroSoft: _ccCurrent == null,
+                      retroGlow: false,
                     ),
                   ),
                 ),
@@ -1869,6 +1872,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                       Symbols.bedtime_rounded,
                       fill: 1,
                       color: _sleepAt != null || _sleepAfterVideo ? accent : Colors.white,
+                      retro: true,
+                      retroSoft: _sleepAt == null && !_sleepAfterVideo,
+                      retroGlow: false,
                     ),
                   ),
                 ),
@@ -1898,7 +1904,9 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   child: const SizedBox(
                     width: 48,
                     height: 48,
-                    child: Center(child: AppIcon(Symbols.list_rounded, color: Colors.white)),
+                    child: Center(
+                      child: AppIcon(Symbols.list_rounded, color: Colors.white, retro: true, retroSoft: true, retroGlow: false),
+                    ),
                   ),
                 ),
               if (_show('description'))
@@ -1965,6 +1973,10 @@ class _PlayerButton extends StatelessWidget {
         icon,
         fill: 1,
         color: onPressed == null ? Colors.white30 : (active ? accent : Colors.white),
+        // Fork: the calm neon glyphs, the same as the in-app player.
+        retro: true,
+        retroSoft: !active,
+        retroGlow: false,
       ),
     );
   }

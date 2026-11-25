@@ -552,7 +552,19 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
       context,
     ).textTheme.titleLarge?.copyWith(fontSize: isTv ? 26 : null, fontWeight: isTv ? FontWeight.w700 : null);
     // Retrowave: periwinkle heading, icon and arrow.
-    final retroHeading = isRetrowave(context) ? retroHeadingColor : null;
+    final retro = isRetrowave(context);
+    final retroHeading = retro ? retroHeadingColor : null;
+    // Fork: neon-sign title, a soft magenta glow (none on TV).
+    final retroTitleStyle = retro
+        ? titleStyle?.copyWith(
+            color: retroTitleColor,
+            fontWeight: FontWeight.w700,
+            shadows: isTv ? null : const [Shadow(color: Color(0x73FF2BD0), blurRadius: 10)],
+          )
+        : titleStyle;
+    final serverNameColor = retro
+        ? retroHeadingColor.withValues(alpha: 0.8)
+        : Theme.of(context).colorScheme.primary.withValues(alpha: 0.7);
 
     return Padding(
       padding: .only(
@@ -589,12 +601,14 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                   child: Row(
                     mainAxisSize: .min,
                     children: [
-                      AppIcon.retro(widget.icon, fill: 1, size: isTv ? 28 : null, color: retroHeading),
-                      SizedBox(width: isTv ? 12 : 8),
+                      // Fork: room for the neon glow, and an icon as tall as the title.
+                      if (retro && !widget.inset) const SizedBox(width: 6),
+                      AppIcon.retro(widget.icon, fill: 1, size: isTv ? 30 : (retro ? 28 : null), color: retroHeading),
+                      SizedBox(width: isTv ? 12 : (retro ? 10 : 8)),
                       Flexible(
                         child: Text(
                           widget.hub.title,
-                          style: titleStyle?.copyWith(color: retroHeading),
+                          style: retroTitleStyle,
                           overflow: .ellipsis,
                           maxLines: 1,
                         ),
@@ -615,16 +629,12 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                         const SizedBox(width: 8),
                         Text(
                           '•',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: serverNameColor),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           widget.hub.serverName!,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: serverNameColor),
                         ),
                       ],
                       if (widget.hub.more && !isKeyboardMode) ...[
