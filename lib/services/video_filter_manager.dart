@@ -158,6 +158,16 @@ class VideoFilterManager {
     final crop = RegExp(r'^(\d+)x(\d+)').firstMatch(_letterboxCrop);
     final sourceW = _cropSourceWidth;
     final sourceH = _cropSourceHeight;
+    // Fork: without video-crop (older libmpv), zoom until the picture inside
+    // the bars is as tall as the player; the bars end up off screen.
+    if (!_cropSupported && aspect != null && crop != null && sourceH != null && sourceH > 0) {
+      if (playerSize == null || playerSize.width <= 0 || playerSize.height <= 0) return 1.0;
+      final h = int.parse(crop.group(2)!);
+      final playerAspect = playerSize.width / playerSize.height;
+      final frameHeight = aspect > playerAspect ? playerAspect / aspect : 1.0;
+      final contentHeight = frameHeight * h / sourceH;
+      return contentHeight > 0 ? math.max(1.0, 1 / contentHeight) : 1.0;
+    }
     if (aspect != null && crop != null && sourceW != null && sourceH != null) {
       // The display aspect of the whole frame, reshaped by the crop.
       final w = int.parse(crop.group(1)!);
@@ -223,6 +233,8 @@ class VideoFilterManager {
   StreamSubscription<void>? _fileLoadedSub;
   StreamSubscription<Duration>? _positionSub;
   bool _letterboxChecked = false;
+  bool _cropSupported = true;
+  DateTime? _letterboxRetryAt;
   bool _letterboxRechecked = false;
   _Box? _letterboxContent;
   bool _letterboxDetecting = false;
@@ -233,6 +245,7 @@ class VideoFilterManager {
 
   void _resetLetterbox() {
     _letterboxChecked = false;
+    _letterboxRetryAt = null;
     _letterboxRechecked = false;
     _letterboxContent = null;
     if (_letterboxCrop.isEmpty) return;
@@ -246,6 +259,8 @@ class VideoFilterManager {
       // Past studio logos and black openings (switching to Fit height later
       // in a film checks on the next position update).
       if (position < const Duration(seconds: 10)) return;
+      // Fork: an all-dark sample is tried again a little later.
+      if (_letterboxRetryAt case final at? when DateTime.now().isBefore(at)) return;
       _letterboxDetecting = true;
       unawaited(_detectLetterbox());
     } else if (!_letterboxRechecked && _letterboxCrop.isNotEmpty && position >= const Duration(minutes: 5)) {
@@ -266,13 +281,20 @@ class VideoFilterManager {
   /// crops nothing. With [recheck] (minutes into the film) the crop can only
   /// shrink: the new picture area is joined with the current one.
   Future<void> _detectLetterbox({bool recheck = false}) async {
+    var sampledDark = false;
     try {
       final width = int.tryParse(await player.getProperty('width') ?? '');
       final height = int.tryParse(await player.getProperty('height') ?? '');
       if (width == null || height == null || width <= 0 || height <= 0) return;
 
       var content = await _sampleContent();
-      if (content == null) return;
+      if (content == null) {
+        // Fork: every shot was dark (a night scene, a fade): look again in
+        // 20 s instead of giving up for the whole file.
+        if (!recheck) sampledDark = true;
+        appLogger.d('Letterbox detection: only dark frames, trying again shortly');
+        return;
+      }
       // Symmetric bars: the smaller side decides.
       final vertical = math.min(content.top, 1 - content.bottom);
       final horizontal = math.min(content.left, 1 - content.right);
@@ -305,8 +327,11 @@ class VideoFilterManager {
     } finally {
       if (recheck) {
         _letterboxRechecked = true;
+      } else if (sampledDark) {
+        _letterboxRetryAt = DateTime.now().add(const Duration(seconds: 20));
       } else {
         _letterboxChecked = true;
+        _letterboxRetryAt = null;
       }
       _letterboxDetecting = false;
     }
@@ -602,8 +627,15 @@ class VideoFilterManager {
       }
       if (_hdrBrightness != null) await _applyProperty('gamma', _hdrGamma);
       // Last: older libmpv builds have no video-crop and refuse it.
-      if (_canCrop) {
-        await _applyProperty('video-crop', _wantsCrop && zoomScale <= 1.0001 ? _letterboxCrop : '');
+      if (_canCrop && _cropSupported) {
+        try {
+          await _applyProperty('video-crop', _wantsCrop && zoomScale <= 1.0001 ? _letterboxCrop : '');
+        } catch (e) {
+          // Fork: fall back to zooming past the bars (see _fitHeightZoom).
+          appLogger.w('video-crop not supported, Fit height zooms past the bars instead', error: e);
+          _cropSupported = false;
+          if (_boxFitMode == 1) unawaited(updateVideoFilter());
+        }
       }
     } catch (e) {
       appLogger.w('Failed to update video filter', error: e);
