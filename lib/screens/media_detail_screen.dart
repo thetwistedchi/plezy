@@ -71,6 +71,7 @@ import '../services/settings_service.dart';
 import '../services/retrowave/synchronkartei.dart';
 import '../services/playback_subtitle_resolver.dart';
 import '../mpv/mpv.dart' show AudioTrack, SubtitleTrack;
+import '../services/track_selection_service.dart' show itemAgnosticAudioCarry;
 import '../services/watch_actions.dart';
 import '../widgets/settings_builder.dart';
 import '../utils/layout_constants.dart';
@@ -471,10 +472,11 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   /// and its note repaint without depending on a rebuild of the page.
   final _dubCastRevision = ValueNotifier<int>(0);
 
-  /// Fork: audio and subtitle rows picked on the details page, by the
-  /// probed target's global key. A subtitle of -1 means off.
-  final Map<String, int> _pickedAudioIds = {};
-  final Map<String, int> _pickedSubtitleIds = {};
+  /// Fork: audio and subtitle tracks picked on the details page, by the
+  /// detail item's global key (a series keeps its pick across episodes). A
+  /// subtitle entry holding null means off.
+  final Map<String, MediaAudioTrack> _pickedAudioRows = {};
+  final Map<String, MediaSubtitleTrack?> _pickedSubtitleRows = {};
   Map<String, TitleLink> _fetchedTitleLinks = const {};
 
   // Inline season tabs

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../../services/youtube/youtube_service.dart';
@@ -321,6 +322,7 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
           children: [
             _CommentTile(
               onSeek: widget.onSeek,
+              videoId: widget.videoId,
               comment: comment,
               own: _isOwn(comment),
               canWrite: _settings.canWrite,
@@ -359,6 +361,7 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
                           for (final reply in replies ?? const <YtComment>[])
                             _CommentTile(
                               onSeek: widget.onSeek,
+                              videoId: widget.videoId,
                               comment: reply,
                               own: _isOwn(reply),
                               canWrite: _settings.canWrite,
@@ -473,9 +476,14 @@ class _CommentTile extends StatelessWidget {
     required this.onDelete,
     this.small = false,
     this.onSeek,
+    this.videoId,
   });
 
   final ValueChanged<double>? onSeek;
+
+  /// Fork: for opening the comment on youtube.com, where it can be liked
+  /// (the YouTube API offers no way to like a comment).
+  final String? videoId;
 
   final YtComment comment;
   final bool own;
@@ -534,11 +542,33 @@ class _CommentTile extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const AppIcon(Symbols.thumb_up_rounded, size: 16, color: Colors.white54),
-                    if (comment.likeCount > 0) ...[
-                      const SizedBox(width: 6),
-                      Text('${comment.likeCount}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                    ],
+                    Tooltip(
+                      message: YtStrings.likeOnYouTube,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: videoId == null
+                            ? null
+                            : () => unawaited(
+                                launchUrl(
+                                  Uri.https('www.youtube.com', '/watch', {'v': videoId!, 'lc': comment.id}),
+                                  mode: LaunchMode.externalApplication,
+                                ),
+                              ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const AppIcon(Symbols.thumb_up_rounded, size: 16, color: Colors.white54),
+                              if (comment.likeCount > 0) ...[
+                                const SizedBox(width: 6),
+                                Text('${comment.likeCount}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                     if (onReply != null) ...[
                       const SizedBox(width: 16),
                       InkWell(

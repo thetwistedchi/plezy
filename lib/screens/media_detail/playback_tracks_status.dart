@@ -13,7 +13,9 @@ extension _MediaDetailPlaybackTracksStatus on _MediaDetailScreenState {
     if (!_canUseDetail) return null;
     final MediaItem? target;
     if (metadata.isShow) {
-      target = _showPlayEpisode();
+      // Fork: without an on-deck episode, the first loaded one, so the track
+      // menus show for a series that was never started too.
+      target = _showPlayEpisode() ?? (_episodes.isEmpty ? null : _episodes.first);
     } else if (metadata.isSeason) {
       target = _episodes.isEmpty ? null : _episodes.first;
     } else {
@@ -252,34 +254,126 @@ extension _MediaDetailTrackPickers on _MediaDetailScreenState {
         profile: context.read<AccountPreferencesController?>()?.activePreferences,
       );
 
+  /// [picked] in this source: the same row, else the one with the same
+  /// language and title (another episode's file).
+  static T? _matchRow<T>(
+    List<T> rows,
+    T picked, {
+    required int Function(T) id,
+    required String? Function(T) language,
+    required String? Function(T) title,
+  }) {
+    final same = rows.where((r) => id(r) == id(picked)).firstOrNull;
+    if (same != null) return same;
+    final lang = language(picked);
+    final byBoth = rows.where((r) => language(r) == lang && title(r) == title(picked)).firstOrNull;
+    return byBoth ?? rows.where((r) => language(r) == lang).firstOrNull;
+  }
+
+  MediaAudioTrack? _matchAudio(MediaSourceInfo source, MediaAudioTrack picked) => _matchRow<MediaAudioTrack>(
+    source.audioTracks,
+    picked,
+    id: (r) => r.id,
+    language: (r) => r.languageCode ?? r.language,
+    title: (r) => r.title,
+  );
+
+  MediaSubtitleTrack? _matchSubtitle(MediaSourceInfo source, MediaSubtitleTrack picked) =>
+      _matchRow<MediaSubtitleTrack>(
+        source.subtitleTracks,
+        picked,
+        id: (r) => r.id,
+        language: (r) => r.languageCode ?? r.language,
+        title: (r) => r.title,
+      );
+
   /// The audio row Play will use: the picked one, else the ladder's choice.
   MediaAudioTrack? _currentAudioRow(MediaItem metadata) {
     final entry = _pickerSource(metadata);
     if (entry == null) return null;
-    final picked = _pickedAudioIds[entry.key];
-    if (picked != null) {
-      final row = entry.source.audioTracks.where((track) => track.id == picked).firstOrNull;
-      if (row != null) return row;
-    }
+    final picked = _pickedAudioRows[metadata.globalKey];
+    if (picked != null) return _matchAudio(entry.source, picked) ?? picked;
     return _pickerPreview(entry)?.audio;
   }
 
-  AudioTrack? _pickedAudioTrack(MediaItem metadata) {
+  /// The subtitle row Play will use; null is off.
+  MediaSubtitleTrack? _currentSubtitleRow(MediaItem metadata, PlaybackTrackPreview? preview) {
     final entry = _pickerSource(metadata);
     if (entry == null) return null;
-    final picked = _pickedAudioIds[entry.key];
-    final row = picked == null ? null : entry.source.audioTracks.where((track) => track.id == picked).firstOrNull;
-    return row == null ? null : PlaybackSubtitleResolver.audioTrackForSource(row);
+    if (!_pickedSubtitleRows.containsKey(metadata.globalKey)) return preview?.subtitle;
+    final picked = _pickedSubtitleRows[metadata.globalKey];
+    return picked == null ? null : _matchSubtitle(entry.source, picked) ?? picked;
+  }
+
+  AudioTrack? _pickedAudioTrack(MediaItem metadata) {
+    final picked = _pickedAudioRows[metadata.globalKey];
+    if (picked == null) return null;
+    final entry = _pickerSource(metadata);
+    final row = entry == null ? picked : _matchAudio(entry.source, picked) ?? picked;
+    // Matched by language and title in the player, so it fits any episode.
+    return itemAgnosticAudioCarry(PlaybackSubtitleResolver.audioTrackForSource(row));
   }
 
   SubtitleTrack? _pickedSubtitleTrack(MediaItem metadata) {
+    if (!_pickedSubtitleRows.containsKey(metadata.globalKey)) return null;
+    final picked = _pickedSubtitleRows[metadata.globalKey];
+    if (picked == null) return SubtitleTrack.off;
     final entry = _pickerSource(metadata);
-    if (entry == null) return null;
-    final picked = _pickedSubtitleIds[entry.key];
-    if (picked == null) return null;
-    if (picked < 0) return SubtitleTrack.off;
-    final row = entry.source.subtitleTracks.where((track) => track.id == picked).firstOrNull;
-    return row == null ? null : PlaybackSubtitleResolver.subtitleTrackForSource(row);
+    final row = entry == null ? null : _matchSubtitle(entry.source, picked);
+    if (row != null) return PlaybackSubtitleResolver.subtitleTrackForSource(row);
+    // Not in the file Play starts: hand over language and title only.
+    return PlaybackSubtitleResolver.subtitleTrackForSource(picked).copyWith(id: 'carried', uri: null);
+  }
+
+  void _pickAudioRow(MediaItem metadata, MediaAudioTrack row) => _setDetailState(() {
+    _pickedAudioRows[metadata.globalKey] = row;
+    _tvDetailActorItemsCache = null;
+  });
+
+  void _pickSubtitleRow(MediaItem metadata, MediaSubtitleTrack? row) =>
+      _setDetailState(() => _pickedSubtitleRows[metadata.globalKey] = row);
+
+  /// TV: the same choices as dialogs from the action row.
+  Future<void> _showAudioPickerDialog(BuildContext context, MediaItem metadata) async {
+    final entry = _pickerSource(metadata);
+    if (entry == null || entry.source.audioTracks.isEmpty) return;
+    final current = _currentAudioRow(metadata);
+    final picked = await showOptionPickerDialog<int>(
+      context,
+      title: RetroStrings.audioTrack,
+      options: [
+        for (final track in entry.source.audioTracks)
+          (
+            icon: track.id == current?.id ? Symbols.check_rounded : null,
+            label: track.label.joined,
+            value: track.id,
+          ),
+      ],
+    );
+    if (picked == null || !_canUseDetail) return;
+    final row = entry.source.audioTracks.where((track) => track.id == picked).firstOrNull;
+    if (row != null) _pickAudioRow(metadata, row);
+  }
+
+  Future<void> _showSubtitlePickerDialog(BuildContext context, MediaItem metadata) async {
+    final entry = _pickerSource(metadata);
+    if (entry == null) return;
+    final current = _currentSubtitleRow(metadata, _pickerPreview(entry));
+    final picked = await showOptionPickerDialog<int>(
+      context,
+      title: RetroStrings.subtitleTrack,
+      options: [
+        (icon: current == null ? Symbols.check_rounded : null, label: t.common.off, value: -1),
+        for (final track in entry.source.subtitleTracks)
+          (
+            icon: track.id == current?.id ? Symbols.check_rounded : null,
+            label: track.label.joined,
+            value: track.id,
+          ),
+      ],
+    );
+    if (picked == null || !_canUseDetail) return;
+    _pickSubtitleRow(metadata, picked < 0 ? null : entry.source.subtitleTracks.where((track) => track.id == picked).firstOrNull);
   }
 
   Widget _buildTrackPickers(BuildContext context, MediaItem metadata) {
@@ -296,18 +390,15 @@ extension _MediaDetailTrackPickers on _MediaDetailScreenState {
         if (source.audioTracks.isEmpty && source.subtitleTracks.isEmpty) return const SizedBox.shrink();
         final preview = _pickerPreview(entry);
         final audio = _currentAudioRow(metadata);
-        final pickedSub = _pickedSubtitleIds[entry.key];
-        final MediaSubtitleTrack? subtitle = pickedSub == null
-            ? preview?.subtitle
-            : pickedSub < 0
-            ? null
-            : source.subtitleTracks.where((track) => track.id == pickedSub).firstOrNull;
+        final subtitle = _currentSubtitleRow(metadata, preview);
 
-        void pickAudio(int id) => _setDetailState(() {
-          _pickedAudioIds[entry.key] = id;
-          _tvDetailActorItemsCache = null;
-        });
-        void pickSubtitle(int id) => _setDetailState(() => _pickedSubtitleIds[entry.key] = id);
+        void pickAudio(int id) {
+          final row = source.audioTracks.where((track) => track.id == id).firstOrNull;
+          if (row != null) _pickAudioRow(metadata, row);
+        }
+
+        void pickSubtitle(int id) =>
+            _pickSubtitleRow(metadata, id < 0 ? null : source.subtitleTracks.where((track) => track.id == id).firstOrNull);
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 20),

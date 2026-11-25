@@ -383,6 +383,34 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
             ),
           );
 
+    // Fork, TV: audio and subtitle choices open as dialogs from the row (the
+    // other layouts show the menus under it).
+    final showTrackButtons = isTv && !widget.isOffline && (metadata.isMovie || metadata.isShow || metadata.isEpisode);
+    final audioPickAction = showTrackButtons
+        ? FocusableAction(
+            debugLabel: 'detail_audio_track',
+            onPressed: () => unawaited(_showAudioPickerDialog(context, metadata)),
+            builder: (context, state) => iconActionButton(
+              state,
+              onPressed: () => unawaited(_showAudioPickerDialog(context, metadata)),
+              icon: const AppIcon(Symbols.volume_up_rounded, fill: 1),
+              tooltip: RetroStrings.audioTrack,
+            ),
+          )
+        : null;
+    final subtitlePickAction = showTrackButtons
+        ? FocusableAction(
+            debugLabel: 'detail_subtitle_track',
+            onPressed: () => unawaited(_showSubtitlePickerDialog(context, metadata)),
+            builder: (context, state) => iconActionButton(
+              state,
+              onPressed: () => unawaited(_showSubtitlePickerDialog(context, metadata)),
+              icon: const AppIcon(Symbols.subtitles_rounded, fill: 1),
+              tooltip: RetroStrings.subtitleTrack,
+            ),
+          )
+        : null;
+
     // TV: the details page has no Ratings & links row, so the comparison of
     // all scores (and their median) opens from the action row.
     final titleLinks = _titleLinksFor(metadata);
@@ -487,6 +515,8 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
       ?restartAction,
       ?versionAction,
       ?trailerAction,
+      ?audioPickAction,
+      ?subtitlePickAction,
       ?scoresAction,
       ?shuffleAction,
       ?downloadAction,

@@ -106,6 +106,8 @@ class YtStrings {
   static String get speed => _t('Playback speed', 'Geschwindigkeit');
   static String get chapters => _t('Chapters', 'Kapitel');
   static String get comments => _t('Comments', 'Kommentare');
+  static String get likeOnYouTube =>
+      _t('Like on YouTube (opens the comment there)', 'Auf YouTube liken (öffnet den Kommentar dort)');
   static String get description => _t('Description', 'Beschreibung');
   static String get noDescription => _t('No description.', 'Keine Beschreibung.');
   static String get fullscreen => _t('Fullscreen', 'Vollbild');
