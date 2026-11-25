@@ -183,6 +183,10 @@ class _UpdateDialogState extends State<_UpdateDialog> with WidgetsBindingObserve
   /// coming back with it allowed continues the update by itself.
   bool _awaitingPermission = false;
 
+  /// Fork: the APK was handed to Android's installer; the button now only
+  /// opens that prompt again.
+  bool _installerOpened = false;
+
   @override
   void initState() {
     super.initState();
@@ -207,7 +211,8 @@ class _UpdateDialogState extends State<_UpdateDialog> with WidgetsBindingObserve
 
   String get _actionLabel => switch (RetrowaveUpdater.mode) {
     RetrowaveUpdateMode.windowsInstaller => _t('Update and restart', 'Aktualisieren und neu starten'),
-    RetrowaveUpdateMode.androidApk => _t('Download and install', 'Herunterladen und installieren'),
+    RetrowaveUpdateMode.androidApk =>
+      _installerOpened ? _t('Install', 'Installieren') : _t('Download and install', 'Herunterladen und installieren'),
     RetrowaveUpdateMode.releasePage => _t('Open download page', 'Downloadseite öffnen'),
   };
 
@@ -227,6 +232,17 @@ class _UpdateDialogState extends State<_UpdateDialog> with WidgetsBindingObserve
       if (!mounted) return;
       if (result == null) {
         Navigator.pop(context);
+        return;
+      }
+      if (result == 'installerOpened') {
+        setState(() {
+          _busy = false;
+          _installerOpened = true;
+          _problem = _t(
+            "Android's install prompt should be open now. If it did not appear, press Install again; the download is not repeated.",
+            'Die Installationsabfrage von Android sollte jetzt offen sein. Falls nicht, erneut auf Installieren drücken; es wird nicht noch einmal heruntergeladen.',
+          );
+        });
         return;
       }
       _awaitingPermission = result == 'needsPermission';
@@ -280,7 +296,12 @@ class _UpdateDialogState extends State<_UpdateDialog> with WidgetsBindingObserve
             ],
             if (_problem != null) ...[
               const SizedBox(height: 12),
-              Text(_problem!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+              Text(
+                _problem!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _installerOpened ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.error,
+                ),
+              ),
             ],
           ],
         ),

@@ -269,9 +269,19 @@ abstract final class RetrowaveUpdater {
         final name = is64 && release.assets.containsKey(_arm64Apk) ? _arm64Apk : _universalApk;
         final url = release.assets[name];
         if (url == null) return 'missing:$name';
-        final file = await _download(url, name, onProgress);
+        // Fork: a second try uses the APK already downloaded for this release.
+        var file = _readyApk;
+        if (_readyApkVersion != release.version || file == null || !await file.exists()) {
+          file = await _download(url, name, onProgress);
+          _readyApk = file;
+          _readyApkVersion = release.version;
+        }
+        appLogger.i('Updater: handing ${file.path} (${await file.length()} bytes) to the package installer');
         final result = await _channel.invokeMethod<String>('installApk', {'path': file.path});
-        return result == 'needsPermission' ? 'needsPermission' : null;
+        if (result == 'needsPermission') return 'needsPermission';
+        // The dialog stays open: if Android's prompt does not show, the same
+        // file can be handed over again without a new download.
+        return 'installerOpened';
     }
   }
 
@@ -284,6 +294,9 @@ abstract final class RetrowaveUpdater {
       return true;
     }
   }
+
+  static File? _readyApk;
+  static String? _readyApkVersion;
 
   static Future<void> _deleteDownloads() async {
     try {
