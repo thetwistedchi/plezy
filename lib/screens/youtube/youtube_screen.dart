@@ -217,7 +217,15 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
           if (!YouTubeService.isAvailable) {
             return _ConnectPrompt(onAddChannels: _openChannels, onSignIn: _openSettings, onGuide: _openGuide);
           }
-          return _view == _YtView.watchlist ? _buildWatchlist(context) : _buildFeed(context);
+          if (_view == _YtView.watchlist) return _buildWatchlist(context);
+          // Fork: system back (Android, mouse back button) leaves the search.
+          return PopScope(
+            canPop: _query == null,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop && _query != null) _clearSearch();
+            },
+            child: _buildFeed(context),
+          );
         },
       ),
     );
@@ -278,9 +286,25 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        searching ? YtStrings.searchResults(_query!) : YtStrings.subscriptions,
-                        style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (searching) ...[
+                            IconButton(
+                              tooltip: YtStrings.back,
+                              onPressed: _clearSearch,
+                              icon: const AppIcon.retro(Symbols.arrow_back_rounded),
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          Flexible(
+                            child: Text(
+                              searching ? YtStrings.searchResults(_query!) : YtStrings.subscriptions,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
