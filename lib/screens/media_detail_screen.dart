@@ -53,7 +53,7 @@ import '../services/ratings/title_links_service.dart';
 import '../utils/external_ids.dart';
 import '../widgets/fitted_metadata_line.dart';
 import '../i18n/retro_strings.dart';
-import '../widgets/retro_pill.dart' show isRetrowave, retroTitleColor, retroTitleGlow;
+import '../widgets/retro_pill.dart' show isRetrowave, retroHeadingColor, retroTitleColor, retroTitleGlow;
 import '../i18n/strings.g.dart';
 import '../theme/mono_tokens.dart';
 import '../widgets/cycling_media_backdrop.dart';
@@ -279,6 +279,17 @@ const tvDetailRevealGateKey = ValueKey<String>('tvDetailRevealGate');
 /// scores pill, the tappable rating chip — sizes its content to
 /// [chipContentHeight] so icons and text never make one chip taller than its
 /// neighbours. TV renders a different metadata line and keeps its own metrics.
+/// Fork: the neon rim of a retrowave hero chip.
+enum _ChipTone {
+  info(RetroColors.violet),
+  tech(Color(0xFF00E5FF)),
+  genre(retroHeadingColor),
+  rate(Color(0xFFFF2BD0));
+
+  const _ChipTone(this.rim);
+  final Color rim;
+}
+
 abstract final class _HeroChips {
   /// Gap between chips, and between the two chip rows.
   static const double spacing = 4;
@@ -1055,7 +1066,11 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       children: [
         Text(
           label.toUpperCase(),
-          style: theme.textTheme.labelSmall?.copyWith(color: mono.textMuted, letterSpacing: 1.4),
+          style: theme.textTheme.labelSmall?.copyWith(
+            // Fork: cyan crew labels on retrowave.
+            color: isRetrowave(context) ? const Color(0xFF5FEFFF) : mono.textMuted,
+            letterSpacing: 1.4,
+          ),
         ),
         const SizedBox(height: 2),
         Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
@@ -1360,11 +1375,16 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     TextAlign? textAlign,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
+    // Fork: the retrowave title glows like the section titles (not on TV).
+    final neon = color == null && isRetrowave(context) && !PlatformDetector.isTV();
     final baseStyle = (Theme.of(context).textTheme.displaySmall ?? const TextStyle()).copyWith(
-      color: color ?? colorScheme.onSurface,
+      color: color ?? (isRetrowave(context) ? retroTitleColor : colorScheme.onSurface),
       fontWeight: fontWeight,
       fontSize: fontSize,
-      shadows: [Shadow(color: shadowColor ?? _detailTitleShadowColor(context), blurRadius: shadowBlur)],
+      shadows: [
+        Shadow(color: shadowColor ?? _detailTitleShadowColor(context), blurRadius: shadowBlur),
+        if (neon) ...retroTitleGlow,
+      ],
     );
 
     return FittingTitleText(
@@ -1406,12 +1426,14 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
 
   /// Build action buttons row (play, shuffle, download, mark watched)
   /// Build a metadata chip with optional leading icon or widget
-  Widget _buildMetadataChip(String text, {IconData? icon, Widget? leading}) {
+  Widget _buildMetadataChip(String text, {IconData? icon, Widget? leading, _ChipTone tone = _ChipTone.info}) {
     final colorScheme = Theme.of(context).colorScheme;
     final isTv = PlatformDetector.isTV();
+    final retro = isRetrowave(context);
+    final textColor = retro && tone == _ChipTone.genre ? retroHeadingColor : colorScheme.onSecondaryContainer;
     final textWidget = Text(
       text,
-      style: TextStyle(color: colorScheme.onSecondaryContainer, fontSize: isTv ? 16 : 13, fontWeight: .w600),
+      style: TextStyle(color: textColor, fontSize: isTv ? 16 : 13, fontWeight: .w600),
     );
 
     final hasLeading = leading != null || icon != null;
@@ -1433,9 +1455,17 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     return Container(
       padding: isTv ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8) : _HeroChips.padding,
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer.withValues(alpha: 0.8),
+        color: retro ? RetroColors.night80 : colorScheme.secondaryContainer.withValues(alpha: 0.8),
         borderRadius: _HeroChips.radius,
       ),
+      // Fork: a neon rim on retrowave. A foreground border adds no padding,
+      // so the fitted chip widths stay exact.
+      foregroundDecoration: retro
+          ? BoxDecoration(
+              borderRadius: _HeroChips.radius,
+              border: Border.all(color: tone.rim, width: 1.5),
+            )
+          : null,
       child: isTv ? content : _HeroChips.content(content),
     );
   }
@@ -1493,11 +1523,11 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     // rating badge for the scores pill, the whole chip for everything else.
     final slots = <({int dropPriority, List<double> unitWidths, Widget Function(int kept) build})>[];
 
-    void addTextChip(String text, int dropPriority) {
+    void addTextChip(String text, int dropPriority, {_ChipTone tone = _ChipTone.info}) {
       slots.add((
         dropPriority: dropPriority,
         unitWidths: [chipPadding + textWidth(text, chipTextStyle)],
-        build: (_) => _buildMetadataChip(text),
+        build: (_) => _buildMetadataChip(text, tone: tone),
       ));
     }
 
@@ -1507,7 +1537,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       if (metadata.contentRating != null) addTextChip(formatContentRating(metadata.contentRating!), 2);
       if (metadata.durationMs != null) addTextChip(formatDurationTextual(metadata.durationMs!), 1);
       for (final label in buildMediaQualityLabels(metadata)) {
-        addTextChip(label, 4);
+        addTextChip(label, 4, tone: _ChipTone.tech);
       }
     }
     if (ratings.isNotEmpty) {
@@ -1534,9 +1564,15 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
         build: (kept) => Container(
           padding: _HeroChips.padding,
           decoration: BoxDecoration(
-            color: colorScheme.secondaryContainer.withValues(alpha: 0.8),
+            color: isRetrowave(context) ? RetroColors.night80 : colorScheme.secondaryContainer.withValues(alpha: 0.8),
             borderRadius: _HeroChips.radius,
           ),
+          foregroundDecoration: isRetrowave(context)
+              ? BoxDecoration(
+                  borderRadius: _HeroChips.radius,
+                  border: Border.all(color: _ChipTone.info.rim, width: 1.5),
+                )
+              : null,
           child: _HeroChips.content(
             InlineRatingBadges(
               ratings: kept == ratings.length ? ratings : ratings.sublist(0, kept),
@@ -1633,8 +1669,13 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
         final colorScheme = Theme.of(context).colorScheme;
         final isKeyboardMode = InputModeTracker.isKeyboardMode(context);
         final showFocus = _ratingChipFocusNode.hasFocus && isKeyboardMode;
-        final bgColor = showFocus ? colorScheme.inverseSurface : colorScheme.secondaryContainer.withValues(alpha: 0.8);
-        final fgColor = showFocus ? colorScheme.onInverseSurface : colorScheme.onSecondaryContainer;
+        // Fork: retrowave keeps the chip dark with a magenta rim; focus
+        // thickens the rim instead of inverting.
+        final retro = isRetrowave(context);
+        final bgColor = retro
+            ? RetroColors.night80
+            : (showFocus ? colorScheme.inverseSurface : colorScheme.secondaryContainer.withValues(alpha: 0.8));
+        final fgColor = showFocus && !retro ? colorScheme.onInverseSurface : colorScheme.onSecondaryContainer;
 
         return FocusableWrapper(
           focusNode: _ratingChipFocusNode,
@@ -1664,6 +1705,12 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
               curve: Curves.easeOutCubic,
               padding: _HeroChips.padding,
               decoration: BoxDecoration(color: bgColor, borderRadius: _HeroChips.radius),
+              foregroundDecoration: retro
+                  ? BoxDecoration(
+                      borderRadius: _HeroChips.radius,
+                      border: Border.all(color: _ChipTone.rate.rim, width: showFocus ? 2.5 : 1.5),
+                    )
+                  : null,
               child: _HeroChips.content(
                 Row(
                   mainAxisSize: .min,
@@ -1673,6 +1720,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                       fill: active ? 1 : 0,
                       color: showFocus ? fgColor : (active ? activeIconColor : fgColor),
                       size: 16,
+                      // Fork: unrated shows the neon star; rated stays a filled pink one.
+                      retro: retro && !active,
+                      retroGlow: false,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -5146,7 +5196,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
             _buildFittedHeroChips(context, metadata, constraints.maxWidth, ratings: ratings, scoresOnly: true),
         ];
         // Genres render on their own line below the metadata chips.
-        final genreChips = [for (final genre in metadata.genres ?? const <String>[]) _buildMetadataChip(genre)];
+        final genreChips = [for (final genre in metadata.genres ?? const <String>[]) _buildMetadataChip(genre, tone: _ChipTone.genre)];
 
         final showChips = chipsFit && chipRows.isNotEmpty;
         final chipBlockHeight = showChips ? chipRows.length * (chipHeight + rowGap) - rowGap : 0.0;

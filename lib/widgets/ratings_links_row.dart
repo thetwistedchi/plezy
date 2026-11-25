@@ -5,7 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../i18n/strings.g.dart';
 import '../services/ratings/title_links_service.dart';
 import '../theme/mono_tokens.dart';
+import '../theme/retrowave_colors.dart';
 import '../utils/app_logger.dart';
+import '../utils/platform_detector.dart';
 import '../utils/rating_median.dart';
 import '../utils/rating_utils.dart';
 
@@ -65,11 +67,21 @@ class _MedianCard extends StatelessWidget {
           child: Container(
         constraints: const BoxConstraints(minWidth: 132),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: mono.surface,
-          borderRadius: BorderRadius.circular(mono.radiusMd),
-          border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.7)),
-        ),
+        // Fork: retrowave gives the median a glowing magenta rim (no glow on TV).
+        decoration: RetroColors.isActive(context)
+            ? BoxDecoration(
+                color: RetroColors.night80,
+                borderRadius: BorderRadius.circular(mono.radiusMd),
+                border: Border.all(color: _neonPink),
+                boxShadow: PlatformDetector.isTV()
+                    ? null
+                    : const [BoxShadow(color: Color(0x59FF2BD0), blurRadius: 12)],
+              )
+            : BoxDecoration(
+                color: mono.surface,
+                borderRadius: BorderRadius.circular(mono.radiusMd),
+                border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+              ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,7 +286,8 @@ class _RatingLinkCardState extends State<_RatingLinkCard> {
     final label = ratingSourceLabel(link.source) ?? link.siteName;
     final value = rating == null ? '–' : (info?.formattedValue ?? rating.value.toStringAsFixed(1));
     final votes = rating?.votes;
-    final accent = theme.colorScheme.primary;
+    final retro = RetroColors.isActive(context);
+    final accent = retro ? _neonPink : theme.colorScheme.primary;
     const iconHeight = 18.0;
 
     return Tooltip(
@@ -284,10 +297,13 @@ class _RatingLinkCardState extends State<_RatingLinkCard> {
         label: '$label $value',
         excludeSemantics: true,
         child: Material(
-          color: mono.surface,
+          color: retro ? RetroColors.night80 : mono.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(mono.radiusMd),
-            side: BorderSide(color: _highlighted ? accent : mono.outline, width: _highlighted ? 1.5 : 1),
+            // Fork: retrowave cards have a thin cyan rim, magenta on hover/focus.
+            side: retro
+                ? BorderSide(color: _highlighted ? _neonPink : _neonCyan.withValues(alpha: 0.55), width: 1.5)
+                : BorderSide(color: _highlighted ? accent : mono.outline, width: _highlighted ? 1.5 : 1),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -359,3 +375,6 @@ String compactCount(int n) {
   if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
   return '$n';
 }
+
+const _neonPink = Color(0xFFFF2BD0);
+const _neonCyan = Color(0xFF00E5FF);

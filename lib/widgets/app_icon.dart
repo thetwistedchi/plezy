@@ -70,16 +70,17 @@ class AppIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (icon == null) return const SizedBox.shrink();
-    if (retro) {
+    final scope = retro ? null : RetroIconScope.maybeOf(context);
+    if (retro || (scope != null && _neutral(color ?? IconTheme.of(context).color))) {
       final paths = RetroGlyph.pathsIfActive(context, icon);
       if (paths != null) {
         return RetroGlyph(
           paths,
-          size: size,
-          opacity: retroOpacity ?? (color?.a ?? 1),
+          size: size ?? IconTheme.of(context).size,
+          opacity: retroOpacity ?? ((color ?? IconTheme.of(context).color)?.a ?? 1),
           semanticLabel: semanticLabel,
-          soft: retroSoft,
-          glow: retroGlow,
+          soft: scope?.soft ?? retroSoft,
+          glow: scope == null ? retroGlow : false,
         );
       }
     }
@@ -122,4 +123,28 @@ class AppIconDefaults {
     if (color != null) AppIconDefaults.color = color;
     if (shadows != null) AppIconDefaults.shadows = shadows;
   }
+}
+
+
+/// Fork: light, unsaturated-looking icon colours (white, lavender) take the
+/// neon glyph inside a [RetroIconScope]; coloured status icons keep theirs.
+bool _neutral(Color? c) {
+  if (c == null) return true;
+  final max = [c.r, c.g, c.b].reduce((a, b) => a > b ? a : b);
+  final min = [c.r, c.g, c.b].reduce((a, b) => a < b ? a : b);
+  return (max + min) / 2 > 0.72;
+}
+
+/// Fork: every [AppIcon] below draws its retrowave glyph (when one exists
+/// and the icon is not a coloured status icon), without glow.
+class RetroIconScope extends InheritedWidget {
+  const RetroIconScope({super.key, this.soft = true, required super.child});
+
+  /// The calm pastel variant.
+  final bool soft;
+
+  static RetroIconScope? maybeOf(BuildContext context) => context.dependOnInheritedWidgetOfExactType<RetroIconScope>();
+
+  @override
+  bool updateShouldNotify(RetroIconScope oldWidget) => oldWidget.soft != soft;
 }

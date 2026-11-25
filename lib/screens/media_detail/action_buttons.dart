@@ -193,7 +193,39 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
       return null; // default for other states
     });
 
+    // Fork: retrowave buttons are dark with a neon rim: magenta for Play
+    // (with a glow off TV), violet for the round actions. Focus brightens the
+    // rim instead of inverting the button, so the neon glyphs stay readable.
+    final retro = RetroColors.isActive(context);
     ButtonStyle actionButtonStyle({
+      Color? foregroundColor,
+      EdgeInsetsGeometry? padding,
+      bool showFocus = false,
+      OutlinedBorder? shape,
+    }) {
+      final base = baseActionButtonStyle(
+        foregroundColor: foregroundColor,
+        padding: padding,
+        showFocus: showFocus,
+        shape: shape,
+      );
+      if (!retro) return base;
+      final isPlay = padding != null;
+      return base.copyWith(
+        backgroundColor: const WidgetStatePropertyAll(RetroColors.night80),
+        foregroundColor: WidgetStatePropertyAll(foregroundColor ?? retroTitleColor),
+        side: WidgetStatePropertyAll(
+          BorderSide(
+            color: showFocus || isPlay ? const Color(0xFFFF2BD0) : RetroColors.violet,
+            width: showFocus || isPlay ? 2 : 1,
+          ),
+        ),
+        elevation: WidgetStatePropertyAll(isPlay && !isTv ? 6 : 0),
+        shadowColor: const WidgetStatePropertyAll(Color(0xFFFF2BD0)),
+      );
+    }
+
+    ButtonStyle baseActionButtonStyle({
       Color? foregroundColor,
       EdgeInsetsGeometry? padding,
       bool showFocus = false,
@@ -568,13 +600,14 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
     }
 
     Widget actionBar(List<FocusableAction> actions) {
-      return FocusableActionBar(
+      final bar = FocusableActionBar(
         actions: actions,
         spacing: gap,
         onFocusChange: isTv ? _setTvDetailActionRowFocus : null,
         onNavigateUp: _focusAboveActionRow,
         onNavigateDown: _focusBelowActionRow,
       );
+      return retro ? RetroIconScope(child: bar) : bar;
     }
 
     // Off TV the track status sits at the row's far end, right-aligned so it

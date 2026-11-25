@@ -13,6 +13,7 @@ import '../utils/scroll_utils.dart';
 import 'focus_builders.dart';
 import 'horizontal_scroll_with_arrows.dart';
 import 'optimized_media_image.dart';
+import '../theme/retrowave_colors.dart';
 
 /// One person in a [CastMemberStrip]: display name, secondary line
 /// (character/role), and an image path — server-relative (resolved through
@@ -216,16 +217,26 @@ class CastMemberStripState extends State<CastMemberStrip> {
                         children: [
                           CardFocusBorder(
                             borderRadius: tokens(context).radiusSm,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(tokens(context).radiusSm),
-                              child: OptimizedMediaImage(
-                                client: widget.imageClient,
-                                imagePath: member.imagePath,
-                                width: imageSize,
-                                height: imageSize,
-                                fit: BoxFit.cover,
-                                imageType: ImageType.square,
-                                fallbackIcon: Symbols.person_rounded,
+                            child: Container(
+                              // Fork: a thin violet neon rim on retrowave,
+                              // painted over the photo so its size is unchanged.
+                              foregroundDecoration: RetroColors.isActive(context)
+                                  ? BoxDecoration(
+                                      borderRadius: BorderRadius.circular(tokens(context).radiusSm),
+                                      border: Border.all(color: RetroColors.violet, width: 1.5),
+                                    )
+                                  : null,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(tokens(context).radiusSm),
+                                child: OptimizedMediaImage(
+                                  client: widget.imageClient,
+                                  imagePath: member.imagePath,
+                                  width: imageSize,
+                                  height: imageSize,
+                                  fit: BoxFit.cover,
+                                  imageType: ImageType.square,
+                                  fallbackIcon: Symbols.person_rounded,
+                                ),
                               ),
                             ),
                           ),

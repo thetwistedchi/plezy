@@ -505,13 +505,29 @@ class _TrackPickerButton<T> extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 420),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: scheme.secondaryContainer,
+          color: isRetrowave(context) ? RetroColors.night80 : scheme.secondaryContainer,
           borderRadius: BorderRadius.circular(22),
         ),
+        // Fork: a cyan neon rim on retrowave (no layout padding).
+        foregroundDecoration: isRetrowave(context)
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFF00E5FF), width: 1.5),
+              )
+            : null,
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            AppIcon(icon, fill: 1, size: 18, color: scheme.onSecondaryContainer),
+            AppIcon(
+              icon,
+              fill: 1,
+              size: isRetrowave(context) ? 20 : 18,
+              color: scheme.onSecondaryContainer,
+              retro: true,
+              retroSoft: true,
+              retroGlow: false,
+            ),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
@@ -522,7 +538,14 @@ class _TrackPickerButton<T> extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            AppIcon(Symbols.arrow_drop_down_rounded, size: 20, color: scheme.onSecondaryContainer),
+            AppIcon(
+              Symbols.arrow_drop_down_rounded,
+              size: 20,
+              color: scheme.onSecondaryContainer,
+              retro: true,
+              retroSoft: true,
+              retroGlow: false,
+            ),
           ],
         ),
       ),
