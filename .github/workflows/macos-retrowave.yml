@@ -25,9 +25,10 @@ env:
 
 jobs:
   build-macos:
-    # macos-15 (Apple Silicon): generally available with far more runners than
-    # the macos-26 preview image, whose jobs often waited for hours.
-    runs-on: macos-15
+    # Intel runner: the Apple Silicon (arm64) pool is often too short of
+    # capacity and drops jobs. Flutter's release build is universal anyway,
+    # so the DMG still runs natively on Apple Silicon.
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
