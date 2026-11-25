@@ -24,6 +24,7 @@ import '../../services/startup_diagnostics.dart';
 import '../../services/video_decode_capabilities.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/app_version.dart';
+import '../../retrowave_version.dart';
 import '../../utils/formatters.dart';
 import '../../utils/platform_detector.dart';
 import '../../utils/snackbar_helper.dart';
@@ -130,7 +131,8 @@ class _LogsScreenState extends State<LogsScreen> with MountedSetStateMixin {
     final buffer = StringBuffer();
     final commitSuffix = gitCommit.isNotEmpty ? ' ${gitCommit.substring(0, 7)}' : '';
     buffer.writeln(
-      '${t.app.title} v${appVersion.versionOrUnknown} (${appVersion.buildNumber ?? AppVersion.unknown})$commitSuffix',
+      // Fork: the Retrowave version first; the upstream base follows.
+      'Plezy Retrowave $retrowaveVersion (based on ${t.app.title} v${appVersion.versionOrUnknown})$commitSuffix',
     );
 
     if (Platform.isAndroid) {

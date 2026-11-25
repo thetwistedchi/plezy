@@ -112,6 +112,7 @@ import 'services/startup_diagnostics.dart';
 import 'utils/dialogs.dart';
 import 'widgets/dialog_action_button.dart';
 import 'widgets/startup_failure_view.dart';
+import 'retrowave_version.dart';
 
 const bool _enableSentry = bool.fromEnvironment('ENABLE_SENTRY', defaultValue: false);
 const String _sentryDsn = 'https://6a1a6ef8c72140099b2798973c1bfb2f@bugs.plezy.app/1';
@@ -1090,7 +1091,7 @@ Future<void> _logEnvironmentDiagnostics() async {
     await Future.sync(() => Sentry.configureScope((scope) => scope.setTag('renderer', rendererName ?? 'unknown')));
   }
   appLogger.i(
-    'Plezy v${appVersion.label}$commitSuffix$renderer'
+    'Plezy Retrowave $retrowaveVersion (based on Plezy v${appVersion.label})$commitSuffix$renderer'
     ' [effects: ${DevicePerformance.describeSync()}]',
   );
   appLogger.i('Display: ${DevicePerformance.describeDisplay()}');
@@ -1618,8 +1619,18 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     _removeConnectivitySyncListener();
     _lastConnectivityWasWifi = offlineModeProvider.hasWifiOrEthernet;
     _lastConnectivityHadNetwork = offlineModeProvider.hasNetworkConnection;
+    // Fork: the first connectivity reading at startup is a baseline, not a
+    // move onto WiFi (it used to start a needless sync pass on every launch).
+    var hadReading = offlineModeProvider.hasConnectivityReading;
     _connectivitySyncProvider = offlineModeProvider;
     _connectivitySyncListener = () {
+      if (!hadReading) {
+        if (!offlineModeProvider.hasConnectivityReading) return;
+        hadReading = true;
+        _lastConnectivityWasWifi = offlineModeProvider.hasWifiOrEthernet;
+        _lastConnectivityHadNetwork = offlineModeProvider.hasNetworkConnection;
+        return;
+      }
       final hasWifi = offlineModeProvider.hasWifiOrEthernet;
       final movedOntoWifi = hasWifi && !_lastConnectivityWasWifi;
       _lastConnectivityWasWifi = hasWifi;

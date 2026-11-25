@@ -710,7 +710,7 @@ class _MainScreenState extends State<MainScreen>
       _startupSettleTimeout?.cancel();
       _startupSettleTimeout = null;
 
-      unawaited(_primeOnlineServices(manager));
+      unawaited(_primeOnlineServices(manager, reloadLibraries: false));
     }
 
     void tryDownloadResume() {
@@ -748,14 +748,16 @@ class _MainScreenState extends State<MainScreen>
   /// Shared online-entry hook for cold startup and reconnect-from-offline.
   /// It mirrors `_invalidateAllScreens`: libraries load before tab refreshes
   /// so screens don't initialize against an empty provider and remain blank.
-  Future<void> _primeOnlineServices(MultiServerManager manager) async {
+  Future<void> _primeOnlineServices(MultiServerManager manager, {bool reloadLibraries = true}) async {
     if (manager.onlineServerIds.isNotEmpty) {
       if (!mounted) return;
       final mp = context.read<MultiServerProvider>();
       if (mp.hasConnectedServers) {
         final lp = context.read<LibrariesProvider>();
         lp.initialize(mp.aggregationService);
-        await lp.loadLibraries();
+        // Fork: cold start joins the load already under way instead of
+        // fetching every server's library list a second time.
+        await (reloadLibraries ? lp.loadLibraries() : lp.ensureLoaded(mp.onlineServerIds.toSet()));
         if (!mounted) return;
         context.read<OfflineWatchSyncService>().onServersConnected();
         unawaited(context.read<DownloadProvider>().refreshMetadataFromCache());

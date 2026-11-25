@@ -1,15 +1,25 @@
 part of '../../jellyfin_client.dart';
 
 mixin _JellyfinLiveTvMethods on _JellyfinClientInternals {
+  bool _liveTvDenied = false;
+
   /// Returns `true` when this server has Live TV configured (channels
   /// available). Probes `/LiveTv/Channels?limit=1`. Used by [MultiServerProvider]
   /// to gate the Live TV menu.
   Future<bool> hasLiveTv() async {
+    // Fork: a user without Live TV access gets 403 on every probe; ask once
+    // per client (session) instead of on every server-status check.
+    if (_liveTvDenied) return false;
     try {
       final response = await _http.get(
         '/LiveTv/Channels',
         queryParameters: {'limit': '1', 'userId': connection.userId},
       );
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        _liveTvDenied = true;
+        appLogger.d('${dialect.productName} Live TV: not allowed for this user, not asking again this session');
+        return false;
+      }
       if (response.statusCode != 200) return false;
       final data = response.data;
       if (data is Map<String, dynamic>) {

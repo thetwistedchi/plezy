@@ -42,6 +42,10 @@ class OfflineModeProvider extends ChangeNotifier with DisposableChangeNotifierMi
   /// Whether the current connection is WiFi or Ethernet (unmetered-ish).
   bool get hasWifiOrEthernet => _lastConnectivityResults.hasWifiOrEthernet;
 
+  /// Fork: whether the first connectivity check has come back yet. Before
+  /// that, [hasWifiOrEthernet] is false only because nothing is known.
+  bool get hasConnectivityReading => _lastConnectivityResults.isNotEmpty;
+
   /// Whether the connection is cellular with no WiFi/Ethernet fallback — the
   /// metered case.
   bool get isCellularOnly => _lastConnectivityResults.isCellularOnly;

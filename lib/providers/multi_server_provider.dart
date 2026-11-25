@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../exceptions/media_server_exceptions.dart';
 import '../media/ids.dart';
+import '../media/media_backend.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -333,7 +334,9 @@ class MultiServerProvider extends ChangeNotifier with DisposableChangeNotifierMi
           for (final dvr in dvrs) {
             newLiveTvServers.add(LiveTvServerInfo(serverId: serverId, dvrKey: dvr.key, lineup: dvr.lineup, dvrs: dvrs));
           }
-        } else if (await liveTv.isAvailable() && !sessionChanged()) {
+        } else if (genericClient.backend != MediaBackend.plex && await liveTv.isAvailable() && !sessionChanged()) {
+          // (Fork: Plex's isAvailable() is the same /livetv/dvrs request
+          // just made above, so it is not asked twice.)
           // MediaBrowser: no per-DVR partitioning; synthesize a single entry
           // so the rest of the UI's per-DVR loop works uniformly.
           newLiveTvServers.add(

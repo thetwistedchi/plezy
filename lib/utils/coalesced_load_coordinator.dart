@@ -32,6 +32,10 @@ final class CoalescedLoadCoordinator<T> {
   /// whole surface refetched.
   bool get isFullActive => _pendingFull || _runningFull;
 
+  /// Fork: the drain of a full pass that is already running with nothing
+  /// queued behind it, so a caller can join it instead of queuing a second.
+  Future<void>? get runningFullOnly => _runningFull && !_pendingFull ? _inFlight : null;
+
   Future<void> requestFull() {
     if (_disposed) return Future<void>.value();
     _pendingFull = true;

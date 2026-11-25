@@ -214,6 +214,18 @@ class LibrariesProvider extends ChangeNotifier with DisposableChangeNotifierMixi
     return _loadCoordinator.requestDelta(onlineServerIds.difference(_loadedServerIds));
   }
 
+  /// Fork: startup entry. Joins a full pass that is already running (the
+  /// online-servers listener usually starts one first) instead of queuing a
+  /// second identical fetch, and otherwise behaves like
+  /// [syncToOnlineServers].
+  Future<void> ensureLoaded(Set<String> onlineServerIds) {
+    if (isDisposed) return Future<void>.value();
+    final running = _loadCoordinator.runningFullOnly;
+    if (running != null) return running;
+    if (_loadState == LibrariesLoadState.loaded) return syncToOnlineServers(onlineServerIds);
+    return _load();
+  }
+
   /// Load libraries from all connected servers, unconditionally. Used by
   /// pull-to-refresh, inline connection-add, and library reordering.
   /// Applies saved ordering.
