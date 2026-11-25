@@ -78,4 +78,11 @@ jobs:
         if: ${{ env.RELEASE_TAG != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$RELEASE_TAG" plezy-retrowave-macos.dmg --clobber --repo "${{ github.repository }}"
+        run: |
+          set -euo pipefail
+          # Accept "1.1.4" as well as the real tag "v1.1.4".
+          TAG="$RELEASE_TAG"
+          if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            TAG="v${RELEASE_TAG#v}"
+          fi
+          gh release upload "$TAG" plezy-retrowave-macos.dmg --clobber --repo "${{ github.repository }}"
