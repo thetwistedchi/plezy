@@ -13,7 +13,8 @@ on:
 jobs:
   resolve-release:
     # Packages track stable releases only. A skipped job also skips every job that needs it.
-    if: github.event_name != 'release' || !github.event.release.prerelease
+    # Fork: winget and the appcast belong to upstream Plezy; never from a fork.
+    if: github.repository == 'edde746/plezy' && (github.event_name != 'release' || !github.event.release.prerelease)
     runs-on: ubuntu-latest
     permissions:
       contents: read
