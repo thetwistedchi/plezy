@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../theme/retrowave_colors.dart';
 import 'package:plezy/widgets/app_icon.dart';
 
 import '../../focus/focus_theme.dart';
@@ -81,13 +83,19 @@ class VideoControlButton extends StatelessWidget {
     final label = this.label;
     final effectiveSemanticLabel = semanticLabel ?? label ?? tooltip;
 
+    // Fork: retrowave keeps the focus ring tight around the icon, so every
+    // focused control shows the same small ring as the themed Play disc.
+    final tight = RetroColors.isActive(context) && focusNode != null;
     Widget button(Color iconColor) => label == null
         ? IconButton(
             icon: AppIcon(icon, fill: 1, color: iconColor, size: iconSize),
             iconSize: iconSize,
             onPressed: onPressed,
             tooltip: tooltip,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            padding: tight ? const EdgeInsets.all(5) : null,
+            constraints: tight
+                ? const BoxConstraints(minWidth: 34, minHeight: 34)
+                : const BoxConstraints(minWidth: 40, minHeight: 40),
           )
         : Material(
             type: MaterialType.transparency,

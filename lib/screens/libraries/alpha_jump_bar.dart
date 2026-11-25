@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -58,8 +56,6 @@ class _AlphaJumpBarState extends State<AlphaJumpBar> {
   /// Whether this bar currently has focus (for D-pad mode).
   bool _hasFocus = false;
 
-  /// Debounce timer for keyboard-driven jumps.
-  Timer? _debounce;
 
   /// Minimum vertical space per letter slot.
   static const double _minLetterHeight = 20.0;
@@ -84,12 +80,6 @@ class _AlphaJumpBarState extends State<AlphaJumpBar> {
       _displayed = _helper.letters;
       _clampHighlight();
     }
-  }
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    super.dispose();
   }
 
   void _clampHighlight() {
@@ -136,16 +126,6 @@ class _AlphaJumpBarState extends State<AlphaJumpBar> {
     }
   }
 
-  /// Schedule a debounced jump to the currently highlighted letter.
-  void _debouncedJump() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 150), () {
-      if (_highlightedIndex < _displayed.length) {
-        _jumpToLetter(_displayed[_highlightedIndex]);
-      }
-    });
-  }
-
   /// Resolves a vertical drag position to a displayed-letter index.
   int _letterIndexFromDy(double dy, double totalHeight) {
     if (_displayed.isEmpty) return 0;
@@ -172,14 +152,14 @@ class _AlphaJumpBarState extends State<AlphaJumpBar> {
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       if (_highlightedIndex > 0) {
         setState(() => _highlightedIndex--);
-        _debouncedJump();
+        // Fork: moving only highlights; OK jumps (Jellyfin reloads per letter).
       }
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       if (_highlightedIndex < _displayed.length - 1) {
         setState(() => _highlightedIndex++);
-        _debouncedJump();
+        // Fork: moving only highlights; OK jumps (Jellyfin reloads per letter).
       }
       return KeyEventResult.handled;
     }

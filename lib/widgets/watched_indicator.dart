@@ -46,7 +46,9 @@ enum WatchedIndicatorSize {
 /// flipping wrap themselves in a [SettingsBuilder] on those prefs.
 // The theme's own magenta and its pill rim colour.
 const _watchedFill = Color(0xFFC10093);
-const _watchedRim = Color(0xFFF2A7DD);
+// Fork: violet rim and a deep night-purple check on the magenta disc.
+const _watchedRim = Color(0xFF6956FE);
+const _watchedCheck = Color(0xFF140327);
 
 class WatchedIndicator extends StatelessWidget {
   final MediaItem item;
@@ -99,7 +101,7 @@ class WatchedIndicator extends StatelessWidget {
                 Symbols.check_rounded,
                 fill: 1,
                 weight: 700,
-                color: retro ? const Color(0xFFF2EEFF) : tokens(context).bg,
+                color: retro ? _watchedCheck : tokens(context).bg,
                 size: (size.pillHeight * 1.1 * 0.66).roundToDouble(),
               ),
             ),

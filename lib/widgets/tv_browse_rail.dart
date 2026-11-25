@@ -142,6 +142,9 @@ class TvBrowseRailLayout {
 
   static bool isPersonHub(MediaHub hub) => hub.type == 'person';
 
+  /// Fork: `raw` key of a person item's German voice actor (third line).
+  static const voiceKey = tvPersonVoiceKey;
+
   static double cardWidthFor({
     required double availableWidth,
     required int density,
@@ -209,7 +212,9 @@ class TvBrowseRailLayout {
     final pillsBand = !fullCardLayout && !isPersonHub && SettingsService.instance.read(SettingsService.posterInfoPills)
         ? MediaCard.infoPillsBand
         : 0.0;
-    final labelHeight = fullCardLayout ? 0.0 : ((isPersonHub ? 52 : 36) * scale) + pillsBand;
+    // Fork: a third caption line for the German voice actor.
+    final hasVoices = isPersonHub && hub.items.any((item) => item.raw?[tvPersonVoiceKey] is String);
+    final labelHeight = fullCardLayout ? 0.0 : ((isPersonHub ? (hasVoices ? 68 : 52) : 36) * scale) + pillsBand;
     final containerHeight = (posterHeight + labelHeight).ceilToDouble();
     final height = containerHeight + focusExtra + (22 * scale);
 
@@ -1993,6 +1998,20 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
                           ),
                         ),
                       ],
+                      if (item.raw?[tvPersonVoiceKey] case final String voice) ...[
+                        SizedBox(height: 2 * scale),
+                        Text(
+                          voice,
+                          maxLines: 1,
+                          overflow: .ellipsis,
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontSize: 11 * scale,
+                            height: 1.1,
+                            fontWeight: .w700,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -2050,6 +2069,28 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
                   fontSize: 11 * scale,
                   height: 1.1,
                 ),
+              ),
+            ],
+            if (item.raw?[tvPersonVoiceKey] case final String voice) ...[
+              SizedBox(height: 3 * scale),
+              Row(
+                children: [
+                  Icon(Symbols.mic_rounded, size: 12 * scale, color: theme.colorScheme.primary),
+                  SizedBox(width: 3 * scale),
+                  Expanded(
+                    child: Text(
+                      voice,
+                      maxLines: 1,
+                      overflow: .ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontSize: 11 * scale,
+                        height: 1.1,
+                        fontWeight: .w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],
@@ -2388,3 +2429,6 @@ class _HubArtworkDim extends Animation<double> {
     _controller.dispose();
   }
 }
+
+/// Fork: `MediaItem.raw` key carrying a person card's German voice actor.
+const String tvPersonVoiceKey = 'retro_voice';

@@ -4094,6 +4094,26 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                     : null,
                 allowNetwork: !widget.isOffline,
               ),
+              // Fork: a shade behind the title, metadata and overview on the
+              // left, so they stay readable over a bright backdrop.
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
+                          Theme.of(context).colorScheme.surface.withValues(alpha: 0.55),
+                          Theme.of(context).colorScheme.surface.withValues(alpha: 0.0),
+                        ],
+                        stops: const [0.0, 0.42, 0.72],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               _buildTvDetailRevealGate(revealContent, handleBack),
             ],
           ),
@@ -4743,15 +4763,15 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       backend: metadata.backend,
       kind: MediaKind.unknown,
       title: actor.tag,
-      parentTitle: switch ((actor.role, _wantsGermanVoices ? _dubCast?.voiceFor(actor.tag) : null)) {
-        (final role?, final voice?) when role.isNotEmpty => '$role · $voice',
-        (_, final voice?) => voice,
-        (final role, null) => role,
-      },
+      parentTitle: actor.role,
       thumbPath: actor.thumbPath,
       serverId: metadata.serverId,
       serverName: metadata.serverName,
-      raw: {if (personId != null && personId.isNotEmpty) _tvDetailActorPersonIdRawKey: personId},
+      raw: {
+        if (personId != null && personId.isNotEmpty) _tvDetailActorPersonIdRawKey: personId,
+        // Fork: the German voice, shown as the card's third line.
+        if ((_wantsGermanVoices ? _dubCast?.voiceFor(actor.tag) : null) case final voice?) tvPersonVoiceKey: voice,
+      },
     );
   }
 
