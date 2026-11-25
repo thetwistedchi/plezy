@@ -467,6 +467,10 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   bool _dubCastRequested = false;
   bool _dubCastLoading = false;
 
+  /// Bumped when the dub cast or its loading state changes, so the cast row
+  /// and its note repaint without depending on a rebuild of the page.
+  final _dubCastRevision = ValueNotifier<int>(0);
+
   /// Fork: audio and subtitle rows picked on the details page, by the
   /// probed target's global key. A subtitle of -1 means off.
   final Map<String, int> _pickedAudioIds = {};
@@ -968,18 +972,25 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   /// cached on the device.
   Future<void> _loadDubCast(ExternalIds ids) async {
     _dubCastRequested = true;
-    final cast = await Synchronkartei.instance.lookup(
-      ids,
-      isShow: _metadata.isShow,
-      title: _metadata.title,
-      year: _metadata.year,
-    );
+    DubCast? cast;
+    try {
+      cast = await Synchronkartei.instance.lookup(
+        ids,
+        isShow: _metadata.isShow,
+        title: _metadata.title,
+        year: _metadata.year,
+      );
+    } catch (e, stackTrace) {
+      appLogger.w('Synchronkartei: lookup threw', error: e, stackTrace: stackTrace);
+    }
+    appLogger.i('Synchronkartei: showing ${cast?.voices.length ?? 0} voices (mounted: $_canUseDetail)');
     if (!_canUseDetail) return;
     setState(() {
       _dubCastLoading = false;
       _dubCast = cast;
       _tvDetailActorItemsCache = null;
     });
+    _dubCastRevision.value++;
   }
 
   static bool _isGermanLanguage(String? code, String? name) {
@@ -1292,6 +1303,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
 
   @override
   void dispose() {
+    _dubCastRevision.dispose();
     _libraryContentSubscription?.cancel();
     unawaited(_communityRatingsSubscription?.cancel());
     for (final source in _watchlistListenedSources) {
@@ -3836,7 +3848,10 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                                     Flexible(
                                       child: ValueListenableBuilder<int>(
                                         valueListenable: _playbackStatusRevision,
-                                        builder: (context, _, _) => _buildDubCastStatus(context),
+                                        builder: (context, _, _) => ValueListenableBuilder<int>(
+                                          valueListenable: _dubCastRevision,
+                                          builder: (context, _, _) => _buildDubCastStatus(context),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -5200,7 +5215,10 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     // Rebuilt when the probed tracks arrive: the voices follow the audio track.
     return ValueListenableBuilder<int>(
       valueListenable: _playbackStatusRevision,
-      builder: (context, _, _) => _buildCastStrip(metadata),
+      builder: (context, _, _) => ValueListenableBuilder<int>(
+        valueListenable: _dubCastRevision,
+        builder: (context, _, _) => _buildCastStrip(metadata),
+      ),
     );
   }
 

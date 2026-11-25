@@ -94,11 +94,13 @@ class Synchronkartei {
       }
     }
     appLogger.i('Synchronkartei: looking up $key');
+    final watch = Stopwatch()..start();
     DubCast? cast;
     var failed = false;
     ({Uri? synchronkartei, String? dewiki}) links;
     try {
       links = await _linksFor(ids, isShow);
+      appLogger.i('Synchronkartei: Wikidata answered in ${watch.elapsedMilliseconds} ms');
     } catch (e) {
       // Offline: try again next time, keep the old entry.
       appLogger.w('Synchronkartei: Wikidata lookup failed for $key', error: e);
@@ -108,7 +110,7 @@ class Synchronkartei {
     if (page != null) {
       try {
         cast = await _readPage(page);
-        appLogger.i('Synchronkartei: $page gave ${cast?.voices.length ?? 0} voices');
+        appLogger.i('Synchronkartei: $page gave ${cast?.voices.length ?? 0} voices after ${watch.elapsedMilliseconds} ms');
       } catch (e) {
         failed = true;
         appLogger.w('Synchronkartei: reading $page failed', error: e);
