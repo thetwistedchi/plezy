@@ -42,6 +42,7 @@ import 'trackers/tracker_constants.dart';
 import '../profiles/profile.dart';
 import '../theme/mono_theme.dart' show MonoPalette;
 import '../watch_together/services/watch_party_relays.dart';
+import '../i18n/retro_strings.dart';
 
 /// The app theme. Value names are the persisted ids. [system] follows the
 /// platform between [light] and [dark]; every other value is one fixed palette,
@@ -866,6 +867,10 @@ class SettingsService extends BaseSharedPreferencesService {
   /// install on mpv; choosing ExoPlayer again writes this key and sticks.
   // Fork: ExoPlayer is the default on Android (mpv stays selectable).
   static const useExoPlayer = BoolPref('android_use_exoplayer', defaultValue: true);
+
+  /// Fork: German voice actors from the Deutsche Synchronkartei under the
+  /// cast on details pages. On by default when the app is in German.
+  static const germanVoiceActors = BoolPref('retrowave_german_voice_actors', defaultValueProvider: _isGermanUi);
   static const startupSection = EnumPref<NavigationTabId>(
     'startup_section',
     values: NavigationTabId.values,
@@ -1576,6 +1581,7 @@ class SettingsService extends BaseSharedPreferencesService {
     playerAlwaysOnTop,
     specialsOrdering,
     useExoPlayer,
+    germanVoiceActors,
     startupSection,
     showExploreTab,
     alwaysKeepSidebarOpen,
@@ -1816,3 +1822,5 @@ class SettingsService extends BaseSharedPreferencesService {
     await PlexImageCacheManager.instance.emptyCache();
   }
 }
+
+bool _isGermanUi() => RetroStrings.isGerman;

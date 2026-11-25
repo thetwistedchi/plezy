@@ -11,6 +11,15 @@ class YtStrings {
 
   static String get tab => 'YouTube';
   static String get subscriptions => _t('Subscriptions', 'Abos');
+  static String get search => _t('Search YouTube', 'YouTube durchsuchen');
+  static String get latestPerChannel => _t('Latest per channel', 'Neuestes pro Kanal');
+  static String get latestPerChannelHint =>
+      _t('Each channel once, with its newest video', 'Jeder Kanal einmal, mit seinem neuesten Video');
+  static String searchResults(String q) => _t('Results for "$q"', 'Ergebnisse für „$q“');
+  static String get searching => _t('Searching…', 'Suche läuft…');
+  static String get noResults => _t('No videos found.', 'Keine Videos gefunden.');
+  static String get clearSearch => _t('Clear search', 'Suche löschen');
+  static String get searchSubtitle => _t('Public YouTube search', 'Öffentliche YouTube-Suche');
   static String get newestSubtitle =>
       _t('Newest uploads from the channels you follow', 'Neueste Videos der Kanäle, denen du folgst');
   static String get relevantSubtitle => _t(

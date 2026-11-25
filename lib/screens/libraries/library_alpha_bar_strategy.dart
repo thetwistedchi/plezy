@@ -92,7 +92,8 @@ class PlexAlphaBarStrategy implements LibraryAlphaBarStrategy {
     required bool isPhone,
   }) {
     if (isFolderGrouping) return false;
-    if (loadedCharacterCount < 6 || totalItemCount < 80) return false;
+    // Fork: shown in every title-sorted library, not only large ones.
+    if (loadedCharacterCount < 2 || totalItemCount < 2) return false;
     final s = sortKey ?? '';
     return s.isEmpty || s.startsWith('titleSort');
   }
@@ -180,7 +181,8 @@ class MediaBrowserAlphaBarStrategy implements LibraryAlphaBarStrategy {
     if (isPhone) return false;
     if (isFolderGrouping) return false;
     if (loadedCharacterCount == 0) return false;
-    return totalItemCount >= 80 || mediaBrowserAlphaPrefix != null;
+    // Fork: shown in every library, not only large ones.
+    return totalItemCount >= 2 || mediaBrowserAlphaPrefix != null;
   }
 
   @override

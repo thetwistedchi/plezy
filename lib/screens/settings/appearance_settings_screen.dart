@@ -78,6 +78,12 @@ class AppearanceSettingsScreen extends StatelessWidget {
               subtitle: t.settings.hideSpoilersDescription,
             ),
             SettingSwitchTile(
+              pref: SettingsService.germanVoiceActors,
+              icon: Symbols.mic_rounded,
+              title: RetroStrings.germanVoiceActors,
+              subtitle: RetroStrings.germanVoiceActorsDescription,
+            ),
+            SettingSwitchTile(
               pref: SettingsService.showWatchedIndicators,
               icon: Symbols.check_circle_rounded,
               title: t.settings.showWatchedIndicators,

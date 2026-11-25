@@ -68,6 +68,7 @@ import '../services/download_storage_service.dart';
 import '../utils/download_version_utils.dart';
 import '../utils/download_utils.dart';
 import '../services/settings_service.dart';
+import '../services/retrowave/synchronkartei.dart';
 import '../services/watch_actions.dart';
 import '../widgets/settings_builder.dart';
 import '../utils/layout_constants.dart';
@@ -458,6 +459,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   // Letterboxd/Trakt scores fetched directly for sites no connected tracker
   // scored (see [_initTitleLinks]).
   ExternalIds? _externalIds;
+
+  /// Fork: German voice actors from the Synchronkartei, when enabled.
+  DubCast? _dubCast;
   Map<String, TitleLink> _fetchedTitleLinks = const {};
 
   // Inline season tabs
@@ -934,6 +938,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     }
     if (!_canUseDetail || !ids.hasCatalogIds) return;
     setState(() => _externalIds = ids);
+    unawaited(_loadDubCast(ids));
     final fetched = await TitleLinksService.instance.withFetchedScores(
       _titleLinksFor(_metadata),
       kind: _metadata.kind,
@@ -949,6 +954,18 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       _metadata,
       ratingMedian([for (final link in _titleLinksFor(_metadata)) ?link.rating]),
     );
+  }
+
+  /// Fork: German voice actors for the cast, fetched once per title and
+  /// cached on the device.
+  Future<void> _loadDubCast(ExternalIds ids) async {
+    if (!SettingsService.instance.read(SettingsService.germanVoiceActors)) return;
+    final cast = await Synchronkartei.instance.lookup(ids, isShow: _metadata.isShow);
+    if (!_canUseDetail || cast == null) return;
+    setState(() {
+      _dubCast = cast;
+      _tvDetailActorItemsCache = null;
+    });
   }
 
   /// The Ratings & links row for [metadata]: server and tracker scores win,
@@ -4622,7 +4639,11 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       backend: metadata.backend,
       kind: MediaKind.unknown,
       title: actor.tag,
-      parentTitle: actor.role,
+      parentTitle: switch ((actor.role, _dubCast?.voiceFor(actor.tag))) {
+        (final role?, final voice?) when role.isNotEmpty => '$role · $voice',
+        (_, final voice?) => voice,
+        (final role, null) => role,
+      },
       thumbPath: actor.thumbPath,
       serverId: metadata.serverId,
       serverName: metadata.serverName,
@@ -5093,6 +5114,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     return CastMemberStrip(
       key: _castStripKey,
       members: [for (final actor in roles) (name: actor.tag, secondary: actor.role, imagePath: actor.thumbPath)],
+      voices: _dubCast == null ? null : [for (final actor in roles) _dubCast!.voiceFor(actor.tag)],
       imageClient: getServerBoundMediaClient(context),
       onNavigateUp: _focusSectionDirectlyAboveCast,
       onNavigateDown: _focusSectionBelowCast,

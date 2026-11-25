@@ -14,6 +14,12 @@ class RetroStrings {
   static String get remoteShortcuts => _t('Remote shortcuts', 'Tasten der Fernbedienung');
   static String get remoteShortcutsSubtitle => _t('What the TV remote\'s buttons do', 'Was die Tasten der TV-Fernbedienung tun');
 
+  static String get germanVoiceActors => _t('German voice actors', 'Deutsche Synchronsprecher');
+  static String get germanVoiceActorsDescription => _t(
+    'Show the German voice under each cast member, from the Deutsche Synchronkartei',
+    'Zeigt die deutsche Stimme unter jedem Darsteller, aus der Deutschen Synchronkartei',
+  );
+
   // Home rows
   static String get hideWatched => _t('Hide watched', 'Gesehenes ausblenden');
 

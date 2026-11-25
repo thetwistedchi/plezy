@@ -33,6 +33,9 @@ class CastMemberStrip extends StatefulWidget {
   /// absolute URLs.
   final MediaServerClient? imageClient;
   final void Function(int index)? onMemberTap;
+
+  /// Fork: a third line per member (the German voice actor), by index.
+  final List<String?>? voices;
   final VoidCallback? onNavigateUp;
   final VoidCallback? onNavigateDown;
   final String debugLabel;
@@ -42,6 +45,7 @@ class CastMemberStrip extends StatefulWidget {
     required this.members,
     this.imageClient,
     this.onMemberTap,
+    this.voices,
     this.onNavigateUp,
     this.onNavigateDown,
     this.debugLabel = 'cast_row',
@@ -57,7 +61,8 @@ class CastMemberStrip extends StatefulWidget {
 
   /// The strip's fixed height for a given card width:
   /// image + inner padding + text area + list padding + focus scale headroom.
-  static double heightForCardWidth(double cardWidth) => cardWidth + _innerPadding * 2 + 66 + 10;
+  static double heightForCardWidth(double cardWidth, {bool withVoices = false}) =>
+      cardWidth + _innerPadding * 2 + 66 + 10 + (withVoices ? 20 : 0);
 
   static double _itemExtentForCardWidth(double cardWidth) => cardWidth + _innerPadding * 2 + 4;
 
@@ -175,7 +180,10 @@ class CastMemberStripState extends State<CastMemberStrip> {
       descendantsAreFocusable: false,
       onKeyEvent: _handleKeyEvent,
       child: SizedBox(
-        height: CastMemberStrip.heightForCardWidth(cardWidth),
+        height: CastMemberStrip.heightForCardWidth(
+          cardWidth,
+          withVoices: widget.voices?.any((v) => v != null) ?? false,
+        ),
         child: HorizontalScrollWithArrows(
           controller: _scrollController,
           builder: (scrollController) => ListView.builder(
@@ -188,6 +196,8 @@ class CastMemberStripState extends State<CastMemberStrip> {
             itemCount: widget.members.length,
             itemBuilder: (context, index) {
               final member = widget.members[index];
+              final voices = widget.voices;
+              final voice = voices != null && index < voices.length ? voices[index] : null;
 
               return Padding(
                 padding: const EdgeInsets.only(right: 4),
@@ -232,6 +242,23 @@ class CastMemberStripState extends State<CastMemberStrip> {
                                     style: secondaryStyle,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                                if (voice != null) ...[
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Icon(Symbols.mic_rounded, size: 13, color: theme.colorScheme.primary),
+                                      const SizedBox(width: 3),
+                                      Expanded(
+                                        child: Text(
+                                          voice,
+                                          style: secondaryStyle?.copyWith(color: theme.colorScheme.primary),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ],

@@ -484,6 +484,17 @@ class YouTubeService extends ChangeNotifier {
   /// First video of a public YouTube search (no quota, no account). Prefers
   /// a result whose title contains [preferWord]. Used for movie trailers.
   Future<YouTubeVideo?> searchFirstVideo(String query, {String? preferWord}) async {
+    final results = await search(query, limit: 8);
+    if (results.isEmpty) return null;
+    final word = preferWord?.toLowerCase();
+    if (word == null) return results.first;
+    return results.firstWhere((v) => v.title.toLowerCase().contains(word), orElse: () => results.first);
+  }
+
+  /// Fork: a public YouTube search (no quota, no account), parsed from the
+  /// results page. Returns up to [limit] videos; channels, playlists and
+  /// Shorts shelves are skipped.
+  Future<List<YouTubeVideo>> search(String query, {int limit = 40}) async {
     try {
       final response = await _client
           .get(
@@ -491,16 +502,17 @@ class YouTubeService extends ChangeNotifier {
             headers: {'Cookie': 'SOCS=CAI; CONSENT=YES+cb', 'Accept-Language': 'en'},
           )
           .timeout(const Duration(seconds: 15));
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200) return const [];
       final data = _extractJsonObject(response.body, 'var ytInitialData');
-      if (data == null) return null;
+      if (data == null) return const [];
       final renderers = <Map<String, dynamic>>[];
+      final seen = <String>{};
       void walk(Object? node) {
-        if (renderers.length >= 8) return;
+        if (renderers.length >= limit) return;
         if (node is Map) {
           final video = node['videoRenderer'];
           if (video is Map<String, dynamic> && video['videoId'] is String) {
-            renderers.add(video);
+            if (seen.add(video['videoId'] as String)) renderers.add(video);
             return;
           }
           for (final value in node.values) {
@@ -514,55 +526,79 @@ class YouTubeService extends ChangeNotifier {
       }
 
       walk(data);
-      if (renderers.isEmpty) return null;
-      String text(Object? node) {
-        if (node is Map) {
-          if (node['simpleText'] is String) return node['simpleText'] as String;
-          final runs = node['runs'];
-          if (runs is List) return runs.map((r) => r is Map ? (r['text'] ?? '') : '').join();
-        }
-        return '';
-      }
-
-      final word = preferWord?.toLowerCase();
-      final pick = word == null
-          ? renderers.first
-          : renderers.firstWhere((r) => text(r['title']).toLowerCase().contains(word), orElse: () => renderers.first);
-      final ownerText = pick['ownerText'];
-      final ownerRuns = ownerText is Map ? ownerText['runs'] : null;
-      final Object? owner = ownerRuns is List && ownerRuns.isNotEmpty ? ownerRuns.first : null;
-      String? channelId;
-      if (owner is Map) {
-        final endpoint = owner['navigationEndpoint'];
-        final browse = endpoint is Map ? endpoint['browseEndpoint'] : null;
-        final browseId = browse is Map ? browse['browseId'] : null;
-        if (browseId is String) channelId = browseId;
-      }
-      Duration length = Duration.zero;
-      final parts = text(pick['lengthText']).split(':').map(int.tryParse).toList();
-      if (parts.isNotEmpty && parts.every((p) => p != null)) {
-        var seconds = 0;
-        for (final p in parts) {
-          seconds = seconds * 60 + p!;
-        }
-        length = Duration(seconds: seconds);
-      }
-      final id = pick['videoId'] as String;
-      return YouTubeVideo(
-        id: id,
-        title: text(pick['title']),
-        channelId: channelId ?? '',
-        channelTitle: owner is Map && owner['text'] is String ? owner['text'] as String : '',
-        thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
-        publishedAt: DateTime.now(),
-        viewCount: 0,
-        isShort: false,
-        duration: length,
-      );
+      return [for (final r in renderers) _videoFromRenderer(r)];
     } catch (e) {
       appLogger.d('YouTube search failed for "$query"', error: e);
-      return null;
+      return const [];
     }
+  }
+
+  static String _rendererText(Object? node) {
+    if (node is Map) {
+      if (node['simpleText'] is String) return node['simpleText'] as String;
+      final runs = node['runs'];
+      if (runs is List) return runs.map((r) => r is Map ? (r['text'] ?? '') : '').join();
+    }
+    return '';
+  }
+
+  /// "3 days ago" (English, as requested with hl=en) to a date.
+  static DateTime _fromRelative(String text) {
+    final now = DateTime.now();
+    final m = RegExp(r'(\d+)\s+(second|minute|hour|day|week|month|year)').firstMatch(text);
+    if (m == null) return now;
+    final n = int.parse(m.group(1)!);
+    return switch (m.group(2)) {
+      'second' => now.subtract(Duration(seconds: n)),
+      'minute' => now.subtract(Duration(minutes: n)),
+      'hour' => now.subtract(Duration(hours: n)),
+      'day' => now.subtract(Duration(days: n)),
+      'week' => now.subtract(Duration(days: 7 * n)),
+      'month' => now.subtract(Duration(days: 30 * n)),
+      _ => now.subtract(Duration(days: 365 * n)),
+    };
+  }
+
+  static YouTubeVideo _videoFromRenderer(Map<String, dynamic> r) {
+    final ownerText = r['ownerText'] ?? r['longBylineText'];
+    final ownerRuns = ownerText is Map ? ownerText['runs'] : null;
+    final Object? owner = ownerRuns is List && ownerRuns.isNotEmpty ? ownerRuns.first : null;
+    String? channelId;
+    if (owner is Map) {
+      final endpoint = owner['navigationEndpoint'];
+      final browse = endpoint is Map ? endpoint['browseEndpoint'] : null;
+      final browseId = browse is Map ? browse['browseId'] : null;
+      if (browseId is String) channelId = browseId;
+    }
+    Duration length = Duration.zero;
+    final lengthText = _rendererText(r['lengthText']);
+    final parts = lengthText.split(':').map(int.tryParse).toList();
+    if (lengthText.isNotEmpty && parts.every((p) => p != null)) {
+      var seconds = 0;
+      for (final p in parts) {
+        seconds = seconds * 60 + p!;
+      }
+      length = Duration(seconds: seconds);
+    }
+    final viewsText = _rendererText(r['viewCountText']);
+    final views = int.tryParse(viewsText.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    final upcoming = r['upcomingEventData'] != null;
+    final live = !upcoming && lengthText.isEmpty && viewsText.contains('watching');
+    final id = r['videoId'] as String;
+    return YouTubeVideo(
+      id: id,
+      title: _rendererText(r['title']),
+      channelId: channelId ?? '',
+      channelTitle: owner is Map && owner['text'] is String ? owner['text'] as String : '',
+      thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
+      publishedAt: _fromRelative(_rendererText(r['publishedTimeText'])),
+      viewCount: views,
+      isShort: false,
+      duration: length,
+      isUpcoming: upcoming,
+      isLive: live,
+      hasDetails: length > Duration.zero || upcoming || live,
+    );
   }
 
   /// Finds `name = {...}` in a page and decodes the object by matching braces.

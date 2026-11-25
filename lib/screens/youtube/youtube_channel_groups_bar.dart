@@ -19,6 +19,10 @@ class YouTubeChannelGroupsBar extends StatelessWidget {
     this.channelCategories = const {},
   });
 
+  /// Fork: [selected] value of the pill that shows each channel's newest
+  /// video once.
+  static const latestPerChannel = '\u0000latest';
+
   /// Name of the active group, or null for all channels.
   final String? selected;
   final ValueChanged<String?> onSelected;
@@ -45,6 +49,13 @@ class YouTubeChannelGroupsBar extends StatelessWidget {
               label: Text(YtStrings.allChannels),
               selected: selected == null,
               onSelected: (_) => onSelected(null),
+            ),
+            ChoiceChip(
+              avatar: const AppIcon(Symbols.view_carousel_rounded, size: 18),
+              label: Text(YtStrings.latestPerChannel),
+              tooltip: YtStrings.latestPerChannelHint,
+              selected: selected == latestPerChannel,
+              onSelected: (on) => onSelected(on ? latestPerChannel : null),
             ),
             for (final group in groups)
               GestureDetector(

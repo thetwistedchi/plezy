@@ -48,6 +48,12 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   String? _group;
   bool _wasSignedIn = false;
 
+  // Fork: public YouTube search shown in place of the feed.
+  final _searchController = TextEditingController();
+  String? _query;
+  List<YouTubeVideo>? _results;
+  int _searchGeneration = 0;
+
   @override
   void initState() {
     super.initState();
@@ -71,6 +77,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     _settings.removeListener(_onSettingsChanged);
     YouTubeChannels.instance.removeListener(_onSettingsChanged);
     YouTubeChannelGroups.instance.removeListener(_onGroupsChanged);
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -109,6 +116,68 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
 
   void _openSettings() {
     Navigator.of(context).push(ytRoute<void>('settings', (_) => const YouTubeSettingsScreen()));
+  }
+
+  Future<void> _search(String text) async {
+    final query = text.trim();
+    if (query.isEmpty) return _clearSearch();
+    final generation = ++_searchGeneration;
+    setState(() {
+      _query = query;
+      _results = null;
+    });
+    final results = await _service.search(query);
+    if (!mounted || generation != _searchGeneration) return;
+    setState(() => _results = results.where((v) => !_settings.isMuted(v.channelId)).toList());
+  }
+
+  void _clearSearch() {
+    _searchGeneration++;
+    _searchController.clear();
+    setState(() {
+      _query = null;
+      _results = null;
+    });
+  }
+
+  Widget _searchField(BuildContext context) {
+    final mono = tokens(context);
+    return SizedBox(
+      width: 280,
+      height: 40,
+      child: TextField(
+        controller: _searchController,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (q) => unawaited(_search(q)),
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: YtStrings.search,
+          prefixIcon: const AppIcon(Symbols.search_rounded, size: 20),
+          suffixIcon: _query == null
+              ? null
+              : IconButton(
+                  tooltip: YtStrings.clearSearch,
+                  onPressed: _clearSearch,
+                  icon: const AppIcon(Symbols.close_rounded, size: 18),
+                ),
+          filled: true,
+          fillColor: Color.lerp(mono.surface, Colors.white, 0.07),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide(color: mono.outline),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide(color: mono.outline),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(20),
+            borderSide: BorderSide(color: playerActiveColor(context)),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _open(YouTubeVideo video) => YouTubePlayerScreen.open(context, [video]);
@@ -157,9 +226,24 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   Widget _buildFeed(BuildContext context) {
     final theme = Theme.of(context);
     final mono = tokens(context);
-    final group = YouTubeChannelGroups.instance.byName(_group);
-    final allVideos = _service.visibleVideos(sort: _sort, filter: _filter);
-    final videos = group == null ? allVideos : allVideos.where((v) => group.channelIds.contains(v.channelId)).toList();
+    final searching = _query != null;
+    final latestPerChannel = !searching && _group == YouTubeChannelGroupsBar.latestPerChannel;
+    final group = searching || latestPerChannel ? null : YouTubeChannelGroups.instance.byName(_group);
+    final sort = searching || latestPerChannel ? YouTubeSort.newest : _sort;
+    final allVideos = _service.visibleVideos(sort: sort, filter: _filter);
+    final List<YouTubeVideo> videos;
+    if (searching) {
+      videos = _results ?? const <YouTubeVideo>[];
+    } else if (latestPerChannel) {
+      // Fork: one card per channel, its newest upload, newest channels first.
+      final seen = <String>{};
+      videos = [
+        for (final v in allVideos)
+          if (seen.add(v.channelId.isEmpty ? v.channelTitle : v.channelId)) v,
+      ];
+    } else {
+      videos = group == null ? allVideos : allVideos.where((v) => group.channelIds.contains(v.channelId)).toList();
+    }
     final feedChannels = <String, String>{
       for (final v in _service.videos)
         if (v.channelId.isNotEmpty) v.channelId: v.channelTitle,
@@ -195,12 +279,14 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        YtStrings.subscriptions,
+                        searching ? YtStrings.searchResults(_query!) : YtStrings.subscriptions,
                         style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _service.isLoading && _service.channelCount > 0
+                        searching
+                            ? YtStrings.searchSubtitle
+                            : _service.isLoading && _service.channelCount > 0
                             ? YtStrings.loadingChannels(_service.channelsDone, _service.channelCount)
                             : updated == null
                             ? subtitle
@@ -214,7 +300,10 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                     runSpacing: 8,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
+                      _searchField(context),
                       _viewSwitch(context),
+                      if (!searching) ...[
+                      if (!latestPerChannel)
                       SegmentedButton<YouTubeSort>(
                         style: _segmentStyle(context),
                         showSelectedIcon: false,
@@ -236,6 +325,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                         selected: {_filter},
                         onSelectionChanged: (s) => setState(() => _filter = s.first),
                       ),
+                      ],
                       IconButton(
                         tooltip: YtStrings.refresh,
                         onPressed: _service.isLoading ? null : () => unawaited(_service.refresh(reloadSubscriptions: true)),
@@ -264,11 +354,12 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               ),
             ),
           ),
+          if (!searching)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
             sliver: SliverToBoxAdapter(
               child: YouTubeChannelGroupsBar(
-                selected: group?.name,
+                selected: latestPerChannel ? YouTubeChannelGroupsBar.latestPerChannel : group?.name,
                 channels: feedChannels,
                 channelCategories: YouTubeCategories.ofChannels([
                   for (final v in _service.videos) (channelId: v.channelId, categoryId: v.categoryId),
@@ -277,12 +368,12 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               ),
             ),
           ),
-          if (_resumeVideo() case final resume?)
+          if (_resumeVideo() case final resume? when !searching)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(32, 20, 32, 0),
               sliver: SliverToBoxAdapter(child: _ResumeCard(video: resume.video, progress: resume.progress)),
             ),
-          if (_service.isLoading)
+          if (_service.isLoading && !searching)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
               sliver: SliverToBoxAdapter(
@@ -297,7 +388,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                 ),
               ),
             ),
-          if (banner != null)
+          if (!searching && banner != null)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(32, 20, 32, 0),
               sliver: SliverToBoxAdapter(
@@ -327,7 +418,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                 ),
               ),
             ),
-          if (error != null)
+          if (error != null && !searching)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(32, 20, 32, 0),
               sliver: SliverToBoxAdapter(
@@ -344,7 +435,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               hasScrollBody: false,
               child: Center(
                 child: Text(
-                  _service.isLoading
+                  searching
+                      ? (_results == null ? YtStrings.searching : YtStrings.noResults)
+                      : _service.isLoading
                       ? YtStrings.loading
                       : group != null
                       ? YtStrings.emptyGroup
@@ -370,14 +463,14 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                   crossAxisCount: columns,
                   mainAxisSpacing: 16,
                   crossAxisSpacing: spacing,
-                  mainAxisExtent: cardWidth * 9 / 16 + (_sort == YouTubeSort.relevant ? 104 : 86) * textScale,
+                  mainAxisExtent: cardWidth * 9 / 16 + (sort == YouTubeSort.relevant ? 104 : 86) * textScale,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, i) => _VideoCard(
                     video: videos[i],
                     watched: _settings.isWatched(videos[i].id),
                     progress: _settings.progressFraction(videos[i].id),
-                    reason: _sort == YouTubeSort.relevant ? _service.relevanceReason(videos[i]) : null,
+                    reason: sort == YouTubeSort.relevant ? _service.relevanceReason(videos[i]) : null,
                     trendFactor: _service.trendFactor(videos[i]),
                     onTap: () => unawaited(_open(videos[i])),
                     inWatchlist: _watchlist.contains(videos[i].id),
