@@ -592,6 +592,27 @@ class _CommentLikeButton extends StatefulWidget {
 
 class _CommentLikeButtonState extends State<_CommentLikeButton> {
   bool _busy = false;
+  late bool _liked = YouTubeWebView.likedComments.value.contains(widget.comment.id);
+
+  // Only this comment's like state matters: listening to the whole set with a
+  // builder redrew every comment's button (and its accessibility nodes) on
+  // each like.
+  void _onLikedChanged() {
+    final liked = YouTubeWebView.likedComments.value.contains(widget.comment.id);
+    if (liked != _liked && mounted) setState(() => _liked = liked);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    YouTubeWebView.likedComments.addListener(_onLikedChanged);
+  }
+
+  @override
+  void dispose() {
+    YouTubeWebView.likedComments.removeListener(_onLikedChanged);
+    super.dispose();
+  }
 
   Future<void> _toggle(bool liked) async {
     final videoId = widget.videoId;
@@ -628,36 +649,31 @@ class _CommentLikeButtonState extends State<_CommentLikeButton> {
   @override
   Widget build(BuildContext context) {
     final accent = playerActiveColor(context);
-    return ValueListenableBuilder<Set<String>>(
-      valueListenable: YouTubeWebView.likedComments,
-      builder: (context, liked, _) {
-        final isLiked = liked.contains(widget.comment.id);
-        final count = widget.comment.likeCount + (isLiked ? 1 : 0);
-        final color = isLiked ? accent : Colors.white54;
-        return Tooltip(
-          message: isLiked ? YtStrings.unlikeComment : YtStrings.likeComment,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(6),
-            onTap: widget.videoId == null ? null : () => unawaited(_toggle(isLiked)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_busy)
-                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: accent))
-                  else
-                    AppIcon(Symbols.thumb_up_rounded, size: 16, fill: isLiked ? 1 : 0, color: color),
-                  if (count > 0) ...[
-                    const SizedBox(width: 6),
-                    Text('$count', style: TextStyle(color: color, fontSize: 12)),
-                  ],
-                ],
-              ),
-            ),
+    final isLiked = _liked;
+    final count = widget.comment.likeCount + (isLiked ? 1 : 0);
+    final color = isLiked ? accent : Colors.white54;
+    return Tooltip(
+      message: isLiked ? YtStrings.unlikeComment : YtStrings.likeComment,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: widget.videoId == null ? null : () => unawaited(_toggle(isLiked)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_busy)
+                SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: accent))
+              else
+                AppIcon(Symbols.thumb_up_rounded, size: 16, fill: isLiked ? 1 : 0, color: color),
+              if (count > 0) ...[
+                const SizedBox(width: 6),
+                Text('$count', style: TextStyle(color: color, fontSize: 12)),
+              ],
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

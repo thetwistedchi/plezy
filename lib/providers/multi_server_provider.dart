@@ -125,6 +125,16 @@ class MultiServerProvider extends ChangeNotifier with DisposableChangeNotifierMi
     _expectedVisibleServerIds = {...?_expectedVisibleServerIds, serverId};
     safeNotifyListeners();
     _refreshLiveTvAvailabilitySoon();
+    // Fork: a server that connected while still filtered out (a slow one the
+    // profile bind moved on without) only now counts as online for the data
+    // providers; tell them, as a status change would.
+    if (_serverManager.onlineServerIds.contains(serverId)) {
+      final online = Set<String>.unmodifiable(onlineServerIds);
+      _previousOnlineServerIds = Set.of(online);
+      for (final listener in List.of(_onlineServersListeners)) {
+        listener(online);
+      }
+    }
   }
 
   /// Keep only ids the manager considers visible under the active filter.

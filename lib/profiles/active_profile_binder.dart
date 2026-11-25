@@ -337,6 +337,7 @@ class ActiveProfileBinder {
       // One snapshot of the join rows + connections per pass — every
       // downstream helper reads from these instead of re-querying (each
       // registry read pays per-row CredentialVault reveals).
+      _lateBoundServerIds.clear();
       final joinRows = await profileConnections.listForProfile(profile.id);
       final connectionsById = {for (final c in await connections.list()) c.id: c};
       if (!_isCurrentBind(profile.id, generation)) return false;
@@ -434,6 +435,8 @@ class ActiveProfileBinder {
         }
         serverManager.removeServer(ServerId(serverId));
       }
+      // Slow servers that answered while the rest of the bind still ran.
+      visibleServerIds.addAll(_lateBoundServerIds);
       multiServerProvider.setExpectedVisibleServerIds(expectedServerIds);
       multiServerProvider.setVisibleServerIds(visibleServerIds);
       // A server the pass could not reach may answer seconds later — one that
@@ -656,7 +659,14 @@ class ActiveProfileBinder {
           );
         case JellyfinConnection():
           expected.add(conn.serverMachineId);
-          futures.add(_bindMediaBrowser(conn, profileId: profile.id, generation: generation));
+          final bind = _bindMediaBrowser(conn, profileId: profile.id, generation: generation);
+          // Fork: a slow server must not hold the whole app at startup when
+          // others are there; see [_withBindBudget].
+          futures.add(
+            profile.isPlexHome || joinRows.length > 1
+                ? _withBindBudget(bind, conn.serverMachineId, profileId: profile.id, generation: generation)
+                : bind,
+          );
       }
     }
     final results = await Future.wait(futures);
@@ -667,6 +677,52 @@ class ActiveProfileBinder {
       discovered.addAll(result.discoveredMembership);
     }
     return _ProfileBindResult(visibleServerIds: visible, expectedServerIds: expected, discoveredMembership: discovered);
+  }
+
+  /// Fork: how long one MediaBrowser server may take before the bind moves
+  /// on without it. Typical answers take well under a second; a server
+  /// behind a slow link took three, and the main screen waited for it.
+  static const _mediaBrowserBindBudget = Duration(milliseconds: 1500);
+  final Set<String> _lateBoundServerIds = {};
+
+  /// Waits for [bind] up to [_mediaBrowserBindBudget]. Past that the server
+  /// counts as expected (kept registered, not swept) and the bind finishes
+  /// without it; when it answers later it is added to the visible servers,
+  /// and the home screen merges its rows as for any server coming online.
+  Future<_ProfileBindResult> _withBindBudget(
+    Future<_ProfileBindResult> bind,
+    String serverId, {
+    required String profileId,
+    required int generation,
+  }) {
+    final done = Completer<_ProfileBindResult>();
+    final timer = Timer(_mediaBrowserBindBudget, () {
+      if (done.isCompleted) return;
+      appLogger.i('ActiveProfileBinder: $serverId is slow to answer; continuing without it for now');
+      done.complete(_ProfileBindResult(visibleServerIds: const {}, expectedServerIds: {serverId}));
+    });
+    bind.then(
+      (result) {
+        timer.cancel();
+        if (!done.isCompleted) {
+          done.complete(result);
+          return;
+        }
+        // Answered after the bind moved on: show it now, if this bind is
+        // still the current one.
+        if (!_isCurrentBind(profileId, generation) || result.visibleServerIds.isEmpty) return;
+        appLogger.i('ActiveProfileBinder: $serverId answered late; adding it');
+        _lateBoundServerIds.addAll(result.visibleServerIds);
+        for (final id in result.visibleServerIds) {
+          multiServerProvider.addToVisibleServerIds(ServerId(id));
+        }
+      },
+      onError: (Object e, StackTrace st) {
+        timer.cancel();
+        if (!done.isCompleted) done.completeError(e, st);
+      },
+    );
+    return done.future;
   }
 
   Future<_ProfileBindResult> _bindLocalPlexConnection({
