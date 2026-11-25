@@ -1,8 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../theme/retrowave_colors.dart';
+import '../utils/platform_detector.dart';
 
 /// Fork: AI-generated outrun-style SVG glyphs (sunset house, VHS tape, CRT with antennas,
 /// horizon lines) for the navigation, the main tabs' top bar actions and the
@@ -175,17 +178,29 @@ abstract final class RetroGlyphs {
 
   static final Map<String, String> _svgCache = {};
 
+  /// Fork: neon tube widths, in glyph units (viewBox 24).
+  static const double tubeWidth = 1.95;
+
+  /// The coloured neon tube: an intense cyan to magenta fade.
   static String svg(String paths) => _svgCache.putIfAbsent(
     paths,
-    () =>
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="url(#g)" '
-        'stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">'
-        '<defs><linearGradient id="g" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">'
-        // Cyan to a lighter magenta: the theme's #C10093 is only about 2.3:1
-        // on the night background, this end about 6:1.
-        '<stop offset="0" stop-color="#3FDDF0"/><stop offset="1" stop-color="#EC4FC4"/></linearGradient></defs>'
-        '$paths</svg>',
+    () => _build(paths, tubeWidth, '<stop offset="0" stop-color="#00E5FF"/><stop offset="1" stop-color="#FF00B4"/>'),
   );
+
+  static final Map<String, String> _layerCache = {};
+
+  /// One flat-coloured layer of the neon (halo or bright core).
+  static String layer(String paths, String color, double width) => _layerCache.putIfAbsent(
+    '$color|$width|$paths',
+    () => _build(paths, width, '<stop offset="0" stop-color="$color"/><stop offset="1" stop-color="$color"/>'),
+  );
+
+  static String _build(String paths, double width, String stops) =>
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="url(#g)" '
+      'stroke-width="$width" stroke-linecap="round" stroke-linejoin="round">'
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">'
+      '$stops</linearGradient></defs>'
+      '$paths</svg>';
 }
 
 /// One [RetroGlyphs] glyph at [size] (the ambient icon size when null).
@@ -198,10 +213,42 @@ class RetroGlyph extends StatelessWidget {
   final double opacity;
   final String? semanticLabel;
 
+  static const _halo = '#C800E0';
+  static const _core = '#D8F8FF';
+
   @override
   Widget build(BuildContext context) {
     final s = size ?? IconTheme.of(context).size ?? 24;
-    Widget glyph = SvgPicture.string(RetroGlyphs.svg(paths), width: s, height: s, semanticsLabel: semanticLabel);
+    final unit = s / 24;
+    Widget layer(String svg, {double alpha = 1}) {
+      Widget w = SvgPicture.string(svg, width: s, height: s);
+      if (alpha < 1) w = Opacity(opacity: alpha, child: w);
+      return w;
+    }
+
+    Widget blurred(Widget child, double sigma) => ImageFiltered(
+      imageFilter: ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.decal),
+      child: child,
+    );
+
+    const w = RetroGlyphs.tubeWidth;
+    // Fork: neon tube. Glow (two blurred halo passes) is skipped on TV, where
+    // blur filters cost too much on the GPU.
+    final glow = !PlatformDetector.isTV();
+    Widget glyph = RepaintBoundary(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (glow) ...[
+            blurred(layer(RetroGlyphs.layer(paths, _halo, w * 2.6), alpha: 0.42), unit * 1.4),
+            blurred(layer(RetroGlyphs.layer(paths, _halo, w * 1.4), alpha: 0.6), unit * 0.5),
+          ],
+          layer(RetroGlyphs.svg(paths)),
+          layer(RetroGlyphs.layer(paths, _core, w * 0.22), alpha: 0.45),
+        ],
+      ),
+    );
+    glyph = Semantics(label: semanticLabel, image: semanticLabel != null, child: glyph);
     if (opacity < 1) glyph = Opacity(opacity: opacity, child: glyph);
     return SizedBox(width: s, height: s, child: glyph);
   }
