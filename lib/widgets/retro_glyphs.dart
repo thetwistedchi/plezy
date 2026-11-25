@@ -7,90 +7,90 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../theme/retrowave_colors.dart';
 import '../utils/platform_detector.dart';
 
-/// Fork: AI-generated outrun-style SVG glyphs (sunset house, VHS tape, CRT with antennas,
+/// Fork: AI-generated neon-sign SVG glyphs (house, VHS tape, CRT with antennas,
 /// horizon lines) for the navigation, the main tabs' top bar actions and the
-/// hub headers, stroked with the cyan to magenta fade. Only on the retrowave
+/// hub headers, drawn as cyan and magenta tubes. Only on the retrowave
 /// theme; [AppIcon] swaps them in when called with `retro: true`.
 abstract final class RetroGlyphs {
-  static const _home = '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M8.5 16.5a3.5 3.5 0 0 1 7 0"/><path d="M7.5 18.5h9"/>';
-  static const _libraries = '<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><circle cx="7.5" cy="12" r="2"/><circle cx="16.5" cy="12" r="2"/><path d="M9.5 12h5"/><path d="M6 18l1.5-2.5h9L18 18"/>';
-  static const _liveTv = '<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M8 3l4 4 4-4"/><circle cx="17.5" cy="10.5" r="1"/><path d="M6.5 12.5h7M6.5 15.5h9"/>';
-  static const _explore = '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/><path d="M3 12h1.5M19.5 12H21"/>';
-  static const _search = '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/><path d="M5.5 11.5h10M6.8 14h7.4"/><path d="M10.5 11.5v4.5"/>';
-  static const _youtube = '<rect x="3" y="4" width="18" height="11.5" rx="3"/><path d="M10.5 7.3v5l4.2-2.5z"/><path d="M5 18.5h14M8 21.5h8"/>';
-  static const _downloads = '<path d="M12 2.5v10"/><path d="M7.5 8l4.5 4.5L16.5 8"/><path d="M3 16h18"/><path d="M6 19h12"/><path d="M9 21.5h6"/>';
-  static const _settings = '<circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="2.2"/><path d="M17.50 12.00L20.60 12.00"/><path d="M15.89 15.89L18.08 18.08"/><path d="M12.00 17.50L12.00 20.60"/><path d="M8.11 15.89L5.92 18.08"/><path d="M6.50 12.00L3.40 12.00"/><path d="M8.11 8.11L5.92 5.92"/><path d="M12.00 6.50L12.00 3.40"/><path d="M15.89 8.11L18.08 5.92"/><path d="M2 22h20"/>';
-  static const _movie = '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18M16 3v18M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4"/>';
-  static const _tv = '<rect x="2.5" y="4.5" width="19" height="12.5" rx="2.5"/><path d="M12 17v3.5M8 21h8"/><path d="M6 10.5h12M7.5 13.5h9"/>';
-  static const _music = '<path d="M9 18V5.5l11-2.5v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>';
-  static const _photo = '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8.5 13a3.5 3.5 0 0 1 7 0"/><path d="M5.5 15.5h13M7 18h10"/>';
-  static const _share = '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6"/>';
-  static const _folder = '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 11h18"/>';
-  static const _expandMore = '<path d="M6 9l6 6 6-6"/>';
-  static const _expandLess = '<path d="M6 15l6-6 6 6"/>';
-  static const _chevronRight = '<path d="M9 6l6 6-6 6"/>';
-  static const _freeOnPlex = '<path d="M4 6h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4V7a1 1 0 0 1 1-1z"/><path d="M15.5 6v2M15.5 11v2M15.5 16v2"/><path d="M8 9.8v4.4l3.6-2.2z"/>';
-  static const _arrowDropDown = '<path d="M7 10l5 5 5-5z"/>';
-  static const _arrowForward = '<path d="M4 12h16M14 6l6 6-6 6"/>';
-  static const _visibility = '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
-  static const _visibilityOff = '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M3.5 3.5l17 17"/>';
-  static const _dns = '<rect x="3" y="4" width="18" height="6.5" rx="1.5"/><rect x="3" y="13.5" width="18" height="6.5" rx="1.5"/><path d="M7 7.25h.01M7 16.75h.01M11 7.25h6M11 16.75h6"/>';
-  static const _wifi = '<path d="M2 9a15 15 0 0 1 20 0"/><path d="M5.5 12.5a10 10 0 0 1 13 0"/><path d="M9 16a5 5 0 0 1 6 0"/><path d="M12 19.5h.01"/>';
-  static const _sync = '<path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15.5"/><path d="M4 20v-4.5h4.5"/>';
-  static const _fullscreen = '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>';
-  static const _fullscreenExit = '<path d="M9 4v5H4M15 4v5h5M20 15h-5v5M4 15h5v5"/>';
-  static const _party = '<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M8 3l4 4 4-4"/><circle cx="9.5" cy="11.5" r="1.4"/><circle cx="14.5" cy="11.5" r="1.4"/><path d="M7 16.5c.6-1.4 1.5-2 2.5-2s1.9.6 2.5 2c.6-1.4 1.5-2 2.5-2s1.9.6 2.5 2"/>';
-  static const _refresh = '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/><path d="M8.5 14.5a3.5 3.5 0 0 1 7 0"/><path d="M8 16.5h8"/>';
-  static const _phone = '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10.5 18.5h3"/><path d="M9 12.5a3 3 0 0 1 6 0"/><path d="M8.5 14.5h7"/>';
-  static const _monitor = '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M6 11h3l1.5-3 3 6 1.5-3h3"/><path d="M8 21h8M12 17v4"/>';
-  static const _account = '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 18.5c1.3-2 3.2-3 5.5-3s4.2 1 5.5 3"/>';
-  static const _ruleSettings = '<path d="M4 6h12M4 11h8M4 16h5"/><circle cx="17" cy="16" r="2.6"/><circle cx="17" cy="16" r="0.9"/><path d="M19.60 16.00L21.60 16.00"/><path d="M18.84 17.84L20.25 19.25"/><path d="M17.00 18.60L17.00 20.60"/><path d="M15.16 17.84L13.75 19.25"/><path d="M14.40 16.00L12.40 16.00"/><path d="M15.16 14.16L13.75 12.75"/><path d="M17.00 13.40L17.00 11.40"/><path d="M18.84 14.16L20.25 12.75"/>';
-  static const _tune = '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>';
-  static const _edit = '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/>';
-  static const _shuffle = '<path d="M3 7h4l10 10h4"/><path d="M3 17h4l3-3"/><path d="M14 10l3-3h4"/><path d="M18 4l3 3-3 3"/><path d="M18 14l3 3-3 3"/>';
-  static const _star = '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" fill="url(#g)"/>';
-  static const _swapVert = '<path d="M8 20V4M4 8l4-4 4 4"/><path d="M16 4v16M12 16l4 4 4-4"/>';
-  static const _bolt = '<path d="M13 2 5 13.5h6L10 22l9-12.5h-6z"/>';
-  static const _help = '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2-2.4 3.8"/><path d="M12 17h.01"/>';
-  static const _subscriptions = '<path d="M6 3h12M4.5 6.5h15"/><rect x="3" y="10" width="18" height="11" rx="2"/><path d="M10.5 13v5l4-2.5z"/>';
-  static const _continueWatching = '<path d="M3 13a9 9 0 0 1 18 0"/><path d="M3.5 15.5h17M5 18h14M7.5 20.5h9"/><path d="M10.2 6.5v5l4-2.5z"/>';
-  static const _recentlyAdded = '<path d="M11 3l1.8 5.7 5.7 1.8-5.7 1.8L11 18l-1.8-5.7-5.7-1.8 5.7-1.8z"/><path d="M18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>';
-  static const _trending = '<path d="M3 16l6-6 4 4 8-8"/><path d="M15 6h6v6"/><path d="M3 21h18"/>';
-  static const _hot = '<path d="M12 2c1 3.5 5 5.5 5 10.5a5 5 0 0 1-10 0c0-2.2 1-3.7 2.5-5 .2 1.8 1 3 2.5 3.5C11 8.5 11 5 12 2z"/>';
-  static const _calendar = '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M9 17.5a3 3 0 0 1 6 0"/>';
-  static const _medal = '<path d="M8 2l4 6 4-6"/><circle cx="12" cy="15" r="6"/><path d="M12 12l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5L11 14z"/>';
-  static const _warning = '<path d="M12 3l10 18H2z"/><path d="M12 10v5"/><path d="M12 18h.01"/>';
-  static const _mood = '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c.9 1.3 2.1 2 3.5 2s2.6-.7 3.5-2"/><path d="M9 9.5h.01M15 9.5h.01"/>';
-  static const _masks = '<path d="M3 4h10v6a5 5 0 0 1-10 0z"/><path d="M11 10h10v6a5 5 0 0 1-10 0z"/><path d="M6 7.5h.01M10 7.5h.01M14 13.5h.01M18 13.5h.01"/>';
-  static const _wand = '<path d="M4 20 16 8"/><path d="M14 6l4 4"/><path d="M19 2.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/><path d="M7 3v3M5.5 4.5h3"/>';
-  static const _rocket = '<path d="M12 15l-3-3c1.5-4.5 5-8 10.5-8.5C19 9 15.5 12.5 12 15z"/><path d="M9 12H5.5L8 8.5h4"/><path d="M12 15v3.5l3.5-2.5V12"/><path d="M6.5 16.5C5 17 4 18.5 4 20c1.5 0 3-1 3.5-2.5"/>';
-  static const _moon = '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/><path d="M17 3v3M15.5 4.5h3"/>';
-  static const _heart = '<path d="M12 20s-8-4.8-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.2 12 20 12 20z"/>';
-  static const _playlist = '<path d="M4 6h12M4 11h12M4 16h7"/><path d="M15 14v6l5-3z"/>';
-  static const _person = '<circle cx="12" cy="8" r="4"/><path d="M4.5 21c.8-4 3.8-6 7.5-6s6.7 2 7.5 6"/>';
-  static const _history = '<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/><path d="M12 8v4.5l3 2"/>';
-  static const _play = '<path d="M8 5v14l11-7z"/>';
-  static const _thumbUp = '<path d="M7 10v10H4V10z"/><path d="M7 10l4-7c1.5 0 2.5 1 2.5 2.5V9h5a2 2 0 0 1 2 2.3l-1.3 7A2 2 0 0 1 17.2 20H7"/>';
-  static const _category = '<path d="M12 3l4.5 7.5h-9z"/><circle cx="17" cy="17" r="3.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/>';
-  static const _awesome = '<path d="M10 4l1.6 4.4L16 10l-4.4 1.6L10 16l-1.6-4.4L4 10l4.4-1.6z"/><path d="M18 3v4M16 5h4M18 15v4M16 17h4"/>';
+  static const _home = '<path d="M4 11L12 4.5 20 11M6 9.5V19.5H18V9.5"/>|<path d="M9.5 19.5a2.5 2.5 0 0 1 5 0"/>';
+  static const _libraries = '<rect x="3" y="6.5" width="18" height="11" rx="2"/>|<circle cx="8.3" cy="12" r="2"/><circle cx="15.7" cy="12" r="2"/>';
+  static const _liveTv = '<rect x="3" y="8" width="18" height="12" rx="2.5"/>|<path d="M8.5 3.5 12 7l3.5-3.5"/>';
+  static const _explore = '<circle cx="12" cy="12" r="8.8"/>|<path d="M15.3 8.7 13.2 13.2 8.7 15.3 10.8 10.8Z"/>';
+  static const _search = '<circle cx="10.5" cy="10.5" r="6.5"/>|<path d="M15.6 15.6 20.5 20.5"/>';
+  static const _youtube = '<rect x="3" y="5" width="18" height="13.5" rx="3.5"/>|<path d="M10.3 9v5.4l4.5-2.7Z"/>';
+  static const _downloads = '<path d="M12 3.5v10.5M7.5 9.5 12 14l4.5-4.5"/>|<path d="M4.5 19.5h15"/>';
+  static const _settings = '<path d="M12.62 5.73L14.41 4.06L15.91 4.68L16.00 7.13L16.87 8.00L19.32 8.09L19.94 9.59L18.27 11.38L18.27 12.62L19.94 14.41L19.32 15.91L16.87 16.00L16.00 16.87L15.91 19.32L14.41 19.94L12.62 18.27L11.38 18.27L9.59 19.94L8.09 19.32L8.00 16.87L7.13 16.00L4.68 15.91L4.06 14.41L5.73 12.62L5.73 11.38L4.06 9.59L4.68 8.09L7.13 8.00L8.00 7.13L8.09 4.68L9.59 4.06L11.38 5.73Z"/>|<circle cx="12" cy="12" r="2.6"/>';
+  static const _movie = '<rect x="3.5" y="9.5" width="17" height="10.5" rx="1.8"/>|<path d="M3.8 9.3 19.6 5"/>';
+  static const _tv = '<rect x="3" y="4.5" width="18" height="12.5" rx="2.5"/>|<path d="M8.5 20.5h7"/>';
+  static const _music = '<path d="M9 17.5V5.5L19 3.5V15.5"/>|<circle cx="6.7" cy="17.5" r="2.3"/><circle cx="16.7" cy="15.5" r="2.3"/>';
+  static const _photo = '<rect x="3" y="4.5" width="18" height="15" rx="2.2"/>|<path d="M6.5 16.5 10 12.5l2.5 2.5 2-2 3 3.5"/><circle cx="15.8" cy="8.8" r="1.4"/>';
+  static const _share = '<circle cx="18" cy="5.5" r="2.3"/><circle cx="6" cy="12" r="2.3"/><circle cx="18" cy="18.5" r="2.3"/>|<path d="M8.1 10.9 15.9 6.6M8.1 13.1l7.8 4.3"/>';
+  static const _folder = '<path d="M3.5 7.5a2 2 0 0 1 2-2h3.8l2 2h7.2a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/>|<path d="M7 11h10"/>';
+  static const _expandMore = '<path d="M6 9l6 6 6-6"/>|';
+  static const _expandLess = '<path d="M6 15l6-6 6 6"/>|';
+  static const _chevronRight = '<path d="M9 6l6 6-6 6"/>|';
+  static const _freeOnPlex = '<path d="M4 6h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4V7a1 1 0 0 1 1-1Z"/>|<path d="M10 9.8v4.4l3.6-2.2Z"/>';
+  static const _arrowDropDown = '|<path d="M7.5 10h9L12 15Z"/>';
+  static const _arrowForward = '<path d="M4 12h15"/>|<path d="M13.5 6.5 19 12l-5.5 5.5"/>';
+  static const _visibility = '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/>|<circle cx="12" cy="12" r="2.8"/>';
+  static const _visibilityOff = '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/>|<path d="M4 4l16 16"/>';
+  static const _dns = '<rect x="3" y="4" width="18" height="6.5" rx="1.8"/><rect x="3" y="13.5" width="18" height="6.5" rx="1.8"/>|<path d="M7 7.25h.01M7 16.75h.01"/>';
+  static const _wifi = '<path d="M2.5 9a14 14 0 0 1 19 0M5.8 12.5a9.5 9.5 0 0 1 12.4 0"/>|<path d="M9 16a4.5 4.5 0 0 1 6 0M12 19.5h.01"/>';
+  static const _sync = '<path d="M4.5 12a7.5 7.5 0 0 1 13-5.1M19.5 12a7.5 7.5 0 0 1-13 5.1"/>|<path d="M17.8 3.5v3.7h-3.7M6.2 20.5v-3.7h3.7"/>';
+  static const _fullscreen = '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>|';
+  static const _fullscreenExit = '<path d="M9 4v5H4M15 4v5h5M20 15h-5v5M4 15h5v5"/>|';
+  static const _party = '<rect x="3" y="8" width="18" height="12" rx="2.5"/>|<path d="M8.5 3.5 12 7l3.5-3.5M7.5 17a2.3 2.3 0 0 1 4.3 0M12.2 17a2.3 2.3 0 0 1 4.3 0"/><circle cx="9.65" cy="12.6" r="1.2"/><circle cx="14.35" cy="12.6" r="1.2"/>';
+  static const _refresh = '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/>|<path d="M19.5 3.8V8.3H15"/>';
+  static const _phone = '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/>|<path d="M10.5 18.5h3"/>';
+  static const _monitor = '<rect x="3" y="4" width="18" height="13" rx="2.2"/><path d="M8.5 21h7"/>|<path d="M6 10.5h3l1.5-3 3 6 1.5-3h3"/>';
+  static const _account = '<circle cx="12" cy="12" r="8.8"/>|<circle cx="12" cy="10" r="2.9"/><path d="M7.3 17.8a5.5 4.2 0 0 1 9.4 0"/>';
+  static const _ruleSettings = '<path d="M4 6h12M4 11h8M4 16h5"/>|<circle cx="17" cy="16" r="2.4"/><path d="M17 11.6v1.2M17 19.2v1.2M12.6 16h1.2M20.2 16h1.2"/>';
+  static const _tune = '<path d="M4 7.5h8M16 7.5h4M4 16.5h3M11 16.5h9"/>|<circle cx="14" cy="7.5" r="2"/><circle cx="9" cy="16.5" r="2"/>';
+  static const _edit = '<path d="M4.5 19.5 5 15.5 15.5 5a2.1 2.1 0 0 1 3 3L8 18.5Z"/>|<path d="M13.5 7l3 3"/>';
+  static const _shuffle = '<path d="M3.5 7h3c4.5 0 6 10 10.5 10h3M18 14.5l2.5 2.5-2.5 2.5"/>|<path d="M3.5 17h3c1.6 0 2.7-1.3 3.6-3M13.4 10c.9-1.7 2-3 3.6-3h3M18 4.5 20.5 7 18 9.5"/>';
+  static const _star = '<path d="M12 3.5l2.5 5.2 5.7.8-4.1 4 1 5.6-5.1-2.7-5.1 2.7 1-5.6-4.1-4 5.7-.8Z"/>|';
+  static const _swapVert = '<path d="M8 19.5V4.5M4.5 8 8 4.5 11.5 8"/>|<path d="M16 4.5v15M12.5 16l3.5 3.5 3.5-3.5"/>';
+  static const _bolt = '|<path d="M13 2.5 5.5 13.5h6L10.5 21.5 18.5 10.5h-6Z"/>';
+  static const _help = '<circle cx="12" cy="12" r="8.8"/>|<path d="M9.6 9.5a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.8M12 17.2h.01"/>';
+  static const _subscriptions = '<rect x="3" y="9.5" width="18" height="11" rx="2.2"/><path d="M6 3.5h12M4.5 6.5h15"/>|<path d="M10.5 12.5v5l4-2.5Z"/>';
+  static const _continueWatching = '<path d="M3.5 15a8.5 8.5 0 0 1 17 0M3 18.5h18"/>|<path d="M10.75 9.4v4.6l3.8-2.3Z"/>';
+  static const _recentlyAdded = '<path d="M10.5 3.5l1.8 5.2 5.2 1.8-5.2 1.8-1.8 5.2-1.8-5.2-5.2-1.8 5.2-1.8Z"/>|<path d="M18 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"/>';
+  static const _trending = '<path d="M3.5 16.5 9 11l4 4 7.5-7.5"/>|<path d="M15 7.5h5.5V13"/>';
+  static const _hot = '<path d="M12 19.5a2.3 2.3 0 0 1-2.3-2.3c0-1.5 1.2-2.4 2.3-3.7 1.1 1.3 2.3 2.2 2.3 3.7a2.3 2.3 0 0 1-2.3 2.3Z"/>|<path d="M12 2.5c1 3.5 5.5 5.5 5.5 10.5a5.5 5.5 0 0 1-11 0c0-2.3 1-3.8 2.5-5.2.3 1.8 1.1 2.9 2.4 3.4C10.9 8.5 11 5.5 12 2.5Z"/>';
+  static const _calendar = '<rect x="3.5" y="5.5" width="17" height="15" rx="2.2"/><path d="M3.5 10.5h17"/>|<path d="M8 3.5v4M16 3.5v4"/>';
+  static const _medal = '<circle cx="12" cy="15" r="5.8"/>|<path d="M8 2.5l3 5.5M16 2.5l-3 5.5"/>';
+  static const _warning = '<path d="M10.3 4.2a2 2 0 0 1 3.4 0l7.6 13.3a2 2 0 0 1-1.7 3H4.4a2 2 0 0 1-1.7-3Z"/>|<path d="M12 9.5v4.5M12 17h.01"/>';
+  static const _mood = '<circle cx="12" cy="12" r="8.8"/>|<path d="M8.5 14.5c.9 1.3 2.1 2 3.5 2s2.6-.7 3.5-2M9 9.8h.01M15 9.8h.01"/>';
+  static const _masks = '<path d="M3 4h10v6a5 5 0 0 1-10 0Z"/>|<path d="M11 10h10v6a5 5 0 0 1-10 0Z"/>';
+  static const _wand = '<path d="M4 20 15.5 8.5M14 6.5l3.5 3.5"/>|<path d="M19 2.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7ZM7 3v3M5.5 4.5h3"/>';
+  static const _rocket = '<path d="M12 15l-3-3c1.5-4.5 5-8 10.5-8.5C19 9 15.5 12.5 12 15Z"/><path d="M9 12H5.5L8 8.5h4"/><path d="M12 15v3.5l3.5-2.5V12"/>|<path d="M6.5 16.5C5 17 4 18.5 4 20c1.5 0 3-1 3.5-2.5"/>';
+  static const _moon = '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/>|<path d="M17 3v3M15.5 4.5h3"/>';
+  static const _heart = '|<path d="M12 19.5S4 14.8 4 9.3A4 4 0 0 1 12 7.6 4 4 0 0 1 20 9.3C20 14.8 12 19.5 12 19.5Z"/>';
+  static const _playlist = '<path d="M4 6h12M4 11h12M4 16h7"/>|<path d="M15 14v6l5-3Z"/>';
+  static const _person = '<circle cx="12" cy="8" r="3.8"/>|<path d="M4.5 20.5c.8-3.8 3.8-5.8 7.5-5.8s6.7 2 7.5 5.8"/>';
+  static const _history = '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9M4.5 4.8V9H8.7"/>|<path d="M12 8v4l2.8 2"/>';
+  static const _play = '|<path d="M8 5.5V18.5L18.5 12Z"/>';
+  static const _thumbUp = '<path d="M7 10l4-7c1.5 0 2.5 1 2.5 2.5V9h5a2 2 0 0 1 2 2.3l-1.3 7A2 2 0 0 1 17.2 20H7"/>|<path d="M7 10v10H4V10Z"/>';
+  static const _category = '<path d="M12 3.5l4.3 7h-8.6Z"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.2"/>|<circle cx="17" cy="17" r="3.3"/>';
+  static const _awesome = '<path d="M10 4l1.6 4.4L16 10l-4.4 1.6L10 16l-1.6-4.4L4 10l4.4-1.6Z"/>|<path d="M18 3v4M16 5h4M18 15v4M16 17h4"/>';
 
   // In-app browser (AI-generated like the rest).
-  static const _globe = '<circle cx="12" cy="12" r="9"/><path d="M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/><path d="M3 12h18M4.6 7.5h14.8M4.6 16.5h14.8"/>';
-  static const _lock = '<rect x="5" y="10.5" width="14" height="10.5" rx="2"/><path d="M8 10.5v-3a4 4 0 0 1 8 0v3"/><path d="M8.5 15h7M10 18h4"/>';
-  static const _lockOpen = '<rect x="5" y="10.5" width="14" height="10.5" rx="2"/><path d="M8 10.5v-3a4 4 0 0 1 7.6-1.7"/><path d="M12 14v3.5"/>';
-  static const _bookmark = '<path d="M6 3.5h12v17l-6-4-6 4z" fill="url(#g)"/>';
-  static const _bookmarkAdd = '<path d="M13 3.5H6v17l6-4 6 4V11"/><path d="M18 2.5v6M15 5.5h6"/>';
-  static const _bookmarks = '<path d="M8 6.5h11v14l-5.5-3.5L8 20.5z"/><path d="M5 17V3.5h10"/>';
-  static const _arrowBack = '<path d="M20 12H4M10 6l-6 6 6 6"/>';
-  static const _add = '<path d="M12 5v14M5 12h14"/>';
-  static const _close = '<path d="M6 6l12 12M18 6 6 18"/>';
+  static const _globe = '<circle cx="12" cy="12" r="8.8"/><path d="M3.2 12h17.6"/>|<path d="M12 3.2c2.4 2.5 3.6 5.5 3.6 8.8s-1.2 6.3-3.6 8.8c-2.4-2.5-3.6-5.5-3.6-8.8S9.6 5.7 12 3.2Z"/>';
+  static const _lock = '<rect x="5" y="10.5" width="14" height="10" rx="2.2"/>|<path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>';
+  static const _lockOpen = '<rect x="5" y="10.5" width="14" height="10" rx="2.2"/>|<path d="M8 10.5V8a4 4 0 0 1 7.6-1.7"/>';
+  static const _bookmark = '|<path d="M6.5 4.5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16l-5.5-4-5.5 4Z"/>';
+  static const _bookmarkAdd = '<path d="M13 3.5H7.5a1 1 0 0 0-1 1v16l5.5-4 5.5 4V11"/>|<path d="M18 2.5v6M15 5.5h6"/>';
+  static const _bookmarks = '<path d="M8 6.5h11v14l-5.5-3.5L8 20.5Z"/>|<path d="M5 17V3.5h10"/>';
+  static const _arrowBack = '<path d="M20 12H5"/>|<path d="M10.5 6.5 5 12l5.5 5.5"/>';
+  static const _add = '|<path d="M12 5v14M5 12h14"/>';
+  static const _close = '|<path d="M6 6 18 18M18 6 6 18"/>';
 
-  static const _openInNew = '<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/>';
-  static const _more = '<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>';
-  static const _volumeUp = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.5a7.5 7.5 0 0 1 0 11"/>';
-  static const _volumeOff = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>';
-  static const _shield = '<path d="M12 2.5 4.5 5.5v6c0 4.6 3.2 8.4 7.5 10 4.3-1.6 7.5-5.4 7.5-10v-6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>';
-  static const _pause = '<path d="M8 5v14M16 5v14"/>';
+  static const _openInNew = '<path d="M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/>|<path d="M14 4h6v6M20 4l-9 9"/>';
+  static const _more = '<circle cx="12" cy="5.5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="18.5" r="1"/>|';
+  static const _volumeUp = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/>|<path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>';
+  static const _volumeOff = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4Z"/>|<path d="M16 9.5l5 5M21 9.5l-5 5"/>';
+  static const _shield = '<path d="M12 2.5 4.5 5.5v6c0 4.6 3.2 8.4 7.5 10 4.3-1.6 7.5-5.4 7.5-10v-6Z"/>|<path d="M8.5 12l2.5 2.5 4.5-5"/>';
+  static const _pause = '|<path d="M8.5 5.5v13M15.5 5.5v13"/>';
 
   static final Map<IconData, String> _byIcon = {
     Symbols.home_rounded: _home,
@@ -176,54 +176,57 @@ abstract final class RetroGlyphs {
 
   static String? pathsFor(IconData icon) => _byIcon[icon];
 
+  /// Fork: neon tube width, in glyph units (viewBox 24).
+  static const double tubeWidth = 1.9;
+
   static final Map<String, String> _svgCache = {};
 
-  /// Fork: neon tube widths, in glyph units (viewBox 24).
-  static const double tubeWidth = 1.95;
-
-  /// The coloured neon tube: an intense cyan to magenta fade.
-  static String svg(String paths) => _svgCache.putIfAbsent(
-    paths,
-    () => _build(paths, tubeWidth, '<stop offset="0" stop-color="#00E5FF"/><stop offset="1" stop-color="#FF00B4"/>'),
-  );
-
-  static final Map<String, String> _layerCache = {};
-
-  /// One flat-coloured layer of the neon (halo or bright core).
-  static String layer(String paths, String color, double width) => _layerCache.putIfAbsent(
+  /// [paths] drawn as one flat-coloured stroke of [width].
+  static String layer(String paths, String color, double width) => _svgCache.putIfAbsent(
     '$color|$width|$paths',
-    () => _build(paths, width, '<stop offset="0" stop-color="$color"/><stop offset="1" stop-color="$color"/>'),
+    () =>
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="$color" '
+        'stroke-width="$width" stroke-linecap="round" stroke-linejoin="round">$paths</svg>',
   );
+}
 
-  static String _build(String paths, double width, String stops) =>
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="url(#g)" '
-      'stroke-width="$width" stroke-linecap="round" stroke-linejoin="round">'
-      '<defs><linearGradient id="g" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">'
-      '$stops</linearGradient></defs>'
-      '$paths</svg>';
+/// One neon colour of a [RetroGlyph]: tube, bright core and glow.
+class _NeonTone {
+  const _NeonTone(this.tube, this.core, this.halo);
+
+  final String tube;
+  final String core;
+  final String halo;
 }
 
 /// One [RetroGlyphs] glyph at [size] (the ambient icon size when null).
 /// [opacity] dims it, e.g. for unselected navigation entries.
+///
+/// Fork: drawn like a neon sign. The main shape is a cyan tube, one accent a
+/// magenta tube, each with a faint bright core and a soft glow in its own
+/// colour. The glow is skipped on TV, where blur filters cost too much.
 class RetroGlyph extends StatelessWidget {
   const RetroGlyph(this.paths, {super.key, this.size, this.opacity = 1, this.semanticLabel});
 
+  /// Cyan paths and magenta paths, separated by `|`.
   final String paths;
   final double? size;
   final double opacity;
   final String? semanticLabel;
 
-  static const _halo = '#C800E0';
-  static const _core = '#D8F8FF';
+  static const _cyan = _NeonTone('#00E5FF', '#F2FCFF', '#0090FF');
+  static const _magenta = _NeonTone('#FF2BD0', '#FFE6F8', '#C800E0');
 
   @override
   Widget build(BuildContext context) {
     final s = size ?? IconTheme.of(context).size ?? 24;
     final unit = s / 24;
-    Widget layer(String svg, {double alpha = 1}) {
-      Widget w = SvgPicture.string(svg, width: s, height: s);
-      if (alpha < 1) w = Opacity(opacity: alpha, child: w);
-      return w;
+    const w = RetroGlyphs.tubeWidth;
+
+    Widget svg(String p, String color, double width, {double alpha = 1}) {
+      Widget child = SvgPicture.string(RetroGlyphs.layer(p, color, width), width: s, height: s);
+      if (alpha < 1) child = Opacity(opacity: alpha, child: child);
+      return child;
     }
 
     Widget blurred(Widget child, double sigma) => ImageFiltered(
@@ -231,20 +234,26 @@ class RetroGlyph extends StatelessWidget {
       child: child,
     );
 
-    const w = RetroGlyphs.tubeWidth;
-    // Fork: neon tube. Glow (two blurred halo passes) is skipped on TV, where
-    // blur filters cost too much on the GPU.
+    final split = paths.indexOf('|');
+    final parts = <(String, _NeonTone)>[
+      (split < 0 ? paths : paths.substring(0, split), _cyan),
+      if (split >= 0) (paths.substring(split + 1), _magenta),
+    ].where((p) => p.$1.isNotEmpty).toList();
+
     final glow = !PlatformDetector.isTV();
     Widget glyph = RepaintBoundary(
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          if (glow) ...[
-            blurred(layer(RetroGlyphs.layer(paths, _halo, w * 2.6), alpha: 0.42), unit * 1.4),
-            blurred(layer(RetroGlyphs.layer(paths, _halo, w * 1.4), alpha: 0.6), unit * 0.5),
+          if (glow)
+            for (final (p, tone) in parts) ...[
+              blurred(svg(p, tone.halo, w * 2.6, alpha: 0.42), unit * 1.4),
+              blurred(svg(p, tone.halo, w * 1.4, alpha: 0.6), unit * 0.5),
+            ],
+          for (final (p, tone) in parts) ...[
+            svg(p, tone.tube, w),
+            svg(p, tone.core, w * 0.24, alpha: 0.55),
           ],
-          layer(RetroGlyphs.svg(paths)),
-          layer(RetroGlyphs.layer(paths, _core, w * 0.22), alpha: 0.45),
         ],
       ),
     );
