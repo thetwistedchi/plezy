@@ -263,7 +263,12 @@ class VideoFilterManager {
       if (_letterboxRetryAt case final at? when DateTime.now().isBefore(at)) return;
       _letterboxDetecting = true;
       unawaited(_detectLetterbox());
-    } else if (!_letterboxRechecked && _letterboxCrop.isNotEmpty && position >= const Duration(minutes: 5)) {
+    } else if (!_letterboxRechecked &&
+        !_cropSupported &&
+        _letterboxCrop.isNotEmpty &&
+        position >= const Duration(minutes: 5)) {
+      // Fork: only without video-crop. With it, mpv's screenshots are already
+      // cropped, so the second look saw no bars and dropped the crop.
       // A second look, which can only shrink the crop.
       _letterboxDetecting = true;
       unawaited(_detectLetterbox(recheck: true));
@@ -617,7 +622,7 @@ class VideoFilterManager {
         // and bottom on ultrawide screens.
         final fitZoom = coverMode ? _fitHeightZoom(playerSize) : 1.0;
         if (coverMode) {
-          appLogger.d('Fit height: zoom=$fitZoom aspect=$_videoAspect crop=$_letterboxCrop player=$playerSize');
+          appLogger.d('Fit height: zoom=$fitZoom aspect=$_videoAspect crop=$_letterboxCrop player=${playerSize == null ? 'none' : '${playerSize.width.round()}x${playerSize.height.round()}'}');
         }
         await _applyProperty('panscan', '0');
         await _applyProperty(
