@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -253,7 +254,7 @@ class YouTubeWebView {
       return c ? c.substring(n.length + 1) : '';
     };
     const sapisid = cookie('SAPISID') || cookie('__Secure-3PAPISID');
-    if (!sapisid) return 'signedout';
+    if (!sapisid) return JSON.stringify({ r: 'signedout' });
     const ts = Math.floor(Date.now() / 1000);
     const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(ts + ' ' + sapisid + ' ' + location.origin));
     const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -282,7 +283,7 @@ class YouTubeWebView {
         if (!token && x.continuationCommand && x.continuationCommand.token) token = x.continuationCommand.token;
       }, []);
     }, []);
-    if (!token) return 'nocomments';
+    if (!token) return JSON.stringify({ r: 'nocomments' });
     const data = await post('next', { continuation: token });
     const decode = (t) => {
       try {
@@ -292,12 +293,31 @@ class YouTubeWebView {
       }
     };
     let action = null;
-    // Current responses: the comment's view model names its toolbar entity,
-    // whose payload carries likeCommand / unlikeCommand.
+    let via = 'none';
+    // Current responses: the comment's view model names its toolbar entities;
+    // the surface one carries likeCommand / unlikeCommand, the state one the
+    // current like state.
     let surfaceKey = null;
+    let stateKey = null;
     walk(data, (o) => {
-      if (!surfaceKey && o.commentId === commentId && o.toolbarSurfaceKey) surfaceKey = o.toolbarSurfaceKey;
+      if (surfaceKey || o.commentId !== commentId || !o.toolbarSurfaceKey) return;
+      surfaceKey = o.toolbarSurfaceKey;
+      stateKey = o.toolbarStateKey || null;
     }, []);
+    const likeState = (d) => {
+      let state = null;
+      if (!stateKey) return null;
+      walk(d, (o) => {
+        if (state || o.entityKey !== stateKey || !o.payload) return;
+        const p = o.payload.engagementToolbarStateEntityPayload;
+        if (p && p.likeState) state = p.likeState;
+      }, []);
+      return state;
+    };
+    const before = likeState(data);
+    if (before && (before === 'TOOLBAR_LIKE_STATE_LIKED') === wantLike) {
+      return JSON.stringify({ r: wantLike ? 'liked' : 'unliked', via: 'already', before: before });
+    }
     if (surfaceKey) {
       walk(data, (o) => {
         if (action || o.entityKey !== surfaceKey || !o.payload) return;
@@ -308,6 +328,7 @@ class YouTubeWebView {
           if (p.includes('dislike')) return;
           if (p.includes('unlikecommand') === wantLike) return;
           action = ep.action;
+          via = 'entity:' + p;
         }, []);
       }, []);
     }
@@ -321,13 +342,32 @@ class YouTubeWebView {
       if (isUnlike === wantLike) return;
       if (!decode(ep.action).includes(commentId)) return;
       action = ep.action;
+      via = 'token:' + p;
     }, []);
-    if (!action) return 'noaction';
+    if (!action) {
+      return JSON.stringify({ r: 'noaction', surfaceKey: !!surfaceKey, stateKey: !!stateKey });
+    }
     const res = await post('comment/perform_comment_action', { actions: [action] });
-    if (res && res.error) return 'rejected';
-    return wantLike ? 'liked' : 'unliked';
+    const status = res && res.actionResults && res.actionResults[0] ? res.actionResults[0].status : null;
+    // Read the state back to be sure the like landed.
+    let after = null;
+    try {
+      after = likeState(await post('next', { continuation: token }));
+    } catch (e) {}
+    const landed = after ? (after === 'TOOLBAR_LIKE_STATE_LIKED') === wantLike : status === 'STATUS_SUCCEEDED';
+    return JSON.stringify({
+      r: landed ? (wantLike ? 'liked' : 'unliked') : 'rejected',
+      via: via,
+      status: status,
+      error: res && res.error ? (res.error.message || res.error.status || 'error') : null,
+      before: before,
+      after: after,
+    });
   };
-  run().then((r) => { S.result = r; S.state = 'done'; }, (e) => { S.result = 'error ' + (e && e.message ? e.message : e); S.state = 'done'; });
+  run().then(
+    (r) => { S.result = r; S.state = 'done'; },
+    (e) => { S.result = JSON.stringify({ r: 'error', error: String(e && e.message ? e.message : e) }); S.state = 'done'; },
+  );
   return 'wait';
 })()
 '''.replaceAll('__CID__', commentId.replaceAll(RegExp(r"[^A-Za-z0-9_.\-]"), '')).replaceAll('__LIKE__', '$like');
@@ -352,13 +392,18 @@ class YouTubeWebView {
           while (watch.elapsed < const Duration(seconds: 25)) {
             await Future<void>.delayed(const Duration(milliseconds: 700));
             final raw = await _channel.invokeMethod<String>('authScript', {'script': _likeScript(commentId, like)});
-            last = raw?.replaceAll('"', '');
-            if (last == null || last == 'wait' || last == 'null') continue;
-            ok = last == 'liked' || last == 'unliked';
+            // ExecuteScript hands back the script's value as JSON: "wait", or
+            // a JSON string holding the result object.
+            final value = raw == null ? null : jsonDecode(raw);
+            if (value is! String || value == 'wait') continue;
+            last = value;
+            final result = jsonDecode(value);
+            final r = result is Map ? result['r'] : null;
+            ok = r == 'liked' || r == 'unliked';
             break;
           }
           appLogger.d(
-            'YouTube comment ${like ? 'like' : 'unlike'}: ${ok ? 'done' : 'failed ($last)'} after ${watch.elapsedMilliseconds} ms',
+            'YouTube comment ${like ? 'like' : 'unlike'}: ${ok ? 'done' : 'failed'} after ${watch.elapsedMilliseconds} ms: $last',
           );
         } catch (e) {
           appLogger.d('YouTube comment like failed', error: e);
