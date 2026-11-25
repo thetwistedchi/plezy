@@ -7,6 +7,7 @@ import 'package:material_symbols_icons/symbols.dart';
 
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
+import '../../services/youtube/youtube_webview.dart';
 import '../../theme/player_style.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/app_icon.dart';
@@ -542,33 +543,7 @@ class _CommentTile extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Tooltip(
-                      message: YtStrings.likeOnYouTube,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(6),
-                        onTap: videoId == null
-                            ? null
-                            : () => unawaited(
-                                launchUrl(
-                                  Uri.https('www.youtube.com', '/watch', {'v': videoId!, 'lc': comment.id}),
-                                  mode: LaunchMode.externalApplication,
-                                ),
-                              ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const AppIcon(Symbols.thumb_up_rounded, size: 16, color: Colors.white54),
-                              if (comment.likeCount > 0) ...[
-                                const SizedBox(width: 6),
-                                Text('${comment.likeCount}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                    _CommentLikeButton(comment: comment, videoId: videoId),
                     if (onReply != null) ...[
                       const SizedBox(width: 16),
                       InkWell(
@@ -599,6 +574,90 @@ class _CommentTile extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Fork: likes a comment with the signed-in account through a hidden
+/// youtube.com page (Windows); elsewhere opens the comment on youtube.com.
+class _CommentLikeButton extends StatefulWidget {
+  const _CommentLikeButton({required this.comment, required this.videoId});
+
+  final YtComment comment;
+  final String? videoId;
+
+  @override
+  State<_CommentLikeButton> createState() => _CommentLikeButtonState();
+}
+
+class _CommentLikeButtonState extends State<_CommentLikeButton> {
+  bool _busy = false;
+
+  Future<void> _toggle(bool liked) async {
+    final videoId = widget.videoId;
+    if (videoId == null || _busy) return;
+    if (!YouTubeWebView.isSupported) {
+      await launchUrl(
+        Uri.https('www.youtube.com', '/watch', {'v': videoId, 'lc': widget.comment.id}),
+        mode: LaunchMode.externalApplication,
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    final ok = await YouTubeWebView.setCommentLiked(videoId, widget.comment.id, like: !liked);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (!ok) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text(YtStrings.likeFailed),
+          action: SnackBarAction(
+            label: YtStrings.openOnYouTube,
+            onPressed: () => unawaited(
+              launchUrl(
+                Uri.https('www.youtube.com', '/watch', {'v': videoId, 'lc': widget.comment.id}),
+                mode: LaunchMode.externalApplication,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = playerActiveColor(context);
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: YouTubeWebView.likedComments,
+      builder: (context, liked, _) {
+        final isLiked = liked.contains(widget.comment.id);
+        final count = widget.comment.likeCount + (isLiked ? 1 : 0);
+        final color = isLiked ? accent : Colors.white54;
+        return Tooltip(
+          message: isLiked ? YtStrings.unlikeComment : YtStrings.likeComment,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: widget.videoId == null ? null : () => unawaited(_toggle(isLiked)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_busy)
+                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: accent))
+                  else
+                    AppIcon(Symbols.thumb_up_rounded, size: 16, fill: isLiked ? 1 : 0, color: color),
+                  if (count > 0) ...[
+                    const SizedBox(width: 6),
+                    Text('$count', style: TextStyle(color: color, fontSize: 12)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

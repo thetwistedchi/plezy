@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -181,6 +182,78 @@ class YouTubeWebView {
         if (!_signInOpen) await closeSignIn().catchError((_) {});
       }
     });
+  }
+
+  /// Fork: comments liked from the app this run, so the thumbs stay filled.
+  static final ValueNotifier<Set<String>> likedComments = ValueNotifier(const {});
+
+  /// Script polled in the hidden view: scrolls the comments into loading,
+  /// finds the linked comment (`&lc=`, shown first with a badge) and sets its
+  /// like button to [like]. Answers "wait", "liked", "unliked", "nobutton".
+  static String _likeScript(bool like) => '''
+(() => {
+  const video = document.querySelector('video');
+  if (video) { video.muted = true; if (!video.paused) video.pause(); }
+  const comments = document.querySelector('ytd-comments');
+  if (comments) comments.scrollIntoView(); else window.scrollTo(0, document.body.scrollHeight);
+  const badge = [...document.querySelectorAll('#linked-comment-badge')].find(b => !b.hidden && b.offsetParent !== null)
+    || document.querySelector('#linked-comment-badge');
+  const comment = badge && badge.closest('ytd-comment-view-model, ytd-comment-renderer');
+  if (!comment) return 'wait';
+  const button = comment.querySelector('#like-button button, like-button-view-model button, ytd-toggle-button-renderer#like-button button');
+  if (!button) return 'nobutton';
+  const pressed = button.getAttribute('aria-pressed') === 'true';
+  if (pressed !== $like) button.click();
+  return $like ? 'liked' : 'unliked';
+})()
+''';
+
+  /// Likes (or un-likes) a comment with the signed-in account: the comment's
+  /// page opens in the hidden, muted view, the like button is pressed there
+  /// and the view closes again. YouTube's API cannot like comments. Shares
+  /// the queue of the history visits; fails while the sign-in page is open.
+  static Future<bool> setCommentLiked(String videoId, String commentId, {required bool like}) {
+    if (!isSupported || videoId.isEmpty || commentId.isEmpty) return Future.value(false);
+    final done = Completer<bool>();
+    _historyChain = _historyChain.then((_) async {
+      if (_signInOpen) {
+        done.complete(false);
+        return;
+      }
+      var ok = false;
+      try {
+        final url = Uri.https('www.youtube.com', '/watch', {'v': videoId, 'lc': commentId});
+        await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
+        final deadline = DateTime.now().add(const Duration(seconds: 25));
+        while (DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          final raw = await _channel.invokeMethod<String>('authScript', {'script': _likeScript(like)});
+          final answer = raw?.replaceAll('"', '');
+          if (answer == null || answer == 'wait' || answer == 'null') continue;
+          if (answer == 'nobutton') break;
+          // Give the click a moment to reach YouTube before the view closes.
+          await Future<void>.delayed(const Duration(milliseconds: 1500));
+          ok = true;
+          break;
+        }
+        appLogger.d('YouTube comment ${like ? 'like' : 'unlike'}: ${ok ? 'done' : 'comment not found'}');
+      } catch (e) {
+        appLogger.d('YouTube comment like failed', error: e);
+      } finally {
+        if (!_signInOpen) await closeSignIn().catchError((_) {});
+      }
+      if (ok) {
+        final next = {...likedComments.value};
+        if (like) {
+          next.add(commentId);
+        } else {
+          next.remove(commentId);
+        }
+        likedComments.value = next;
+      }
+      done.complete(ok);
+    });
+    return done.future;
   }
 
   /// Places the sign-in view, in physical pixels of the Flutter view.

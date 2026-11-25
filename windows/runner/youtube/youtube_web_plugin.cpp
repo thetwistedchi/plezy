@@ -203,6 +203,28 @@ void YouTubeWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     result->Success();
     return;
   }
+  if (method == "authScript") {
+    // Fork: runs a script in the hidden view (liking a comment) and returns
+    // its JSON result.
+    if (!auth_webview_) {
+      result->Error("NOT_READY", "No hidden view is open");
+      return;
+    }
+    const auto script = GetString(args, "script").value_or("");
+    auto shared = std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>>(std::move(result));
+    const HRESULT hr = auth_webview_->ExecuteScript(
+        ToWide(script).c_str(),
+        Callback<ICoreWebView2ExecuteScriptCompletedHandler>([shared](HRESULT error, LPCWSTR value) -> HRESULT {
+          if (FAILED(error)) {
+            shared->Error("SCRIPT_FAILED", "ExecuteScript failed");
+          } else {
+            shared->Success(flutter::EncodableValue(ToUtf8(value)));
+          }
+          return S_OK;
+        }).Get());
+    if (FAILED(hr)) shared->Error("SCRIPT_FAILED", "ExecuteScript could not start");
+    return;
+  }
   if (method == "authClose") {
     AuthClose();
     result->Success();
