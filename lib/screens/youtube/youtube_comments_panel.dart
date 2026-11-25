@@ -66,6 +66,8 @@ class _YouTubeCommentsPanelState extends State<YouTubeCommentsPanel> {
     super.initState();
     _scroll.addListener(_onScroll);
     unawaited(_load(reset: true));
+    // Fork: fill the thumbs of comments already liked, also on youtube.com.
+    unawaited(YouTubeWebView.fetchLikedComments(widget.videoId));
   }
 
   @override
@@ -650,7 +652,7 @@ class _CommentLikeButtonState extends State<_CommentLikeButton> {
   Widget build(BuildContext context) {
     final accent = playerActiveColor(context);
     final isLiked = _liked;
-    final count = widget.comment.likeCount + (isLiked ? 1 : 0);
+    final count = widget.comment.likeCount + (YouTubeWebView.likeCountChange[widget.comment.id] ?? 0);
     final color = isLiked ? accent : Colors.white54;
     return Tooltip(
       message: isLiked ? YtStrings.unlikeComment : YtStrings.likeComment,

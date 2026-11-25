@@ -4,6 +4,7 @@ import '../focus/input_mode_tracker.dart';
 import '../focus/key_event_utils.dart';
 import '../theme/mono_motion.dart';
 import '../theme/mono_tokens.dart';
+import '../theme/retrowave_colors.dart';
 import '../utils/platform_detector.dart';
 
 /// M3E connected button group: the selected segment is a filled pill, the
@@ -108,7 +109,10 @@ class _ExpressiveButtonGroupState<T> extends State<ExpressiveButtonGroup<T>> {
     if (segment.value != widget.selected) widget.onChanged(segment.value);
   }
 
-  BorderRadius _radiiFor(int i, bool selected, bool pressed, MonoTokens t) {
+  BorderRadius _radiiFor(int i, bool selected, bool pressed, MonoTokens t, {bool pills = false}) {
+    // Fork (retrowave): every segment is its own pill, so a middle or inner
+    // edge never looks cut off next to the selected one.
+    if (pills) return BorderRadius.circular(pressed ? t.radiusLg : MonoTokens.radiusFull);
     if (selected) {
       return BorderRadius.circular(pressed ? t.radiusLg : MonoTokens.radiusFull);
     }
@@ -186,7 +190,7 @@ class _ExpressiveButtonGroupState<T> extends State<ExpressiveButtonGroup<T>> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: _fillFor(selected, focused, _hoveredIndex == i, theme.colorScheme, t),
-        borderRadius: _radiiFor(i, selected, pressed, t),
+        borderRadius: _radiiFor(i, selected, pressed, t, pills: RetroColors.isActive(context)),
       ),
       // Labels never wrap: a group where one segment breaks onto two lines
       // while its neighbors stay on one reads broken. Overlong labels scale

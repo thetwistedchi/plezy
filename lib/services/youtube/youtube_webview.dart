@@ -220,6 +220,10 @@ class YouTubeWebView {
     return done.future;
   }
 
+  /// Likes added (+1) or removed (-1) from the app this run, per comment, on
+  /// top of the count the API reported (which already holds earlier likes).
+  static final Map<String, int> likeCountChange = {};
+
   /// Fork: comments liked from the app this run, so the thumbs stay filled.
   static final ValueNotifier<Set<String>> likedComments = ValueNotifier(const {});
 
@@ -454,6 +458,7 @@ class YouTubeWebView {
           } else {
             next.remove(commentId);
           }
+          likeCountChange[commentId] = (likeCountChange[commentId] ?? 0) + (like ? 1 : -1);
           likedComments.value = next;
         }
         return ok;
@@ -461,6 +466,138 @@ class YouTubeWebView {
     } finally {
       _likesWaiting--;
     }
+  }
+
+  /// Script for [fetchLikedComments]: reads the first pages of the video's
+  /// comments with the page's own sign-in and lists the ones liked by the
+  /// account. Answers "wait" until done, then a JSON object.
+  static String _likedScript(int pages) => r'''
+(() => {
+  const S = window.__plezyLiked || (window.__plezyLiked = { state: 'idle' });
+  if (S.state === 'running') return 'wait';
+  if (S.state === 'done') return S.result;
+  const video = document.querySelector('video');
+  if (video) { video.muted = true; if (!video.paused) video.pause(); }
+  if (!window.ytcfg || !window.ytInitialData || !window.ytcfg.get('INNERTUBE_API_KEY')) return 'wait';
+  S.state = 'running';
+  const maxPages = __PAGES__;
+  const walk = (o, fn, path) => {
+    if (!o || typeof o !== 'object') return;
+    fn(o, path);
+    for (const k in o) walk(o[k], fn, path.concat(k));
+  };
+  const run = async () => {
+    const cfg = window.ytcfg;
+    const cookie = (n) => {
+      const c = document.cookie.split('; ').find((x) => x.startsWith(n + '='));
+      return c ? c.substring(n.length + 1) : '';
+    };
+    const sapisid = cookie('SAPISID') || cookie('__Secure-3PAPISID');
+    if (!sapisid) return JSON.stringify({ r: 'signedout' });
+    const ts = Math.floor(Date.now() / 1000);
+    const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(ts + ' ' + sapisid + ' ' + location.origin));
+    const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'SAPISIDHASH ' + ts + '_' + hex,
+      'X-Origin': location.origin,
+      'X-Goog-AuthUser': String(cfg.get('SESSION_INDEX') || 0),
+      'X-Youtube-Client-Name': String(cfg.get('INNERTUBE_CONTEXT_CLIENT_NAME') || 1),
+      'X-Youtube-Client-Version': String(cfg.get('INNERTUBE_CLIENT_VERSION') || ''),
+    };
+    const pageId = cfg.get('DELEGATED_SESSION_ID');
+    if (pageId) headers['X-Goog-PageId'] = String(pageId);
+    const visitor = cfg.get('VISITOR_DATA');
+    if (visitor) headers['X-Goog-Visitor-Id'] = String(visitor);
+    const post = async (body) => {
+      const r = await fetch('/youtubei/v1/next?key=' + cfg.get('INNERTUBE_API_KEY') + '&prettyPrint=false', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify(Object.assign({ context: cfg.get('INNERTUBE_CONTEXT') }, body)),
+      });
+      if (!r.ok) throw new Error('next HTTP ' + r.status);
+      return r.json();
+    };
+    let token = null;
+    walk(window.ytInitialData, (o) => {
+      if (token || !o.itemSectionRenderer || o.itemSectionRenderer.targetId !== 'comments-section') return;
+      walk(o, (x) => {
+        if (!token && x.continuationCommand && x.continuationCommand.token) token = x.continuationCommand.token;
+      }, []);
+    }, []);
+    if (!token) return JSON.stringify({ r: 'nocomments' });
+    const liked = [];
+    let seen = 0;
+    for (let page = 0; page < maxPages && token; page++) {
+      const data = await post({ continuation: token });
+      const stateOf = {};
+      walk(data, (o) => {
+        if (!o.entityKey || !o.payload || !o.payload.engagementToolbarStateEntityPayload) return;
+        stateOf[o.entityKey] = o.payload.engagementToolbarStateEntityPayload.likeState;
+      }, []);
+      walk(data, (o) => {
+        if (!o.commentId || !o.toolbarStateKey) return;
+        seen++;
+        if (stateOf[o.toolbarStateKey] === 'TOOLBAR_LIKE_STATE_LIKED' && !liked.includes(o.commentId)) liked.push(o.commentId);
+      }, []);
+      // The next page of top-level comments (reply threads have their own).
+      let next = null;
+      walk(data, (o, path) => {
+        if (!o.continuationItemRenderer) return;
+        if (path.join('/').toLowerCase().includes('replies')) return;
+        const ep = o.continuationItemRenderer.continuationEndpoint;
+        const cmd = ep && ep.continuationCommand;
+        if (cmd && cmd.token) next = cmd.token;
+      }, []);
+      token = next;
+    }
+    return JSON.stringify({ r: 'ok', seen: seen, liked: liked });
+  };
+  run().then(
+    (r) => { S.result = r; S.state = 'done'; },
+    (e) => { S.result = JSON.stringify({ r: 'error', error: String(e && e.message ? e.message : e) }); S.state = 'done'; },
+  );
+  return 'wait';
+})()
+'''.replaceAll('__PAGES__', '$pages');
+
+  static final Set<String> _likesFetched = {};
+
+  /// Marks the comments of [videoId] the signed-in account already liked
+  /// (also on youtube.com) in [likedComments]. Reads the first [pages] pages
+  /// of comments in the hidden view, once per video and run; waits behind
+  /// likes and history visits.
+  static Future<void> fetchLikedComments(String videoId, {int pages = 3}) async {
+    if (!isSupported || videoId.isEmpty || !_likesFetched.add(videoId)) return;
+    await _withHiddenView(() async {
+      if (_signInOpen) return;
+      final watch = Stopwatch()..start();
+      String? last;
+      try {
+        final url = Uri.https('www.youtube.com', '/watch', {'v': videoId});
+        await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
+        while (watch.elapsed < const Duration(seconds: 30)) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          final raw = await _channel.invokeMethod<String>('authScript', {'script': _likedScript(pages)});
+          final value = raw == null ? null : jsonDecode(raw);
+          if (value is! String || value == 'wait') continue;
+          last = value;
+          final result = jsonDecode(value);
+          if (result is Map && result['liked'] is List) {
+            final ids = (result['liked'] as List).whereType<String>();
+            if (ids.isNotEmpty) likedComments.value = {...likedComments.value, ...ids};
+          }
+          break;
+        }
+        appLogger.d('YouTube liked comments after ${watch.elapsedMilliseconds} ms: $last');
+      } catch (e) {
+        _likesFetched.remove(videoId);
+        appLogger.d('YouTube liked comments failed', error: e);
+      } finally {
+        if (!_signInOpen) await closeSignIn().catchError((_) {});
+      }
+    });
   }
 
   /// Places the sign-in view, in physical pixels of the Flutter view.
