@@ -1646,6 +1646,8 @@ class _MainScreenState extends State<MainScreen>
   /// companion-remote back, and system back. On macOS this also keeps player
   /// Escape away from native fullscreen, which is window state shared by
   /// every route.
+  bool _rootEscapeDown = false;
+
   KeyEventResult _handleDesktopRootEscape(KeyEvent event) {
     final tabs = _getVisibleTabs(_isOffline);
     final shouldHandle = shouldHandleDesktopRootEscape(
@@ -1656,11 +1658,19 @@ class _MainScreenState extends State<MainScreen>
       isCurrentRoute: ModalRoute.of(context)?.isCurrent == true,
       isHomeTab: tabs.isNotEmpty && _currentTab == tabs.first.id,
     );
-    if (!shouldHandle) return KeyEventResult.ignored;
+    if (!shouldHandle) {
+      _rootEscapeDown = false;
+      return KeyEventResult.ignored;
+    }
 
+    // Fork: only a press that started here leaves fullscreen. The key-up of an
+    // Escape that just closed a page, the player or another tab lands here
+    // too and must not take the window out of fullscreen.
+    if (event is KeyDownEvent) _rootEscapeDown = true;
     if (event is KeyUpEvent) {
       BackKeyCoordinator.markHandled();
-      unawaited(FullscreenStateManager().exitFullscreenIfActive());
+      if (_rootEscapeDown) unawaited(FullscreenStateManager().exitFullscreenIfActive());
+      _rootEscapeDown = false;
     }
     return event is KeyDownEvent || event is KeyRepeatEvent || event is KeyUpEvent
         ? KeyEventResult.handled
