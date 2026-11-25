@@ -36,17 +36,21 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - AI-generated **neon-sign icons** throughout the app (cyan tubes with magenta accents and a soft glow), neon poster badges, glowing section titles and a neon details page. On TVs the glow is left out to keep scrolling smooth.
 
 **Details and ratings**
-- A **Ratings & links** row on every movie and show (Letterboxd, Trakt, IMDb, Rotten Tomatoes, TMDB, Metacritic, MyAnimeList) and a **rating median** on posters.
+- A **Ratings & links** row on every movie and show (Letterboxd, Trakt, IMDb, Rotten Tomatoes, TMDB, Metacritic, MyAnimeList) and a **rating median** on posters, with a side-by-side breakdown of every score. Optional MDBList and OMDb keys add more sources.
+- **Similar in your library**: titles from the same library that share genres.
 - Quality, HDR and audio language pills on posters, studio, producer and director on the details page, a larger **Play** button, and on desktop a poster preview on hover.
 - **Audio and subtitle pickers** below Play, with a description of each track.
 - **German voice actors** from the Deutsche Synchronkartei under the cast while German audio is selected (can be turned off).
 
 **Libraries and Home**
-- Quick filters, saved filter sets, **Surprise me**, a search box per library, a startup library, and **Hide watched** per Home row.
+- Quick filters (unwatched, 4K, HDR, audio language), saved filter sets, **Surprise me**, a search box per library, an A to Z bar and a startup library.
+- **Hide watched** per Home row, longer rows (40 titles) and **Show all** on Recently added rows.
 
 **Player**
 - **Play from start** next to Resume, trailers in the player, audio, subtitles and zoom remembered per title, a 4K / HDR badge and a neon **Skip intro / credits** button.
 - **Fit height**: black bars baked into a video are found and cut off, so wide films fill ultrawide screens.
+- A **mini player** bar (Plex and YouTube) to keep watching while browsing; Back can minimize instead of closing.
+- **HDR brightness boost** and a brighter HDR tone curve (Windows), click to pause, and badges for the playing quality and audio format.
 - Calm neon icons for all player controls, in the app's player and the YouTube player alike.
 
 **Free on plex.tv**
@@ -56,7 +60,7 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - Tabs, bookmarks, private tabs, a pop-up blocker, HTTPS upgrades, tracking prevention, Dark Reader and an ad blocker (Brave's adblock-rust with uBlock Origin's lists).
 
 **YouTube** (Windows only)
-- A tab with the newest videos of the channels you follow, search, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
+- A tab with the newest videos of the channels you follow, channel groups, **Continue where you left off**, search, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
 
 **Android and Android TV**
 - Free on plex.tv plays full screen in the app, controlled with the remote.
@@ -64,8 +68,10 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - Holding Back goes to the home screen, and **Remote shortcuts** under Settings lists what each button does.
 - No YouTube tab.
 
-**Controls** (Windows, macOS, Linux)
-- Game controller input can be turned off under **Settings > Controls**.
+**General**
+- Press **?** for all keyboard shortcuts.
+- Game controller input can be turned off under **Settings > Controls** (desktop).
+- A lighter visual-effects tier for weak TV sticks, chosen automatically or by hand.
 
 **Updates**
 - The app checks this fork's releases and updates itself (Windows installer and Android in place, the portable build opens the download page). After an update it shows what is new.
