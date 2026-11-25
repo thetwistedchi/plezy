@@ -116,7 +116,10 @@ class VideoFilterManager {
       trailing: true,
     );
     _aspectFileSub = player.streams.fileLoaded.listen((_) => _videoAspect = null);
-    _aspectRestartSub = player.streams.playbackRestart.listen((_) => unawaited(_readVideoAspect()));
+    _aspectRestartSub = player.streams.playbackRestart.listen((_) {
+      _lastRestart = DateTime.now();
+      unawaited(_readVideoAspect());
+    });
     if (Platform.isWindows) {
       _hdrBrightness = SettingsService.instanceOrNull?.listenable(SettingsService.hdrBrightness);
       _hdrBrightness?.addListener(updateVideoFilter);
@@ -234,6 +237,7 @@ class VideoFilterManager {
   StreamSubscription<Duration>? _positionSub;
   bool _letterboxChecked = false;
   bool _cropSupported = true;
+  DateTime? _lastRestart;
   DateTime? _letterboxRetryAt;
   bool _letterboxRechecked = false;
   _Box? _letterboxContent;
@@ -261,7 +265,11 @@ class VideoFilterManager {
       if (position < const Duration(seconds: 10)) return;
       // Fork: an all-dark sample is tried again a little later.
       if (_letterboxRetryAt case final at? when DateTime.now().isBefore(at)) return;
+      // Fork: not right after a seek or a resume, when mpv may not have a
+      // frame to take a screenshot of yet.
+      if (_lastRestart case final at? when DateTime.now().difference(at) < const Duration(seconds: 2)) return;
       _letterboxDetecting = true;
+      appLogger.d('Letterbox detection: sampling at $position');
       unawaited(_detectLetterbox());
     } else if (!_letterboxRechecked &&
         !_cropSupported &&
@@ -328,7 +336,8 @@ class VideoFilterManager {
         unawaited(updateVideoFilter());
       }
     } catch (e) {
-      appLogger.w('Letterbox detection failed', error: e);
+      appLogger.w('Letterbox detection failed, trying again shortly', error: e);
+      if (!recheck) sampledDark = true;
     } finally {
       if (recheck) {
         _letterboxRechecked = true;
@@ -473,6 +482,7 @@ class VideoFilterManager {
   /// Cycle through BoxFit modes: contain → cover → fill → contain (for button)
   void cycleBoxFitMode() {
     _boxFitMode = (_boxFitMode + 1) % 2;
+    _lookAgainForBars();
     onBoxFitModeChanged?.call(_boxFitMode);
     updateVideoFilter();
   }
@@ -484,7 +494,16 @@ class VideoFilterManager {
     final next = _keepAspect(mode);
     if (_boxFitMode == next) return;
     _boxFitMode = next;
+    _lookAgainForBars();
     updateVideoFilter();
+  }
+
+  /// Fork: switching to Fit height without a crop looks for bars again on
+  /// the next position update (the earlier look may have found none).
+  void _lookAgainForBars() {
+    if (_boxFitMode != 1 || _letterboxCrop.isNotEmpty || _letterboxDetecting) return;
+    _letterboxChecked = false;
+    _letterboxRetryAt = null;
   }
 
   /// Reset to contain mode (mode 0). Used when enabling ambient lighting.
