@@ -77,7 +77,14 @@ class Synchronkartei {
       appLogger.i('Synchronkartei: no IMDb or TMDB id for "$title"');
       return Future.value();
     }
-    return _inFlight.putIfAbsent(key, () => _lookup(key, ids, isShow).whenComplete(() => _inFlight.remove(key)));
+    // The block body matters: `=> _inFlight.remove(key)` would hand back the
+    // removed future itself, and whenComplete would wait on it forever.
+    return _inFlight.putIfAbsent(
+      key,
+      () => _lookup(key, ids, isShow).whenComplete(() {
+        _inFlight.remove(key);
+      }),
+    );
   }
 
   Future<DubCast?> _lookup(String key, ExternalIds ids, bool isShow) async {
