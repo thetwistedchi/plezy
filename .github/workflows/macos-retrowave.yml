@@ -1,10 +1,13 @@
 name: macOS build (Plezy Retrowave)
 
 # Builds an unsigned macOS app on GitHub's Mac runners, packs it into a DMG
-# and keeps it as a workflow artifact. With a tag it is also attached to that
-# release. Start it under Actions › "macOS build (Plezy Retrowave)" › Run workflow.
+# and keeps it as a workflow artifact. Runs on every published release and
+# attaches the DMG to it; can also be started by hand under Actions ›
+# "macOS build (Plezy Retrowave)" › Run workflow (with a tag to attach to).
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -17,6 +20,8 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.47.1"
+  # The release's tag, or the tag typed in for a manual run (may be empty).
+  RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
 
 jobs:
   build-macos:
@@ -58,7 +63,7 @@ jobs:
           # Ad-hoc signature so Apple Silicon runs it; there is no Developer ID.
           codesign --force --deep --sign - "$STAGE/Plezy Retrowave.app"
           ln -s /Applications "$STAGE/Applications"
-          VERSION="${{ inputs.release_tag }}"
+          VERSION="$RELEASE_TAG"
           VERSION="${VERSION:-dev-${GITHUB_SHA::7}}"
           hdiutil create -volname "Plezy Retrowave" -srcfolder "$STAGE" -ov -format UDZO "plezy-retrowave-macos.dmg"
           echo "DMG_VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -70,7 +75,7 @@ jobs:
           path: plezy-retrowave-macos.dmg
 
       - name: Attach to release
-        if: ${{ inputs.release_tag != '' }}
+        if: ${{ env.RELEASE_TAG != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ inputs.release_tag }}" plezy-retrowave-macos.dmg --clobber --repo "${{ github.repository }}"
+        run: gh release upload "$RELEASE_TAG" plezy-retrowave-macos.dmg --clobber --repo "${{ github.repository }}"
