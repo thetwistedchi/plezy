@@ -19,6 +19,9 @@ class RetroStrings {
   static String germanVoicesFrom(String source) => _t('German voices: $source', 'Deutsche Stimmen: $source');
   static String get audioTrack => _t('Audio track', 'Tonspur');
   static String get subtitleTrack => _t('Subtitles', 'Untertitel');
+  static String get gamepadInput => _t('Game controller input', 'Controller-Eingaben');
+  static String get gamepadInputDescription =>
+      _t('Navigate with a connected game controller', 'Mit einem angeschlossenen Controller navigieren');
   static String get germanVoiceActors => _t('German voice actors', 'Deutsche Synchronsprecher');
   static String get germanVoiceActorsDescription => _t(
     'With German audio selected, show the German voice under each cast member (Deutsche Synchronkartei)',

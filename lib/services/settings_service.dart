@@ -870,6 +870,9 @@ class SettingsService extends BaseSharedPreferencesService {
   /// Fork: German voice actors from the Deutsche Synchronkartei under the
   /// cast on details pages while German audio is selected.
   static const germanVoiceActors = BoolPref('retrowave_german_voice_actors', defaultValue: true);
+
+  /// Fork: desktop game controller input (Xbox, PlayStation and similar).
+  static const gamepadInputEnabled = BoolPref('retrowave_gamepad_input', defaultValue: true);
   static const startupSection = EnumPref<NavigationTabId>(
     'startup_section',
     values: NavigationTabId.values,
@@ -1581,6 +1584,7 @@ class SettingsService extends BaseSharedPreferencesService {
     specialsOrdering,
     useExoPlayer,
     germanVoiceActors,
+    gamepadInputEnabled,
     startupSection,
     showExploreTab,
     alwaysKeepSidebarOpen,

@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../focus/input_mode_tracker.dart';
 import '../utils/app_logger.dart';
+import 'settings_service.dart';
 import '../utils/key_event_simulator.dart' as key_sim;
 import '../utils/platform_detector.dart';
 import '../utils/text_input_diagnostics.dart';
@@ -264,8 +265,35 @@ class GamepadService with WindowListener {
   /// Only active on desktop platforms (macOS, Windows, Linux).
   static bool get _isDesktop => PlatformDetector.isDesktopOS();
 
+  /// Fork: the "Game controller input" setting. Off drops every controller
+  /// event and hands the device back to other apps.
+  ValueListenable<bool>? _enabledPref;
+  bool get _inputEnabled => _enabledPref?.value ?? true;
+
+  void _bindEnabledPref() {
+    if (_enabledPref != null) return;
+    try {
+      final pref = SettingsService.instance.listenable(SettingsService.gamepadInputEnabled);
+      _enabledPref = pref;
+      pref.addListener(_onEnabledChanged);
+    } catch (e) {
+      appLogger.w('GamepadService: input setting unavailable', error: e);
+    }
+  }
+
+  void _onEnabledChanged() {
+    appLogger.i('GamepadService: input ${_inputEnabled ? "enabled" : "disabled"}');
+    if (_inputEnabled) {
+      if (_windowFocused) Gamepad.instance.resume();
+    } else {
+      _releaseHeldInputState();
+      Gamepad.instance.pause();
+    }
+  }
+
   void start() async {
     appLogger.i('GamepadService: Starting on ${Platform.operatingSystem}');
+    _bindEnabledPref();
 
     try {
       final gamepads = await Gamepad.instance.listGamepads();
@@ -297,7 +325,7 @@ class GamepadService with WindowListener {
   void onWindowFocus() {
     _windowFocused = true;
     _duplicateInputGuard.clear();
-    Gamepad.instance.resume();
+    if (_inputEnabled) Gamepad.instance.resume();
   }
 
   @override
@@ -376,7 +404,7 @@ class GamepadService with WindowListener {
         if (TextInputDiagnostics.enabled) _logGamepadDiag('calling Gamepad.pause for native text input');
         await Gamepad.instance.pause();
         if (TextInputDiagnostics.enabled) _logGamepadDiag('Gamepad.pause completed for native text input');
-      } else {
+      } else if (_inputEnabled) {
         if (TextInputDiagnostics.enabled) _logGamepadDiag('calling Gamepad.resume after native text input');
         await Gamepad.instance.resume();
         if (TextInputDiagnostics.enabled) _logGamepadDiag('Gamepad.resume completed after native text input');
@@ -390,6 +418,7 @@ class GamepadService with WindowListener {
     if (TextInputDiagnostics.enabled) {
       _logGamepadDiag('event received type=${event.runtimeType} nativeTextInputFocused=$_nativeTextInputFocused');
     }
+    if (!_inputEnabled && event is! GamepadConnectionEvent) return;
     switch (event) {
       case final GamepadConnectionEvent e:
         appLogger.i('GamepadService: Gamepad ${e.connected ? "connected" : "disconnected"}: ${e.info.name}');

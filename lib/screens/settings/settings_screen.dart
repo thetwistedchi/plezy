@@ -110,6 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
   static const _kBackgroundDownloads = 'background_downloads';
   static const _kVideoPlayerControls = 'video_player_controls';
   static const _kVideoPlayerNavigation = 'video_player_navigation';
+  static const _kGamepadInput = 'retro_gamepad_input';
   static const _kCompanionRemoteServer = 'companion_remote_server';
   static const _kCrashReporting = 'crash_reporting';
   static const _kDebugLogging = 'debug_logging';
@@ -532,6 +533,15 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
           subtitle: t.settings.videoPlayerNavigationDescription,
         ),
       ],
+      // Fork: controller input runs through GamepadService on desktop only.
+      if (PlatformDetector.isDesktopOS())
+        SettingSwitchTile(
+          focusNode: _focusTracker.get(_kGamepadInput),
+          pref: settings.SettingsService.gamepadInputEnabled,
+          icon: Symbols.sports_esports_rounded,
+          title: RetroStrings.gamepadInput,
+          subtitle: RetroStrings.gamepadInputDescription,
+        ),
       if (PlatformDetector.shouldActAsRemoteHost(context))
         SettingSwitchTile(
           focusNode: _focusTracker.get(_kCompanionRemoteServer),
