@@ -27,6 +27,20 @@ internal class RetrowaveUpdateChannel(private val activity: Activity) {
 
   private fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
+      // Fork: asked before downloading, so a missing permission no longer
+      // costs a whole download that then has to be started again.
+      "canInstall" -> result.success(
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.O || activity.packageManager.canRequestPackageInstalls(),
+      )
+      "requestInstallPermission" -> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          activity.startActivity(
+            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}"))
+              .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+          )
+        }
+        result.success(null)
+      }
       "installApk" -> {
         val path = call.argument<String>("path")
         if (path == null) {

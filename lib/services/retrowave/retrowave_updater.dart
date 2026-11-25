@@ -260,6 +260,11 @@ abstract final class RetrowaveUpdater {
         ], mode: ProcessStartMode.detached);
         exit(0);
       case RetrowaveUpdateMode.androidApk:
+        // Fork: the permission first, then the download (see canInstallApks).
+        if (!await canInstallApks()) {
+          await _channel.invokeMethod<void>('requestInstallPermission');
+          return 'needsPermission';
+        }
         final is64 = Platform.version.contains('arm64') || Platform.version.contains('x64');
         final name = is64 && release.assets.containsKey(_arm64Apk) ? _arm64Apk : _universalApk;
         final url = release.assets[name];
@@ -267,6 +272,16 @@ abstract final class RetrowaveUpdater {
         final file = await _download(url, name, onProgress);
         final result = await _channel.invokeMethod<String>('installApk', {'path': file.path});
         return result == 'needsPermission' ? 'needsPermission' : null;
+    }
+  }
+
+  /// Android: whether this app may hand APKs to the package installer.
+  static Future<bool> canInstallApks() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      return await _channel.invokeMethod<bool>('canInstall') ?? true;
+    } catch (_) {
+      return true;
     }
   }
 

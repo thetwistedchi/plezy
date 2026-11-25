@@ -174,10 +174,36 @@ class _UpdateDialog extends StatefulWidget {
   State<_UpdateDialog> createState() => _UpdateDialogState();
 }
 
-class _UpdateDialogState extends State<_UpdateDialog> {
+class _UpdateDialogState extends State<_UpdateDialog> with WidgetsBindingObserver {
   bool _busy = false;
   double? _progress;
   String? _problem;
+
+  /// Fork: waiting for the user to allow installs in Android's settings;
+  /// coming back with it allowed continues the update by itself.
+  bool _awaitingPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !_awaitingPermission || _busy) return;
+    unawaited(() async {
+      if (!await RetrowaveUpdater.canInstallApks() || !mounted) return;
+      _awaitingPermission = false;
+      await _update();
+    }());
+  }
 
   String get _actionLabel => switch (RetrowaveUpdater.mode) {
     RetrowaveUpdateMode.windowsInstaller => _t('Update and restart', 'Aktualisieren und neu starten'),
@@ -203,12 +229,13 @@ class _UpdateDialogState extends State<_UpdateDialog> {
         Navigator.pop(context);
         return;
       }
+      _awaitingPermission = result == 'needsPermission';
       setState(() {
         _busy = false;
         _problem = result == 'needsPermission'
             ? _t(
-                'Allow installing apps from Plezy Retrowave in the settings that just opened, then press the button again.',
-                'Im eben geöffneten Einstellungsfenster das Installieren von Apps durch Plezy Retrowave erlauben, dann erneut drücken.',
+                'Allow installing apps from Plezy Retrowave in the settings that just opened. The update continues when you come back.',
+                'Im eben geöffneten Einstellungsfenster das Installieren von Apps durch Plezy Retrowave erlauben. Das Update geht danach von selbst weiter.',
               )
             : _t(
                 'This release has no file for this device. Use the download page instead.',
