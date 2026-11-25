@@ -118,9 +118,15 @@ abstract class LibraryEventSocket implements LibraryEventChannel {
   /// underlying connection may still be establishing or backing off.
   bool get isRunning => _running;
 
+  /// Fork: servers whose socket endpoint answered 404 this session. A 404 is
+  /// not a passing outage (usually a proxy without the socket route), so
+  /// they are not retried until the app restarts; stale-refresh covers them.
+  static final Set<String> _noSocketEndpoint = {};
+
   @override
   void start() {
     if (_disposed || _running) return;
+    if (_noSocketEndpoint.contains('$serverId')) return;
     _running = true;
     _attempts = 0;
     unawaited(_connect());
@@ -290,6 +296,16 @@ abstract class LibraryEventSocket implements LibraryEventChannel {
 
   void _scheduleRetry(Object? error) {
     if (!_running || _disposed) return;
+    if (error != null && '$error'.contains('HTTP status code: 404')) {
+      _noSocketEndpoint.add('$serverId');
+      final uri = buildUri();
+      appLogger.i(
+        'LibraryEventSocket[$serverId]: the server has no live-update endpoint at ${uri.scheme}://${uri.host}:${uri.port}${uri.path} '
+        '(404); not retrying this session. Library changes show on the next refresh.',
+      );
+      _running = false;
+      return;
+    }
     ++_attempts;
     if (_attempts > maxConnectAttempts) {
       // Give up quietly; the next start() (status change / app resume)
