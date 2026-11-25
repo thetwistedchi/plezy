@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../i18n/strings.g.dart';
 import '../services/retrowave/retrowave_updater.dart';
@@ -42,10 +43,10 @@ Future<void> showRetrowaveWhatsNewDialog(BuildContext context, RetrowaveRelease 
     title: Text(_t("What's new in ${release.version}", 'Neu in ${release.version}')),
     content: SizedBox(
       width: 520,
-      child: SingleChildScrollView(child: SimpleMarkdown(_withoutTitle(release.notes))),
+      child: _ScrollableNotes(notes: _withoutTitle(release.notes), autofocus: true),
     ),
     actions: [
-      FilledButton(autofocus: true, onPressed: () => Navigator.pop(context), child: Text(_t('Close', 'Schließen'))),
+      FilledButton(onPressed: () => Navigator.pop(context), child: Text(_t('Close', 'Schließen'))),
     ],
   ),
 );
@@ -94,6 +95,71 @@ Future<void> checkForRetrowaveUpdate(BuildContext context) async {
   } catch (_) {
     messenger?.showSnackBar(
       SnackBar(content: Text(_t('Could not check for updates.', 'Suche nach Updates nicht möglich.'))),
+    );
+  }
+}
+
+/// Release notes that scroll with touch, mouse and the remote: the notes take
+/// focus, Up/Down scroll them, and at the top or bottom the key moves on to
+/// the buttons as usual.
+class _ScrollableNotes extends StatefulWidget {
+  const _ScrollableNotes({required this.notes, this.autofocus = false});
+
+  final String notes;
+  final bool autofocus;
+
+  @override
+  State<_ScrollableNotes> createState() => _ScrollableNotesState();
+}
+
+class _ScrollableNotesState extends State<_ScrollableNotes> {
+  final _controller = ScrollController();
+  bool _focused = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+    if (!_controller.hasClients) return KeyEventResult.ignored;
+    final position = _controller.position;
+    final step = position.viewportDimension * 0.6;
+    double? target;
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown && position.pixels < position.maxScrollExtent) {
+      target = (position.pixels + step).clamp(0.0, position.maxScrollExtent);
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowUp && position.pixels > position.minScrollExtent) {
+      target = (position.pixels - step).clamp(0.0, position.maxScrollExtent);
+    }
+    if (target == null) return KeyEventResult.ignored;
+    unawaited(_controller.animateTo(target, duration: const Duration(milliseconds: 160), curve: Curves.easeOut));
+    return KeyEventResult.handled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Focus(
+      autofocus: widget.autofocus,
+      onKeyEvent: _onKey,
+      onFocusChange: (focused) => setState(() => _focused = focused),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _focused ? scheme.primary : Colors.transparent, width: 2),
+        ),
+        child: Scrollbar(
+          controller: _controller,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: _controller,
+            padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
+            child: SimpleMarkdown(widget.notes),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -179,9 +245,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             ),
             const SizedBox(height: 12),
             Flexible(
-              child: SingleChildScrollView(
-                child: SimpleMarkdown(release.notes.trim().isEmpty ? '–' : _withoutTitle(release.notes)),
-              ),
+              child: _ScrollableNotes(notes: release.notes.trim().isEmpty ? '–' : _withoutTitle(release.notes)),
             ),
             if (_busy) ...[
               const SizedBox(height: 16),
