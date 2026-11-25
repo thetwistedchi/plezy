@@ -319,7 +319,10 @@ abstract class LibraryEventSocket implements LibraryEventChannel {
 /// Swap an http(s) base URL to its ws(s) twin.
 Uri webSocketBase(String baseUrl) {
   final base = Uri.parse(baseUrl);
-  return base.replace(scheme: base.scheme == 'https' ? 'wss' : 'ws');
+  // Fork: keep the port explicit. Dart knows no default port for ws/wss, so
+  // a base URL without one became "host:0", and a reverse proxy matching the
+  // Host header answered 404 to every connect.
+  return base.replace(scheme: base.scheme == 'https' ? 'wss' : 'ws', port: base.port);
 }
 
 /// Decode a websocket text frame into a JSON object, or `null` for anything
