@@ -303,11 +303,11 @@ extension _MediaDetailTrackPickers on _MediaDetailScreenState {
             ? null
             : source.subtitleTracks.where((track) => track.id == pickedSub).firstOrNull;
 
-        void pickAudio(int id) => setState(() {
+        void pickAudio(int id) => _setDetailState(() {
           _pickedAudioIds[entry.key] = id;
           _tvDetailActorItemsCache = null;
         });
-        void pickSubtitle(int id) => setState(() => _pickedSubtitleIds[entry.key] = id);
+        void pickSubtitle(int id) => _setDetailState(() => _pickedSubtitleIds[entry.key] = id);
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 20),

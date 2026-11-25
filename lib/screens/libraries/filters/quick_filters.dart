@@ -256,9 +256,22 @@ Future<List<QuickFilter>> _resolveQuickFilters(
     } catch (e) {
       appLogger.d('Quick filter values for ${audio.filter} unavailable', error: e);
     }
+    // Fork: the server can list one language under several codes (for
+    // example "ger" and "deu"); those merge into one entry matching any of
+    // them (a comma means "or" in the filter value).
+    final idsByTitle = <String, List<String>>{};
+    final titles = <String, String>{};
+    for (final v in values) {
+      final title = v.title.trim();
+      if (title.isEmpty) continue;
+      final key = title.toLowerCase();
+      titles.putIfAbsent(key, () => title);
+      final id = libraryFilterValueId(v.key, _bareField(audio));
+      final ids = idsByTitle.putIfAbsent(key, () => []);
+      if (!ids.contains(id)) ids.add(id);
+    }
     final choices = [
-      for (final v in values)
-        if (v.title.trim().isNotEmpty) (id: libraryFilterValueId(v.key, _bareField(audio)), title: v.title.trim()),
+      for (final entry in idsByTitle.entries) (id: entry.value.join(','), title: titles[entry.key]!),
     ];
     // German first, then English, then the rest alphabetically.
     final german = _languageAliases['de']!;

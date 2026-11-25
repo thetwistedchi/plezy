@@ -4666,6 +4666,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   // every cast card with them.
   (MediaItem, List<MediaItem>)? _tvDetailActorItemsCache;
 
+  /// Fork: setState for the screen's part-file extensions.
+  void _setDetailState(VoidCallback fn) => setState(fn);
+
   /// Fork: a note beside the Cast title while German audio is selected:
   /// searching, where the voices come from, or that none were found.
   Widget _buildDubCastStatus(BuildContext context) {
