@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../theme/retrowave_colors.dart';
+import '../utils/platform_detector.dart';
 import 'app_icon.dart';
 
 /// The rim colour family of a [RetroPill].
 enum RetroPillTone {
   /// Ratings and languages.
-  violet(Color(0x996956FE), Color(0xFFC7BDFF)),
+  violet(Color(0x996956FE), Color(0xFFC7BDFF), neonTube: Color(0xFF8C78FF), neonCore: Color(0xFFE8E2FF), neonHalo: Color(0xFF6956FE)),
 
   /// Counts (unwatched episodes, watched).
-  magenta(Color(0x99C10093), Color(0xFFF2A7DD)),
+  magenta(Color(0x99C10093), Color(0xFFF2A7DD), neonTube: Color(0xFFFF28C8), neonCore: Color(0xFFFFD6F4), neonHalo: Color(0xFFD600A0)),
 
   /// Quality (4K, HDR).
-  cyan(Color(0x8C22D2EB), Color(0xFFA9EEF7));
+  cyan(Color(0x8C22D2EB), Color(0xFFA9EEF7), neonTube: Color(0xFF22D2EB), neonCore: Color(0xFFD8FBFF), neonHalo: Color(0xFF0FA8C8));
 
-  const RetroPillTone(this.rim, this.text);
+  const RetroPillTone(this.rim, this.text, {required this.neonTube, required this.neonCore, required this.neonHalo});
+
+  /// Fork: neon look in the retrowave theme: tube, its pale core and glow.
+  final Color neonTube;
+  final Color neonCore;
+  final Color neonHalo;
 
   final Color rim;
 
@@ -54,6 +60,7 @@ class RetroPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (RetroColors.isActive(context)) return _neon(context);
     final colors = _colors(context, tone);
     return Container(
       height: height,
@@ -96,6 +103,79 @@ class RetroPill extends StatelessWidget {
       ),
     );
   }
+}
+
+extension on RetroPill {
+  /// Retrowave: a neon sign. Dark body, a coloured tube with a pale core as
+  /// the rim, text in the core colour, and an even glow except on TV.
+  Widget _neon(BuildContext context) {
+    final glow = !PlatformDetector.isTV();
+    final textStyle = TextStyle(
+      color: tone.neonCore,
+      fontSize: fontSize,
+      fontWeight: FontWeight.w700,
+      height: 1,
+      leadingDistribution: TextLeadingDistribution.even,
+      fontFeatures: const [FontFeature.tabularFigures()],
+      shadows: glow ? [Shadow(color: tone.neonHalo, blurRadius: 4)] : null,
+    );
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: NeonPillPainter(tone: tone, glow: glow),
+        child: Container(
+          height: height,
+          constraints: BoxConstraints(minWidth: height),
+          padding: EdgeInsets.symmetric(horizontal: height * 0.38),
+          child: Center(
+            widthFactor: 1,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  AppIcon(icon!, fill: 1, size: fontSize, color: tone.neonCore),
+                  const SizedBox(width: 3),
+                ],
+                Text(label, maxLines: 1, softWrap: false, textAlign: TextAlign.center, style: textStyle),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Fork: the stadium of a neon [RetroPill]: glow, dark body, tube, core.
+class NeonPillPainter extends CustomPainter {
+  const NeonPillPainter({required this.tone, this.glow = true});
+
+  final RetroPillTone tone;
+  final bool glow;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final tubeWidth = (size.height * 0.09).clamp(1.3, 2.4);
+    final rect = (Offset.zero & size).deflate(tubeWidth / 2);
+    final shape = RRect.fromRectAndRadius(rect, Radius.circular(rect.height / 2));
+    Paint stroke(Color color, double width, {MaskFilter? blur}) => Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..maskFilter = blur;
+    if (glow) {
+      canvas.drawRRect(
+        shape,
+        stroke(tone.neonHalo.withValues(alpha: 0.7), tubeWidth * 1.6, blur: MaskFilter.blur(BlurStyle.normal, size.height * 0.18)),
+      );
+    }
+    canvas.drawRRect(shape.deflate(tubeWidth / 2), Paint()..color = RetroPill.background);
+    canvas.drawRRect(shape, stroke(tone.neonTube, tubeWidth));
+    canvas.drawRRect(shape, stroke(tone.neonCore, tubeWidth * 0.42));
+  }
+
+  @override
+  bool shouldRepaint(NeonPillPainter oldDelegate) => oldDelegate.tone != tone || oldDelegate.glow != glow;
 }
 
 /// Soft lavender: row headings and card titles in the retrowave theme, a

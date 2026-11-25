@@ -6,6 +6,7 @@ import '../media/media_item_types.dart';
 import '../media/media_kind.dart';
 import '../services/settings_service.dart';
 import '../theme/mono_tokens.dart';
+import '../utils/platform_detector.dart';
 import 'retro_pill.dart';
 import 'app_icon.dart';
 import 'media_progress_bar.dart';
@@ -44,11 +45,6 @@ enum WatchedIndicatorSize {
 /// stamps watch state onto a poster/thumbnail. Callers that must react to
 /// [SettingsService.showWatchedIndicators] or [SettingsService.showUnwatchedCount]
 /// flipping wrap themselves in a [SettingsBuilder] on those prefs.
-// The theme's own magenta and its pill rim colour.
-const _watchedFill = Color(0xFFC10093);
-// Fork: violet rim and a deep night-purple check on the magenta disc.
-const _watchedRim = Color(0xFF6956FE);
-const _watchedCheck = Color(0xFF140327);
 
 class WatchedIndicator extends StatelessWidget {
   final MediaItem item;
@@ -87,24 +83,32 @@ class WatchedIndicator extends StatelessWidget {
             right: size.inset,
             // Fork: 10% larger than the other corner pills and filled with a
             // vivid (not glaring) magenta, so it reads at a glance.
-            child: Container(
-              width: size.pillHeight * 1.1,
-              height: size.pillHeight * 1.1,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: retro ? _watchedFill : tokens(context).text,
-                border: retro ? Border.all(color: _watchedRim) : null,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 4)],
-              ),
-              child: AppIcon(
-                Symbols.check_rounded,
-                fill: 1,
-                weight: 700,
-                color: retro ? _watchedCheck : tokens(context).bg,
-                size: (size.pillHeight * 1.1 * 0.66).roundToDouble(),
-              ),
-            ),
+            child: retro
+                // Fork: a neon sign: dark disc, magenta tube with a pale pink
+                // core for ring and check, and an even glow (off on TV).
+                ? RepaintBoundary(
+                    child: CustomPaint(
+                      size: Size.square(size.pillHeight * 1.1),
+                      painter: NeonCheckPainter(glow: !PlatformDetector.isTV()),
+                    ),
+                  )
+                : Container(
+                    width: size.pillHeight * 1.1,
+                    height: size.pillHeight * 1.1,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: tokens(context).text,
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 4)],
+                    ),
+                    child: AppIcon(
+                      Symbols.check_rounded,
+                      fill: 1,
+                      weight: 700,
+                      color: tokens(context).bg,
+                      size: (size.pillHeight * 1.1 * 0.66).roundToDouble(),
+                    ),
+                  ),
           ),
         // Unwatched count for shows/seasons
         if (showCount &&
@@ -129,6 +133,9 @@ class WatchedIndicator extends StatelessWidget {
                 viewOffset: item.viewOffsetMs!,
                 duration: item.durationMs!,
                 minHeight: size.barMinHeight,
+                // Fork: the neon magenta of the watched mark.
+                valueColor: retro ? NeonCheckPainter.tube : null,
+                backgroundColor: retro ? NeonCheckPainter.disc : null,
               ),
             ),
           ),
@@ -151,4 +158,58 @@ class WatchedIndicator extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Fork: the retrowave watched mark drawn as a neon sign. A dark disc keeps
+/// it readable on bright posters; ring and check are one magenta tube with a
+/// pale pink core. [glow] adds an even magenta halo (a blurred stroke; left
+/// off on TV to keep long poster grids light).
+class NeonCheckPainter extends CustomPainter {
+  const NeonCheckPainter({this.glow = true});
+
+  final bool glow;
+
+  static const tube = Color(0xFFFF28C8);
+  static const core = Color(0xFFFFD6F4);
+  static const halo = Color(0xFFD600A0);
+  static const disc = Color(0xE6140327);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final outer = size.shortestSide / 2;
+    final tubeWidth = (outer * 0.2).clamp(1.6, 3.0);
+    final r = outer - tubeWidth / 2;
+    final k = r / 19;
+    final check = Path()
+      ..moveTo(center.dx - 8 * k, center.dy + 0.5 * k)
+      ..lineTo(center.dx - 2.5 * k, center.dy + 6 * k)
+      ..lineTo(center.dx + 8.5 * k, center.dy - 5.5 * k);
+
+    Paint stroke(Color color, double width, {MaskFilter? blur}) => Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..maskFilter = blur;
+
+    void tubes(Paint paint) {
+      canvas.drawCircle(center, r, paint);
+      canvas.drawPath(check, paint);
+    }
+
+    if (glow) {
+      tubes(stroke(halo.withValues(alpha: 0.75), tubeWidth * 1.6, blur: MaskFilter.blur(BlurStyle.normal, outer * 0.35)));
+    }
+    canvas.drawCircle(center, r - tubeWidth / 2, Paint()..color = disc);
+    if (glow) {
+      tubes(stroke(halo.withValues(alpha: 0.5), tubeWidth, blur: MaskFilter.blur(BlurStyle.normal, outer * 0.12)));
+    }
+    tubes(stroke(tube, tubeWidth));
+    tubes(stroke(core, tubeWidth * 0.42));
+  }
+
+  @override
+  bool shouldRepaint(NeonCheckPainter oldDelegate) => oldDelegate.glow != glow;
 }
