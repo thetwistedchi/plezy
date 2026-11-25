@@ -864,7 +864,8 @@ class SettingsService extends BaseSharedPreferencesService {
   /// default, and honoring those picks would leave the devices that most
   /// need the new backend on the old one. Dropping it ([onInit]) puts every
   /// install on mpv; choosing ExoPlayer again writes this key and sticks.
-  static const useExoPlayer = BoolPref('android_use_exoplayer');
+  // Fork: ExoPlayer is the default on Android (mpv stays selectable).
+  static const useExoPlayer = BoolPref('android_use_exoplayer', defaultValue: true);
   static const startupSection = EnumPref<NavigationTabId>(
     'startup_section',
     values: NavigationTabId.values,

@@ -779,6 +779,9 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                       height: containerHeight + focusExtra + (isTv ? 12 : 4), // extra for scale + border top/bottom
                       child: HorizontalScrollWithArrows(
                         controller: _scrollController,
+                        posterTop: (isTv ? 6 : 2) + 3,
+                        posterHeight: posterHeight,
+                        posterWidth: posterWidth,
                         builder: (scrollController) => ListView.builder(
                           // Inert on media lists (no keep-alive clients): dropping the
                           // per-child wrappers shrinks build + semantics work per item.

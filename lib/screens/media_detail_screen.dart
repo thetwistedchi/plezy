@@ -4265,6 +4265,10 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     if (lineMetadata.durationMs != null) {
       parts.add(MetadataLineText(formatDurationTextual(lineMetadata.durationMs!), dropPriority: 1));
     }
+    // Fork: the title's genres on the line too (up to three), before the
+    // ratings give way.
+    final genres = (metadata.genres ?? const <String>[]).take(3).toList();
+    if (genres.isNotEmpty) parts.add(MetadataLineText(genres.join(' / '), dropPriority: 3));
     final episodeRatings = focusedEpisode == null
         ? const <MediaRatingSource>[]
         : mediaRatingsFor(_withProbedRatings(focusedEpisode));

@@ -496,6 +496,25 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                                 if (v) unawaited(YouTubeWebView.backfillHistory());
                               },
                             ),
+                            if (_settings.syncHistory)
+                              FutureBuilder<List<(String, double)>>(
+                                future: _settings.historyBacklog(),
+                                builder: (context, snapshot) {
+                                  final count = snapshot.data?.length ?? 0;
+                                  return ListTile(
+                                    leading: AppIcon(Symbols.sync_rounded, color: mono.textMuted),
+                                    title: Text(YtStrings.historySyncNow),
+                                    subtitle: Text(YtStrings.historySyncNowSub(count)),
+                                    enabled: count > 0,
+                                    onTap: () async {
+                                      final started = await YouTubeWebView.backfillHistory(now: true);
+                                      if (!context.mounted || started == 0) return;
+                                      ScaffoldMessenger.maybeOf(context)
+                                          ?.showSnackBar(SnackBar(content: Text(YtStrings.historySyncStarted(started))));
+                                    },
+                                  );
+                                },
+                              ),
                             ListTile(
                               leading: AppIcon(Symbols.storage_rounded, color: mono.textMuted),
                               title: Text(YtStrings.cacheLimit),

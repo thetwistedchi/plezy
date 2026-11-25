@@ -140,18 +140,21 @@ class YouTubeWebView {
   /// Once per app run with the setting on: the videos watched in the app
   /// before (at least 30 seconds) go into the YouTube history too, one
   /// after another in the background.
-  static Future<void> backfillHistory() async {
-    if (!isSupported || _backfillStarted) return;
+  static Future<int> backfillHistory({bool now = false}) async {
+    if (!isSupported || (_backfillStarted && !now)) return 0;
     final settings = YouTubeSettings.instance;
     await settings.load();
-    if (!settings.syncHistory) return;
+    if (!settings.syncHistory) return 0;
     _backfillStarted = true;
     final backlog = await settings.historyBacklog();
-    if (backlog.isEmpty) return;
+    if (backlog.isEmpty) return 0;
+    // A visit that failed before may be tried again.
+    if (now) _historyDone.removeAll([for (final (id, _) in backlog) id]);
     appLogger.i('YouTube history: adding ${backlog.length} earlier videos in the background');
     for (final (id, position) in backlog) {
       addToHistory(id, position);
     }
+    return backlog.length;
   }
 
   /// Adds [videoId] to the signed-in account's YouTube history: YouTube does

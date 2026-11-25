@@ -439,7 +439,18 @@ class YouTubeSettings extends ChangeNotifier {
   Future<void> dismissResume(String videoId) async {
     await load();
     final list = [...dismissedResumes.where((id) => id != videoId), videoId];
-    await _prefs!.setStringList(_kResumeDismissed, list.length > 50 ? list.sublist(list.length - 50) : list);
+    await _prefs!.setStringList(_kResumeDismissed, list.length > 150 ? list.sublist(list.length - 150) : list);
+    notifyListeners();
+  }
+
+  /// Fork: closing the Resume card closes it for every unfinished video seen
+  /// so far, not only the one shown (the next one took its place). A video
+  /// played afterwards offers resuming again.
+  Future<void> dismissAllResumes() async {
+    await load();
+    final ids = <String>{...dismissedResumes, ...recentProgressIds.take(100), ?_lastVideo?['id']?.toString()};
+    final list = ids.toList();
+    await _prefs!.setStringList(_kResumeDismissed, list.length > 150 ? list.sublist(list.length - 150) : list);
     notifyListeners();
   }
 
@@ -475,6 +486,10 @@ class YouTubeSettings extends ChangeNotifier {
   /// video becomes watched.
   Future<void> saveProgress(String videoId, double position, double duration, {bool flush = false}) async {
     await load();
+    // Watched again: it may be offered for resuming again.
+    if (dismissedResumes.contains(videoId)) {
+      await _prefs!.setStringList(_kResumeDismissed, [...dismissedResumes.where((id) => id != videoId)]);
+    }
     final wasWatched = (progressFraction(videoId) ?? 0) >= 0.95;
     _progress.remove(videoId);
     if (duration > 0 && position >= duration * 0.95) {

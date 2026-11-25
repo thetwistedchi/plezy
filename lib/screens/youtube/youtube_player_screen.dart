@@ -1128,8 +1128,17 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   // ---- Keyboard ----
 
+  /// A text field (writing a comment, searching) has the focus: its keys
+  /// are text, not player shortcuts.
+  static bool get _typing {
+    final context = FocusManager.instance.primaryFocus?.context;
+    if (context == null) return false;
+    return context.widget is EditableText || context.findAncestorWidgetOfExactType<EditableText>() != null;
+  }
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+    if (_typing) return KeyEventResult.ignored;
     final character = event.character;
     final handled = _handleKey(
       character != null && character.length == 1 && character.trim().isNotEmpty

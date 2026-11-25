@@ -44,6 +44,9 @@ enum WatchedIndicatorSize {
 /// stamps watch state onto a poster/thumbnail. Callers that must react to
 /// [SettingsService.showWatchedIndicators] or [SettingsService.showUnwatchedCount]
 /// flipping wrap themselves in a [SettingsBuilder] on those prefs.
+const _watchedFill = Color(0xFFC8379B);
+const _watchedRim = Color(0xFFF07AC8);
+
 class WatchedIndicator extends StatelessWidget {
   final MediaItem item;
   final WatchedIndicatorSize size;
@@ -79,21 +82,24 @@ class WatchedIndicator extends StatelessWidget {
           Positioned(
             top: size.inset,
             right: size.inset,
+            // Fork: 10% larger than the other corner pills and filled with a
+            // vivid (not glaring) magenta, so it reads at a glance.
             child: Container(
-              width: size.pillHeight,
-              height: size.pillHeight,
+              width: size.pillHeight * 1.1,
+              height: size.pillHeight * 1.1,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: retro ? RetroPill.background : tokens(context).text,
-                border: retro ? Border.all(color: RetroPillTone.magenta.rim) : null,
+                color: retro ? _watchedFill : tokens(context).text,
+                border: retro ? Border.all(color: _watchedRim) : null,
                 shape: BoxShape.circle,
-                boxShadow: retro ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 4)],
               ),
               child: AppIcon(
                 Symbols.check_rounded,
                 fill: 1,
-                color: retro ? RetroPillTone.magenta.text : tokens(context).bg,
-                size: (size.pillHeight * 0.62).roundToDouble(),
+                weight: 700,
+                color: retro ? Colors.white : tokens(context).bg,
+                size: (size.pillHeight * 1.1 * 0.66).roundToDouble(),
               ),
             ),
           ),

@@ -233,6 +233,12 @@ class YtStrings {
     'YouTube does not record videos played here. With this on, after each video you watched for at least 30 seconds the app opens its YouTube page in the background with the signed-in player account, muted at the point where you stopped, for about 15 seconds. That adds it to your history and shows your progress on youtube.com. It uses a few MB of data per video, counts as one more view, may load an ad without YouTube Premium, and is not an official YouTube feature, so it can stop working when YouTube changes its pages. When switched on, the videos watched in the app before are added too, one after another in the background while the app runs (about 15 seconds and a few MB each). Needs "Sign in for the player".',
     'YouTube zeichnet hier abgespielte Videos nicht auf. Ist dies an, öffnet die App nach jedem Video, das du mindestens 30 Sekunden geschaut hast, dessen YouTube-Seite im Hintergrund mit dem angemeldeten Player-Konto, stumm an der Stelle, an der du aufgehört hast, für etwa 15 Sekunden. So landet es in deinem Verlauf und dein Fortschritt erscheint auf youtube.com. Das braucht ein paar MB Daten pro Video, zählt als ein weiterer Aufruf, kann ohne YouTube Premium Werbung laden und ist keine offizielle YouTube-Funktion, kann also aufhören zu funktionieren, wenn YouTube seine Seiten ändert. Beim Einschalten werden auch die zuvor in der App geschauten Videos hinzugefügt, nacheinander im Hintergrund, solange die App läuft (etwa 15 Sekunden und ein paar MB pro Video). Setzt „Für den Player anmelden" voraus.',
   );
+  static String get historySyncNow => _t('Sync watched videos now', 'Geschaute Videos jetzt abgleichen');
+  static String historySyncNowSub(int n) => n == 0
+      ? _t('Everything watched here is in the YouTube history.', 'Alles hier Geschaute ist im YouTube-Verlauf.')
+      : _t('$n videos are not in the YouTube history yet.', '$n Videos sind noch nicht im YouTube-Verlauf.');
+  static String historySyncStarted(int n) =>
+      _t('Adding $n videos to the YouTube history in the background…', '$n Videos werden im Hintergrund zum YouTube-Verlauf hinzugefügt…');
   static String get sleepTimer => _t('Sleep timer', 'Sleep-Timer');
   static String get sleepOff => _t('Off', 'Aus');
   static String sleepMinutes(int m) => _t('$m minutes', '$m Minuten');

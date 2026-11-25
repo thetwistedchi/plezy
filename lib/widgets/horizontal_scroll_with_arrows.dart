@@ -14,11 +14,21 @@ class HorizontalScrollWithArrows extends StatefulWidget {
   final double scrollAmount;
   final ScrollController? controller;
 
+  /// Fork: where the posters sit in the row (from its top) and their size;
+  /// the scroll bars then cover the first and last poster's height and at
+  /// most a quarter of a poster's width. Without these, round arrows show.
+  final double? posterTop;
+  final double? posterHeight;
+  final double? posterWidth;
+
   const HorizontalScrollWithArrows({
     super.key,
     required this.builder,
     this.scrollAmount = 0.8, // Scroll by 80% of viewport width by default
     this.controller,
+    this.posterTop,
+    this.posterHeight,
+    this.posterWidth,
   });
 
   @override
@@ -116,6 +126,28 @@ class _HorizontalScrollWithArrowsState extends State<HorizontalScrollWithArrows>
     required VoidCallback onPressed,
     required bool canScroll,
   }) {
+    final height = widget.posterHeight;
+    if (height != null) {
+      // A translucent bar along the row's edge, as tall as the posters.
+      final width = ((widget.posterWidth ?? 160) / 4).clamp(24.0, 44.0);
+      final left = position >= 0;
+      return Positioned(
+        left: left ? 0 : null,
+        right: left ? null : 0,
+        top: widget.posterTop ?? 0,
+        height: height,
+        width: width,
+        child: AnimatedOpacity(
+          opacity: (_isHovering && canScroll) ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: IgnorePointer(
+            ignoring: !(_isHovering && canScroll),
+            child: _ScrollBar(icon: icon, onPressed: onPressed, leftEdge: left),
+          ),
+        ),
+      );
+    }
     return Positioned(
       left: position < 0 ? null : position,
       right: position < 0 ? -position : null,
@@ -208,6 +240,47 @@ class _NavigationArrowState extends State<_NavigationArrow> {
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, spreadRadius: 0)],
           ),
           child: AppIcon(widget.icon, fill: 1, color: Colors.white, size: 32),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Fork: the row's scroll control as a translucent bar along its edge.
+class _ScrollBar extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool leftEdge;
+
+  const _ScrollBar({required this.icon, required this.onPressed, required this.leftEdge});
+
+  @override
+  State<_ScrollBar> createState() => _ScrollBarState();
+}
+
+class _ScrollBarState extends State<_ScrollBar> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = Radius.circular(tokens(context).radiusSm);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: _hover ? 0.62 : 0.42),
+            borderRadius: widget.leftEdge
+                ? BorderRadius.horizontal(right: radius)
+                : BorderRadius.horizontal(left: radius),
+          ),
+          alignment: Alignment.center,
+          child: AppIcon(widget.icon, fill: 1, color: Colors.white.withValues(alpha: _hover ? 1 : 0.85), size: 28),
         ),
       ),
     );

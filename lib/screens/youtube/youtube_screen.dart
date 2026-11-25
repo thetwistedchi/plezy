@@ -356,12 +356,21 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
           else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 360,
-                  mainAxisSpacing: 28,
-                  crossAxisSpacing: 24,
-                  childAspectRatio: 1.05,
+              // Fork: each row as tall as its cards need (thumbnail plus
+              // title lines), not a fixed ratio that left a gap under them.
+              sliver: SliverLayoutBuilder(
+                builder: (context, constraints) {
+                  const spacing = 24.0;
+                  final width = constraints.crossAxisExtent;
+                  final columns = ((width + spacing) / (360 + spacing)).ceil().clamp(1, 12);
+                  final cardWidth = (width - spacing * (columns - 1)) / columns;
+                  final textScale = MediaQuery.textScalerOf(context).scale(1);
+                  return SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: spacing,
+                  mainAxisExtent: cardWidth * 9 / 16 + (_sort == YouTubeSort.relevant ? 104 : 86) * textScale,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, i) => _VideoCard(
@@ -377,6 +386,8 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                   ),
                   childCount: videos.length,
                 ),
+                  );
+                },
               ),
             ),
         ],
@@ -1078,7 +1089,7 @@ class _ResumeCard extends StatelessWidget {
               ),
               IconButton(
                 tooltip: YtStrings.dismiss,
-                onPressed: () => unawaited(YouTubeSettings.instance.dismissResume(video.id)),
+                onPressed: () => unawaited(YouTubeSettings.instance.dismissAllResumes()),
                 icon: const AppIcon(Symbols.close_rounded, size: 20),
               ),
             ],
