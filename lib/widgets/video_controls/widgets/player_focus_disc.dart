@@ -64,7 +64,9 @@ class PlayerFocusDisc extends StatelessWidget {
           children: [
             IgnorePointer(
               child: AnimatedContainer(
-                duration: FocusTheme.getAnimationDuration(context),
+                // Fades in, but disappears at once when focus moves on, so the
+                // old ring does not linger next to the new one.
+                duration: showFocus ? FocusTheme.getAnimationDuration(context) : Duration.zero,
                 curve: Curves.easeOutCubic,
                 width: ring,
                 height: ring,
@@ -88,7 +90,7 @@ class PlayerFocusDisc extends StatelessWidget {
         );
       }
       return AnimatedContainer(
-        duration: FocusTheme.getAnimationDuration(context),
+        duration: showFocus ? FocusTheme.getAnimationDuration(context) : Duration.zero,
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           shape: borderRadius == null ? BoxShape.circle : BoxShape.rectangle,
