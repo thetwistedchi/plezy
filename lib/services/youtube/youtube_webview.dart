@@ -629,7 +629,12 @@ class YouTubeWebView {
   // YouTube logo stays.
   var css = '.ytp-pause-overlay,.ytp-pause-overlay-container,.ytp-endscreen-content,.ytp-ce-element,' +
     '.ytp-chrome-top,.ytp-gradient-top,.ytp-show-cards-title,.ytp-cards-teaser,.ytp-cards-button,' +
-    '.ytp-suggested-action,.ytp-paid-content-overlay{display:none!important}';
+    '.ytp-suggested-action,.ytp-paid-content-overlay,' +
+    // Newer embed builds draw the title bar (channel avatar, title) with
+    // these instead of .ytp-chrome-top.
+    '.ytp-title,.ytp-title-channel,.ytp-title-channel-logo,.ytp-title-expanded-overlay,.ytp-chrome-top-buttons,' +
+    '.ytp-overlay-top-left,.ytp-overlay-top-right,.ytp-impression-link,.ytPlayerOverlayVideoDetailsRendererHost' +
+    '{display:none!important}';
   function addStyle(){
     if (document.getElementById('plezy-style')) return;
     var s = document.createElement('style');
