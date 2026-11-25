@@ -33,6 +33,7 @@ class MultiServerProvider extends ChangeNotifier with DisposableChangeNotifierMi
 
   /// Whether any connected server has Live TV / DVR
   bool _hasLiveTv = false;
+  Timer? _liveTvDebounce;
   bool get hasLiveTv => _hasLiveTv;
 
   /// Info about servers with DVR capability
@@ -172,7 +173,12 @@ class MultiServerProvider extends ChangeNotifier with DisposableChangeNotifierMi
       // through another client or session than the last check probed: an
       // in-place profile switch leaves the online set unchanged.
       if (hasNewServer || currentOnline.any(_liveTvProbeOutdated)) {
-        checkLiveTvAvailability();
+        // Fork: servers come online one after another at startup; one check
+        // after they settle instead of a full round per server.
+        _liveTvDebounce?.cancel();
+        _liveTvDebounce = Timer(const Duration(milliseconds: 600), () {
+          if (!isDisposed) unawaited(checkLiveTvAvailability());
+        });
       }
     });
   }
@@ -371,6 +377,7 @@ class MultiServerProvider extends ChangeNotifier with DisposableChangeNotifierMi
   @override
   void dispose() {
     ++_liveTvCheckGeneration;
+    _liveTvDebounce?.cancel();
     _statusSubscription?.cancel();
     super.dispose();
   }

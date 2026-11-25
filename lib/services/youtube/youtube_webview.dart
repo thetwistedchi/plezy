@@ -318,18 +318,22 @@ class YouTubeWebView {
     if (before && (before === 'TOOLBAR_LIKE_STATE_LIKED') === wantLike) {
       return JSON.stringify({ r: wantLike ? 'liked' : 'unliked', via: 'already', before: before });
     }
+    let surfacePayload = null;
     if (surfaceKey) {
       walk(data, (o) => {
-        if (action || o.entityKey !== surfaceKey || !o.payload) return;
-        walk(o.payload, (x, path) => {
-          const ep = x.performCommentActionEndpoint;
-          if (action || !ep || !ep.action) return;
-          const p = path.join('/').toLowerCase();
-          if (p.includes('dislike')) return;
-          if (p.includes('unlikecommand') === wantLike) return;
-          action = ep.action;
-          via = 'entity:' + p;
-        }, []);
+        if (surfacePayload || o.entityKey !== surfaceKey || !o.payload) return;
+        surfacePayload = o.payload;
+      }, []);
+    }
+    if (surfacePayload) {
+      walk(surfacePayload, (x, path) => {
+        const ep = x.performCommentActionEndpoint;
+        if (action || !ep || !ep.action) return;
+        const p = path.join('/').toLowerCase();
+        if (!p.includes('like') || p.includes('dislike')) return;
+        if (p.includes('unlike') === wantLike) return;
+        action = ep.action;
+        via = 'entity:' + p;
       }, []);
     }
     // Older responses (and a fallback): the action token that names the comment.
@@ -337,15 +341,21 @@ class YouTubeWebView {
       const ep = o.performCommentActionEndpoint;
       if (action || !ep || !ep.action) return;
       const p = path.join('/').toLowerCase();
-      if (p.includes('dislike')) return;
-      const isUnlike = p.includes('unlikecommand') || p.includes('toggledserviceendpoint');
+      // Only like buttons: the same token kind also translates or reports.
+      if (!(p.includes('like') || p.includes('toggle')) || p.includes('dislike')) return;
+      const isUnlike = p.includes('unlike') || p.includes('toggledserviceendpoint');
       if (isUnlike === wantLike) return;
       if (!decode(ep.action).includes(commentId)) return;
       action = ep.action;
       via = 'token:' + p;
     }, []);
     if (!action) {
-      return JSON.stringify({ r: 'noaction', surfaceKey: !!surfaceKey, stateKey: !!stateKey });
+      return JSON.stringify({
+        r: 'noaction',
+        loggedIn: cfg.get('LOGGED_IN'),
+        surfaceKey: !!surfaceKey,
+        surface: surfacePayload ? JSON.stringify(surfacePayload).slice(0, 1500) : null,
+      });
     }
     const res = await post('comment/perform_comment_action', { actions: [action] });
     const status = res && res.actionResults && res.actionResults[0] ? res.actionResults[0].status : null;
