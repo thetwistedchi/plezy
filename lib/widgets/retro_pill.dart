@@ -103,9 +103,7 @@ class RetroPill extends StatelessWidget {
       ),
     );
   }
-}
 
-extension on RetroPill {
   /// Retrowave: a neon sign. Dark body, a coloured tube with a pale core as
   /// the rim, text in the core colour, and an even glow except on TV.
   Widget _neon(BuildContext context) {
