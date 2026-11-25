@@ -69,10 +69,8 @@ import '../utils/download_version_utils.dart';
 import '../utils/download_utils.dart';
 import '../services/settings_service.dart';
 import '../services/retrowave/synchronkartei.dart';
-import '../media/media_stream.dart';
-import '../utils/language_codes.dart';
-import '../mpv/models.dart' show AudioTrack;
-import '../services/track_selection_service.dart' show carriedAudioTrackId;
+import '../services/playback_subtitle_resolver.dart';
+import '../mpv/mpv.dart' show AudioTrack, SubtitleTrack;
 import '../services/watch_actions.dart';
 import '../widgets/settings_builder.dart';
 import '../utils/layout_constants.dart';
@@ -467,10 +465,12 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   /// Fork: German voice actors from the Synchronkartei, when enabled.
   DubCast? _dubCast;
   bool _dubCastRequested = false;
+  bool _dubCastLoading = false;
 
-  /// Fork: audio language picked on the details page (key from
-  /// [_audioLanguages]); null until the user picks one.
-  String? _pickedAudioLanguage;
+  /// Fork: audio and subtitle rows picked on the details page, by the
+  /// probed target's global key. A subtitle of -1 means off.
+  final Map<String, int> _pickedAudioIds = {};
+  final Map<String, int> _pickedSubtitleIds = {};
   Map<String, TitleLink> _fetchedTitleLinks = const {};
 
   // Inline season tabs
@@ -974,8 +974,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       title: _metadata.title,
       year: _metadata.year,
     );
-    if (!_canUseDetail || cast == null) return;
+    if (!_canUseDetail) return;
     setState(() {
+      _dubCastLoading = false;
       _dubCast = cast;
       _tvDetailActorItemsCache = null;
     });
@@ -988,78 +989,14 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     return n.startsWith('deutsch') || n.startsWith('german');
   }
 
-  /// Fork: the title's audio languages, one entry per language, from the
-  /// first version (for shows: the episode Play would start).
-  List<({String key, String label, String? code, String? title, bool selected})> _audioLanguages() {
-    final item = _metadata.isShow || _metadata.isSeason ? _showPlayEpisode() : (_fullMetadata ?? _metadata);
-    final streams = item?.mediaVersions?.firstOrNull?.parts.firstOrNull?.streams ?? const <MediaStream>[];
-    final result = <({String key, String label, String? code, String? title, bool selected})>[];
-    final seen = <String>{};
-    for (final stream in streams) {
-      if (stream.kind != MediaStreamKind.audio) continue;
-      final code = stream.languageCode ?? stream.language;
-      final key = (code ?? stream.displayTitle ?? stream.id).toLowerCase();
-      if (!seen.add(key)) continue;
-      final label = stream.language ?? stream.displayTitle ?? stream.title ?? code ?? '?';
-      result.add((
-        key: key,
-        label: label,
-        code: stream.languageCode,
-        title: stream.title,
-        selected: stream.selected || stream.isDefault,
-      ));
-    }
-    return result;
-  }
-
-  /// The language Play will use: the picked one, else the file's selected or
-  /// default track.
-  ({String key, String label, String? code, String? title, bool selected})? _currentAudioLanguage() {
-    final languages = _audioLanguages();
-    if (languages.isEmpty) return null;
-    return languages.where((l) => l.key == _pickedAudioLanguage).firstOrNull ??
-        languages.where((l) => l.selected).firstOrNull ??
-        languages.first;
-  }
-
-  /// Audio intent handed to the player when the user picked a language here.
-  AudioTrack? _pickedAudioTrack() {
-    if (_pickedAudioLanguage == null) return null;
-    final current = _currentAudioLanguage();
-    if (current == null) return null;
-    return AudioTrack(id: carriedAudioTrackId, language: current.code ?? current.label, title: current.title);
-  }
-
-  /// German voices show when German audio is selected; without track info,
-  /// when the app is in German.
+  /// German voices show while the audio track Play will use is German.
   bool get _wantsGermanVoices {
     if (!SettingsService.instance.read(SettingsService.germanVoiceActors)) return false;
-    final current = _currentAudioLanguage();
-    if (current == null) return RetroStrings.isGerman;
-    return _isGermanLanguage(current.code, current.label);
-  }
-
-  Future<void> _pickAudioLanguage(BuildContext context) async {
-    final languages = _audioLanguages();
-    if (languages.isEmpty) return;
-    final current = _currentAudioLanguage();
-    final picked = await showOptionPickerDialog<String>(
-      context,
-      title: RetroStrings.audioLanguage,
-      options: [
-        for (final l in languages)
-          (
-            icon: l.key == current?.key ? Symbols.check_rounded : null,
-            label: l.title != null && l.title != l.label ? '${l.label} (${l.title})' : l.label,
-            value: l.key,
-          ),
-      ],
-    );
-    if (picked == null || !_canUseDetail) return;
-    setState(() {
-      _pickedAudioLanguage = picked;
-      _tvDetailActorItemsCache = null;
-    });
+    final audio = _currentAudioRow(_metadata);
+    if (audio == null) return RetroStrings.isGerman;
+    return _isGermanLanguage(audio.languageCode, audio.language) ||
+        _isGermanLanguage(null, audio.title) ||
+        _isGermanLanguage(null, audio.displayTitle);
   }
 
   /// The Ratings & links row for [metadata]: server and tracker scores win,
@@ -3799,6 +3736,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                           child: Column(
                             crossAxisAlignment: .start,
                             children: [
+                              // Fork: audio and subtitle pickers under Play.
+                              if (!isTv && !widget.isOffline) _buildTrackPickers(context, metadata),
+
                               // Ratings & links
                               if (!isTv && _titleLinksFor(metadata).isNotEmpty) ...[
                                 Text(t.discover.ratingsAndLinks, style: sectionTitleStyle),
@@ -3886,7 +3826,21 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
 
                               // Cast
                               if (metadata.roles != null && metadata.roles!.isNotEmpty) ...[
-                                Text(key: _castSectionKey, t.discover.cast, style: sectionTitleStyle),
+                                Row(
+                                  key: _castSectionKey,
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(t.discover.cast, style: sectionTitleStyle),
+                                    const SizedBox(width: 12),
+                                    Flexible(
+                                      child: ValueListenableBuilder<int>(
+                                        valueListenable: _playbackStatusRevision,
+                                        builder: (context, _, _) => _buildDubCastStatus(context),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                                 const SizedBox(height: 12),
                                 _buildCastSection(metadata),
                                 SizedBox(height: isTv ? 24 : 12),
@@ -4712,12 +4666,36 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   // every cast card with them.
   (MediaItem, List<MediaItem>)? _tvDetailActorItemsCache;
 
+  /// Fork: a note beside the Cast title while German audio is selected:
+  /// searching, where the voices come from, or that none were found.
+  Widget _buildDubCastStatus(BuildContext context) {
+    if (!_wantsGermanVoices) return const SizedBox.shrink();
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
+    final cast = _dubCast;
+    final String text;
+    if (_dubCastLoading || (!_dubCastRequested && _externalIds != null)) {
+      text = RetroStrings.germanVoicesLoading;
+    } else if (_externalIds == null) {
+      return const SizedBox.shrink();
+    } else if (cast == null) {
+      text = RetroStrings.germanVoicesNone;
+    } else {
+      final source = cast.page.host.contains('wikipedia') ? 'Wikipedia' : 'Deutsche Synchronkartei';
+      return InkWell(
+        onTap: () => unawaited(launchUrl(cast.page, mode: LaunchMode.externalApplication)),
+        child: Text(RetroStrings.germanVoicesFrom(source), style: style?.copyWith(decoration: TextDecoration.underline)),
+      );
+    }
+    return Text(text, style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
+  }
+
   /// Fork: starts the Synchronkartei lookup the first time German voices
   /// are wanted and the title's ids are known.
   void _maybeRequestDubCast() {
     final ids = _externalIds;
     if (_dubCastRequested || ids == null || !_wantsGermanVoices) return;
     _dubCastRequested = true;
+    _dubCastLoading = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_canUseDetail) unawaited(_loadDubCast(ids));
     });
@@ -5216,6 +5194,14 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   }
 
   Widget _buildCastSectionContent(MediaItem metadata) {
+    // Rebuilt when the probed tracks arrive: the voices follow the audio track.
+    return ValueListenableBuilder<int>(
+      valueListenable: _playbackStatusRevision,
+      builder: (context, _, _) => _buildCastStrip(metadata),
+    );
+  }
+
+  Widget _buildCastStrip(MediaItem metadata) {
     final roles = metadata.roles!;
     _maybeRequestDubCast();
     return CastMemberStrip(

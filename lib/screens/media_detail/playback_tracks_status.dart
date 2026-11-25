@@ -231,3 +231,192 @@ extension _MediaDetailPlaybackTracksStatus on _MediaDetailScreenState {
     );
   }
 }
+
+/// Fork: audio and subtitle pickers under the hero. Built from the same
+/// probed source as the status line; the picks are handed to the player when
+/// Play starts this target.
+extension _MediaDetailTrackPickers on _MediaDetailScreenState {
+  ({String key, MediaItem item, MediaSourceInfo source})? _pickerSource(MediaItem metadata) {
+    final target = _playbackTargetItem(metadata);
+    if (target == null) return null;
+    final probed = _playbackSources[target.globalKey];
+    final source = probed?.source;
+    if (probed == null || source == null) return null;
+    return (key: target.globalKey, item: probed.item, source: source);
+  }
+
+  PlaybackTrackPreview? _pickerPreview(({String key, MediaItem item, MediaSourceInfo source}) entry) =>
+      previewPlaybackTracks(
+        entry.item,
+        entry.source,
+        profile: context.read<AccountPreferencesController?>()?.activePreferences,
+      );
+
+  /// The audio row Play will use: the picked one, else the ladder's choice.
+  MediaAudioTrack? _currentAudioRow(MediaItem metadata) {
+    final entry = _pickerSource(metadata);
+    if (entry == null) return null;
+    final picked = _pickedAudioIds[entry.key];
+    if (picked != null) {
+      final row = entry.source.audioTracks.where((track) => track.id == picked).firstOrNull;
+      if (row != null) return row;
+    }
+    return _pickerPreview(entry)?.audio;
+  }
+
+  AudioTrack? _pickedAudioTrack(MediaItem metadata) {
+    final entry = _pickerSource(metadata);
+    if (entry == null) return null;
+    final picked = _pickedAudioIds[entry.key];
+    final row = picked == null ? null : entry.source.audioTracks.where((track) => track.id == picked).firstOrNull;
+    return row == null ? null : PlaybackSubtitleResolver.audioTrackForSource(row);
+  }
+
+  SubtitleTrack? _pickedSubtitleTrack(MediaItem metadata) {
+    final entry = _pickerSource(metadata);
+    if (entry == null) return null;
+    final picked = _pickedSubtitleIds[entry.key];
+    if (picked == null) return null;
+    if (picked < 0) return SubtitleTrack.off;
+    final row = entry.source.subtitleTracks.where((track) => track.id == picked).firstOrNull;
+    return row == null ? null : PlaybackSubtitleResolver.subtitleTrackForSource(row);
+  }
+
+  Widget _buildTrackPickers(BuildContext context, MediaItem metadata) {
+    return ValueListenableBuilder<int>(
+      valueListenable: _playbackStatusRevision,
+      builder: (context, _, _) {
+        final target = _playbackTargetItem(metadata);
+        if (target != null && !_playbackSources.containsKey(target.globalKey)) {
+          _scheduleTargetProbe(context, target);
+        }
+        final entry = _pickerSource(metadata);
+        if (entry == null) return const SizedBox.shrink();
+        final source = entry.source;
+        if (source.audioTracks.isEmpty && source.subtitleTracks.isEmpty) return const SizedBox.shrink();
+        final preview = _pickerPreview(entry);
+        final audio = _currentAudioRow(metadata);
+        final pickedSub = _pickedSubtitleIds[entry.key];
+        final MediaSubtitleTrack? subtitle = pickedSub == null
+            ? preview?.subtitle
+            : pickedSub < 0
+            ? null
+            : source.subtitleTracks.where((track) => track.id == pickedSub).firstOrNull;
+
+        void pickAudio(int id) => setState(() {
+          _pickedAudioIds[entry.key] = id;
+          _tvDetailActorItemsCache = null;
+        });
+        void pickSubtitle(int id) => setState(() => _pickedSubtitleIds[entry.key] = id);
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              if (source.audioTracks.isNotEmpty)
+                _TrackPickerButton<int>(
+                  icon: Symbols.volume_up_rounded,
+                  tooltip: RetroStrings.audioTrack,
+                  label: audio?.label.joined ?? RetroStrings.audioTrack,
+                  selected: audio?.id,
+                  options: [
+                    for (final track in source.audioTracks)
+                      (value: track.id, label: track.label.primary, detail: track.label.secondary),
+                  ],
+                  onSelected: pickAudio,
+                ),
+              if (source.subtitleTracks.isNotEmpty)
+                _TrackPickerButton<int>(
+                  icon: Symbols.subtitles_rounded,
+                  tooltip: RetroStrings.subtitleTrack,
+                  label: subtitle?.label.joined ?? t.common.off,
+                  selected: subtitle?.id ?? -1,
+                  options: [
+                    (value: -1, label: t.common.off, detail: null),
+                    for (final track in source.subtitleTracks)
+                      (value: track.id, label: track.label.primary, detail: track.label.secondary),
+                  ],
+                  onSelected: pickSubtitle,
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A pill showing the current track; opens a menu of every track with its
+/// details.
+class _TrackPickerButton<T> extends StatelessWidget {
+  const _TrackPickerButton({
+    required this.icon,
+    required this.tooltip,
+    required this.label,
+    required this.selected,
+    required this.options,
+    required this.onSelected,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final String label;
+  final T? selected;
+  final List<({T value, String label, String? detail})> options;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return PopupMenuButton<T>(
+      tooltip: tooltip,
+      initialValue: selected,
+      onSelected: onSelected,
+      position: PopupMenuPosition.under,
+      constraints: const BoxConstraints(minWidth: 260, maxWidth: 520),
+      itemBuilder: (context) => [
+        for (final o in options)
+          CheckedPopupMenuItem<T>(
+            value: o.value,
+            checked: o.value == selected,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(o.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                if (o.detail != null)
+                  Text(o.detail!, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+      ],
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 420),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: scheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppIcon(icon, fill: 1, size: 18, color: scheme.onSecondaryContainer),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: scheme.onSecondaryContainer, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(width: 4),
+            AppIcon(Symbols.arrow_drop_down_rounded, size: 20, color: scheme.onSecondaryContainer),
+          ],
+        ),
+      ),
+    );
+  }
+}

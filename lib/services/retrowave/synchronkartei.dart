@@ -42,7 +42,7 @@ class Synchronkartei {
   Synchronkartei._();
   static final instance = Synchronkartei._();
 
-  static const _prefsKey = 'retrowave_synchronkartei_v2';
+  static const _prefsKey = 'retrowave_synchronkartei_v3';
   static const _maxEntries = 400;
   static const _hitTtl = Duration(days: 30);
   static const _missTtl = Duration(days: 3);
@@ -95,27 +95,41 @@ class Synchronkartei {
     }
     appLogger.i('Synchronkartei: looking up $key');
     DubCast? cast;
+    var failed = false;
+    ({Uri? synchronkartei, String? dewiki}) links;
     try {
-      final links = await _linksFor(ids, isShow);
-      final page = links.synchronkartei;
-      if (page != null) {
-        cast = await _readPage(page);
-        appLogger.i('Synchronkartei: $page gave ${cast?.voices.length ?? 0} voices');
-      } else {
-        appLogger.i('Synchronkartei: Wikidata has no Synchronkartei link for $key');
-      }
-      final article = links.dewiki;
-      if (cast == null && article != null) {
-        cast = await _readWikipedia(article);
-        appLogger.i('Synchronkartei: German Wikipedia "$article" gave ${cast?.voices.length ?? 0} voices');
-      } else if (cast == null) {
-        appLogger.i('Synchronkartei: no German Wikipedia article for $key');
-      }
+      links = await _linksFor(ids, isShow);
     } catch (e) {
-      // Offline or a site change: try again next time, keep the old entry.
-      appLogger.w('Synchronkartei lookup failed for $key', error: e);
+      // Offline: try again next time, keep the old entry.
+      appLogger.w('Synchronkartei: Wikidata lookup failed for $key', error: e);
       return cached is Map ? DubCast.fromJson(cached['cast']) : null;
     }
+    final page = links.synchronkartei;
+    if (page != null) {
+      try {
+        cast = await _readPage(page);
+        appLogger.i('Synchronkartei: $page gave ${cast?.voices.length ?? 0} voices');
+      } catch (e) {
+        failed = true;
+        appLogger.w('Synchronkartei: reading $page failed', error: e);
+      }
+    } else {
+      appLogger.i('Synchronkartei: Wikidata has no Synchronkartei link for $key');
+    }
+    final article = links.dewiki;
+    if (cast == null && article != null) {
+      try {
+        cast = await _readWikipedia(article);
+        appLogger.i('Synchronkartei: German Wikipedia "$article" gave ${cast?.voices.length ?? 0} voices');
+      } catch (e) {
+        failed = true;
+        appLogger.w('Synchronkartei: reading Wikipedia "$article" failed', error: e);
+      }
+    } else if (cast == null) {
+      appLogger.i('Synchronkartei: no German Wikipedia article for $key');
+    }
+    // A failed request is not remembered as "no voices".
+    if (cast == null && failed) return null;
     cache[key] = {'at': DateTime.now().millisecondsSinceEpoch, 'cast': ?cast?.toJson()};
     if (cache.length > _maxEntries) {
       final oldest = cache.entries.toList()
@@ -191,7 +205,17 @@ class Synchronkartei {
   /// entry of their own are shown in parentheses; those count too.
   Future<DubCast?> _readPage(Uri page) async {
     final response = await _client
-        .get(page, headers: {'User-Agent': _userAgent, 'Accept-Language': 'de'})
+        .get(
+          page,
+          headers: {
+            // The site answers plain HTTP clients differently than browsers.
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/130.0 Safari/537.36 PlezyRetrowave',
+            'Accept': 'text/html,application/xhtml+xml',
+            'Accept-Language': 'de-DE,de;q=0.9',
+          },
+        )
         .timeout(const Duration(seconds: 10));
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) throw Exception('Synchronkartei ${response.statusCode}');

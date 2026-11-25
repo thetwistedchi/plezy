@@ -116,7 +116,8 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
             isOffline: widget.isOffline,
             onRefresh: _refreshWatchState,
             isLaunchCurrent: () => _canUseDetail,
-            preferredAudioTrack: _pickedAudioTrack(),
+            preferredAudioTrack: _pickedAudioTrack(metadata),
+            preferredSubtitleTrack: _pickedSubtitleTrack(metadata),
           );
         } else {
           await _playFirstEpisode();
@@ -130,7 +131,8 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
             isOffline: widget.isOffline,
             onRefresh: _refreshWatchState,
             isLaunchCurrent: () => _canUseDetail,
-            preferredAudioTrack: _pickedAudioTrack(),
+            preferredAudioTrack: _pickedAudioTrack(metadata),
+            preferredSubtitleTrack: _pickedSubtitleTrack(metadata),
           );
         } else {
           await _playFirstEpisode();
@@ -144,7 +146,8 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
           isOffline: widget.isOffline,
           onRefresh: _refreshWatchState,
           isLaunchCurrent: () => _canUseDetail,
-          preferredAudioTrack: _pickedAudioTrack(),
+          preferredAudioTrack: _pickedAudioTrack(metadata),
+          preferredSubtitleTrack: _pickedSubtitleTrack(metadata),
         );
       }
     }
@@ -158,7 +161,8 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
         isOffline: widget.isOffline,
         initialPosition: Duration.zero,
         isLaunchCurrent: () => _canUseDetail,
-        preferredAudioTrack: _pickedAudioTrack(),
+        preferredAudioTrack: _pickedAudioTrack(metadata),
+        preferredSubtitleTrack: _pickedSubtitleTrack(metadata),
       );
       if (result == true && mounted) unawaited(_refreshWatchState());
     }
@@ -379,25 +383,6 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
             ),
           );
 
-    // Fork: audio language for Play (and the German voice cast).
-    final audioLanguages = widget.isOffline ? const <({String key, String label, String? code, String? title, bool selected})>[] : _audioLanguages();
-    final currentAudio = audioLanguages.length > 1 ? _currentAudioLanguage() : null;
-    final audioAction = currentAudio == null
-        ? null
-        : FocusableAction(
-            debugLabel: 'detail_audio_language',
-            onPressed: () => unawaited(_pickAudioLanguage(context)),
-            builder: (context, state) => iconActionButton(
-              state,
-              onPressed: () => unawaited(_pickAudioLanguage(context)),
-              icon: Text(
-                _audioBadge(currentAudio.code, currentAudio.label),
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: isTv ? 15 * tvScale : 14, height: 1),
-              ),
-              tooltip: '${RetroStrings.audioLanguage}: ${currentAudio.label}',
-            ),
-          );
-
     // TV: the details page has no Ratings & links row, so the comparison of
     // all scores (and their median) opens from the action row.
     final titleLinks = _titleLinksFor(metadata);
@@ -502,7 +487,6 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
       ?restartAction,
       ?versionAction,
       ?trailerAction,
-      ?audioAction,
       ?scoresAction,
       ?shuffleAction,
       ?downloadAction,
@@ -1000,9 +984,3 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
   }
 }
 
-/// Fork: two-letter badge for an audio language ("DE", "EN").
-String _audioBadge(String? code, String label) {
-  final short = code == null ? null : (LanguageCodes.getIso6391Code(code) ?? code);
-  final text = (short ?? label).trim();
-  return (text.length > 2 ? text.substring(0, 2) : text).toUpperCase();
-}

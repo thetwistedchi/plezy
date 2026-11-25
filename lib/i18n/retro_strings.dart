@@ -14,7 +14,11 @@ class RetroStrings {
   static String get remoteShortcuts => _t('Remote shortcuts', 'Tasten der Fernbedienung');
   static String get remoteShortcutsSubtitle => _t('What the TV remote\'s buttons do', 'Was die Tasten der TV-Fernbedienung tun');
 
-  static String get audioLanguage => _t('Audio language', 'Audiosprache');
+  static String get germanVoicesLoading => _t('Looking up German voices…', 'Deutsche Stimmen werden gesucht…');
+  static String get germanVoicesNone => _t('No German voices found', 'Keine deutschen Stimmen gefunden');
+  static String germanVoicesFrom(String source) => _t('German voices: $source', 'Deutsche Stimmen: $source');
+  static String get audioTrack => _t('Audio track', 'Tonspur');
+  static String get subtitleTrack => _t('Subtitles', 'Untertitel');
   static String get germanVoiceActors => _t('German voice actors', 'Deutsche Synchronsprecher');
   static String get germanVoiceActorsDescription => _t(
     'With German audio selected, show the German voice under each cast member (Deutsche Synchronkartei)',
