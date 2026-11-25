@@ -983,13 +983,13 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
     return key == null || !hidden.contains(key);
   }
 
-  List<MediaItem> _visibleItems(List<MediaItem> items) {
+  List<MediaItem> _withoutHiddenItems(List<MediaItem> items) {
     final hidden = _hiddenLibraries.hiddenLibraryKeys;
     if (hidden.isEmpty) return items;
     return items.where((item) => _isVisibleItem(item, hidden)).toList();
   }
 
-  List<MediaHub> _visibleHubs(List<MediaHub> hubs) {
+  List<MediaHub> _withoutHiddenHubs(List<MediaHub> hubs) {
     final hidden = _hiddenLibraries.hiddenLibraryKeys;
     if (hidden.isEmpty) return hubs;
     return [
@@ -1000,13 +1000,13 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
   }
 
   void _replaceOnDeck(List<MediaItem> onDeck, {required bool hasMore}) {
-    _onDeck = _visibleItems(onDeck);
+    _onDeck = _withoutHiddenItems(onDeck);
     _hasMoreContinueWatching = hasMore;
     ++_commitRevision;
   }
 
   void _replaceHubs(List<MediaHub> hubs) {
-    _hubs = _visibleHubs(hubs);
+    _hubs = _withoutHiddenHubs(hubs);
     ++_commitRevision;
   }
 
@@ -1126,8 +1126,8 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
       // Fork: newly hidden libraries drop out of the loaded rows; nothing to
       // fetch (at startup the server's hidden list often lands while the
       // first pass runs, which used to queue a second full pass).
-      _onDeck = _visibleItems(_onDeck);
-      _hubs = _visibleHubs(_hubs);
+      _onDeck = _withoutHiddenItems(_onDeck);
+      _hubs = _withoutHiddenHubs(_hubs);
       safeNotifyListeners();
       return;
     }
