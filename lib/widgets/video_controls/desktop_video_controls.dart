@@ -21,6 +21,7 @@ import '../../utils/platform_detector.dart';
 import '../../utils/formatters.dart';
 import '../../i18n/strings.g.dart';
 import 'sheets/video_settings_sheet.dart' show canShowPlayerFileInfo, showPlayerFileInfo;
+import '../../theme/retrowave_colors.dart';
 import '../../theme/player_style.dart';
 import '../../models/livetv_capture_buffer.dart';
 import 'models/track_controls_state.dart';
@@ -833,13 +834,15 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                     builder: (context, isPlaying) {
                       final style = PlayerStyle.of(context);
                       final fill = style.playButtonFill;
+                      final retroPlay = RetroColors.isActive(context);
                       final button = _buildFocusableButton(
                         focusNode: _playPauseFocusNode,
                         index: 3,
                         icon: isPlaying ? Symbols.pause_rounded : Symbols.play_arrow_rounded,
                         iconSize: 32,
                         compactFocusRing: false,
-                        color: fill == null ? Colors.white : (style.playButtonIcon ?? Colors.black),
+                        // Fork: retrowave draws the neon play glyph on a dark disc.
+                        color: fill == null || retroPlay ? Colors.white : (style.playButtonIcon ?? Colors.black),
                         onPressed: _canControl ? widget.onPlayPause : null,
                         semanticLabel: isPlaying ? t.videoControls.pauseButton : t.videoControls.playButton,
                       );
@@ -856,7 +859,13 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                           height: 38,
                           child: FittedBox(
                             child: DecoratedBox(
-                              decoration: BoxDecoration(color: fill, shape: BoxShape.circle),
+                              decoration: retroPlay
+                                  ? BoxDecoration(
+                                      color: const Color(0xE6140327),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: fill, width: 1.5),
+                                    )
+                                  : BoxDecoration(color: fill, shape: BoxShape.circle),
                               child: Padding(padding: const EdgeInsets.all(4), child: button),
                             ),
                           ),

@@ -1598,7 +1598,16 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
             child: const SizedBox(
               width: 48,
               height: 48,
-              child: Center(child: AppIcon(Symbols.share_rounded, fill: 1, color: Colors.white)),
+              child: Center(
+                child: AppIcon(
+                  Symbols.share_rounded,
+                  fill: 1,
+                  color: Colors.white,
+                  retro: true,
+                  retroSoft: true,
+                  retroGlow: false,
+                ),
+              ),
             ),
           ),
           if (_show('openOnYouTube'))
@@ -1843,6 +1852,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                       Symbols.closed_caption_rounded,
                       fill: 1,
                       color: _ccTracks.isEmpty ? Colors.white30 : (_ccCurrent != null ? accent : Colors.white),
+                      size: RetroColors.isActive(context) ? 29 : null,
                       retro: true,
                       retroSoft: _ccCurrent == null,
                       retroGlow: false,
@@ -1872,6 +1882,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                       Symbols.bedtime_rounded,
                       fill: 1,
                       color: _sleepAt != null || _sleepAfterVideo ? accent : Colors.white,
+                      size: RetroColors.isActive(context) ? 29 : null,
                       retro: true,
                       retroSoft: _sleepAt == null && !_sleepAfterVideo,
                       retroGlow: false,
@@ -1901,11 +1912,18 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                         ),
                       ),
                   ],
-                  child: const SizedBox(
+                  child: SizedBox(
                     width: 48,
                     height: 48,
                     child: Center(
-                      child: AppIcon(Symbols.list_rounded, color: Colors.white, retro: true, retroSoft: true, retroGlow: false),
+                      child: AppIcon(
+                        Symbols.list_rounded,
+                        size: RetroColors.isActive(context) ? 29 : null,
+                        color: Colors.white,
+                        retro: true,
+                        retroSoft: true,
+                        retroGlow: false,
+                      ),
                     ),
                   ),
                 ),
@@ -1972,6 +1990,7 @@ class _PlayerButton extends StatelessWidget {
       icon: AppIcon(
         icon,
         fill: 1,
+        size: RetroColors.isActive(context) ? 29 : null,
         color: onPressed == null ? Colors.white30 : (active ? accent : Colors.white),
         // Fork: the calm neon glyphs, the same as the in-app player.
         retro: true,
@@ -1999,12 +2018,15 @@ class _PlayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Fork: retrowave draws the neon play glyph on a dark disc, like the
+    // in-app player.
+    final retro = RetroColors.isActive(context);
     return Tooltip(
       message: tooltip,
       child: RepaintBoundary(
         child: Material(
-          color: fill,
-          shape: const CircleBorder(),
+          color: retro ? const Color(0xE6140327) : fill,
+          shape: retro ? CircleBorder(side: BorderSide(color: fill, width: 1.5)) : const CircleBorder(),
           elevation: 0,
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -2016,8 +2038,11 @@ class _PlayButton extends StatelessWidget {
                 child: AppIcon(
                   playing ? Symbols.pause_rounded : Symbols.play_arrow_rounded,
                   fill: 1,
-                  size: 20,
-                  color: iconColor,
+                  size: retro ? 24 : 20,
+                  color: retro ? Colors.white : iconColor,
+                  retro: true,
+                  retroSoft: true,
+                  retroGlow: false,
                 ),
               ),
             ),

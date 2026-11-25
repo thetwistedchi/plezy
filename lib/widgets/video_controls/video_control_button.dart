@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:plezy/widgets/app_icon.dart';
+import 'package:plezy/theme/retrowave_colors.dart';
 
 import '../../focus/focus_theme.dart';
 import '../../focus/focusable_wrapper.dart';
@@ -87,12 +88,14 @@ class VideoControlButton extends StatelessWidget {
 
     // Fork: retrowave draws the calm neon glyph unless a caller picked a
     // colour; an active toggle gets the full-strength tubes (no glow).
-    final retroGlyph = color == null;
+    final c = color;
+    final retroGlyph = c == null || (c.r == 1 && c.g == 1 && c.b == 1);
+    final retroSize = RetroColors.isActive(context) ? iconSize * 1.2 : iconSize;
     Widget iconFor(Color iconColor) => AppIcon(
       icon,
       fill: 1,
       color: iconColor,
-      size: iconSize,
+      size: retroGlyph ? retroSize : iconSize,
       retro: retroGlyph,
       retroSoft: !isActive,
       retroGlow: false,
@@ -101,7 +104,7 @@ class VideoControlButton extends StatelessWidget {
     Widget button(Color iconColor) => label == null
         ? IconButton(
             icon: iconFor(iconColor),
-            iconSize: iconSize,
+            iconSize: retroGlyph ? retroSize : iconSize,
             onPressed: onPressed,
             tooltip: tooltip,
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
