@@ -4,6 +4,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../models/download_models.dart';
 import '../utils/platform_detector.dart';
 import '../widgets/app_icon.dart';
+import '../theme/retrowave_colors.dart';
 
 /// Visual weight preset.
 ///
@@ -60,12 +61,12 @@ class DownloadStatusIcon extends StatelessWidget {
 
     switch (s) {
       case DownloadStatus.queued:
-        return AppIcon(Symbols.schedule_rounded, fill: 1, size: size, color: _tint(Colors.orange));
+        return AppIcon(Symbols.schedule_rounded, fill: 1, size: size, color: _tint(RetroColors.pick(context, retro: RetroColors.violet, other: Colors.orange)));
       case DownloadStatus.downloading:
         // No progress value — render a static "downloading" icon (callers
         // without per-item progress, e.g. the download tree view).
         if (progress == null) {
-          return AppIcon(Symbols.downloading_rounded, fill: 1, size: size, color: _tint(overrideColor ?? Colors.blue));
+          return AppIcon(Symbols.downloading_rounded, fill: 1, size: size, color: _tint(overrideColor ?? RetroColors.pick(context, retro: RetroColors.cyan, other: Colors.blue)));
         }
         final primary = overrideColor ?? Theme.of(context).colorScheme.primary;
         final tinted = _tint(primary);
@@ -93,7 +94,11 @@ class DownloadStatusIcon extends StatelessWidget {
           Symbols.pause_circle_outline_rounded,
           fill: 1,
           size: size,
-          color: _tint(variant == DownloadStatusIconVariant.muted ? Colors.amber : Colors.grey),
+          color: _tint(
+            variant == DownloadStatusIconVariant.muted
+                ? RetroColors.pick(context, retro: RetroColors.violet, other: Colors.amber)
+                : Colors.grey,
+          ),
         );
       case DownloadStatus.failed:
         return AppIcon(
@@ -111,10 +116,15 @@ class DownloadStatusIcon extends StatelessWidget {
               : Symbols.check_circle_rounded,
           fill: 1,
           size: size,
-          color: _tint(Colors.green),
+          color: _tint(RetroColors.pick(context, retro: RetroColors.cyan, other: Colors.green)),
         );
       case DownloadStatus.partial:
-        return AppIcon(Symbols.downloading_rounded, fill: 1, size: size, color: _tint(Colors.orange));
+        return AppIcon(
+          Symbols.downloading_rounded,
+          fill: 1,
+          size: size,
+          color: _tint(RetroColors.pick(context, retro: RetroColors.pink, other: Colors.orange)),
+        );
     }
   }
 }

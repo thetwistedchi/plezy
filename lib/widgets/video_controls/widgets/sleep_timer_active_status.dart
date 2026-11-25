@@ -5,6 +5,7 @@ import '../../../focus/focusable_button.dart';
 import '../../../services/sleep_timer_service.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../utils/formatters.dart';
+import '../../../theme/retrowave_colors.dart';
 
 /// Widget displaying active sleep timer status with extend/cancel actions.
 ///
@@ -35,13 +36,17 @@ class SleepTimerActiveStatus extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.amber.withValues(alpha: 0.1),
+      color: RetroColors.pick(context, retro: RetroColors.violet, other: Colors.amber).withValues(alpha: 0.1),
       child: Column(
         mainAxisSize: .min,
         children: [
           Text(
             t.videoControls.timerActive,
-            style: const TextStyle(color: Colors.amber, fontSize: 16, fontWeight: .bold),
+            style: TextStyle(
+              color: RetroColors.pick(context, retro: RetroColors.pink, other: Colors.amber),
+              fontSize: 16,
+              fontWeight: .bold,
+            ),
           ),
           const SizedBox(height: 8),
           Text(

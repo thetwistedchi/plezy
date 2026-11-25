@@ -26,6 +26,7 @@ import '../widgets/media_context_menu.dart';
 import '../widgets/placeholder_container.dart';
 import '../theme/mono_tokens.dart';
 import '../media/media_server_client.dart';
+import '../theme/retrowave_colors.dart';
 
 /// Episode card widget with D-pad long-press support
 class EpisodeCard extends StatefulWidget {
@@ -90,9 +91,14 @@ class _EpisodeCardState extends State<EpisodeCard> with ContextMenuTapMixin<Epis
         Row(
           mainAxisSize: .min,
           children: [
-            const Padding(
-              padding: .only(top: 2),
-              child: AppIcon(Symbols.star_rounded, size: 12, fill: 1, color: Colors.amber),
+            Padding(
+              padding: const .only(top: 2),
+              child: AppIcon(
+                Symbols.star_rounded,
+                size: 12,
+                fill: 1,
+                color: RetroColors.pick(context, retro: RetroColors.pink, other: Colors.amber),
+              ),
             ),
             const SizedBox(width: 2),
             Text(

@@ -11,6 +11,14 @@ abstract final class RetroColors {
 
   /// "Online / connected" status colour: the cyan glow on retrowave, plain
   /// green elsewhere.
+  /// Fork: [retro] on the retrowave theme, else [other]. For status colours
+  /// (amber, orange, teal) that would clash with the neon palette.
+  static Color pick(BuildContext context, {required Color retro, required Color other}) =>
+      isActive(context) ? retro : other;
+
+  /// A lighter magenta for icons and text: [magenta] is too dark on night.
+  static const pink = Color(0xFFEC4FC4);
+
   static Color online(BuildContext context) => isActive(context) ? cyan : Colors.green;
 
   /// Status dot in [online] colour; glows softly on retrowave.

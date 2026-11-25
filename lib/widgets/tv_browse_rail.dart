@@ -29,6 +29,7 @@ import '../utils/media_navigation_helper.dart';
 import '../utils/provider_extensions.dart';
 import 'animated_dim_scrim.dart';
 import 'app_icon.dart';
+import 'retro_pill.dart' show isRetrowave, retroHeadingColor, retroTitleColor;
 import 'card_inflation_budget.dart';
 import 'clickable_cursor.dart';
 import 'focus_builders.dart';
@@ -1553,10 +1554,13 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
     required double scale,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    final titleColor = isActive ? colorScheme.onSurface : colorScheme.onSurface.withValues(alpha: 0.54);
+    // Fork: retrowave rail titles match the desktop Home rows.
+    final retro = isRetrowave(context);
+    final titleBase = retro ? retroTitleColor : colorScheme.onSurface;
+    final titleColor = isActive ? titleBase : titleBase.withValues(alpha: 0.54);
     final iconColor = isActive ? colorScheme.onSurface : colorScheme.onSurface.withValues(alpha: 0.42);
     final showServerName = widget.showServerName && hub.serverName != null;
-    final serverColor = colorScheme.primary.withValues(alpha: isActive ? 0.7 : 0.4);
+    final serverColor = (retro ? retroHeadingColor : colorScheme.primary).withValues(alpha: isActive ? 0.8 : 0.45);
     final serverStyle = Theme.of(
       context,
     ).textTheme.titleMedium?.copyWith(color: serverColor, fontSize: 15 * scale, height: 1, fontWeight: FontWeight.w700);
@@ -1568,7 +1572,13 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
           alignment: .centerLeft,
           child: Row(
             children: [
-              AppIcon(widget.iconForHub(hub, hubIndex), fill: 1, size: 20 * scale, color: iconColor),
+              AppIcon(
+                widget.iconForHub(hub, hubIndex),
+                fill: 1,
+                size: (retro ? 22 : 20) * scale,
+                color: iconColor,
+                retro: true,
+              ),
               SizedBox(width: 8 * scale),
               Expanded(
                 child: Row(

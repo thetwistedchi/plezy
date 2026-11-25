@@ -53,6 +53,7 @@ import '../services/ratings/title_links_service.dart';
 import '../utils/external_ids.dart';
 import '../widgets/fitted_metadata_line.dart';
 import '../i18n/retro_strings.dart';
+import '../widgets/retro_pill.dart' show isRetrowave, retroTitleColor;
 import '../i18n/strings.g.dart';
 import '../theme/mono_tokens.dart';
 import '../widgets/cycling_media_backdrop.dart';
@@ -123,6 +124,7 @@ import '../widgets/tv_spotlight_background.dart';
 import '../providers/account_preferences_controller.dart';
 import '../services/playback_track_preview.dart';
 import '../utils/error_message_utils.dart';
+import '../theme/retrowave_colors.dart';
 
 part 'media_detail/action_buttons.dart';
 part 'media_detail/playback_tracks_status.dart';
@@ -1617,7 +1619,11 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     final active = isNumeric ? hasRating : metadata.isFavorite == true;
 
     final iconData = isNumeric ? Symbols.star_rounded : Symbols.favorite_rounded;
-    final activeIconColor = isNumeric ? Colors.amber : Colors.redAccent;
+    final activeIconColor = RetroColors.pick(
+      context,
+      retro: RetroColors.pink,
+      other: isNumeric ? Colors.amber : Colors.redAccent,
+    );
     final label = _userRatingChipLabel(metadata);
 
     return ListenableBuilder(
@@ -3632,7 +3638,14 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     final isMobile = PlatformDetector.isMobile(context);
     final isTv = PlatformDetector.isTV();
     final theme = Theme.of(context);
-    final sectionTitleStyle = theme.textTheme.titleLarge?.copyWith(fontWeight: .bold, fontSize: isTv ? 28 : null);
+    final retroTitles = isRetrowave(context);
+    // Fork: retrowave section titles match the Home rows (soft glow, none on TV).
+    final sectionTitleStyle = theme.textTheme.titleLarge?.copyWith(
+      fontWeight: .bold,
+      fontSize: isTv ? 28 : null,
+      color: retroTitles ? retroTitleColor : null,
+      shadows: retroTitles && !isTv ? const [Shadow(color: Color(0x73FF2BD0), blurRadius: 10)] : null,
+    );
 
     // Show loading state while fetching full metadata
     if (_isLoadingMetadata) {
