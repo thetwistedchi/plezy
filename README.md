@@ -32,17 +32,22 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 ## What is different from Plezy
 
 **Look**
-- A **Retrowave** theme (night purple, violet, magenta and cyan) as the default, with AI-generated outrun-style icons and app icon. Plezy's other themes are still available.
+- A **Retrowave** theme (night purple, violet, magenta and cyan) as the default. Plezy's other themes are still available.
+- AI-generated **neon-sign icons** throughout the app (cyan tubes with magenta accents and a soft glow), neon poster badges, glowing section titles and a neon details page. On TVs the glow is left out to keep scrolling smooth.
 
 **Details and ratings**
 - A **Ratings & links** row on every movie and show (Letterboxd, Trakt, IMDb, Rotten Tomatoes, TMDB, Metacritic, MyAnimeList) and a **rating median** on posters.
 - Quality, HDR and audio language pills on posters, studio, producer and director on the details page, a larger **Play** button, and on desktop a poster preview on hover.
+- **Audio and subtitle pickers** below Play, with a description of each track.
+- **German voice actors** from the Deutsche Synchronkartei under the cast while German audio is selected (can be turned off).
 
 **Libraries and Home**
 - Quick filters, saved filter sets, **Surprise me**, a search box per library, a startup library, and **Hide watched** per Home row.
 
 **Player**
-- **Play from start** next to Resume, trailers in the player, audio, subtitles and zoom remembered per title, a 4K / HDR badge, cropping of black bars and a neon **Skip intro / credits** button.
+- **Play from start** next to Resume, trailers in the player, audio, subtitles and zoom remembered per title, a 4K / HDR badge and a neon **Skip intro / credits** button.
+- **Fit height**: black bars baked into a video are found and cut off, so wide films fill ultrawide screens.
+- Calm neon icons for all player controls, in the app's player and the YouTube player alike.
 
 **Free on plex.tv**
 - Plex's free, ad-supported movies and shows as their own section, with search, the Plex watchlist, continue watching and a season and episode list. Titles play in Plex Web.
@@ -51,13 +56,16 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - Tabs, bookmarks, private tabs, a pop-up blocker, HTTPS upgrades, tracking prevention, Dark Reader and an ad blocker (Brave's adblock-rust with uBlock Origin's lists).
 
 **YouTube** (Windows only)
-- A tab with the newest videos of the channels you follow, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
+- A tab with the newest videos of the channels you follow, search, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
 
 **Android and Android TV**
 - Free on plex.tv plays full screen in the app, controlled with the remote.
 - The browser works with the remote: it selects links and buttons, offers an optional pointer, and a phone can be used as remote through a QR code.
 - Holding Back goes to the home screen, and **Remote shortcuts** under Settings lists what each button does.
 - No YouTube tab.
+
+**Controls** (Windows, macOS, Linux)
+- Game controller input can be turned off under **Settings > Controls**.
 
 **Updates**
 - The app checks this fork's releases and updates itself (Windows installer and Android in place, the portable build opens the download page). After an update it shows what is new.
