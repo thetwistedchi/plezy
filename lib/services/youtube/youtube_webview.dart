@@ -222,26 +222,95 @@ class YouTubeWebView {
   /// Fork: comments liked from the app this run, so the thumbs stay filled.
   static final ValueNotifier<Set<String>> likedComments = ValueNotifier(const {});
 
-  /// Script polled in the hidden view: scrolls the comments into loading,
-  /// finds the linked comment (`&lc=`, shown first with a badge) and sets its
-  /// like button to [like]. Answers "wait", "liked", "unliked", "nobutton".
-  static String _likeScript(bool like) => '''
+  /// Script polled in the hidden view. It likes the comment through the
+  /// same internal requests youtube.com itself sends, with the page's own
+  /// sign-in, so it needs neither a rendered page nor the comment on screen:
+  /// the watch page's comments continuation (opened with `&lc=`, so the
+  /// comment comes first), the comment's like action token, then
+  /// `comment/perform_comment_action`. The first call starts that work; later
+  /// calls answer "wait" until it ends with "liked", "unliked" or a reason.
+  static String _likeScript(String commentId, bool like) => r'''
 (() => {
+  const S = window.__plezyLike || (window.__plezyLike = { state: 'idle' });
+  if (S.state === 'running') return 'wait';
+  if (S.state === 'done') return S.result;
   const video = document.querySelector('video');
   if (video) { video.muted = true; if (!video.paused) video.pause(); }
-  const comments = document.querySelector('ytd-comments');
-  if (comments) comments.scrollIntoView(); else window.scrollTo(0, document.body.scrollHeight);
-  const badge = [...document.querySelectorAll('#linked-comment-badge')].find(b => !b.hidden && b.offsetParent !== null)
-    || document.querySelector('#linked-comment-badge');
-  const comment = badge && badge.closest('ytd-comment-view-model, ytd-comment-renderer');
-  if (!comment) return 'wait';
-  const button = comment.querySelector('#like-button button, like-button-view-model button, ytd-toggle-button-renderer#like-button button');
-  if (!button) return 'nobutton';
-  const pressed = button.getAttribute('aria-pressed') === 'true';
-  if (pressed !== $like) button.click();
-  return $like ? 'liked' : 'unliked';
+  if (!window.ytcfg || !window.ytInitialData || !window.ytcfg.get('INNERTUBE_API_KEY')) return 'wait';
+  S.state = 'running';
+  const commentId = '__CID__';
+  const wantLike = __LIKE__;
+  const walk = (o, fn, path) => {
+    if (!o || typeof o !== 'object') return;
+    fn(o, path);
+    for (const k in o) walk(o[k], fn, path.concat(k));
+  };
+  const run = async () => {
+    const cfg = window.ytcfg;
+    const key = cfg.get('INNERTUBE_API_KEY');
+    const cookie = (n) => {
+      const c = document.cookie.split('; ').find((x) => x.startsWith(n + '='));
+      return c ? c.substring(n.length + 1) : '';
+    };
+    const sapisid = cookie('SAPISID') || cookie('__Secure-3PAPISID');
+    if (!sapisid) return 'signedout';
+    const ts = Math.floor(Date.now() / 1000);
+    const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(ts + ' ' + sapisid + ' ' + location.origin));
+    const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'SAPISIDHASH ' + ts + '_' + hex,
+      'X-Origin': location.origin,
+      'X-Goog-AuthUser': String(cfg.get('SESSION_INDEX') || 0),
+      'X-Youtube-Client-Name': String(cfg.get('INNERTUBE_CONTEXT_CLIENT_NAME') || 1),
+      'X-Youtube-Client-Version': String(cfg.get('INNERTUBE_CLIENT_VERSION') || ''),
+    };
+    const post = async (path, body) => {
+      const r = await fetch('/youtubei/v1/' + path + '?key=' + key + '&prettyPrint=false', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify(Object.assign({ context: cfg.get('INNERTUBE_CONTEXT') }, body)),
+      });
+      if (!r.ok) throw new Error(path + ' HTTP ' + r.status);
+      return r.json();
+    };
+    let token = null;
+    walk(window.ytInitialData, (o) => {
+      if (token || !o.itemSectionRenderer || o.itemSectionRenderer.targetId !== 'comments-section') return;
+      walk(o, (x) => {
+        if (!token && x.continuationCommand && x.continuationCommand.token) token = x.continuationCommand.token;
+      }, []);
+    }, []);
+    if (!token) return 'nocomments';
+    const data = await post('next', { continuation: token });
+    const decode = (t) => {
+      try {
+        return atob(decodeURIComponent(t).replace(/-/g, '+').replace(/_/g, '/'));
+      } catch (e) {
+        return '';
+      }
+    };
+    let action = null;
+    walk(data, (o, path) => {
+      const ep = o.performCommentActionEndpoint;
+      if (action || !ep || !ep.action) return;
+      const p = path.join('/').toLowerCase();
+      if (p.includes('dislike')) return;
+      const isUnlike = p.includes('unlikecommand') || p.includes('toggledserviceendpoint');
+      if (isUnlike === wantLike) return;
+      if (!decode(ep.action).includes(commentId)) return;
+      action = ep.action;
+    }, []);
+    if (!action) return 'noaction';
+    const res = await post('comment/perform_comment_action', { actions: [action] });
+    if (res && res.error) return 'rejected';
+    return wantLike ? 'liked' : 'unliked';
+  };
+  run().then((r) => { S.result = r; S.state = 'done'; }, (e) => { S.result = 'error ' + (e && e.message ? e.message : e); S.state = 'done'; });
+  return 'wait';
 })()
-''';
+'''.replaceAll('__CID__', commentId.replaceAll(RegExp(r"[^A-Za-z0-9_.\-]"), '')).replaceAll('__LIKE__', '$like');
 
   /// Likes (or un-likes) a comment with the signed-in account: the comment's
   /// page opens in the hidden, muted view, the like button is pressed there
@@ -262,13 +331,10 @@ class YouTubeWebView {
           String? last;
           while (watch.elapsed < const Duration(seconds: 25)) {
             await Future<void>.delayed(const Duration(milliseconds: 700));
-            final raw = await _channel.invokeMethod<String>('authScript', {'script': _likeScript(like)});
+            final raw = await _channel.invokeMethod<String>('authScript', {'script': _likeScript(commentId, like)});
             last = raw?.replaceAll('"', '');
             if (last == null || last == 'wait' || last == 'null') continue;
-            if (last == 'nobutton') break;
-            // Give the click a moment to reach YouTube before the view closes.
-            await Future<void>.delayed(const Duration(milliseconds: 1500));
-            ok = true;
+            ok = last == 'liked' || last == 'unliked';
             break;
           }
           appLogger.d(
