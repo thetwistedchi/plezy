@@ -108,6 +108,10 @@ class YtStrings {
   static String get comments => _t('Comments', 'Kommentare');
   static String get likeComment => _t('Like', 'Mag ich');
   static String get unlikeComment => _t('Remove like', '„Mag ich“ entfernen');
+  static String get likeNeedsChannel => _t(
+    'YouTube asks to create a channel first: the account selected on youtube.com in the app has none. Open "Sign in for the player" in the YouTube settings and switch to your channel there (profile picture > Switch account).',
+    'YouTube verlangt zuerst einen Kanal: Das in der App auf youtube.com gewählte Konto hat keinen. Unter „Für den Player anmelden" in den YouTube-Einstellungen zum Kanal wechseln (Profilbild > Konto wechseln).',
+  );
   static String get likeFailed => _t('The like could not be placed.', 'Das „Mag ich“ konnte nicht gesetzt werden.');
   static String get description => _t('Description', 'Beschreibung');
   static String get noDescription => _t('No description.', 'Keine Beschreibung.');

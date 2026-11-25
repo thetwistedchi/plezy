@@ -266,6 +266,12 @@ class YouTubeWebView {
       'X-Youtube-Client-Name': String(cfg.get('INNERTUBE_CONTEXT_CLIENT_NAME') || 1),
       'X-Youtube-Client-Version': String(cfg.get('INNERTUBE_CLIENT_VERSION') || ''),
     };
+    // A channel on a brand account acts through the page id; without it the
+    // requests act as the Google account itself, which may have no channel.
+    const pageId = cfg.get('DELEGATED_SESSION_ID');
+    if (pageId) headers['X-Goog-PageId'] = String(pageId);
+    const visitor = cfg.get('VISITOR_DATA');
+    if (visitor) headers['X-Goog-Visitor-Id'] = String(visitor);
     const post = async (path, body) => {
       const r = await fetch('/youtubei/v1/' + path + '?key=' + key + '&prettyPrint=false', {
         method: 'POST',
@@ -349,6 +355,11 @@ class YouTubeWebView {
       action = ep.action;
       via = 'token:' + p;
     }, []);
+    if (!action && surfacePayload && JSON.stringify(surfacePayload).includes('channelCreation')) {
+      // YouTube offers "create a channel" instead of a like: the signed-in
+      // account (or the account selected on youtube.com) has no channel.
+      return JSON.stringify({ r: 'nochannel', pageId: !!pageId });
+    }
     if (!action) {
       return JSON.stringify({
         r: 'noaction',
@@ -386,8 +397,13 @@ class YouTubeWebView {
   /// page opens in the hidden, muted view, the like button is pressed there
   /// and the view closes again. YouTube's API cannot like comments. Shares
   /// the queue of the history visits; fails while the sign-in page is open.
+  /// Whether the last failed like failed because the account on youtube.com
+  /// has no channel (YouTube then offers to create one instead).
+  static bool lastLikeNeedsChannel = false;
+
   static Future<bool> setCommentLiked(String videoId, String commentId, {required bool like}) async {
     if (!isSupported || videoId.isEmpty || commentId.isEmpty) return false;
+    lastLikeNeedsChannel = false;
     _likesWaiting++;
     appLogger.d('YouTube comment ${like ? 'like' : 'unlike'}: queued');
     try {
@@ -410,6 +426,7 @@ class YouTubeWebView {
             final result = jsonDecode(value);
             final r = result is Map ? result['r'] : null;
             ok = r == 'liked' || r == 'unliked';
+            if (r == 'nochannel') lastLikeNeedsChannel = true;
             break;
           }
           appLogger.d(

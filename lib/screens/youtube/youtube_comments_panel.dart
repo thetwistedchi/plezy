@@ -610,7 +610,7 @@ class _CommentLikeButtonState extends State<_CommentLikeButton> {
     if (!ok) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
-          content: Text(YtStrings.likeFailed),
+          content: Text(YouTubeWebView.lastLikeNeedsChannel ? YtStrings.likeNeedsChannel : YtStrings.likeFailed),
           action: SnackBarAction(
             label: YtStrings.openOnYouTube,
             onPressed: () => unawaited(

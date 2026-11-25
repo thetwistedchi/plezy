@@ -312,8 +312,18 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
         _fullyLoadedServerIds.containsAll(onlineServerIds)) {
       return Future<void>.value();
     }
-    // Nothing (or a failed pass) to merge into yet — run the full load.
-    if (_onDeckState != DiscoverLoadState.loaded || _hubsState != DiscoverLoadState.loaded) return load();
+    if (_onDeckState != DiscoverLoadState.loaded || _hubsState != DiscoverLoadState.loaded) {
+      // Fork: a full pass already running covers the servers that were online
+      // when it started; check again once it lands and fetch only what it
+      // missed, instead of queueing a second full pass (seen at startup when
+      // a server re-announces itself mid-pass).
+      if (_loadCoordinator.isFullActive) {
+        final running = _loadCoordinator.requestDelta(const <String>{});
+        return running.then((_) => syncToOnlineServers(onlineServerIds), onError: (Object _) {});
+      }
+      // Nothing (or a failed pass) to merge into yet — run the full load.
+      return load();
+    }
     return _loadCoordinator.requestDelta(onlineServerIds.difference(_fullyLoadedServerIds));
   }
 
