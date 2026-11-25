@@ -209,6 +209,12 @@ class LibrariesProvider extends ChangeNotifier with DisposableChangeNotifierMixi
     if (_loadState == LibrariesLoadState.loaded && _loadedServerIds.containsAll(onlineServerIds)) {
       return Future<void>.value();
     }
+    // Fork: a full pass already running covers this; afterwards only the
+    // servers it missed are fetched (it used to queue a second full pass).
+    final running = _loadCoordinator.runningFullOnly;
+    if (running != null) {
+      return running.then((_) => syncToOnlineServers(onlineServerIds), onError: (Object _) {});
+    }
     // Nothing (or a failed pass) to merge into yet — run the full load.
     if (_loadState != LibrariesLoadState.loaded) return _load();
     return _loadCoordinator.requestDelta(onlineServerIds.difference(_loadedServerIds));
