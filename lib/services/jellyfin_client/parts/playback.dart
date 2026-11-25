@@ -51,6 +51,22 @@ String _jellyfinTranscodeVideoCodecsTs() => [
     if (codec != RankedVideoCodec.av1) codec.id,
 ].join(',');
 
+/// Fork: the video codec of [source] when this device reports no hardware
+/// decoder for it (see [VideoDecodeCapabilities]), else null. Desktop is never
+/// probed and always accepts, so this only bites on Android and Apple TV.
+String? _videoCodecWithoutDecoder(Map<String, dynamic> source) {
+  final streams = source['MediaStreams'];
+  if (streams is! List) return null;
+  for (final stream in streams) {
+    if (stream is! Map || stream['Type'] != 'Video') continue;
+    final codec = stream['Codec'];
+    final ranked = RankedVideoCodec.fromServerCodec(codec is String ? codec : null);
+    if (ranked != null && !VideoDecodeCapabilities.accepts(ranked)) return ranked.id;
+    return null;
+  }
+  return null;
+}
+
 mixin _JellyfinPlaybackMethods on _JellyfinClientInternals {
   // Implemented by _JellyfinBrowseMethods (cross-part call, same pattern as
   // _JellyfinImageDownloadMethods' redeclarations).
@@ -291,7 +307,15 @@ mixin _JellyfinPlaybackMethods on _JellyfinClientInternals {
     final isTrack = metadata.kind == MediaKind.track;
     final preset = options.qualityPreset;
     final audioPreset = options.audioQualityPreset ?? AudioQualityPreset.original;
-    final wantsOriginal = isTrack ? audioPreset.isOriginal : preset.isOriginal;
+    // Fork: "Original" still has to transcode when this device has no
+    // hardware decoder for the file's video codec (AV1 on an NVIDIA Shield).
+    // Software decoding there drops most frames while the sound runs on, so
+    // the server converts the video at full quality instead.
+    final unplayableVideoCodec = isTrack ? null : _videoCodecWithoutDecoder(bundle.selectedSource);
+    if (unplayableVideoCodec != null) {
+      appLogger.i('Jellyfin: no hardware decoder for $unplayableVideoCodec on this device; asking the server to transcode');
+    }
+    final wantsOriginal = (isTrack ? audioPreset.isOriginal : preset.isOriginal) && unplayableVideoCodec == null;
     final requestedAudioStreamId = options.selectedAudioStreamId == null
         ? options.preferredAudioTrack == null
               ? null
