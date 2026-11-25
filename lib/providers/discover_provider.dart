@@ -323,6 +323,11 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
   /// while the profile binder runs ends without fetching or touching state.
   Future<void> load() {
     if (isDisposed) return Future<void>.value();
+    if (debugLoggingEnabled) {
+      // Fork: who asked, to spot duplicate passes in the log.
+      final caller = StackTrace.current.toString().split('\n').skip(1).take(2).map((l) => l.trim()).join(' <- ');
+      appLogger.d('DiscoverProvider: full load requested by $caller (busy: ${_loadCoordinator.isBusy})');
+    }
     return _loadCoordinator.requestFull();
   }
 
@@ -970,14 +975,38 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
     return false;
   }
 
+  // Fork: rows are filtered against the hidden libraries current at commit
+  // time, so a pass fetched before a library was hidden never shows it, and
+  // hiding a library needs no refetch (see [_onHiddenLibrariesChanged]).
+  bool _isVisibleItem(MediaItem item, Set<String> hidden) {
+    final key = item.libraryGlobalKey;
+    return key == null || !hidden.contains(key);
+  }
+
+  List<MediaItem> _visibleItems(List<MediaItem> items) {
+    final hidden = _hiddenLibraries.hiddenLibraryKeys;
+    if (hidden.isEmpty) return items;
+    return items.where((item) => _isVisibleItem(item, hidden)).toList();
+  }
+
+  List<MediaHub> _visibleHubs(List<MediaHub> hubs) {
+    final hidden = _hiddenLibraries.hiddenLibraryKeys;
+    if (hidden.isEmpty) return hubs;
+    return [
+      for (final hub in hubs)
+        if (hub.items.where((item) => _isVisibleItem(item, hidden)).toList() case final items when items.isNotEmpty)
+          items.length == hub.items.length ? hub : hub.copyWith(items: items, size: items.length),
+    ];
+  }
+
   void _replaceOnDeck(List<MediaItem> onDeck, {required bool hasMore}) {
-    _onDeck = onDeck;
+    _onDeck = _visibleItems(onDeck);
     _hasMoreContinueWatching = hasMore;
     ++_commitRevision;
   }
 
   void _replaceHubs(List<MediaHub> hubs) {
-    _hubs = hubs;
+    _hubs = _visibleHubs(hubs);
     ++_commitRevision;
   }
 
@@ -1091,7 +1120,17 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
     if (currentKeys.length == _lastSeenHiddenKeys.length && currentKeys.containsAll(_lastSeenHiddenKeys)) {
       return;
     }
+    final onlyAdded = currentKeys.containsAll(_lastSeenHiddenKeys);
     _lastSeenHiddenKeys = Set.of(currentKeys);
+    if (onlyAdded) {
+      // Fork: newly hidden libraries drop out of the loaded rows; nothing to
+      // fetch (at startup the server's hidden list often lands while the
+      // first pass runs, which used to queue a second full pass).
+      _onDeck = _visibleItems(_onDeck);
+      _hubs = _visibleHubs(_hubs);
+      safeNotifyListeners();
+      return;
+    }
     unawaited(load());
   }
 

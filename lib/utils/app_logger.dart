@@ -65,8 +65,13 @@ class MemoryAwareLogPrinter extends LogPrinter {
 
   @override
   List<String> log(LogEvent event) {
-    final message = LogRedactionManager.redact(event.message.toString());
-    final error = event.error != null ? LogRedactionManager.redact(event.error.toString()) : null;
+    // Fork: debug/info lines pass extra details (a map or list) through the
+    // `error` field, which the printer labels "ERROR:". Those are data, not
+    // errors, so they go onto the message line instead.
+    final isDetails = event.level.value < Level.warning.value && (event.error is Map || event.error is Iterable);
+    final rawMessage = isDetails ? '${event.message}  ${event.error}' : event.message.toString();
+    final message = LogRedactionManager.redact(rawMessage);
+    final error = event.error != null && !isDetails ? LogRedactionManager.redact(event.error.toString()) : null;
     final stackTrace = event.stackTrace != null
         ? StackTrace.fromString(LogRedactionManager.redact(event.stackTrace.toString()))
         : null;

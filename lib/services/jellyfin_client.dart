@@ -558,8 +558,33 @@ class JellyfinClient
   /// [HealthStatus.accessDenied] (a user denied remote access or outside their
   /// parental schedule) so the manager can tell a revoked token and a refused
   /// account from a generic transport failure.
+  // Fork: several triggers (resume, connectivity change, startup sync) probe
+  // within the same second at startup; they share one request, and a fresh
+  // "online" answer is reused for a few seconds.
+  Future<HealthStatus>? _healthInFlight;
+  DateTime? _healthOnlineAt;
+  static const _healthReuse = Duration(seconds: 10);
+
   @override
-  Future<HealthStatus> checkHealth() async {
+  Future<HealthStatus> checkHealth() {
+    final inFlight = _healthInFlight;
+    if (inFlight != null) return inFlight;
+    final onlineAt = _healthOnlineAt;
+    if (onlineAt != null && DateTime.now().difference(onlineAt) < _healthReuse) {
+      return Future.value(HealthStatus.online);
+    }
+    final probe = _probeHealth().then((status) {
+      _healthOnlineAt = status == HealthStatus.online ? DateTime.now() : null;
+      return status;
+    });
+    _healthInFlight = probe;
+    probe.whenComplete(() {
+      if (identical(_healthInFlight, probe)) _healthInFlight = null;
+    }).ignore();
+    return probe;
+  }
+
+  Future<HealthStatus> _probeHealth() async {
     try {
       // Same dead-pooled-socket case as Plex's probe (#2915).
       final response = await _http.get(
