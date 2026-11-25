@@ -4770,7 +4770,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       raw: {
         if (personId != null && personId.isNotEmpty) _tvDetailActorPersonIdRawKey: personId,
         // Fork: the German voice, shown as the card's third line.
-        if ((_wantsGermanVoices ? _dubCast?.voiceFor(actor.tag) : null) case final voice?) tvPersonVoiceKey: voice,
+        tvPersonVoiceKey: ?(_wantsGermanVoices ? _dubCast?.voiceFor(actor.tag) : null),
       },
     );
   }
