@@ -53,7 +53,7 @@ import '../services/ratings/title_links_service.dart';
 import '../utils/external_ids.dart';
 import '../widgets/fitted_metadata_line.dart';
 import '../i18n/retro_strings.dart';
-import '../widgets/retro_pill.dart' show isRetrowave, retroTitleColor;
+import '../widgets/retro_pill.dart' show isRetrowave, retroTitleColor, retroTitleGlow;
 import '../i18n/strings.g.dart';
 import '../theme/mono_tokens.dart';
 import '../widgets/cycling_media_backdrop.dart';
@@ -3644,7 +3644,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       fontWeight: .bold,
       fontSize: isTv ? 28 : null,
       color: retroTitles ? retroTitleColor : null,
-      shadows: retroTitles && !isTv ? const [Shadow(color: Color(0x73FF2BD0), blurRadius: 10)] : null,
+      shadows: retroTitles && !isTv ? retroTitleGlow : null,
     );
 
     // Show loading state while fetching full metadata

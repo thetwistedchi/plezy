@@ -559,7 +559,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
         ? titleStyle?.copyWith(
             color: retroTitleColor,
             fontWeight: FontWeight.w700,
-            shadows: isTv ? null : const [Shadow(color: Color(0x73FF2BD0), blurRadius: 10)],
+            shadows: isTv ? null : retroTitleGlow,
           )
         : titleStyle;
     final serverNameColor = retro

@@ -189,5 +189,11 @@ const retroHeadingColor = Color(0xFFC4B8FF);
 /// Fork: hub titles, a pink-tinted white like a lit neon sign.
 const retroTitleColor = Color(0xFFFFECFA);
 
+/// Fork: the neon glow behind retrowave section titles (not on TV).
+const retroTitleGlow = [
+  Shadow(color: Color(0xA6FF2BD0), blurRadius: 6),
+  Shadow(color: Color(0x66C800E0), blurRadius: 18),
+];
+
 /// Whether the retrowave look applies (its page backdrop is installed).
 bool isRetrowave(BuildContext context) => RetroColors.isActive(context);
