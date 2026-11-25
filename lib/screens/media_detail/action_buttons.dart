@@ -193,6 +193,37 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
       return null; // default for other states
     });
 
+    ButtonStyle baseActionButtonStyle({
+      Color? foregroundColor,
+      EdgeInsetsGeometry? padding,
+      bool showFocus = false,
+      OutlinedBorder? shape,
+    }) {
+      if (!isKeyboardMode && !isTv) {
+        if (padding != null) {
+          return FilledButton.styleFrom(padding: padding, shape: shape);
+        }
+        return IconButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          maximumSize: const Size(48, 48),
+          foregroundColor: foregroundColor,
+        );
+      }
+
+      return ButtonStyle(
+        padding: padding != null ? WidgetStatePropertyAll(padding) : null,
+        minimumSize: WidgetStatePropertyAll(padding == null ? Size.square(actionSize) : Size(0, actionSize)),
+        maximumSize: padding == null ? WidgetStatePropertyAll(Size.square(actionSize)) : null,
+        fixedSize: padding == null ? WidgetStatePropertyAll(Size.square(actionSize)) : null,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        overlayColor: noOverlay,
+        backgroundColor: WidgetStatePropertyAll(showFocus ? focusBg : idleBg),
+        foregroundColor: WidgetStatePropertyAll(showFocus ? focusFg : foregroundColor ?? tonalFg),
+        shape: shape != null ? WidgetStatePropertyAll(shape) : null,
+      );
+    }
+
     // Fork: retrowave buttons are dark with a neon rim: magenta for Play
     // (with a glow off TV), violet for the round actions. Focus brightens the
     // rim instead of inverting the button, so the neon glyphs stay readable.
@@ -222,37 +253,6 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
         ),
         elevation: WidgetStatePropertyAll(isPlay && !isTv ? 6 : 0),
         shadowColor: const WidgetStatePropertyAll(Color(0xFFFF2BD0)),
-      );
-    }
-
-    ButtonStyle baseActionButtonStyle({
-      Color? foregroundColor,
-      EdgeInsetsGeometry? padding,
-      bool showFocus = false,
-      OutlinedBorder? shape,
-    }) {
-      if (!isKeyboardMode && !isTv) {
-        if (padding != null) {
-          return FilledButton.styleFrom(padding: padding, shape: shape);
-        }
-        return IconButton.styleFrom(
-          minimumSize: const Size(48, 48),
-          maximumSize: const Size(48, 48),
-          foregroundColor: foregroundColor,
-        );
-      }
-
-      return ButtonStyle(
-        padding: padding != null ? WidgetStatePropertyAll(padding) : null,
-        minimumSize: WidgetStatePropertyAll(padding == null ? Size.square(actionSize) : Size(0, actionSize)),
-        maximumSize: padding == null ? WidgetStatePropertyAll(Size.square(actionSize)) : null,
-        fixedSize: padding == null ? WidgetStatePropertyAll(Size.square(actionSize)) : null,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
-        overlayColor: noOverlay,
-        backgroundColor: WidgetStatePropertyAll(showFocus ? focusBg : idleBg),
-        foregroundColor: WidgetStatePropertyAll(showFocus ? focusFg : foregroundColor ?? tonalFg),
-        shape: shape != null ? WidgetStatePropertyAll(shape) : null,
       );
     }
 
