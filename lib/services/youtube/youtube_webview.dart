@@ -166,22 +166,57 @@ class YouTubeWebView {
   static void addToHistory(String videoId, double position) {
     if (!isSupported || videoId.isEmpty || !_historyDone.add(videoId)) return;
     _historyChain = _historyChain.then((_) async {
+      // Likes go first: the history can wait, a click should not.
+      while (_likesWaiting > 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }
       if (_signInOpen || !YouTubeSettings.instance.syncHistory) return;
+      await _withHiddenView(() async {
+        var interrupted = false;
+        try {
+          final url = Uri.https('www.youtube.com', '/watch', {
+            'v': videoId,
+            if (position >= 1) 't': '${position.floor()}s',
+          });
+          await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
+          for (var i = 0; i < 30; i++) {
+            if (_likesWaiting > 0) {
+              interrupted = true;
+              break;
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 500));
+          }
+          if (interrupted) {
+            // Tried again on the next backfill.
+            _historyDone.remove(videoId);
+            appLogger.d('YouTube history: visit cut short for a comment like');
+          } else {
+            await YouTubeSettings.instance.markHistorySynced(videoId);
+            appLogger.d('YouTube history: watch page visited');
+          }
+        } catch (e) {
+          appLogger.d('YouTube history visit failed', error: e);
+        } finally {
+          if (!_signInOpen) await closeSignIn().catchError((_) {});
+        }
+      });
+    });
+  }
+
+  /// One user of the hidden view at a time (history visits, comment likes).
+  static Future<void> _hiddenViewQueue = Future<void>.value();
+  static int _likesWaiting = 0;
+
+  static Future<T> _withHiddenView<T>(Future<T> Function() body) {
+    final done = Completer<T>();
+    _hiddenViewQueue = _hiddenViewQueue.then((_) async {
       try {
-        final url = Uri.https('www.youtube.com', '/watch', {
-          'v': videoId,
-          if (position >= 1) 't': '${position.floor()}s',
-        });
-        await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
-        await Future<void>.delayed(const Duration(seconds: 15));
-        await YouTubeSettings.instance.markHistorySynced(videoId);
-        appLogger.d('YouTube history: watch page visited');
-      } catch (e) {
-        appLogger.d('YouTube history visit failed', error: e);
-      } finally {
-        if (!_signInOpen) await closeSignIn().catchError((_) {});
+        done.complete(await body());
+      } catch (e, stackTrace) {
+        done.completeError(e, stackTrace);
       }
     });
+    return done.future;
   }
 
   /// Fork: comments liked from the app this run, so the thumbs stay filled.
@@ -212,48 +247,52 @@ class YouTubeWebView {
   /// page opens in the hidden, muted view, the like button is pressed there
   /// and the view closes again. YouTube's API cannot like comments. Shares
   /// the queue of the history visits; fails while the sign-in page is open.
-  static Future<bool> setCommentLiked(String videoId, String commentId, {required bool like}) {
-    if (!isSupported || videoId.isEmpty || commentId.isEmpty) return Future.value(false);
-    final done = Completer<bool>();
-    _historyChain = _historyChain.then((_) async {
-      if (_signInOpen) {
-        done.complete(false);
-        return;
-      }
-      var ok = false;
-      try {
-        final url = Uri.https('www.youtube.com', '/watch', {'v': videoId, 'lc': commentId});
-        await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
-        final deadline = DateTime.now().add(const Duration(seconds: 25));
-        while (DateTime.now().isBefore(deadline)) {
-          await Future<void>.delayed(const Duration(milliseconds: 700));
-          final raw = await _channel.invokeMethod<String>('authScript', {'script': _likeScript(like)});
-          final answer = raw?.replaceAll('"', '');
-          if (answer == null || answer == 'wait' || answer == 'null') continue;
-          if (answer == 'nobutton') break;
-          // Give the click a moment to reach YouTube before the view closes.
-          await Future<void>.delayed(const Duration(milliseconds: 1500));
-          ok = true;
-          break;
+  static Future<bool> setCommentLiked(String videoId, String commentId, {required bool like}) async {
+    if (!isSupported || videoId.isEmpty || commentId.isEmpty) return false;
+    _likesWaiting++;
+    appLogger.d('YouTube comment ${like ? 'like' : 'unlike'}: queued');
+    try {
+      return await _withHiddenView(() async {
+        if (_signInOpen) return false;
+        var ok = false;
+        final watch = Stopwatch()..start();
+        try {
+          final url = Uri.https('www.youtube.com', '/watch', {'v': videoId, 'lc': commentId});
+          await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
+          String? last;
+          while (watch.elapsed < const Duration(seconds: 25)) {
+            await Future<void>.delayed(const Duration(milliseconds: 700));
+            final raw = await _channel.invokeMethod<String>('authScript', {'script': _likeScript(like)});
+            last = raw?.replaceAll('"', '');
+            if (last == null || last == 'wait' || last == 'null') continue;
+            if (last == 'nobutton') break;
+            // Give the click a moment to reach YouTube before the view closes.
+            await Future<void>.delayed(const Duration(milliseconds: 1500));
+            ok = true;
+            break;
+          }
+          appLogger.d(
+            'YouTube comment ${like ? 'like' : 'unlike'}: ${ok ? 'done' : 'failed ($last)'} after ${watch.elapsedMilliseconds} ms',
+          );
+        } catch (e) {
+          appLogger.d('YouTube comment like failed', error: e);
+        } finally {
+          if (!_signInOpen) await closeSignIn().catchError((_) {});
         }
-        appLogger.d('YouTube comment ${like ? 'like' : 'unlike'}: ${ok ? 'done' : 'comment not found'}');
-      } catch (e) {
-        appLogger.d('YouTube comment like failed', error: e);
-      } finally {
-        if (!_signInOpen) await closeSignIn().catchError((_) {});
-      }
-      if (ok) {
-        final next = {...likedComments.value};
-        if (like) {
-          next.add(commentId);
-        } else {
-          next.remove(commentId);
+        if (ok) {
+          final next = {...likedComments.value};
+          if (like) {
+            next.add(commentId);
+          } else {
+            next.remove(commentId);
+          }
+          likedComments.value = next;
         }
-        likedComments.value = next;
-      }
-      done.complete(ok);
-    });
-    return done.future;
+        return ok;
+      });
+    } finally {
+      _likesWaiting--;
+    }
   }
 
   /// Places the sign-in view, in physical pixels of the Flutter view.
