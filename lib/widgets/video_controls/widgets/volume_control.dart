@@ -12,6 +12,7 @@ import '../../../focus/focus_theme.dart';
 import '../../../focus/focusable_wrapper.dart';
 import '../../../theme/gapped_track_shape.dart';
 import '../../../theme/player_style.dart';
+import '../../../theme/retrowave_colors.dart';
 import 'player_focus_disc.dart';
 
 /// A volume control widget that displays a mute/unmute button and volume slider.
@@ -138,7 +139,16 @@ class _VolumeControlState extends State<VolumeControl> {
               onTap: widget.volumeController.toggleMute,
               excludeSemantics: true,
               child: IconButton(
-                icon: AppIcon(muteIcon, fill: 1, color: iconColor),
+                // Fork: the calm neon glyph, the same as the other controls.
+                icon: AppIcon(
+                  muteIcon,
+                  fill: 1,
+                  color: iconColor,
+                  size: RetroColors.isActive(context) ? 28.8 : null,
+                  retro: true,
+                  retroSoft: true,
+                  retroGlow: false,
+                ),
                 onPressed: widget.volumeController.toggleMute,
               ),
             );
