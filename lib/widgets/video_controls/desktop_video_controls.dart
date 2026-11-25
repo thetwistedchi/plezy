@@ -838,6 +838,7 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
                         index: 3,
                         icon: isPlaying ? Symbols.pause_rounded : Symbols.play_arrow_rounded,
                         iconSize: 32,
+                        compactFocusRing: false,
                         color: fill == null ? Colors.white : (style.playButtonIcon ?? Colors.black),
                         onPressed: _canControl ? widget.onPlayPause : null,
                         semanticLabel: isPlaying ? t.videoControls.pauseButton : t.videoControls.playButton,
@@ -1040,8 +1041,10 @@ class DesktopVideoControlsState extends State<DesktopVideoControls> {
     double iconSize = 24,
     String? tooltip,
     String? label,
+    bool compactFocusRing = true,
   }) {
     return VideoControlButton(
+      compactFocusRing: compactFocusRing,
       icon: icon,
       iconSize: iconSize,
       color: color,

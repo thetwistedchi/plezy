@@ -180,8 +180,9 @@ extension _MediaDetailPlaybackTracksStatus on _MediaDetailScreenState {
     if (probed == null) _scheduleTargetProbe(context, target);
     if (preview == null && videoLabels.isEmpty) return null;
 
-    final audioLabel = preview?.audio?.label;
-    final subtitleLabel = preview?.subtitle?.label;
+    // Fork: the tracks picked on this page, else the player's own choice.
+    final audioLabel = (_currentAudioRow(metadata) ?? preview?.audio)?.label;
+    final subtitleLabel = _currentSubtitleRow(metadata, preview)?.label;
     final parts = <MetadataLinePart>[
       // Shed order on a tight row: the long codec details first (subtitle's,
       // then audio's — the details sheet has them in full), then the short
@@ -228,7 +229,19 @@ extension _MediaDetailPlaybackTracksStatus on _MediaDetailScreenState {
       excludeSemantics: true,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
-        child: FittedMetadataLine(textStyle: textStyle, parts: parts, ratingIconSize: textStyle.fontSize! * 1.15),
+        child: isTv
+            // Fork: on a dark pill, so it stays readable over a bright backdrop.
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14 * tvScale, vertical: 6 * tvScale),
+                  child: FittedMetadataLine(textStyle: textStyle, parts: parts, ratingIconSize: textStyle.fontSize! * 1.15),
+                ),
+              )
+            : FittedMetadataLine(textStyle: textStyle, parts: parts, ratingIconSize: textStyle.fontSize! * 1.15),
       ),
     );
   }
@@ -325,13 +338,18 @@ extension _MediaDetailTrackPickers on _MediaDetailScreenState {
     return PlaybackSubtitleResolver.subtitleTrackForSource(picked).copyWith(id: 'carried', uri: null);
   }
 
-  void _pickAudioRow(MediaItem metadata, MediaAudioTrack row) => _setDetailState(() {
-    _pickedAudioRows[metadata.globalKey] = row;
-    _tvDetailActorItemsCache = null;
-  });
+  void _pickAudioRow(MediaItem metadata, MediaAudioTrack row) {
+    _setDetailState(() {
+      _pickedAudioRows[metadata.globalKey] = row;
+      _tvDetailActorItemsCache = null;
+    });
+    _playbackStatusRevision.value++;
+  }
 
-  void _pickSubtitleRow(MediaItem metadata, MediaSubtitleTrack? row) =>
-      _setDetailState(() => _pickedSubtitleRows[metadata.globalKey] = row);
+  void _pickSubtitleRow(MediaItem metadata, MediaSubtitleTrack? row) {
+    _setDetailState(() => _pickedSubtitleRows[metadata.globalKey] = row);
+    _playbackStatusRevision.value++;
+  }
 
   /// TV: the same choices as dialogs from the action row.
   Future<void> _showAudioPickerDialog(BuildContext context, MediaItem metadata) async {

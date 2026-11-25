@@ -25,8 +25,14 @@ class PlayerFocusDisc extends StatelessWidget {
     required this.iconColor,
     this.isActive = false,
     this.borderRadius,
+    this.ringDiameter,
     required this.builder,
   });
+
+  /// Fork (retrowave): draw the focus ring at this fixed size, centred on the
+  /// control, instead of around the whole button. Keeps every round control's
+  /// ring as small as the themed Play disc, whatever its tap area.
+  final double? ringDiameter;
 
   /// Idle icon colour. Its alpha is preserved when focused so a dimmed
   /// (unavailable) control stays visibly dimmed on the disc.
@@ -51,6 +57,36 @@ class PlayerFocusDisc extends StatelessWidget {
     // and a soft glow on a dark disc instead of a white disc.
     if (RetroColors.isActive(context)) {
       const neon = RetroColors.magenta;
+      final ring = ringDiameter;
+      if (ring != null && borderRadius == null) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            IgnorePointer(
+              child: AnimatedContainer(
+                duration: FocusTheme.getAnimationDuration(context),
+                curve: Curves.easeOutCubic,
+                width: ring,
+                height: ring,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: showFocus ? RetroColors.night80 : Colors.transparent,
+                  border: Border.all(color: showFocus ? const Color(0xFFF2A7DD) : Colors.transparent, width: 2),
+                  boxShadow: showFocus
+                      ? [BoxShadow(color: neon.withValues(alpha: 0.55), blurRadius: 12, spreadRadius: 1)]
+                      : const [],
+                ),
+              ),
+            ),
+            builder(
+              context,
+              showFocus
+                  ? (isActive ? (PlayerStyle.of(context).active ?? _activeFill) : RetroColors.moon.withValues(alpha: iconColor.a))
+                  : iconColor,
+            ),
+          ],
+        );
+      }
       return AnimatedContainer(
         duration: FocusTheme.getAnimationDuration(context),
         curve: Curves.easeOutCubic,

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-
-import '../../theme/retrowave_colors.dart';
 import 'package:plezy/widgets/app_icon.dart';
 
 import '../../focus/focus_theme.dart';
@@ -75,7 +73,11 @@ class VideoControlButton extends StatelessWidget {
     this.onKeyEvent,
     this.onFocusChange,
     this.autofocus = false,
+    this.compactFocusRing = true,
   });
+
+  /// Fork: draw the retrowave focus ring at the shared small size.
+  final bool compactFocusRing;
 
   @override
   Widget build(BuildContext context) {
@@ -83,19 +85,13 @@ class VideoControlButton extends StatelessWidget {
     final label = this.label;
     final effectiveSemanticLabel = semanticLabel ?? label ?? tooltip;
 
-    // Fork: retrowave keeps the focus ring tight around the icon, so every
-    // focused control shows the same small ring as the themed Play disc.
-    final tight = RetroColors.isActive(context) && focusNode != null;
     Widget button(Color iconColor) => label == null
         ? IconButton(
             icon: AppIcon(icon, fill: 1, color: iconColor, size: iconSize),
             iconSize: iconSize,
             onPressed: onPressed,
             tooltip: tooltip,
-            padding: tight ? const EdgeInsets.all(5) : null,
-            constraints: tight
-                ? const BoxConstraints(minWidth: 34, minHeight: 34)
-                : const BoxConstraints(minWidth: 40, minHeight: 40),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           )
         : Material(
             type: MaterialType.transparency,
@@ -144,6 +140,9 @@ class VideoControlButton extends StatelessWidget {
           iconColor: idleColor,
           isActive: isActive,
           borderRadius: label == null ? null : const BorderRadius.all(Radius.circular(20)),
+          // Fork: one small ring size for every round control (see
+          // [PlayerFocusDisc.ringDiameter]); the themed Play disc keeps its own.
+          ringDiameter: compactFocusRing ? 34 : null,
           builder: (context, iconColor) => button(iconColor),
         ),
       );

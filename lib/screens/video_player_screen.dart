@@ -547,6 +547,31 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
     with WidgetsBindingObserver, MountedSetStateMixin, ListenableBindingsMixin {
   /// Minimized into the bottom bar ([VideoMiniPlayer]).
   bool _minimized = false;
+  bool _focusGuardScheduled = false;
+
+  /// Fork: while the player is the visible route, keyboard focus must stay in
+  /// it. On TV it could end up on the screen underneath (seen when the
+  /// controls hid), and OK then opened a home row item instead of pausing.
+  /// Focus on another route is taken back; overlays without a route (sheets
+  /// opened by the player) are left alone.
+  void _guardPlayerFocus() {
+    if (_focusGuardScheduled || !mounted || _minimized) return;
+    final ownRoute = ModalRoute.of(context);
+    if (ownRoute == null || !ownRoute.isCurrent) return;
+    final primary = FocusManager.instance.primaryFocus;
+    final primaryContext = primary?.context;
+    if (primary == null || primaryContext == null) return;
+    if (primary == _screenFocusNode || primary.ancestors.contains(_screenFocusNode)) return;
+    final otherRoute = ModalRoute.of(primaryContext);
+    if (otherRoute == null || identical(otherRoute, ownRoute)) return;
+    _focusGuardScheduled = true;
+    appLogger.i('Player: focus moved to "${primary.debugLabel ?? primary.runtimeType}" on the screen below; taking it back');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusGuardScheduled = false;
+      if (!mounted || _minimized || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+      _screenFocusNode.requestFocus();
+    });
+  }
   _PlexMiniSession? _miniSession;
 
   /// How close to the capture buffer's end counts as "live". A live-edge
@@ -1403,6 +1428,7 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.addListener(_guardPlayerFocus);
     VideoMiniPlayer.instance.stopOtherThan('plex');
     PlaybackCoordinator.instance.registerVideoSession(
       shutdown: _shutdownVideo,
@@ -2495,6 +2521,7 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_guardPlayerFocus);
     _releaseMiniPlayer();
     PlaybackCoordinator.instance.unregisterVideoSession(
       _shutdownVideo,
