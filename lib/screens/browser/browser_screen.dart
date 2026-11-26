@@ -32,6 +32,9 @@ import 'browser_icon.dart';
 import 'adblock_lists_screen.dart';
 import 'browser_history_page.dart';
 import 'browser_settings_screen.dart';
+import '../../services/browser/page_extract.dart';
+import 'reader_screen.dart';
+import 'web_video_player_screen.dart';
 
 /// The in-app browser: tabs, address bar, bookmarks. Each tab's page is a
 /// native WebView2 placed beneath the transparent [_PageSlot].
@@ -864,6 +867,27 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
+  /// Fork: finds the page's video and plays it in the app's player.
+  Future<void> _playPageVideo(String url) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final title = _controller.active?.title ?? url;
+    try {
+      String? video = PageExtract.isMediaUrl(url) ? url : null;
+      if (video == null) {
+        final html = await PageExtract.fetchHtml(url);
+        video = PageExtract.findVideoUrls(html, url).firstOrNull;
+      }
+      if (!mounted) return;
+      if (video == null) {
+        messenger.showSnackBar(SnackBar(content: Text(RetroStrings.noVideoFound)));
+        return;
+      }
+      await WebVideoPlayerScreen.open(context, url: video, title: title, referer: url);
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(RetroStrings.noVideoFound)));
+    }
+  }
+
   Future<void> _moreMenu(Rect anchor) async {
     final url = _controller.active?.url;
     final internal = _controller.active?.isInternal ?? false;
@@ -876,6 +900,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
         enabled: _controller.privateTabsSupported,
       ),
       _menuItem('reopen', Symbols.history_rounded, RetroStrings.recentlyClosed, enabled: _controller.canReopen),
+      _MenuEntry.divider,
+      // Fork: reader view and the page's video in the app's player.
+      _menuItem('reader', Symbols.chrome_reader_mode_rounded, RetroStrings.readerView, enabled: url != null && !internal),
+      _menuItem('video', Symbols.smart_display_rounded, RetroStrings.playInAppPlayer, enabled: url != null && !internal),
       _MenuEntry.divider,
       _menuItem('history', Symbols.history_rounded, RetroStrings.history),
       _menuItem('downloads', Symbols.download_rounded, RetroStrings.downloads),
@@ -905,6 +933,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
         _newTab(private: true);
       case 'reopen':
         await _closedMenu(anchor);
+      case 'reader':
+        if (url != null) await ReaderScreen.open(context, url);
+      case 'video':
+        if (url != null) await _playPageVideo(url);
       case 'history':
         await _controller.openInternal(BrowserController.historyPage);
       case 'downloads':

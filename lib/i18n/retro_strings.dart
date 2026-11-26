@@ -34,6 +34,19 @@ class RetroStrings {
   );
   static String get audioLanguageCode => _t('Audio language', 'Audiosprache');
   static String get subtitleLanguageCode => _t('Subtitle language', 'Untertitelsprache');
+  static String get readerView => _t('Reader view', 'Leseansicht');
+  static String get readerFailed => _t('This page could not be loaded.', 'Diese Seite konnte nicht geladen werden.');
+  static String get readerEmpty =>
+      _t('No article text found on this page.', 'Auf dieser Seite wurde kein Artikeltext gefunden.');
+  static String get smallerText => _t('Smaller text', 'Kleinere Schrift');
+  static String get largerText => _t('Larger text', 'Größere Schrift');
+  static String get playInAppPlayer => _t("Play video in the app's player", 'Video im App-Player abspielen');
+  static String get noVideoFound => _t(
+    'No playable video found on this page.',
+    'Auf dieser Seite wurde kein abspielbares Video gefunden.',
+  );
+  static String get back10 => _t('Back 10 seconds', '10 Sekunden zurück');
+  static String get forward10 => _t('Forward 10 seconds', '10 Sekunden vor');
   static String get nightMode => _t('Night mode', 'Nachtmodus');
   static String get nightModeDescription => _t(
     'Quieter loud scenes and clearer dialogue at low volume',
