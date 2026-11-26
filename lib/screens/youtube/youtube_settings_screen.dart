@@ -9,7 +9,7 @@ import '../../services/youtube/youtube_auth.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../services/youtube/youtube_webview.dart';
-import '../../services/youtube/youtube_watchlist.dart';
+import '../../services/youtube/youtube_account_watch_later.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../utils/app_logger.dart';
@@ -138,40 +138,15 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
 
   void _say(String text) => ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(text)));
 
-  /// Fork: Watch later on youtube.com into the app's Watch later list.
+  /// Fork: Watch later on youtube.com, shown as its own list in the feed.
   Future<void> _importWatchLater() async {
     if (_importing) return;
     _importing = true;
     _say(YtStrings.importRunning);
     try {
-      final items = await YouTubeWebView.watchLater();
+      final ok = await YouTubeAccountWatchLater.instance.refresh();
       if (!mounted) return;
-      if (items == null) {
-        _say(YtStrings.importFailed);
-        return;
-      }
-      final watchlist = YouTubeWatchlist.instance;
-      await watchlist.load();
-      var added = 0;
-      for (final i in items) {
-        final id = i['id'] as String? ?? '';
-        if (id.isEmpty || watchlist.contains(id)) continue;
-        await watchlist.add(
-          YouTubeVideo(
-            id: id,
-            title: i['t'] as String? ?? '',
-            channelId: i['ci'] as String? ?? '',
-            channelTitle: i['c'] as String? ?? '',
-            thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
-            publishedAt: DateTime.now(),
-            viewCount: 0,
-            isShort: false,
-            duration: Duration(seconds: (i['s'] as num?)?.toInt() ?? 0),
-          ),
-        );
-        added++;
-      }
-      if (mounted) _say(YtStrings.importWatchLaterDone(added, items.length));
+      _say(ok ? YtStrings.importWatchLaterDone(YouTubeAccountWatchLater.instance.length) : YtStrings.importFailed);
     } finally {
       _importing = false;
     }

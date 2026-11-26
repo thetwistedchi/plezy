@@ -414,10 +414,10 @@ class YtStrings {
   static String get addChannelsNoAccount => _t('Add channels', 'Kanäle hinzufügen');
   static String get signInOptional => _t('Sign in with Google (optional)', 'Mit Google anmelden (optional)');
   static String get channels => _t('Channels', 'Kanäle');
-  static String get importWatchLater => _t('Import Watch later from YouTube', 'Später ansehen von YouTube importieren');
+  static String get importWatchLater => _t('Load Watch later from YouTube', 'Später ansehen von YouTube laden');
   static String get importWatchLaterSub => _t(
-    'Adds the videos of your Watch later list on youtube.com to the app\'s list (signed-in player needed)',
-    'Fügt die Videos deiner Später-ansehen-Liste auf youtube.com der Liste der App hinzu (angemeldeter Player nötig)',
+    'Shows your Watch later list from youtube.com as its own list next to the app\'s (signed-in player needed)',
+    'Zeigt deine Später-ansehen-Liste von youtube.com als eigene Liste neben der der App (angemeldeter Player nötig)',
   );
   static String get importBells => _t('Import bell channels as favourites', 'Glocken-Kanäle als Favoriten übernehmen');
   static String get importBellsSub => _t(
@@ -429,8 +429,18 @@ class YtStrings {
     'Could not read your YouTube account. Is the player signed in (YouTube settings)?',
     'Dein YouTube-Konto konnte nicht gelesen werden. Ist der Player angemeldet (YouTube-Einstellungen)?',
   );
-  static String importWatchLaterDone(int added, int total) =>
-      _t('$added of $total videos added to Watch later', '$added von $total Videos zu Später ansehen hinzugefügt');
+  static String importWatchLaterDone(int total) =>
+      _t('$total videos in YouTube Watch later', '$total Videos in YouTube: Später ansehen');
+  static String accountWatchLaterCount(int n) => _t('YouTube Watch later ($n)', 'YouTube: Später ansehen ($n)');
+  static String get accountWatchLater => _t('YouTube Watch later', 'YouTube: Später ansehen');
+  static String get accountWatchLaterSubtitle => _t(
+    'Your Watch later list on youtube.com. Removing here hides a video until the next refresh.',
+    'Deine Später-ansehen-Liste auf youtube.com. Entfernen blendet ein Video bis zum nächsten Laden aus.',
+  );
+  static String get accountWatchLaterEmpty => _t(
+    'Nothing loaded yet. Refresh reads it from your signed-in YouTube account.',
+    'Noch nichts geladen. Aktualisieren liest sie aus deinem angemeldeten YouTube-Konto.',
+  );
   static String importBellsDone(int added, int total) =>
       _t('$added of $total bell channels added as favourites', '$added von $total Glocken-Kanälen als Favoriten übernommen');
   static String get playerSignedIn => _t('Signed in', 'Angemeldet');

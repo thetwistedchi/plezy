@@ -11,6 +11,7 @@ import '../../services/youtube/youtube_extras.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../services/youtube/youtube_watchlist.dart';
+import '../../services/youtube/youtube_account_watch_later.dart';
 import '../../services/youtube/youtube_webview.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
@@ -36,11 +37,12 @@ class YouTubeScreen extends StatefulWidget {
   State<YouTubeScreen> createState() => _YouTubeScreenState();
 }
 
-enum _YtView { subscriptions, watchlist }
+enum _YtView { subscriptions, watchlist, accountWatchLater }
 
 class _YouTubeScreenState extends State<YouTubeScreen> {
   final _settings = YouTubeSettings.instance;
   final _service = YouTubeService.instance;
+  final _accountWatchLater = YouTubeAccountWatchLater.instance;
   final _watchlist = YouTubeWatchlist.instance;
   _YtView _view = _YtView.subscriptions;
   YouTubeSort _sort = YouTubeSort.newest;
@@ -67,6 +69,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       }),
     );
     unawaited(_watchlist.load());
+    unawaited(_accountWatchLater.load());
     // Fork: markers compare against the previous visit; this visit is
     // stamped right away, as the feed screen may never be disposed.
     unawaited(_settings.load().then((_) {
@@ -216,7 +219,14 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: ListenableBuilder(
-        listenable: Listenable.merge([_settings, _service, _watchlist, YouTubeChannels.instance, DeArrow.instance]),
+        listenable: Listenable.merge([
+          _settings,
+          _service,
+          _watchlist,
+          _accountWatchLater,
+          YouTubeChannels.instance,
+          DeArrow.instance,
+        ]),
         builder: (context, _) {
           if (!_settings.isLoaded || !YouTubeChannels.instance.isLoaded) {
             return const Center(child: CircularProgressIndicator());
@@ -225,6 +235,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
             return _ConnectPrompt(onAddChannels: _openChannels, onSignIn: _openSettings, onGuide: _openGuide);
           }
           if (_view == _YtView.watchlist) return _buildWatchlist(context);
+          if (_view == _YtView.accountWatchLater) return _buildAccountWatchLater(context);
           // Fork: system back (Android, mouse back button) leaves the search.
           return PopScope(
             canPop: _query == null,
@@ -668,6 +679,12 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       segments: [
         ButtonSegment(value: _YtView.subscriptions, label: Text(YtStrings.subscriptions)),
         ButtonSegment(value: _YtView.watchlist, label: Text(YtStrings.watchlistCount(_watchlist.length))),
+        // Fork: the YouTube account's own Watch later, kept apart.
+        if (YouTubeWebView.isSupported)
+          ButtonSegment(
+            value: _YtView.accountWatchLater,
+            label: Text(YtStrings.accountWatchLaterCount(_accountWatchLater.length)),
+          ),
       ],
       selected: {_view},
       onSelectionChanged: (s) => setState(() => _view = s.first),
@@ -755,6 +772,109 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                 video: items[i],
                 onTap: () => unawaited(_playWatchlist(startIndex: i)),
                 onRemove: () => unawaited(_watchlist.remove(items[i].id)),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _refreshAccountWatchLater() async {
+    final ok = await _accountWatchLater.refresh();
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(YtStrings.importFailed)));
+    }
+  }
+
+  Widget _buildAccountWatchLater(BuildContext context) {
+    final theme = Theme.of(context);
+    final mono = tokens(context);
+    final items = _accountWatchLater.items;
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
+          sliver: SliverToBoxAdapter(
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              alignment: WrapAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: YtStrings.back,
+                      onPressed: () => setState(() => _view = _YtView.subscriptions),
+                      icon: const AppIcon(Symbols.arrow_back_rounded),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          YtStrings.accountWatchLater,
+                          style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          YtStrings.accountWatchLaterSubtitle,
+                          style: theme.textTheme.bodyMedium?.copyWith(color: mono.textMuted),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _viewSwitch(context),
+                    FilledButton.icon(
+                      onPressed: items.isEmpty
+                          ? null
+                          : () => unawaited(YouTubePlayerScreen.open(context, _accountWatchLater.items)),
+                      icon: const AppIcon(Symbols.play_arrow_rounded, fill: 1),
+                      label: Text(YtStrings.playAll),
+                    ),
+                    IconButton(
+                      tooltip: YtStrings.refresh,
+                      onPressed: _accountWatchLater.loading ? null : () => unawaited(_refreshAccountWatchLater()),
+                      icon: _accountWatchLater.loading
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const AppIcon.retro(Symbols.refresh_rounded),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (items.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Text(
+                YtStrings.accountWatchLaterEmpty,
+                style: theme.textTheme.bodyLarge?.copyWith(color: mono.textMuted),
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
+            sliver: SliverReorderableList(
+              itemCount: items.length,
+              onReorderItem: (_, _) {},
+              itemBuilder: (context, i) => _WatchlistRow(
+                key: ValueKey('yt-${items[i].id}'),
+                index: i,
+                video: items[i],
+                onTap: () => unawaited(YouTubePlayerScreen.open(context, _accountWatchLater.items, startIndex: i)),
+                onRemove: () => unawaited(_accountWatchLater.remove(items[i].id)),
               ),
             ),
           ),
