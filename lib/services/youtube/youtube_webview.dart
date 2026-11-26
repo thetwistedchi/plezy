@@ -172,6 +172,9 @@ class YouTubeWebView {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       }
       if (_signInOpen || !YouTubeSettings.instance.syncHistory) return;
+      while (hiddenVisitBlockers.value > 0) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+      }
       await _withHiddenView(() async {
         var interrupted = false;
         try {
@@ -181,7 +184,7 @@ class YouTubeWebView {
           });
           await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
           for (var i = 0; i < 30; i++) {
-            if (_likesWaiting > 0) {
+            if (_likesWaiting > 0 || hiddenVisitBlockers.value > 0) {
               interrupted = true;
               break;
             }
@@ -190,7 +193,7 @@ class YouTubeWebView {
           if (interrupted) {
             // Tried again on the next backfill.
             _historyDone.remove(videoId);
-            appLogger.d('YouTube history: visit cut short for a comment like');
+            appLogger.d('YouTube history: visit cut short');
           } else {
             await YouTubeSettings.instance.markHistorySynced(videoId);
             appLogger.d('YouTube history: watch page visited');
@@ -203,6 +206,11 @@ class YouTubeWebView {
       });
     });
   }
+
+  /// Fork: screens that show a native view where the hidden history view
+  /// would show through (the in-app browser, the browser's video player).
+  /// Visits wait while one is open and stop when one opens.
+  static final ValueNotifier<int> hiddenVisitBlockers = ValueNotifier(0);
 
   /// One user of the hidden view at a time (history visits, comment likes).
   static Future<void> _hiddenViewQueue = Future<void>.value();

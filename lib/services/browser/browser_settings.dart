@@ -58,6 +58,9 @@ class BrowserSettings extends ChangeNotifier {
   /// Sites allowed to open pop-ups without a click on a link.
   List<String> popupSites = const [];
 
+  /// Fork: sites whose blocked pop-ups no longer show a notice.
+  List<String> popupQuietSites = const [];
+
   /// Dark mode for websites (Dark Reader).
   bool darkMode = false;
   int darkBrightness = 100;
@@ -100,6 +103,7 @@ class BrowserSettings extends ChangeNotifier {
     downloadFolder = p.getString('${_prefix}downloadFolder') ?? '';
     askWhereToSave = p.getBool('${_prefix}askWhereToSave') ?? false;
     popupSites = p.getStringList('${_prefix}popupSites') ?? const [];
+    popupQuietSites = p.getStringList('${_prefix}popupQuietSites') ?? const [];
     trackingLevel = p.getInt('${_prefix}tracking') ?? trackingLevel;
     darkMode = p.getBool('${_prefix}darkMode') ?? darkMode;
     darkBrightness = p.getInt('${_prefix}darkBrightness') ?? darkBrightness;
@@ -133,6 +137,20 @@ class BrowserSettings extends ChangeNotifier {
     }
     pointerSites = sites;
     await _prefs!.setStringList('${_prefix}pointerSites', [for (final e in sites.entries) '${e.key}|${e.value ? 1 : 0}']);
+    notifyListeners();
+  }
+
+  /// Fork: blocks the site's pop-ups without a notice ([quiet]) or with one.
+  Future<void> setPopupQuiet(String site, bool quiet) async {
+    await load();
+    final sites = {...popupQuietSites};
+    if (quiet) {
+      sites.add(site);
+    } else {
+      sites.remove(site);
+    }
+    popupQuietSites = sites.toList()..sort();
+    await _prefs!.setStringList('${_prefix}popupQuietSites', popupQuietSites);
     notifyListeners();
   }
 

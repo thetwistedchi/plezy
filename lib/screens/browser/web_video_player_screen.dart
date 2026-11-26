@@ -7,6 +7,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../../i18n/retro_strings.dart';
 import '../../mpv/mpv.dart';
 import '../../services/playback_coordinator.dart';
+import '../../services/youtube/youtube_webview.dart';
 import '../../widgets/app_icon.dart';
 
 /// Fork: plays a video found on a web page in the app's own player (mpv),
@@ -19,8 +20,14 @@ class WebVideoPlayerScreen extends StatefulWidget {
   final String? referer;
 
   static Future<void> open(BuildContext context, {required String url, required String title, String? referer}) =>
+      // Like the main player: no transition, and nothing painted over the
+      // native video plane beneath Flutter.
       Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => WebVideoPlayerScreen(url: url, title: title, referer: referer)),
+        PageRouteBuilder<void>(
+          pageBuilder: (_, _, _) => WebVideoPlayerScreen(url: url, title: title, referer: referer),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
       );
 
   @override
@@ -40,6 +47,9 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    // The video plane sits beneath Flutter, where YouTube's hidden history
+    // view would show through.
+    YouTubeWebView.hiddenVisitBlockers.value++;
     unawaited(_start());
     _poke();
   }
@@ -80,6 +90,7 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
   @override
   void dispose() {
     _disposed = true;
+    YouTubeWebView.hiddenVisitBlockers.value--;
     _hide?.cancel();
     for (final s in _subs) {
       unawaited(s.cancel());
@@ -138,7 +149,7 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
   Widget build(BuildContext context) {
     final total = _duration.inMilliseconds;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.transparent,
       body: Focus(
         autofocus: true,
         onKeyEvent: _onKey,
@@ -152,7 +163,7 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
                 if (_player case final player?)
                   Video(player: player)
                 else
-                  const Center(child: CircularProgressIndicator()),
+                  const ColoredBox(color: Colors.black, child: Center(child: CircularProgressIndicator())),
                 AnimatedOpacity(
                   opacity: _controls ? 1 : 0,
                   duration: const Duration(milliseconds: 200),

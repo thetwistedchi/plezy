@@ -47,8 +47,10 @@ class RetroStrings {
   );
   static String get back10 => _t('Back 10 seconds', '10 Sekunden zurück');
   static String get forward10 => _t('Forward 10 seconds', '10 Sekunden vor');
-  static String filmSeries(String name, int have, int total) =>
-      _t('$name: $have of $total in your library', '$name: $have von $total in deiner Mediathek');
+  static String filmSeries(String name, int have, int total) => _t(
+    'Part of the film series "$name" · $have of $total parts in your library',
+    'Teil der Filmreihe „$name“ · $have von $total Teilen in deiner Mediathek',
+  );
   static String get notInLibrary => _t('Not in your library', 'Nicht in deiner Mediathek');
   static String get yourViewing => _t('Your viewing', 'Dein Schauen');
   static String get upcomingEpisodes => _t('Upcoming episodes', 'Kommende Folgen');
@@ -239,6 +241,9 @@ class RetroStrings {
   static String redirectBlocked(String site) =>
       _t('$site tried to leave for another site after opening a pop-up', '$site wollte nach einem Pop-up zu einer anderen Seite wechseln');
   static String get alwaysAllow => _t('Always allow', 'Immer erlauben');
+  static String get popupNeverHere => _t('Never show for this site', 'Für diese Seite nie anzeigen');
+  static String get popupQuietSites =>
+      _t('Pop-ups blocked without a notice on', 'Pop-ups ohne Hinweis blockiert auf');
   static String get popupSites => _t('Pop-ups allowed on', 'Pop-ups erlaubt auf');
   static String get popupSitesEmpty => _t(
     'Pop-ups only open after a click on a link or within the same site. Sites you allow from the pop-up notice are listed here.',

@@ -1890,6 +1890,8 @@ e.dispatchEvent(new Event('change',{bubbles:true}));}})"""
         hostOf(url).takeIf { it.isNotEmpty() }?.let { tab.allowedHosts.add(it) }
         load(tab, url)
       }
+      // Fork: "Play in app player" pauses the page's video (frames included).
+      "pauseMedia" -> web.evaluateJavascript("window.postMessage({plezyMedia:'pause'},'*');", null)
       "setMuted" -> {
         tab.muted = call.argument<Boolean>("value") ?: false
         applyMute(tab)

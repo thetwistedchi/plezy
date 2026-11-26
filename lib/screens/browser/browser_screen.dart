@@ -58,12 +58,23 @@ class BrowserScreen extends StatefulWidget {
 }
 
 class _Notice {
-  const _Notice(this.text, {this.action, this.onAction, this.action2, this.onAction2, this.warning = false});
+  const _Notice(
+    this.text, {
+    this.action,
+    this.onAction,
+    this.action2,
+    this.onAction2,
+    this.action3,
+    this.onAction3,
+    this.warning = false,
+  });
   final String text;
   final String? action;
   final VoidCallback? onAction;
   final String? action2;
   final VoidCallback? onAction2;
+  final String? action3;
+  final VoidCallback? onAction3;
   final bool warning;
 }
 
@@ -385,6 +396,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
             onAction: () => unawaited(_controller.newTab(url: url)),
             action2: site.isEmpty ? null : RetroStrings.alwaysAllow,
             onAction2: site.isEmpty ? null : () => unawaited(_controller.setPopupAllowed(site, true)),
+            action3: site.isEmpty ? null : RetroStrings.popupNeverHere,
+            onAction3: site.isEmpty ? null : () => unawaited(_settings.setPopupQuiet(site, true)),
           ),
         );
       case HttpFallbackNotice(:final tab, :final httpUrl):
@@ -875,6 +888,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
     final tab = _controller.active;
     final title = tab?.title ?? url;
     // YouTube pages and embeds go to the app's YouTube player.
+    if (tab != null) await _controller.pauseMedia(tab.id);
+    if (!mounted) return;
     final youTubeId = PageExtract.youTubeVideoId(url);
     if (youTubeId != null) {
       await _playYouTube(youTubeId, title);
@@ -1746,6 +1761,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 notice.onAction2?.call();
               },
               child: Text(action2),
+            ),
+          if (notice.action3 case final action3?)
+            TextButton(
+              onPressed: () {
+                _setNotice(null);
+                notice.onAction3?.call();
+              },
+              child: Text(action3),
             ),
           _iconButton(Symbols.close_rounded, RetroStrings.close, () => _setNotice(null), size: 16),
         ],

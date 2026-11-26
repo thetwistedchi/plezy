@@ -75,6 +75,7 @@ import '../services/player_sync_offsets.dart';
 import '../services/preferred_audio_device.dart';
 import '../services/scoped_player_prefs.dart';
 import '../services/settings_service.dart';
+import '../services/youtube/youtube_webview.dart';
 import '../services/sleep_timer_service.dart';
 import '../services/subtitle_preference.dart';
 import '../services/title_track_memory.dart';
@@ -1428,6 +1429,8 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
   @override
   void initState() {
     super.initState();
+    // Fork: YouTube's hidden history view would show through the video.
+    YouTubeWebView.hiddenVisitBlockers.value++;
     FocusManager.instance.addListener(_guardPlayerFocus);
     VideoMiniPlayer.instance.stopOtherThan('plex');
     PlaybackCoordinator.instance.registerVideoSession(
@@ -2524,6 +2527,7 @@ class VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   @override
   void dispose() {
+    YouTubeWebView.hiddenVisitBlockers.value--;
     FocusManager.instance.removeListener(_guardPlayerFocus);
     _releaseMiniPlayer();
     PlaybackCoordinator.instance.unregisterVideoSession(

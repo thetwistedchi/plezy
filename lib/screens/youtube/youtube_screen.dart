@@ -366,15 +366,15 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                       ),
                       // Fork: send watched videos to the YouTube history now.
                       if (_settings.syncHistory)
-                        TextButton.icon(
+                        IconButton(
+                          tooltip: YtStrings.syncHistoryButton,
                           onPressed: _syncHistoryNow,
-                          icon: const AppIcon.retro(Symbols.sync_rounded),
-                          label: Text(YtStrings.syncHistoryButton),
+                          icon: const AppIcon.retro(Symbols.history_rounded),
                         ),
-                      TextButton.icon(
+                      IconButton(
+                        tooltip: YtStrings.addChannels,
                         onPressed: _openChannels,
-                        icon: const AppIcon.retro(Symbols.subscriptions_rounded),
-                        label: Text(YtStrings.addChannels),
+                        icon: const AppIcon.retro(Symbols.add_to_queue_rounded),
                       ),
                       IconButton(
                         tooltip: YtStrings.guide,

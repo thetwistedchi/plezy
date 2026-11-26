@@ -522,6 +522,24 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                               ),
                         ],
                       ),
+                      // Fork: sites whose blocked pop-ups show no notice.
+                      if (_settings.popupQuietSites.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        _SectionTitle(RetroStrings.popupQuietSites),
+                        _Card(
+                          children: [
+                            for (final site in _settings.popupQuietSites)
+                              ListTile(
+                                title: Text(site),
+                                trailing: IconButton(
+                                  icon: const BrowserIcon(Symbols.close_rounded, size: 18),
+                                  tooltip: RetroStrings.delete,
+                                  onPressed: () => unawaited(_settings.setPopupQuiet(site, false)),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       _SectionTitle(RetroStrings.browserProtection),
                       _Card(children: [ListTile(subtitle: Text(RetroStrings.browserProtectionDescription))]),

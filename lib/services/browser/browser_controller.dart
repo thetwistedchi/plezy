@@ -12,6 +12,7 @@ import 'adblock_lists.dart';
 import 'browser_history.dart';
 import 'browser_native.dart';
 import 'browser_settings.dart';
+import '../youtube/youtube_webview.dart';
 
 class BrowserTabState {
   BrowserTabState(this.id, {this.url, this.title = '', this.isPrivate = false});
@@ -304,6 +305,8 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setShown(bool shown) async {
     if (_shown == shown) return;
     _shown = shown;
+    // Fork: YouTube's hidden history view would show through the page.
+    YouTubeWebView.hiddenVisitBlockers.value += shown ? 1 : -1;
     appLogger.d('Browser: ${shown ? 'shown' : 'hidden'} (${tabs.length} tabs, ${tabs.where((t) => t.live).length} running)');
     if (shown) {
       _hiddenSince = null;
@@ -513,6 +516,13 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     tab.muted = muted;
     notifyListeners();
     if (tab.live) await _native.setMuted(id, muted);
+  }
+
+  /// Fork: pauses the page's video (frames included) before the app's
+  /// player takes over.
+  Future<void> pauseMedia(int id) async {
+    final tab = _byId(id);
+    if (tab != null && tab.live) await _native.pauseMedia(id);
   }
 
   String? _darkLibrary;
@@ -839,8 +849,10 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         if (url != null && url.isNotEmpty) unawaited(newTab(url: url));
       case 'popupBlocked':
         final url = e.str('url');
-        if (url != null && url.isNotEmpty) {
-          _prompts.add(PopupBlockedNotice(tab.id, url, e.str('site') ?? '', redirect: e.flag('redirect')));
+        final site = e.str('site') ?? '';
+        // Fork: sites set to "Never show for this site" stay blocked quietly.
+        if (url != null && url.isNotEmpty && !_settings.popupQuietSites.contains(site)) {
+          _prompts.add(PopupBlockedNotice(tab.id, url, site, redirect: e.flag('redirect')));
         }
       // Nobody to ask while the browser is closed: denied.
       case 'permission':

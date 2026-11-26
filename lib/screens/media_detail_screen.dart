@@ -1034,14 +1034,14 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final entry in series.parts)
+            for (final (index, entry) in series.parts.indexed)
               if (entry.owned?.id == _metadata.id)
                 // This film: highlighted, nothing to open.
                 Chip(
                   avatar: AppIcon(Symbols.check_rounded, size: 16, color: theme.colorScheme.primary),
                   side: BorderSide(color: theme.colorScheme.primary),
                   label: Text(
-                    entry.part.year != null ? '${entry.part.title} (${entry.part.year})' : entry.part.title,
+                    '${index + 1}. ${entry.part.year != null ? '${entry.part.title} (${entry.part.year})' : entry.part.title}',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 )
@@ -1053,7 +1053,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                   color: entry.owned != null ? theme.colorScheme.primary : mono.textMuted,
                 ),
                 label: Text(
-                  entry.part.year != null ? '${entry.part.title} (${entry.part.year})' : entry.part.title,
+                  '${index + 1}. ${entry.part.year != null ? '${entry.part.title} (${entry.part.year})' : entry.part.title}',
                   style: TextStyle(color: entry.owned != null ? null : mono.textMuted),
                 ),
                 tooltip: entry.owned != null ? null : RetroStrings.notInLibrary,

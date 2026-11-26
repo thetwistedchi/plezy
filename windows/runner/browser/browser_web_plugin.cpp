@@ -122,6 +122,13 @@ std::wstring SiteOf(const std::wstring& host) {
   return site;
 }
 
+// Fork: "Play in app player" pauses the page's video, also inside frames
+// from other sites (this script runs in every frame and passes the message on).
+constexpr wchar_t kPauseScript[] =
+    L"(()=>{addEventListener('message',e=>{if(e.data!=='plezy-pause')return;"
+    L"for(const m of document.querySelectorAll('video,audio')){try{m.pause();}catch(_){}}"
+    L"for(const f of document.querySelectorAll('iframe')){try{f.contentWindow.postMessage('plezy-pause','*');}catch(_){}}});})();";
+
 // Reports the link the user clicked (or middle-clicked) in the top page to
 // the app, so a new window can be told apart from a script's pop-up. It must
 // not be asked for while the page waits on window.open (that deadlocks the
@@ -762,6 +769,9 @@ void BrowserWebPlugin::HandleMethodCall(const flutter::MethodCall<flutter::Encod
     ComPtr<ICoreWebView2_8> webview8;
     if (SUCCEEDED(tab->webview.As(&webview8))) webview8->put_IsMuted(GetBool(args, "value", false) ? TRUE : FALSE);
     result->Success();
+  } else if (method == "pauseMedia") {
+    if (tab->webview) tab->webview->ExecuteScript(L"window.postMessage('plezy-pause','*');", nullptr);
+    result->Success();
   } else if (method == "suspend") {
     ComPtr<ICoreWebView2_3> webview3;
     if (SUCCEEDED(tab->webview.As(&webview3))) {
@@ -1061,6 +1071,7 @@ void BrowserWebPlugin::Wire(BrowserTab& tab) {
   auto& webview = tab.webview;
   EventRegistrationToken token{};
   webview->AddScriptToExecuteOnDocumentCreated(kLinkScript, nullptr);
+  webview->AddScriptToExecuteOnDocumentCreated(kPauseScript, nullptr);
 
   webview->add_SourceChanged(Callback<ICoreWebView2SourceChangedEventHandler>(
                                  [this, id](ICoreWebView2*, ICoreWebView2SourceChangedEventArgs*) -> HRESULT {
