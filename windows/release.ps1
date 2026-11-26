@@ -133,4 +133,4 @@ if ($Replace -or $exists) {
 
 Step "Published"
 Write-Host "https://github.com/$repo/releases/tag/$tag"
-Write-Host "macOS: start the Codemagic build, then: gh release upload $tag plezy-retrowave-macos.dmg --repo $repo --clobber"
+Write-Host "macOS: the DMG is built and attached by the GitHub workflow (about 20 minutes)."
