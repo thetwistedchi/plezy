@@ -1,5 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart' show FileType;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +25,8 @@ import '../../utils/dialogs.dart';
 import '../../main.dart' show gitCommit;
 import '../../services/background_work_diagnostics_service.dart';
 import '../../services/device_performance.dart';
-import '../../services/log_upload_service.dart';
+import '../../services/file_picker_service.dart';
+import '../../i18n/retro_strings.dart';
 import '../../services/startup_diagnostics.dart';
 import '../../services/video_decode_capabilities.dart';
 import '../../utils/app_logger.dart';
@@ -116,7 +123,6 @@ class _LogsScreenState extends State<LogsScreen> with MountedSetStateMixin {
   final FocusNode _selectionFocusNode = FocusNode(skipTraversal: true, debugLabel: 'logs-selection');
   final _RecordSelectionDelegate _recordSelection = _RecordSelectionDelegate();
 
-  MediaServerHttpClient get _httpClient => widget.httpClient ?? httpClient;
 
   @override
   void initState() {
@@ -265,58 +271,61 @@ class _LogsScreenState extends State<LogsScreen> with MountedSetStateMixin {
     showSuccessSnackBar(context, t.messages.logsCopied);
   }
 
-  Future<void> _uploadLogs() async {
-    final logText = _formatAllLogs(maxBytes: maxLogUploadBytes);
-
-    showLoadingDialog(context);
-
+  /// Fork: logs are saved to a file instead of uploaded. The upload went to
+  /// the upstream Plezy log service, whose developers can't help with this
+  /// fork. Android TV has no file picker, so there the file goes to the
+  /// app's own folder on shared storage, which `adb pull` can read.
+  Future<void> _saveLogs() async {
+    final bytes = Uint8List.fromList(utf8.encode(_formatAllLogs()));
+    final stamp = DateTime.now().toIso8601String().substring(0, 19).replaceAll(RegExp('[:T]'), '-');
+    final fileName = 'plezy-retrowave-log-$stamp.txt';
     try {
-      final id = await uploadDiagnosticText(logText, client: _httpClient);
-
-      if (!mounted) return;
-      Navigator.of(context).pop(); // dismiss loading
-
-      unawaited(
-        showScopedDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(t.messages.logsUploaded),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${t.messages.logId}:'),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SelectableText(
-                        id,
-                        style: const TextStyle(fontWeight: .bold, fontFamily: 'monospace', fontSize: 18),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const AppIcon(Symbols.content_copy_rounded, size: 20),
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: id));
-                        showSuccessSnackBar(context, t.messages.logsCopied);
-                      },
-                    ),
-                  ],
-                ),
+      if (Platform.isAndroid && PlatformDetector.isTV()) {
+        final dir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
+        final file = File(p.join(dir.path, fileName));
+        await file.writeAsBytes(bytes, flush: true);
+        if (!mounted) return;
+        unawaited(
+          showScopedDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text(RetroStrings.logsSaved),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(RetroStrings.logsSavedTvHint),
+                  const SizedBox(height: 8),
+                  SelectableText('adb pull ${file.path}', style: const TextStyle(fontFamily: 'monospace')),
+                ],
+              ),
+              actions: [
+                DialogActionButton(autofocus: true, onPressed: () => Navigator.of(ctx).pop(), label: t.common.close),
               ],
             ),
-            actions: [
-              DialogActionButton(autofocus: true, onPressed: () => Navigator.of(ctx).pop(), label: t.common.close),
-            ],
           ),
-        ),
+        );
+        return;
+      }
+      final path = await FilePickerService.instance.saveFile(
+        dialogTitle: RetroStrings.saveLogs,
+        fileName: fileName,
+        bytes: bytes,
+        type: FileType.custom,
+        allowedExtensions: const ['txt'],
       );
-    } catch (_) {
+      if (path == null || !mounted) return;
+      // Desktop pickers only return the chosen path; write the file there.
+      if (!Platform.isAndroid && !Platform.isIOS) {
+        final file = File(path);
+        if (!await file.exists() || await file.length() == 0) await file.writeAsBytes(bytes, flush: true);
+      }
       if (!mounted) return;
-      Navigator.of(context).pop(); // dismiss loading
-      showErrorSnackBar(context, t.messages.logsUploadFailed);
+      showSuccessSnackBar(context, RetroStrings.logsSaved);
+    } catch (e) {
+      appLogger.w('Saving logs failed', error: e);
+      if (!mounted) return;
+      showErrorSnackBar(context, RetroStrings.logsSaveFailed);
     }
   }
 
@@ -488,9 +497,9 @@ class _LogsScreenState extends State<LogsScreen> with MountedSetStateMixin {
                                 onPressed: _loadLogs,
                               ),
                               FocusableAction(
-                                icon: Symbols.upload_rounded,
-                                tooltip: t.logs.uploadLogs,
-                                onPressed: _hasDiagnostics ? _uploadLogs : null,
+                                icon: Symbols.save_rounded,
+                                tooltip: RetroStrings.saveLogs,
+                                onPressed: _hasDiagnostics ? _saveLogs : null,
                               ),
                               FocusableAction(
                                 icon: Symbols.content_copy_rounded,

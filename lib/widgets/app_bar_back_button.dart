@@ -105,9 +105,9 @@ class _AppBarBackButtonState extends State<AppBarBackButton> {
     };
 
     final semanticLabel = widget.semanticLabel ?? t.common.back;
-    // Fork: on TV the margin sits outside the focus wrapper, so the focus
-    // ring hugs the 40 px circle and stays inside the bar instead of being
-    // cut off at the top edge of the screen.
+    // Fork: on TV the button sits a little lower and further in, so its focus
+    // ring is not cut off at the top edge of the screen. The focus wrapper
+    // keeps the same child as before, so D-pad focus is unaffected.
     final tv = PlatformDetector.isTV();
     Widget button = FocusableWrapper(
       focusNode: widget.focusNode,
@@ -130,7 +130,7 @@ class _AppBarBackButtonState extends State<AppBarBackButton> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               curve: Curves.easeInOut,
-              margin: tv ? EdgeInsets.zero : const EdgeInsets.all(8),
+              margin: tv ? const EdgeInsets.fromLTRB(6, 4, 6, 6) : const EdgeInsets.all(8),
               width: 40,
               height: 40,
               decoration: BoxDecoration(color: _hovered ? hover : base, shape: BoxShape.circle),
@@ -141,7 +141,7 @@ class _AppBarBackButtonState extends State<AppBarBackButton> {
       ),
     );
 
-    if (tv) button = Padding(padding: const EdgeInsets.all(8), child: button);
+    if (tv) button = Padding(padding: const EdgeInsets.only(left: 4, top: 6), child: button);
     return widget.style == BackButtonStyle.circular ? SafeArea(child: button) : button;
   }
 }

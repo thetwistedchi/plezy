@@ -19,6 +19,11 @@ class RetroStrings {
   static String germanVoicesFrom(String source) => _t('German voices: $source', 'Deutsche Stimmen: $source');
   static String get audioTrack => _t('Audio track', 'Tonspur');
   static String get subtitleTrack => _t('Subtitles', 'Untertitel');
+  static String get saveLogs => _t('Save logs to a file', 'Logs in Datei speichern');
+  static String get logsSaved => _t('Logs saved', 'Logs gespeichert');
+  static String get logsSaveFailed => _t('Could not save the logs', 'Logs konnten nicht gespeichert werden');
+  static String get logsSavedTvHint =>
+      _t('Copy the file to a computer with this command:', 'Die Datei mit diesem Befehl auf einen Computer kopieren:');
   static String get gamepadInput => _t('Game controller input', 'Controller-Eingaben');
   static String get gamepadInputDescription =>
       _t('Navigate with a connected game controller', 'Mit einem angeschlossenen Controller navigieren');
