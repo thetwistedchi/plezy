@@ -61,6 +61,10 @@ class RetroStrings {
     'Subtitle added on the server. It shows up the next time the video starts.',
     'Untertitel auf dem Server hinzugefügt. Er steht beim nächsten Start des Videos bereit.',
   );
+  static String get videoNotPlayable => _t(
+    'This video can\'t be played in the app player. Start it on the page first, then try again.',
+    'Dieses Video kann der App-Player nicht abspielen. Starte es zuerst auf der Seite und versuche es dann erneut.',
+  );
   static String get tomorrow => _t('Tomorrow', 'Morgen');
   static String get upcomingTab => _t('Upcoming', 'Demnächst');
   static String upcomingChecking(int done, int total) =>

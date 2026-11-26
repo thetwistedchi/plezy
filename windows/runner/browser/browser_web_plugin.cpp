@@ -302,6 +302,8 @@ void BrowserWebPlugin::ReportBlocked(BrowserTab& tab, bool force) {
 // start of each of its documents. Replaces the previous page's script.
 void BrowserWebPlugin::PreparePage(BrowserTab& tab, const std::wstring& uri) {
   tab.page_url = ToUtf8(uri.c_str());
+  tab.media_url.clear();
+  tab.media_is_manifest = false;
   tab.blocked = 0;
   tab.blocked_report = 0;
   tab.checked = 0;
@@ -358,7 +360,7 @@ void BrowserWebPlugin::PreparePage(BrowserTab& tab, const std::wstring& uri) {
 // (redirect filters), or let through.
 void BrowserWebPlugin::OnResourceRequested(int id, ICoreWebView2WebResourceRequestedEventArgs* args) {
   BrowserTab* tab = Find(id);
-  if (!tab || !environment_ || !AdblockActive(tab->page_url)) return;
+  if (!tab) return;
   ComPtr<ICoreWebView2WebResourceRequest> request;
   if (FAILED(args->get_Request(&request)) || !request) return;
   LPWSTR raw = nullptr;
@@ -366,6 +368,8 @@ void BrowserWebPlugin::OnResourceRequested(int id, ICoreWebView2WebResourceReque
   const std::wstring uri = raw ? raw : L"";
   if (raw) ::CoTaskMemFree(raw);
   if (!StartsWith(Lower(uri), L"http")) return;
+  NoteMedia(*tab, uri, request.Get());
+  if (!environment_ || !AdblockActive(tab->page_url)) return;
   COREWEBVIEW2_WEB_RESOURCE_CONTEXT context = COREWEBVIEW2_WEB_RESOURCE_CONTEXT_OTHER;
   args->get_ResourceContext(&context);
   // The page itself was checked when its navigation started.
@@ -395,6 +399,37 @@ void BrowserWebPlugin::OnResourceRequested(int id, ICoreWebView2WebResourceReque
   if (response) args->put_Response(response.Get());
   ++tab->blocked;
   ReportBlocked(*tab, false);
+}
+
+// Fork: remembers video streams by their address (.m3u8 / .mpd manifests,
+// or .mp4 / .webm / .mkv files) and tells Dart with the Referer the page
+// sent, which hosts often require.
+void BrowserWebPlugin::NoteMedia(BrowserTab& tab, const std::wstring& uri, ICoreWebView2WebResourceRequest* request) {
+  std::wstring path = Lower(uri);
+  const size_t cut = path.find_first_of(L"?#");
+  if (cut != std::wstring::npos) path.resize(cut);
+  auto ends = [&path](const wchar_t* ext) {
+    const size_t n = wcslen(ext);
+    return path.size() >= n && path.compare(path.size() - n, n, ext) == 0;
+  };
+  const bool manifest = ends(L".m3u8") || ends(L".mpd");
+  const bool file = ends(L".mp4") || ends(L".webm") || ends(L".mkv") || ends(L".m4v");
+  if (!manifest && !file) return;
+  if (uri == tab.media_url || (tab.media_is_manifest && !manifest)) return;
+  tab.media_url = uri;
+  tab.media_is_manifest = manifest;
+  std::wstring referer;
+  ComPtr<ICoreWebView2HttpRequestHeaders> headers;
+  if (SUCCEEDED(request->get_Headers(&headers)) && headers) {
+    LPWSTR value = nullptr;
+    if (SUCCEEDED(headers->GetHeader(L"Referer", &value)) && value) {
+      referer = value;
+      ::CoTaskMemFree(value);
+    }
+  }
+  Send(tab.id, "media",
+       {{flutter::EncodableValue("url"), flutter::EncodableValue(ToUtf8(uri.c_str()))},
+        {flutter::EncodableValue("referer"), flutter::EncodableValue(ToUtf8(referer.c_str()))}});
 }
 
 BrowserTab* BrowserWebPlugin::Find(int id) {

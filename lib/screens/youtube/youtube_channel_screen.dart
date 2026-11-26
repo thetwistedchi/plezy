@@ -241,25 +241,32 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
             if (_playlists.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 24, 32, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(YtStrings.playlists, style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final list in _playlists)
-                            ActionChip(
-                              avatar: const AppIcon(Symbols.playlist_play_rounded, size: 18),
-                              label: Text('${list.title} (${list.count})'),
-                              onPressed: () => unawaited(_playPlaylist(list.id)),
-                            ),
-                        ],
-                      ),
-                    ],
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  // Fork: collapsed by default, so the uploads stay in view.
+                  child: Theme(
+                    data: theme.copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      expandedAlignment: Alignment.centerLeft,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(mono.radiusMd)),
+                      leading: const AppIcon(Symbols.playlist_play_rounded),
+                      title: Text('${YtStrings.playlists} (${_playlists.length})', style: theme.textTheme.titleMedium),
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final list in _playlists)
+                              ActionChip(
+                                avatar: const AppIcon(Symbols.playlist_play_rounded, size: 18),
+                                label: Text('${list.title} (${list.count})'),
+                                onPressed: () => unawaited(_playPlaylist(list.id)),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

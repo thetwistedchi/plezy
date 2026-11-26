@@ -204,6 +204,9 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     var webView: WebView? = null
     var lastUrl: String = ""
     @Volatile var pageUrl: String = ""
+    /** Fork: the last video stream the page loaded, for "Play in app player". */
+    @Volatile var mediaUrl: String = ""
+    @Volatile var mediaIsManifest = false
     /** Free on plex.tv's player: the app's Plex sign-in, to approve Plex's own sign-in page. */
     var plexToken: String = ""
     var plexApproved = mutableSetOf<String>()
@@ -524,6 +527,23 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     activityBinding?.removeActivityResultListener(resultListener)
     activityBinding = null
     activity = null
+  }
+
+  /**
+   * Fork: remembers video streams by their address (.m3u8 / .mpd manifests,
+   * or .mp4 / .webm / .mkv files) and tells Dart with the Referer the page
+   * sent, which hosts often require. Runs on the WebView's network thread.
+   */
+  private fun noteMedia(tab: Tab, url: String, request: WebResourceRequest) {
+    val path = (request.url.path ?: return).lowercase()
+    val manifest = path.endsWith(".m3u8") || path.endsWith(".mpd")
+    val file = path.endsWith(".mp4") || path.endsWith(".webm") || path.endsWith(".mkv") || path.endsWith(".m4v")
+    if (!manifest && !file) return
+    if (url == tab.mediaUrl || (tab.mediaIsManifest && !manifest)) return
+    tab.mediaUrl = url
+    tab.mediaIsManifest = manifest
+    val referer = request.requestHeaders.entries.firstOrNull { it.key.equals("Referer", true) }?.value ?: ""
+    send(tab.id, "media", mapOf("url" to url, "referer" to referer))
   }
 
   private fun send(tab: Int, type: String, data: Map<String, Any?> = emptyMap()) {
@@ -916,6 +936,12 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
         val url = request.url.toString()
         if (!url.startsWith("http")) return null
         val engine = adblock
+        if (request.isForMainFrame) {
+          tab.mediaUrl = ""
+          tab.mediaIsManifest = false
+        } else {
+          noteMedia(tab, url, request)
+        }
         if (request.isForMainFrame) {
           tab.pageUrl = url
           if (engine == 0L || !adblockActive(url) || hostOf(url) in tab.allowedHosts) return null

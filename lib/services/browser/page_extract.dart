@@ -32,6 +32,25 @@ class PageExtract {
     return _mediaExtensions.any(path.endsWith);
   }
 
+  /// The video id of a YouTube watch, short, live, embed or youtu.be address.
+  static String? youTubeVideoId(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+    final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^(www\.|m\.|music\.)'), '');
+    final segments = uri.pathSegments;
+    String? id;
+    if (host == 'youtu.be') {
+      id = segments.firstOrNull;
+    } else if (host == 'youtube.com' || host == 'youtube-nocookie.com') {
+      if (segments.firstOrNull == 'watch') {
+        id = uri.queryParameters['v'];
+      } else if (segments.length >= 2 && const {'embed', 'shorts', 'live', 'v'}.contains(segments.first)) {
+        id = segments[1];
+      }
+    }
+    return id != null && RegExp(r'^[\w-]{11}$').hasMatch(id) ? id : null;
+  }
+
   /// Video addresses the page names: Open Graph / Twitter player tags,
   /// `<video>` and `<source>` elements, and direct media links in the markup.
   static List<String> findVideoUrls(String html, String pageUrl) {

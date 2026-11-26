@@ -53,9 +53,24 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
     _subs
       ..add(player.streams.position.listen((p) => _update(() => _position = p)))
       ..add(player.streams.duration.listen((d) => _update(() => _duration = d)))
-      ..add(player.streams.playing.listen((p) => _update(() => _playing = p)));
+      ..add(player.streams.playing.listen((p) => _update(() => _playing = p)))
+      ..add(player.streams.fileLoadFailed.listen((_) => _failed()));
     setState(() {});
-    await player.open(Media(widget.url, headers: {if (widget.referer != null) 'Referer': widget.referer!}));
+    final referer = widget.referer;
+    final refererUri = referer == null ? null : Uri.tryParse(referer);
+    final origin = refererUri != null && (refererUri.isScheme('http') || refererUri.isScheme('https'))
+        ? refererUri.origin
+        : null;
+    await player.open(
+      Media(widget.url, headers: {if (referer != null) 'Referer': referer, if (origin != null) 'Origin': origin}),
+    );
+  }
+
+  /// The address was no playable stream (protected or not a video).
+  void _failed() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(RetroStrings.videoNotPlayable)));
+    unawaited(Navigator.of(context).maybePop());
   }
 
   void _update(VoidCallback change) {

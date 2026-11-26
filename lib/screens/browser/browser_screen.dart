@@ -35,6 +35,8 @@ import 'browser_settings_screen.dart';
 import '../../services/browser/page_extract.dart';
 import 'reader_screen.dart';
 import 'web_video_player_screen.dart';
+import '../youtube/youtube_player_screen.dart';
+import '../../services/youtube/youtube_service.dart';
 
 /// The in-app browser: tabs, address bar, bookmarks. Each tab's page is a
 /// native WebView2 placed beneath the transparent [_PageSlot].
@@ -870,22 +872,57 @@ class _BrowserScreenState extends State<BrowserScreen> {
   /// Fork: finds the page's video and plays it in the app's player.
   Future<void> _playPageVideo(String url) async {
     final messenger = ScaffoldMessenger.of(context);
-    final title = _controller.active?.title ?? url;
+    final tab = _controller.active;
+    final title = tab?.title ?? url;
+    // YouTube pages and embeds go to the app's YouTube player.
+    final youTubeId = PageExtract.youTubeVideoId(url);
+    if (youTubeId != null) {
+      await _playYouTube(youTubeId, title);
+      return;
+    }
     try {
-      String? video = PageExtract.isMediaUrl(url) ? url : null;
+      // A stream the page has already started (also inside embedded
+      // players from other sites) beats reading the page's markup.
+      var video = tab?.mediaUrl;
+      var referer = tab?.mediaReferer ?? url;
+      if (video == null && PageExtract.isMediaUrl(url)) video = url;
       if (video == null) {
         final html = await PageExtract.fetchHtml(url);
-        video = PageExtract.findVideoUrls(html, url).firstOrNull;
+        final found = PageExtract.findVideoUrls(html, url);
+        if (found.map(PageExtract.youTubeVideoId).nonNulls.firstOrNull case final id?) {
+          if (mounted) await _playYouTube(id, title);
+          return;
+        }
+        video = found.where(PageExtract.isMediaUrl).firstOrNull;
+        referer = url;
       }
       if (!mounted) return;
       if (video == null) {
         messenger.showSnackBar(SnackBar(content: Text(RetroStrings.noVideoFound)));
         return;
       }
-      await WebVideoPlayerScreen.open(context, url: video, title: title, referer: url);
+      await WebVideoPlayerScreen.open(context, url: video, title: title, referer: referer);
     } catch (_) {
       messenger.showSnackBar(SnackBar(content: Text(RetroStrings.noVideoFound)));
     }
+  }
+
+  Future<void> _playYouTube(String id, String pageTitle) async {
+    final found = await YouTubeService.instance.search(id, limit: 5).catchError((Object _) => <YouTubeVideo>[]);
+    final video =
+        found.where((v) => v.id == id).firstOrNull ??
+        YouTubeVideo(
+          id: id,
+          title: pageTitle.replaceFirst(RegExp(r'\s*-\s*YouTube$'), ''),
+          channelId: '',
+          channelTitle: '',
+          thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
+          publishedAt: DateTime.now(),
+          viewCount: 0,
+          isShort: false,
+        );
+    if (!mounted) return;
+    await YouTubePlayerScreen.open(context, [video]);
   }
 
   Future<void> _moreMenu(Rect anchor) async {

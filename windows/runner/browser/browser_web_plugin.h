@@ -73,6 +73,10 @@ struct BrowserTab {
   std::vector<std::wstring> allowed_hosts;
   // Id of the installed dark mode script, to remove it again.
   std::wstring dark_script_id;
+  // Fork: the last video stream the page (or one of its frames) loaded, for
+  // "Play in app player". A manifest (HLS/DASH) is kept over plain files.
+  std::wstring media_url;
+  bool media_is_manifest = false;
 };
 
 class BrowserWebPlugin : public flutter::Plugin {
@@ -111,6 +115,7 @@ class BrowserWebPlugin : public flutter::Plugin {
   void OnAdblockLoaded(int generation, PlezyAdblock* engine, ULONGLONG started);
   void PreparePage(BrowserTab& tab, const std::wstring& uri);
   void OnResourceRequested(int id, ICoreWebView2WebResourceRequestedEventArgs* args);
+  void NoteMedia(BrowserTab& tab, const std::wstring& uri, ICoreWebView2WebResourceRequest* request);
   void ReportBlocked(BrowserTab& tab, bool force);
 
   flutter::PluginRegistrarWindows* registrar_;

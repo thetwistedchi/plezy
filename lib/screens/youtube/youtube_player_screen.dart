@@ -596,15 +596,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   void _setRate(double rate) {
-    // Fork: -1 / -2 from the speed menu remember / forget the current speed
-    // for this video's channel.
+    // Fork: -1 from the speed menu switches "always this speed for this
+    // channel" on (with the current speed) or off.
     final channelId = _video.channelId;
     if (rate == -1) {
-      unawaited(_settings.setChannelSpeed(channelId, _rate));
-      return;
-    }
-    if (rate == -2) {
-      unawaited(_settings.setChannelSpeed(channelId, null));
+      final remembered = _settings.channelSpeed(channelId) != null;
+      unawaited(_settings.setChannelSpeed(channelId, remembered ? null : _rate));
       return;
     }
     _applyRate(rate);
@@ -1803,10 +1800,12 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                   for (final s in _speeds)
                     PopupMenuItem(value: s, child: Text(s == 1 ? YtStrings.normalSpeed : '${_trim(s)}×')),
                   const PopupMenuDivider(),
-                  if (_settings.channelSpeed(_video.channelId) == null)
-                    PopupMenuItem(value: -1, child: Text(YtStrings.speedForChannel))
-                  else
-                    PopupMenuItem(value: -2, child: Text(YtStrings.speedForChannelOff)),
+                  CheckedPopupMenuItem(
+                    value: -1,
+                    checked: _settings.channelSpeed(_video.channelId) != null,
+                    enabled: _video.channelId.isNotEmpty,
+                    child: Text(YtStrings.speedForChannel),
+                  ),
                 ],
                 child: SizedBox(
                   width: 48,

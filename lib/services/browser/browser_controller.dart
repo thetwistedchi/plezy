@@ -49,6 +49,11 @@ class BrowserTabState {
   /// The http address a failed https upgrade came from.
   String? upgradedFrom;
 
+  /// Fork: the last video stream the page or one of its frames loaded, and
+  /// the Referer it was loaded with ("Play in app player").
+  String? mediaUrl;
+  String? mediaReferer;
+
   /// One of the app's own pages (settings, filter lists), shown by Flutter.
   bool get isInternal => url?.startsWith('plezy://') ?? false;
 
@@ -804,8 +809,19 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
         _scheduleSave();
       case 'loading':
         tab.loading = true;
+        tab
+          ..mediaUrl = null
+          ..mediaReferer = null;
         final url = e.str('url');
         if (url != null && url.isNotEmpty) tab.url = url;
+      case 'media':
+        final url = e.str('url');
+        if (url != null && url.isNotEmpty) {
+          final referer = e.str('referer');
+          tab
+            ..mediaUrl = url
+            ..mediaReferer = referer == null || referer.isEmpty ? null : referer;
+        }
       case 'loaded':
         tab.loading = false;
         // 14 = cancelled, e.g. the http load the https upgrade replaced.

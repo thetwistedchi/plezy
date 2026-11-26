@@ -507,6 +507,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                     inWatchlist: _watchlist.contains(videos[i].id),
                     onToggleWatchlist: () => unawaited(_watchlist.toggle(videos[i])),
                     onMenu: (position) => unawaited(_showVideoMenu(videos[i], position)),
+                    onChannel: () => unawaited(_openChannel(videos[i])),
                   ),
                   childCount: videos.length,
                 ),
@@ -516,6 +517,13 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Future<void> _openChannel(YouTubeVideo video) async {
+    if (video.channelId.isEmpty) return;
+    await Navigator.of(context).push(
+      ytRoute<void>('channel', (_) => YouTubeChannelScreen(channelId: video.channelId, channelTitle: video.channelTitle)),
     );
   }
 
@@ -551,10 +559,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       case 'watchlist':
         await _watchlist.toggle(video);
       case 'channel':
-        await Navigator.of(context).push(
-          ytRoute<void>('channel', (_) => YouTubeChannelScreen(channelId: video.channelId, channelTitle: video.channelTitle),
-          ),
-        );
+        await _openChannel(video);
       case 'share' || 'shareAt':
         final url = Uri.https('youtu.be', '/${video.id}', {if (action == 'shareAt' && resumeAt != null) 't': '$resumeAt'});
         await Clipboard.setData(ClipboardData(text: url.toString()));
@@ -690,9 +695,13 @@ class _VideoCard extends StatefulWidget {
     required this.inWatchlist,
     required this.onToggleWatchlist,
     required this.onMenu,
+    required this.onChannel,
   });
 
   final ValueChanged<Offset> onMenu;
+
+  /// Fork: the channel name opens the channel page.
+  final VoidCallback onChannel;
   final YouTubeVideo video;
   final bool watched;
 
@@ -851,11 +860,32 @@ class _VideoCardState extends State<_VideoCard> {
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, height: 1.3),
               ),
               const SizedBox(height: 4),
-              Text(
-                '${YouTubeSettings.instance.isFavorite(video.channelId) ? '★ ' : ''}${video.channelTitle} · ${YtStrings.age(video.publishedAt)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted),
+              Row(
+                children: [
+                  Flexible(
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: widget.onChannel,
+                        child: Text(
+                          '${YouTubeSettings.instance.isFavorite(video.channelId) ? '★ ' : ''}${video.channelTitle}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    [
+                      '',
+                      YtStrings.age(video.publishedAt),
+                      if (video.viewCount > 0) YtStrings.views(video.viewCount),
+                    ].join(' · '),
+                    maxLines: 1,
+                    style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted),
+                  ),
+                ],
               ),
               if (reasonText != null) ...[
                 const SizedBox(height: 4),
@@ -1106,7 +1136,11 @@ class _WatchlistRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${video.channelTitle} · ${YtStrings.age(video.publishedAt)}',
+                        [
+                          video.channelTitle,
+                          YtStrings.age(video.publishedAt),
+                          if (video.viewCount > 0) YtStrings.views(video.viewCount),
+                        ].join(' · '),
                         style: theme.textTheme.bodySmall?.copyWith(color: mono.textMuted),
                       ),
                     ],
