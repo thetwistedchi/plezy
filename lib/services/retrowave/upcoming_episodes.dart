@@ -60,6 +60,34 @@ class UpcomingEpisodes {
 
   String? labelFor(MediaItem item) => _labels['${item.serverId}:${item.id}'];
 
+  /// Fork: shows left out of Upcoming (`serverId:id`).
+  Set<String> get hidden => SettingsService.instance.read(SettingsService.upcomingHiddenShows).toSet();
+
+  Future<void> hide(MediaItem show) async {
+    final key = '${show.serverId}:${show.id}';
+    final cache = await _load();
+    ((cache['titles'] ??= <String, dynamic>{}) as Map<String, dynamic>)[key] = show.title;
+    _scheduleSave();
+    await SettingsService.instance.write(SettingsService.upcomingHiddenShows, [...hidden, key]);
+    final list = all.value;
+    if (list != null) {
+      final next = [for (final e in list) if ('${e.show.serverId}:${e.show.id}' != key) e];
+      all.value = next;
+      unawaited(_storeAll(next));
+    }
+  }
+
+  /// Title of a hidden show, as it was when hidden.
+  Future<String> hiddenTitle(String key) async =>
+      ((await _load())['titles'] as Map?)?[key] as String? ?? key;
+
+  /// Shows again what [hide] left out; it turns up with the next scan.
+  Future<void> unhide(String key) async {
+    await SettingsService.instance.write(SettingsService.upcomingHiddenShows, [
+      for (final k in hidden) if (k != key) k,
+    ]);
+  }
+
   /// Upcoming episodes for [shows] (show items), soonest first. [onProgress]
   /// reports partial results as lookups finish. [isCancelled] stops early.
   Future<List<UpcomingEpisode>> forShows(
@@ -71,9 +99,14 @@ class UpcomingEpisodes {
     final results = <UpcomingEpisode>[];
     // Fork: the same show on several servers (or libraries) is listed once.
     final seen = <String>{};
+    final hiddenShows = hidden;
     var done = 0;
     for (final show in shows) {
       if (isCancelled?.call() ?? false) break;
+      if (hiddenShows.contains('${show.serverId}:${show.id}')) {
+        done++;
+        continue;
+      }
       try {
         final client = clientFor(show);
         if (client != null) {

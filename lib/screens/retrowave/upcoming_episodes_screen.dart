@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 import '../../i18n/retro_strings.dart';
 import '../../media/ids.dart';
@@ -12,6 +13,7 @@ import '../../media/media_kind.dart';
 import '../../utils/media_navigation_helper.dart';
 import '../../theme/mono_tokens.dart';
 import '../../utils/provider_extensions.dart';
+import '../../widgets/app_icon.dart';
 import '../../widgets/desktop_app_bar.dart';
 
 /// Fork: the next episodes of every show in your TV libraries, with air
@@ -47,8 +49,9 @@ class _UpcomingEpisodesScreenState extends State<UpcomingEpisodesScreen> {
       for (final l in context.read<LibrariesProvider>().libraries)
         if (l.kind == MediaKind.show && l.serverId != null) l.serverId!: l.serverName ?? l.serverId!,
     };
-    if (servers.length < 2) return const SizedBox.shrink();
     final svc = SettingsService.instance;
+    final hidden = _service.hidden;
+    if (servers.length < 2 && hidden.isEmpty) return const SizedBox.shrink();
     final off = svc.read(SettingsService.upcomingServersOff).toSet();
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
@@ -56,6 +59,7 @@ class _UpcomingEpisodesScreenState extends State<UpcomingEpisodesScreen> {
         spacing: 8,
         runSpacing: 8,
         children: [
+          if (servers.length > 1)
           for (final e in servers.entries)
             FilterChip(
               label: Text(e.value),
@@ -70,9 +74,59 @@ class _UpcomingEpisodesScreenState extends State<UpcomingEpisodesScreen> {
                 }
               },
             ),
+          if (hidden.isNotEmpty)
+            ActionChip(
+              avatar: const AppIcon.retro(Symbols.visibility_off_rounded, size: 18),
+              label: Text(RetroStrings.upcomingHidden(hidden.length)),
+              onPressed: () => unawaited(_showHidden()),
+            ),
         ],
       ),
     );
+  }
+
+  Future<void> _showHidden() async {
+    final keys = _service.hidden.toList();
+    final titles = {for (final k in keys) k: await _service.hiddenTitle(k)};
+    if (!mounted) return;
+    var changed = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialog) {
+          final left = _service.hidden.toList()..sort((a, b) => (titles[a] ?? a).compareTo(titles[b] ?? b));
+          return AlertDialog(
+            title: Text(RetroStrings.upcomingHidden(left.length)),
+            content: SizedBox(
+              width: 420,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final key in left)
+                    ListTile(
+                      title: Text(titles[key] ?? key, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      trailing: TextButton(
+                        onPressed: () async {
+                          await _service.unhide(key);
+                          changed = true;
+                          setDialog(() {});
+                        },
+                        child: Text(RetroStrings.statsRestore),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: Text(RetroStrings.close)),
+            ],
+          );
+        },
+      ),
+    );
+    if (!mounted) return;
+    setState(() {});
+    if (changed) _scan(force: true);
   }
 
   void _changed() {

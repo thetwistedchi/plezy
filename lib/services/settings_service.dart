@@ -885,6 +885,9 @@ class SettingsService extends BaseSharedPreferencesService {
   /// Fork: servers left out of Upcoming episodes.
   static const upcomingServersOff = StringListPref('retrowave_upcoming_servers_off');
 
+  /// Fork: shows left out of Upcoming episodes (`serverId:id`).
+  static const upcomingHiddenShows = StringListPref('retrowave_upcoming_hidden_shows');
+
   /// Fork: entries per statistics list (10, 20 or 50).
   static const statsListLength = IntPref('retrowave_stats_list_length', defaultValue: 10);
 
@@ -1612,6 +1615,7 @@ class SettingsService extends BaseSharedPreferencesService {
     upcomingOnHome,
     homeRowCardStyles,
     upcomingServersOff,
+    upcomingHiddenShows,
     statsListLength,
     statsExcluded,
     statsCountOnce,

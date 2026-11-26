@@ -115,6 +115,8 @@ class RetroStrings {
   static String get statsTopActor => _t('Top actor', 'Top-Darsteller');
   static String get statsHoursByLibrary => _t('Hours by library', 'Stunden nach Mediathek');
   static String statsEpisodeCount(int n) => _t('$n ep.', '$n Fo.');
+  static String get upcomingHide => _t('Hide from upcoming episodes', 'Aus kommenden Folgen ausblenden');
+  static String upcomingHidden(int n) => _t('Hidden shows ($n)', 'Ausgeblendete Serien ($n)');
   static String get statsShowCount => _t('Entries per list', 'Einträge pro Liste');
   static String get statsExclude => _t('Exclude from statistics', 'Aus der Statistik nehmen');
   static String get statsCountOnce => _t('Count as watched once', 'Nur einmal zählen');

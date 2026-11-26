@@ -62,6 +62,8 @@ import 'watchlist_source_chooser.dart';
 import '../widgets/rating_bottom_sheet.dart';
 import '../i18n/strings.g.dart';
 import '../utils/error_message_utils.dart';
+import '../services/retrowave/upcoming_episodes.dart';
+import '../i18n/retro_strings.dart';
 
 class _MenuAction {
   final String value;
@@ -615,6 +617,22 @@ class MediaContextMenuState extends State<MediaContextMenu> {
   /// Entries for a single media item, in display order.
   List<_MenuAction> _buildItemMenuActions(BuildContext context, _MenuContext menu) {
     final mediaItem = menu.mediaItem!;
+    // Fork: an upcoming episode card stands for a show not yet aired, so
+    // only the entries that make sense for it.
+    if (UpcomingLabelScope.active(context)) {
+      return [
+        _MenuAction(value: 'details', icon: Symbols.info_rounded, label: t.mediaMenu.viewDetails),
+        if (menu.showWatchlistEntry)
+          _MenuAction(
+            value: 'toggle_watchlist',
+            icon: menu.watchlistRemoveOffered ? Symbols.bookmark_remove_rounded : Symbols.bookmark_add_rounded,
+            label: menu.watchlistRemoveOffered ? t.explore.removeFromWatchlist : t.explore.addToWatchlist,
+          ),
+        if (canLinkItem(mediaItem))
+          _MenuAction(value: 'show_link', icon: Symbols.link_rounded, label: t.deepLinks.showLink),
+        _MenuAction(value: 'upcoming_hide', icon: Symbols.visibility_off_rounded, label: RetroStrings.upcomingHide),
+      ];
+    }
     final mediaKind = mediaItem.kind;
     final isMovieOrShow = mediaKind == MediaKind.movie || mediaKind == MediaKind.show;
     final isMovieOrEpisode = mediaKind == MediaKind.movie || mediaKind == MediaKind.episode;
@@ -913,6 +931,9 @@ class MediaContextMenuState extends State<MediaContextMenu> {
         break;
       case 'remove_from_continue_watching':
         await _handleRemoveFromContinueWatching(context, mediaItem);
+        break;
+      case 'upcoming_hide':
+        await UpcomingEpisodes.instance.hide(mediaItem);
         break;
       case 'details':
         outcome.didNavigate = true;
