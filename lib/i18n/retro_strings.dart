@@ -87,6 +87,49 @@ class RetroStrings {
   static String get statsShows => _t('shows', 'Serien');
   static String get statsGenres => _t('Favourite genres', 'Lieblingsgenres');
   static String get statsMonths => _t('Last twelve months', 'Letzte zwölf Monate');
+  static String get statsRefresh => _t('Read again from the servers', 'Neu von den Servern lesen');
+  static String statsReading(String library) => _t('Reading $library…', 'Lese $library…');
+  static String statsUpdated(String ago) => _t('Updated $ago ago', 'Aktualisiert vor $ago');
+  static String get justNow => _t('a moment', 'einem Moment');
+  static String get statsAllTime => _t('All time', 'Gesamt');
+  static String get statsThisYear => _t('This year', 'Dieses Jahr');
+  static String get statsLast12 => _t('Last 12 months', 'Letzte 12 Monate');
+  static String get statsAllServers => _t('All servers', 'Alle Server');
+  static String get statsAllLibraries => _t('All libraries', 'Alle Mediatheken');
+  static String get statsLongestStreak => _t('days in a row (longest)', 'Tage am Stück (längste)');
+  static String get statsCurrentStreak => _t('days in a row (now)', 'Tage am Stück (aktuell)');
+  static String get statsActiveDays => _t('days with something watched', 'Tage mit Geschautem');
+  static String get statsPeriodHint => _t(
+    'Servers only keep the last viewing of each title, so a period counts titles last watched in it.',
+    'Server speichern nur die letzte Wiedergabe eines Titels, daher zählt ein Zeitraum die darin zuletzt gesehenen Titel.',
+  );
+  static String get statsDecades => _t('Decades', 'Jahrzehnte');
+  static String get statsPeople => _t('Directors and actors', 'Regie und Darsteller');
+  static String get statsPeopleHint => _t('From films, as far as the server lists them', 'Aus Filmen, soweit der Server sie nennt');
+  static String get statsTopShows => _t('Most watched shows', 'Meistgesehene Serien');
+  static String get statsRewatched => _t('Watched more than once', 'Mehrfach gesehen');
+  static String get statsShowProgress => _t('Shows', 'Serien');
+  static String get statsShowProgressHint => _t(
+    'Put aside: nothing watched for half a year',
+    'Pausiert: seit einem halben Jahr nichts gesehen',
+  );
+  static String get statsFinished => _t('Finished', 'Abgeschlossen');
+  static String get statsInProgress => _t('In progress', 'Am Laufen');
+  static String get statsAbandoned => _t('Put aside', 'Pausiert');
+  static String get statsWeekdays => _t('Weekdays', 'Wochentage');
+  static String get statsDatesHint => _t('By the last viewing of each title', 'Nach der letzten Wiedergabe jedes Titels');
+  static String get statsHoursOfDay => _t('Time of day', 'Tageszeit');
+  static String statsYearInReview(int year) => _t('Your $year', 'Dein $year');
+  static String get statsTopGenre => _t('Top genre', 'Top-Genre');
+  static String get statsTopShow => _t('Top show', 'Top-Serie');
+  static String get statsTopPerson => _t('Most seen person', 'Am häufigsten gesehen');
+  static String get statsBusiestMonth => _t('Busiest month', 'Stärkster Monat');
+  static List<String> get weekdaysShort => _de
+      ? const ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+      : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  static String monthName(int month) => (_de
+      ? const ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+      : const ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])[(month - 1).clamp(0, 11)];
   static String get statsMonthsHint =>
       _t('Titles by the month they were last watched', 'Titel nach dem Monat, in dem sie zuletzt gesehen wurden');
   static String get traktImport => _t('Import watch history from Trakt', 'Verlauf von Trakt importieren');
