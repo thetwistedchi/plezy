@@ -54,6 +54,32 @@ class BrowserBookmarks extends ChangeNotifier {
     await _save();
   }
 
+  /// Fork: imports the bookmarks of a browser's HTML export (Chrome,
+  /// Firefox, Edge, Brave and Safari all write the Netscape bookmark format).
+  /// Already known addresses are skipped. Returns how many were added.
+  Future<int> importHtml(String html) async {
+    final link = RegExp(r'<a\s[^>]*href\s*=\s*"([^"]+)"[^>]*>(.*?)</a>', caseSensitive: false, dotAll: true);
+    var added = 0;
+    for (final m in link.allMatches(html)) {
+      final url = _unescape(m.group(1)!.trim());
+      final uri = Uri.tryParse(url);
+      if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) continue;
+      if (contains(url)) continue;
+      final title = _unescape(m.group(2)!.replaceAll(RegExp('<[^>]*>'), '').trim());
+      _items.add(Bookmark(title: title.isEmpty ? url : title, url: url));
+      added++;
+    }
+    if (added > 0) await _save();
+    return added;
+  }
+
+  static String _unescape(String s) => s
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'");
+
   Future<void> remove(String url) async {
     _items.removeWhere((b) => _norm(b.url) == _norm(url));
     await _save();

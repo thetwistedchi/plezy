@@ -19,6 +19,16 @@ class RetroStrings {
   static String germanVoicesFrom(String source) => _t('German voices: $source', 'Deutsche Stimmen: $source');
   static String get audioTrack => _t('Audio track', 'Tonspur');
   static String get subtitleTrack => _t('Subtitles', 'Untertitel');
+  static String get importBookmarks => _t('Import bookmarks', 'Lesezeichen importieren');
+  static String get importBookmarksDescription => _t(
+    'From an HTML export of Chrome, Firefox, Edge, Brave or Safari',
+    'Aus einem HTML-Export von Chrome, Firefox, Edge, Brave oder Safari',
+  );
+  static String get importAction => _t('Import', 'Importieren');
+  static String bookmarksImported(int n) =>
+      _t('$n bookmark${n == 1 ? '' : 's'} imported', '$n Lesezeichen importiert');
+  static String get bookmarksImportFailed =>
+      _t('That file could not be read', 'Die Datei konnte nicht gelesen werden');
   static String get saveLogs => _t('Save logs to a file', 'Logs in Datei speichern');
   static String get logsSaved => _t('Logs saved', 'Logs gespeichert');
   static String get logsSaveFailed => _t('Could not save the logs', 'Logs konnten nicht gespeichert werden');

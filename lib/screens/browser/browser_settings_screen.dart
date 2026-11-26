@@ -1,12 +1,15 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:convert';
+import 'dart:io' show File, Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart' show FileType;
 import 'package:material_symbols_icons/symbols.dart';
 
 
 import '../../i18n/retro_strings.dart';
+import '../../services/browser/browser_bookmarks.dart';
 import '../../services/browser/browser_controller.dart';
 import '../../services/browser/browser_history.dart';
 import '../../services/browser/browser_native.dart';
@@ -27,6 +30,25 @@ class BrowserSettingsScreen extends StatefulWidget {
 }
 
 class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
+  Future<void> _importBookmarks(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final picked = await FilePickerService.instance.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['html', 'htm'],
+        withData: true,
+      );
+      final file = picked?.files.single;
+      final bytes = file?.bytes ?? (file?.path != null ? await File(file!.path!).readAsBytes() : null);
+      if (bytes == null) return;
+      await BrowserBookmarks.instance.load();
+      final added = await BrowserBookmarks.instance.importHtml(utf8.decode(bytes, allowMalformed: true));
+      messenger.showSnackBar(SnackBar(content: Text(RetroStrings.bookmarksImported(added))));
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(RetroStrings.bookmarksImportFailed)));
+    }
+  }
+
   final _settings = BrowserSettings.instance;
   late final _customSearch = TextEditingController(text: _settings.customSearch);
   late final _customNewTab = TextEditingController(text: _settings.customNewTab);
@@ -219,6 +241,15 @@ class _BrowserSettingsScreenState extends State<BrowserSettingsScreen> {
                                 }
                               },
                               child: Text(RetroStrings.clearHistory),
+                            ),
+                          ),
+                          // Fork: bookmarks from another browser's HTML export.
+                          ListTile(
+                            title: Text(RetroStrings.importBookmarks),
+                            subtitle: Text(RetroStrings.importBookmarksDescription),
+                            trailing: OutlinedButton(
+                              onPressed: () => unawaited(_importBookmarks(context)),
+                              child: Text(RetroStrings.importAction),
                             ),
                           ),
                           if (newTab == BrowserNewTabPage.custom)
