@@ -109,7 +109,12 @@ class RetroStrings {
     'Server speichern nur die letzte Wiedergabe eines Titels, daher zählt ein Zeitraum die darin zuletzt gesehenen Titel.',
   );
   static String get statsDecades => _t('Decades', 'Jahrzehnte');
-  static String get statsPeople => _t('Directors and actors', 'Regie und Darsteller');
+  static String get statsDirectors => _t('Directors', 'Regie');
+  static String get statsActors => _t('Actors', 'Darsteller');
+  static String get statsTopDirector => _t('Top director', 'Top-Regie');
+  static String get statsTopActor => _t('Top actor', 'Top-Darsteller');
+  static String get statsHoursByLibrary => _t('Hours by library', 'Stunden nach Mediathek');
+  static String statsEpisodeCount(int n) => _t('$n ep.', '$n Fo.');
   static String get statsPeopleHint => _t('From films, as far as the server lists them', 'Aus Filmen, soweit der Server sie nennt');
   static String get statsTopShows => _t('Most watched shows', 'Meistgesehene Serien');
   static String get statsRewatched => _t('Watched more than once', 'Mehrfach gesehen');

@@ -56,6 +56,10 @@ abstract final class RetroGlyphs {
   static const _textSmaller = '<path d="M3 19 8 6l5 13M4.8 14.5h6.4"/>|<path d="M15.5 12h6"/>';
   static const _textLarger = '<path d="M3 19 8 6l5 13M4.8 14.5h6.4"/>|<path d="M15.5 12h6M18.5 9v6"/>';
   static const _remove = '|<path d="M6 12h12"/>';
+  static const _checkCircle = '<circle cx="12" cy="12" r="8.5"/>|<path d="M8 12.3l2.7 2.7L16.2 9.5"/>';
+  static const _pauseCircle = '<circle cx="12" cy="12" r="8.5"/>|<path d="M10 9v6M14 9v6"/>';
+  static const _clapper = '<rect x="3.5" y="9" width="17" height="11" rx="2"/>|<path d="M3.5 9 4.6 4.5h14.8L20.5 9M8.5 4.5 10 9M13.5 4.5 15 9"/>';
+  static const _hourglass = '<path d="M7 3.5h10M7 20.5h10"/>|<path d="M8 3.5c0 4 8 4.5 8 8.5s-8 4.5-8 8.5M16 3.5c0 4-8 4.5-8 8.5s8 4.5 8 8.5"/>';
   static const _barChart = '<path d="M3.5 20.5h17"/>|<path d="M6.5 17V11M11 17V6M15.5 17v-8M20 17v-4"/>';
   static const _timer = '<circle cx="12" cy="13.5" r="7.5"/><path d="M9.5 2.5h5"/>|<path d="M12 9.5v4l2.5 1.5"/>';
   static const _addChannel = '<rect x="2.5" y="8" width="13.5" height="10.5" rx="2.2"/><path d="M5 5h8.5"/>|<path d="M7.75 10.9v4.7l3.8-2.35Z"/><path d="M20 9.5v7M16.5 13h7"/>';
@@ -210,6 +214,11 @@ abstract final class RetroGlyphs {
     Symbols.add_to_queue_rounded: _addChannel,
     Symbols.timer_rounded: _timer,
     Symbols.bar_chart_rounded: _barChart,
+    Symbols.check_circle_rounded: _checkCircle,
+    Symbols.pause_circle_rounded: _pauseCircle,
+    Symbols.movie_edit_rounded: _clapper,
+    Symbols.hourglass_bottom_rounded: _hourglass,
+    Symbols.local_fire_department_rounded: _hot,
     Symbols.chrome_reader_mode_rounded: _reader,
     Symbols.text_decrease_rounded: _textSmaller,
     Symbols.text_increase_rounded: _textLarger,

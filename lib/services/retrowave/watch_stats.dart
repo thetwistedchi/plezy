@@ -18,13 +18,22 @@ class WatchRecord {
     required this.library,
     required this.minutes,
     required this.plays,
+    this.id,
+    this.thumb,
     this.watchedAt,
     this.year,
     this.genres = const [],
-    this.people = const [],
+    this.directors = const [],
+    this.actors = const [],
     this.showId,
     this.title,
   });
+
+  /// The film's or episode's id on its server.
+  final String? id;
+
+  /// The film's poster path on its server.
+  final String? thumb;
 
   final bool isMovie;
   final String server;
@@ -39,8 +48,9 @@ class WatchRecord {
   final int? year;
   final List<String> genres;
 
-  /// Directors first, then the leading actors (films).
-  final List<String> people;
+  /// Films: directors, and the leading actors with their picture path.
+  final List<String> directors;
+  final List<({String name, String? thumb})> actors;
   final String? showId;
 
   /// Film title, or the show's title for an episode.
@@ -55,7 +65,10 @@ class WatchRecord {
     'd': watchedAt?.millisecondsSinceEpoch,
     'y': year,
     'g': genres,
-    'p': people,
+    'i': id,
+    'th': thumb,
+    'dr': directors,
+    'a': [for (final a in actors) [a.name, a.thumb]],
     'h': showId,
     't': title,
   };
@@ -69,7 +82,13 @@ class WatchRecord {
     watchedAt: j['d'] == null ? null : DateTime.fromMillisecondsSinceEpoch((j['d'] as num).toInt()),
     year: (j['y'] as num?)?.toInt(),
     genres: [for (final g in j['g'] as List? ?? const []) g as String],
-    people: [for (final p in j['p'] as List? ?? const []) p as String],
+    id: j['i'] as String?,
+    thumb: j['th'] as String?,
+    directors: [for (final d in j['dr'] as List? ?? const []) d as String],
+    actors: [
+      for (final a in j['a'] as List? ?? const [])
+        if (a is List && a.isNotEmpty) (name: a[0] as String, thumb: a.length > 1 ? a[1] as String? : null),
+    ],
     showId: j['h'] as String?,
     title: j['t'] as String?,
   );
@@ -85,8 +104,10 @@ class ShowRecord {
     required this.episodes,
     required this.watched,
     this.lastWatched,
+    this.thumb,
   });
 
+  final String? thumb;
   final String id;
   final String server;
   final String library;
@@ -103,6 +124,7 @@ class ShowRecord {
     'e': episodes,
     'w': watched,
     'd': lastWatched?.millisecondsSinceEpoch,
+    'th': thumb,
   };
 
   factory ShowRecord.fromJson(Map<String, dynamic> j) => ShowRecord(
@@ -113,6 +135,7 @@ class ShowRecord {
     episodes: (j['e'] as num?)?.toInt() ?? 0,
     watched: (j['w'] as num?)?.toInt() ?? 0,
     lastWatched: j['d'] == null ? null : DateTime.fromMillisecondsSinceEpoch((j['d'] as num).toInt()),
+    thumb: j['th'] as String?,
   );
 }
 
@@ -141,6 +164,8 @@ class WatchStatsStore {
       final file = await _file();
       if (!await file.exists()) return null;
       final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      // Older layouts lack ids and pictures: read again.
+      if (json['v'] != 2) return null;
       return WatchData(
         records: [for (final r in json['r'] as List) WatchRecord.fromJson(r as Map<String, dynamic>)],
         shows: [for (final s in json['s'] as List) ShowRecord.fromJson(s as Map<String, dynamic>)],
@@ -197,10 +222,13 @@ class WatchStatsStore {
                 library: library.globalKey,
                 minutes: (m.durationMs ?? 0) / 60000,
                 plays: plays,
+                id: m.id,
+                thumb: m.thumbPath,
                 watchedAt: _date(m.lastViewedAt),
                 year: m.year,
                 genres: m.genres ?? const [],
-                people: [...?m.directors?.take(2), ...?m.roles?.take(3).map((r) => r.tag)],
+                directors: [...?m.directors?.take(2)],
+                actors: [...?m.roles?.take(4).map((r) => (name: r.tag, thumb: r.thumbPath))],
                 title: m.title,
               ),
             );
@@ -218,6 +246,7 @@ class WatchStatsStore {
                 episodes: s.leafCount ?? 0,
                 watched: s.viewedLeafCount ?? 0,
                 lastWatched: _date(s.lastViewedAt),
+                thumb: s.thumbPath,
               ),
             );
           }
@@ -232,6 +261,7 @@ class WatchStatsStore {
                 library: library.globalKey,
                 minutes: (e.durationMs ?? show?.durationMs ?? 0) / 60000,
                 plays: plays,
+                id: e.id,
                 watchedAt: _date(e.lastViewedAt),
                 year: show?.year ?? e.year,
                 genres: show?.genres ?? const [],
@@ -250,6 +280,7 @@ class WatchStatsStore {
       final file = await _file();
       await file.writeAsString(
         jsonEncode({
+          'v': 2,
           'u': data.updatedAt.millisecondsSinceEpoch,
           'r': [for (final r in records) r.toJson()],
           's': [for (final s in shows) s.toJson()],
@@ -264,7 +295,8 @@ class WatchStatsStore {
 
 enum StatsPeriod { allTime, thisYear, last12Months }
 
-/// Everything the statistics screen shows, for one filter.
+/// Everything the statistics screen shows, for one filter, with the titles
+/// behind each number for the detail views.
 class WatchSummary {
   WatchSummary(WatchData data, {String? server, String? library, StatsPeriod period = StatsPeriod.allTime}) {
     final now = DateTime.now();
@@ -274,36 +306,40 @@ class WatchSummary {
       StatsPeriod.last12Months => d != null && d.isAfter(DateTime(now.year - 1, now.month, now.day)),
     };
     bool inScope(String s, String l) => (server == null || s == server) && (library == null || l == library);
+    void add<K>(Map<K, List<WatchRecord>> map, K key, WatchRecord r) => (map[key] ??= []).add(r);
 
-    final showsWatched = <String>{};
-    final showEpisodes = <String, int>{};
+    final showsById = {for (final s in data.shows) '${s.server}:${s.id}': s};
     final days = <DateTime>{};
     for (final r in data.records) {
       if (!inScope(r.server, r.library) || !inPeriod(r.watchedAt)) continue;
+      records.add(r);
       // Within a period only the last viewing has a date: count one play.
       final plays = period == StatsPeriod.allTime ? r.plays : 1;
-      hours += r.minutes * plays / 60;
+      final h = r.minutes * plays / 60;
+      hours += h;
+      hoursByLibrary[r.library] = (hoursByLibrary[r.library] ?? 0) + h;
       if (r.isMovie) {
-        movies++;
-        if (r.title != null && r.plays > 1) rewatched[r.title!] = r.plays;
-        for (final p in r.people) {
-          people[p] = (people[p] ?? 0) + 1;
+        movieRecords.add(r);
+        if (r.plays > 1) rewatched.add(r);
+        for (final d in r.directors) {
+          add(byDirector, d, r);
+        }
+        for (final a in r.actors) {
+          add(byActor, a.name, r);
+          if (a.thumb != null) actorThumbs.putIfAbsent(a.name, () => (server: r.server, path: a.thumb!));
         }
       } else {
         episodes++;
         if (r.showId != null) {
-          showsWatched.add('${r.server}:${r.showId}');
-          final name = r.title ?? '';
-          showEpisodes[name] = (showEpisodes[name] ?? 0) + 1;
+          final key = '${r.server}:${r.showId}';
+          add(byShow, key, r);
+          if (showsById[key] case final show?) showInfo[key] = show;
         }
       }
       for (final g in r.genres) {
-        genres[g] = (genres[g] ?? 0) + 1;
+        add(byGenre, g, r);
       }
-      if (r.year case final y?) {
-        final decade = '${y ~/ 10 * 10}s';
-        decades[decade] = (decades[decade] ?? 0) + 1;
-      }
+      if (r.year case final y?) add(byDecade, '${y ~/ 10 * 10}s', r);
       final d = r.watchedAt;
       if (d != null) {
         weekdays[d.weekday - 1]++;
@@ -313,8 +349,7 @@ class WatchSummary {
         months[key] = (months[key] ?? 0) + 1;
       }
     }
-    shows = showsWatched.length;
-    topShows = (showEpisodes.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).take(10).toList();
+    rewatched.sort((a, b) => b.plays.compareTo(a.plays));
 
     // Streaks: days in a row with something watched.
     final sorted = days.toList()..sort();
@@ -333,41 +368,53 @@ class WatchSummary {
     final halfYearAgo = now.subtract(const Duration(days: 183));
     for (final s in data.shows) {
       if (!inScope(s.server, s.library) || s.watched == 0) continue;
+      if (period != StatsPeriod.allTime && !inPeriod(s.lastWatched)) continue;
       if (s.episodes > 0 && s.watched >= s.episodes) {
-        finished.add(s.title);
+        finished.add(s);
       } else if (s.lastWatched != null && s.lastWatched!.isBefore(halfYearAgo)) {
-        abandoned.add(s.title);
+        abandoned.add(s);
       } else {
-        inProgress.add(s.title);
+        inProgress.add(s);
       }
     }
   }
 
-  int movies = 0;
+  final records = <WatchRecord>[];
+  final movieRecords = <WatchRecord>[];
   int episodes = 0;
-  int shows = 0;
   double hours = 0;
-  final genres = <String, int>{};
-  final decades = <String, int>{};
-  final people = <String, int>{};
-  final rewatched = <String, int>{};
+  final hoursByLibrary = <String, double>{};
+  final byGenre = <String, List<WatchRecord>>{};
+  final byDecade = <String, List<WatchRecord>>{};
+  final byDirector = <String, List<WatchRecord>>{};
+  final byActor = <String, List<WatchRecord>>{};
+  final actorThumbs = <String, ({String server, String path})>{};
+  final byShow = <String, List<WatchRecord>>{};
+  final showInfo = <String, ShowRecord>{};
+  final rewatched = <WatchRecord>[];
   final months = <String, int>{};
   final weekdays = List<int>.filled(7, 0);
   final hoursOfDay = List<int>.filled(24, 0);
   int longestStreak = 0;
   int currentStreak = 0;
   int activeDays = 0;
-  List<MapEntry<String, int>> topShows = const [];
-  final finished = <String>[];
-  final inProgress = <String>[];
-  final abandoned = <String>[];
+  final finished = <ShowRecord>[];
+  final inProgress = <ShowRecord>[];
+  final abandoned = <ShowRecord>[];
 
-  String? get topGenre => _top(genres);
-  String? get topPerson => _top(people);
-  String? get busiestMonth => _top(months);
+  int get movies => movieRecords.length;
+  int get shows => byShow.length;
 
-  static String? _top(Map<String, int> map) {
-    if (map.isEmpty) return null;
-    return map.entries.reduce((a, b) => b.value > a.value ? b : a).key;
-  }
+  /// Keys of [map] by the number of titles, most first.
+  static List<String> ranked(Map<String, List<WatchRecord>> map, [int n = 12]) =>
+      (map.keys.toList()..sort((a, b) => map[b]!.length.compareTo(map[a]!.length))).take(n).toList();
+
+  String? get topGenre => ranked(byGenre, 1).firstOrNull;
+  String? get topDirector => ranked(byDirector, 1).firstOrNull;
+  String? get topActor => ranked(byActor, 1).firstOrNull;
+  String? get topShowKey => ranked(byShow, 1).firstOrNull;
+  String? get busiestMonth =>
+      months.isEmpty ? null : months.entries.reduce((a, b) => b.value > a.value ? b : a).key;
+
+  String showTitle(String key) => showInfo[key]?.title ?? byShow[key]?.first.title ?? '';
 }
