@@ -78,6 +78,12 @@ class AppearanceSettingsScreen extends StatelessWidget {
               subtitle: t.settings.hideSpoilersDescription,
             ),
             SettingSwitchTile(
+              pref: SettingsService.showFilmSeries,
+              icon: Symbols.movie_rounded,
+              title: RetroStrings.showFilmSeries,
+              subtitle: RetroStrings.showFilmSeriesDescription,
+            ),
+            SettingSwitchTile(
               pref: SettingsService.germanVoiceActors,
               icon: Symbols.mic_rounded,
               title: RetroStrings.germanVoiceActors,

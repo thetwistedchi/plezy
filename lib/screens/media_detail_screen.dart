@@ -3951,7 +3951,10 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                                 _buildCreditsLine(metadata),
                                 const SizedBox(height: 20),
                               ],
-                              if (_filmSeries != null) ...[_buildFilmSeries(), const SizedBox(height: 20)],
+                              if (_filmSeries != null && SettingsService.instance.read(SettingsService.showFilmSeries)) ...[
+                                _buildFilmSeries(),
+                                const SizedBox(height: 20),
+                              ],
 
                               // Seasons / Episodes (for TV shows and seasons)
                               if (isShow && !_showEpisodesDirectly) ...[
@@ -4828,18 +4831,39 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
         );
       }
     }
-    // Fork: the film series on TV, as a row of the parts in the library
-    // (the title says how many of all parts that is).
-    if (_filmSeries case final series?) {
-      final owned = [for (final p in series.parts) ?p.owned];
-      if (owned.length > 1 || (owned.length == 1 && series.parts.length > 1)) {
+    // Fork: the film series on TV as small text boxes, missing parts greyed.
+    if (_filmSeries case final series? when SettingsService.instance.read(SettingsService.showFilmSeries)) {
+      final have = series.parts.where((p) => p.owned != null).length;
+      final items = [
+        for (final (i, e) in series.parts.indexed)
+          if (e.owned case final owned?)
+            owned.copyWith(
+              title: '${i + 1}. ${e.part.title}',
+              year: e.part.year ?? owned.year,
+              raw: {
+                ...?owned.raw,
+                if (owned.id == metadata.id) TvBrowseRailLayout.textCurrentKey: true,
+              },
+            )
+          else
+            MediaItem(
+              id: 'retrowave-missing-$i',
+              backend: metadata.backend,
+              kind: MediaKind.movie,
+              title: '${i + 1}. ${e.part.title}',
+              year: e.part.year,
+              serverId: metadata.serverId,
+              raw: const {TvBrowseRailLayout.textMissingKey: true},
+            ),
+      ];
+      if (items.length > 1) {
         hubs.add(
           MediaHub(
             id: _tvDetailFilmSeriesHubId,
-            title: RetroStrings.filmSeries(series.name, owned.length, series.parts.length),
-            type: 'movie',
-            items: owned,
-            size: owned.length,
+            title: RetroStrings.filmSeries(series.name, have, series.parts.length),
+            type: TvBrowseRailLayout.textHubType,
+            items: items,
+            size: items.length,
           ),
         );
       }
@@ -4959,6 +4983,11 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
   }
 
   Future<bool> _handleTvDetailRailItemActivated(MediaHub hub, MediaItem item) async {
+    // Fork: film series boxes: missing parts and this film do nothing.
+    if (hub.id == _tvDetailFilmSeriesHubId &&
+        (item.raw?[TvBrowseRailLayout.textMissingKey] == true || item.raw?[TvBrowseRailLayout.textCurrentKey] == true)) {
+      return true;
+    }
     if (_isTvDetailEpisodeHub(hub) && item.isEpisode) {
       await navigateToVideoPlayerWithRefresh(
         context,

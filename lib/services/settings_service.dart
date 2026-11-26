@@ -874,6 +874,9 @@ class SettingsService extends BaseSharedPreferencesService {
   /// cast on details pages while German audio is selected.
   static const germanVoiceActors = BoolPref('retrowave_german_voice_actors', defaultValue: true);
 
+  /// Fork: the film series on a movie's page.
+  static const showFilmSeries = BoolPref('retrowave_show_film_series', defaultValue: true);
+
   /// Fork: desktop game controller input (Xbox, PlayStation and similar).
   static const gamepadInputEnabled = BoolPref('retrowave_gamepad_input', defaultValue: true);
 
@@ -1616,6 +1619,7 @@ class SettingsService extends BaseSharedPreferencesService {
     homeRowCardStyles,
     upcomingServersOff,
     upcomingHiddenShows,
+    showFilmSeries,
     statsListLength,
     statsExcluded,
     statsCountOnce,

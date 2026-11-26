@@ -193,6 +193,11 @@ class RetroStrings {
   static String get gamepadInput => _t('Game controller input', 'Controller-Eingaben');
   static String get gamepadInputDescription =>
       _t('Navigate with a connected game controller', 'Mit einem angeschlossenen Controller navigieren');
+  static String get showFilmSeries => _t('Film series', 'Filmreihen');
+  static String get showFilmSeriesDescription => _t(
+    "On a movie's page, every part of its series, with the ones missing from the library marked",
+    'Auf der Seite eines Films alle Teile seiner Reihe, fehlende markiert',
+  );
   static String get germanVoiceActors => _t('German voice actors', 'Deutsche Synchronsprecher');
   static String get germanVoiceActorsDescription => _t(
     'With German audio selected, show the German voice under each cast member (Deutsche Synchronkartei)',

@@ -23,6 +23,7 @@ import '../screens/hub_detail_screen.dart';
 import '../services/retrowave/upcoming_episodes.dart';
 import '../services/device_performance.dart';
 import '../services/settings_service.dart';
+import '../i18n/retro_strings.dart';
 import '../theme/mono_tokens.dart';
 import '../utils/layout_constants.dart';
 import '../utils/media_image_helper.dart';
@@ -144,6 +145,14 @@ class TvBrowseRailLayout {
 
   static bool isPersonHub(MediaHub hub) => hub.type == 'person';
 
+  /// Fork: a hub shown as small text boxes instead of posters (the film
+  /// series on a movie's page). Items with [textMissingKey] in `raw` are
+  /// greyed out and do nothing; [textCurrentKey] marks the open title.
+  static const textHubType = 'retrowave_text';
+  static const textMissingKey = 'retrowave_missing';
+  static const textCurrentKey = 'retrowave_current';
+  static bool isTextHub(MediaHub hub) => hub.type == textHubType;
+
   /// Fork: `raw` key of a person item's German voice actor (third line).
   static const voiceKey = tvPersonVoiceKey;
 
@@ -218,18 +227,21 @@ class TvBrowseRailLayout {
       horizontalPadding: railEdgePadding * 2,
       itemGap: itemGap,
     );
-    final cardWidth = baseCardWidth * (useWideLayout ? widePosterScale : tallPosterScale);
-    final posterWidth = fullCardLayout ? cardWidth : cardWidth - (6 * scale);
-    final posterHeight = (isPersonHub || isSquareHub)
+    final isTextHub = TvBrowseRailLayout.isTextHub(hub);
+    final cardWidth = isTextHub ? 300 * scale : baseCardWidth * (useWideLayout ? widePosterScale : tallPosterScale);
+    final posterWidth = fullCardLayout || isTextHub ? cardWidth : cardWidth - (6 * scale);
+    final posterHeight = isTextHub
+        ? 64 * scale
+        : (isPersonHub || isSquareHub)
         ? posterWidth
         : (useWideLayout ? posterWidth * 9 / 16 : posterWidth * 1.5);
     // Fork: room for the quality/language pill row under the caption.
-    final pillsBand = !fullCardLayout && !isPersonHub && hub.identifier != UpcomingEpisodes.hubIdentifier && SettingsService.instance.read(SettingsService.posterInfoPills)
+    final pillsBand = !fullCardLayout && !isPersonHub && !isTextHub && hub.identifier != UpcomingEpisodes.hubIdentifier && SettingsService.instance.read(SettingsService.posterInfoPills)
         ? MediaCard.infoPillsBand
         : 0.0;
     // Fork: a third caption line for the German voice actor.
     final hasVoices = isPersonHub && hub.items.any((item) => item.raw?[tvPersonVoiceKey] is String);
-    final labelHeight = fullCardLayout ? 0.0 : ((isPersonHub ? (hasVoices ? 68 : 52) : 36) * scale) + pillsBand;
+    final labelHeight = fullCardLayout || isTextHub ? 0.0 : ((isPersonHub ? (hasVoices ? 68 : 52) : 36) * scale) + pillsBand;
     final containerHeight = (posterHeight + labelHeight).ceilToDouble();
     final height = containerHeight + focusExtra + (22 * scale);
 
@@ -1922,6 +1934,9 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
     required bool fullCardLayout,
   }) {
     final artworkDim = _artworkDimForHub(context, hubIndex);
+    if (TvBrowseRailLayout.isTextHub(hub)) {
+      return _TvTextCard(item: item, width: metrics.cardWidth, height: metrics.posterHeight, scale: scale);
+    }
     final card = metrics.isPersonHub
         ? MergeSemantics(
             child: _buildPersonCard(
@@ -2475,3 +2490,70 @@ class _HubArtworkDim extends Animation<double> {
 
 /// Fork: `MediaItem.raw` key carrying a person card's German voice actor.
 const String tvPersonVoiceKey = 'retro_voice';
+
+/// Fork: a small text box in a [TvBrowseRailLayout.textHubType] rail.
+class _TvTextCard extends StatelessWidget {
+  const _TvTextCard({required this.item, required this.width, required this.height, required this.scale});
+
+  final MediaItem item;
+  final double width;
+  final double height;
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final mono = tokens(context);
+    final theme = Theme.of(context);
+    final missing = item.raw?[TvBrowseRailLayout.textMissingKey] == true;
+    final current = item.raw?[TvBrowseRailLayout.textCurrentKey] == true;
+    final title = item.title ?? '';
+    return Container(
+      width: width,
+      height: height,
+      padding: EdgeInsets.symmetric(horizontal: 14 * scale),
+      decoration: BoxDecoration(
+        color: mono.surface.withValues(alpha: missing ? 0.45 : 0.85),
+        borderRadius: BorderRadius.circular(mono.radiusSm),
+        border: Border.all(
+          color: current ? theme.colorScheme.primary : mono.outline.withValues(alpha: missing ? 0.4 : 1),
+          width: current ? 1.6 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          AppIcon.retro(
+            missing ? Symbols.remove_rounded : Symbols.check_rounded,
+            size: 22 * scale,
+            color: missing ? mono.textMuted : theme.colorScheme.primary,
+          ),
+          SizedBox(width: 10 * scale),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16 * scale,
+                    fontWeight: current ? FontWeight.w800 : FontWeight.w600,
+                    color: missing ? mono.textMuted : mono.text,
+                  ),
+                ),
+                if (item.year != null || missing)
+                  Text(
+                    [if (item.year != null) '${item.year}', if (missing) RetroStrings.notInLibrary].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13 * scale, color: mono.textMuted),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
