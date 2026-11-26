@@ -13,6 +13,7 @@ import 'youtube_auth.dart';
 import 'youtube_channels.dart';
 import 'youtube_extras.dart';
 import 'youtube_settings.dart';
+import 'youtube_notification_history.dart';
 
 class YouTubeApiException implements Exception {
   YouTubeApiException(this.statusCode, this.message, {this.reason});
@@ -267,6 +268,7 @@ class YouTubeService extends ChangeNotifier {
                 (settings.showShorts || !v.isShort))
               v,
         ];
+        unawaited(YouTubeNotificationHistory.instance.add(fresh));
         unawaited(YouTubeNotifier.notifyNew(fresh));
       }
       if (signedIn) await _fetchDetails();

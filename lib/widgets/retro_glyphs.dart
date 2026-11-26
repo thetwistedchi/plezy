@@ -130,6 +130,9 @@ abstract final class RetroGlyphs {
   static const _overscan = '<rect x="3" y="5" width="18" height="14" rx="2.5"/>|<path d="M6.5 12h11M8.5 10l-2 2 2 2M15.5 10l2 2-2 2"/>';
   static const _theaters = '<rect x="5" y="3.5" width="14" height="17" rx="2"/>|<path d="M9 3.5v17M15 3.5v17"/>';
   static const _check = '|<path d="M5 12.5l4.5 4.5L19 7.5"/>';
+  static const _bell = '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z"/>|<path d="M10 20.5a2 2 0 0 0 4 0"/>';
+  static const _doneAll = '<path d="M2.5 12.5 7 17l9.5-9.5"/>|<path d="M12 16l1 1 9.5-9.5"/>';
+  static const _clearAll = '<path d="M4 7h12M4 12h12M4 17h8"/>|<path d="M15.5 15.5l5 5M20.5 15.5l-5 5"/>';
   static const _removeDone = '<path d="M5 12.5l4.5 4.5L19 7.5"/>|<path d="M4 4l16 16"/>';
   static const _resume = '<path d="M6 6v12"/>|<path d="M10 6v12l8.5-6Z"/>';
   static const _comment = '<path d="M4 5.5a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 5.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-5 3.5Z"/>|<path d="M8 9h8M8 12.5h5"/>';
@@ -164,6 +167,9 @@ abstract final class RetroGlyphs {
     Symbols.comment_rounded: _comment,
     Symbols.theaters_rounded: _theaters,
     Symbols.check_rounded: _check,
+    Symbols.notifications_rounded: _bell,
+    Symbols.done_all_rounded: _doneAll,
+    Symbols.clear_all_rounded: _clearAll,
     Symbols.remove_done_rounded: _removeDone,
     Symbols.resume_rounded: _resume,
     Symbols.fit_screen_rounded: _fitScreen,

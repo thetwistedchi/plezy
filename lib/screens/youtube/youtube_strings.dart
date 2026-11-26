@@ -33,6 +33,14 @@ class YtStrings {
   static String get unwatched => _t('Unwatched', 'Ungesehen');
   static String get refresh => _t('Refresh', 'Aktualisieren');
   static String get settings => _t('YouTube settings', 'YouTube-Einstellungen');
+  static String get notifications => _t('Notifications', 'Benachrichtigungen');
+  static String notificationsUnread(int n) => _t('Notifications ($n new)', 'Benachrichtigungen ($n neu)');
+  static String get notificationsNone => _t(
+    'New videos from favourite channels are listed here.',
+    'Neue Videos von Lieblingskanälen erscheinen hier.',
+  );
+  static String get markAllRead => _t('Mark all as read', 'Alle als gelesen markieren');
+  static String get clearNotifications => _t('Clear list', 'Liste leeren');
   static String get hiddenBanner =>
       _t('Shorts and premieres are hidden.', 'Shorts und Premieren sind ausgeblendet.');
   static String get shortsHiddenBanner => _t('Shorts are hidden.', 'Shorts sind ausgeblendet.');

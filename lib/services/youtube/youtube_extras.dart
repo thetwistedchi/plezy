@@ -9,6 +9,7 @@ import 'package:local_notifier/local_notifier.dart';
 import '../../utils/app_logger.dart';
 import 'youtube_service.dart';
 import 'youtube_settings.dart';
+import 'youtube_notification_history.dart';
 
 /// Community titles and thumbnails replacing clickbait, from DeArrow
 /// (dearrow.ajay.app, by the SponsorBlock makers). Looked up lazily per
@@ -152,7 +153,10 @@ class YouTubeNotifier {
       }
       for (final video in videos.take(5)) {
         final notification = LocalNotification(title: video.channelTitle, body: video.title);
-        notification.onClick = () => onOpen?.call(video);
+        notification.onClick = () {
+          unawaited(YouTubeNotificationHistory.instance.markRead(video.id));
+          onOpen?.call(video);
+        };
         await notification.show();
       }
     } catch (e) {

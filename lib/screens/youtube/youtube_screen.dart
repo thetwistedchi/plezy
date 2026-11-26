@@ -28,6 +28,8 @@ import 'youtube_channel_groups_bar.dart';
 import '../../services/youtube/youtube_categories.dart';
 import '../../services/youtube/youtube_channel_groups.dart';
 import 'youtube_routes.dart';
+import 'youtube_notifications_screen.dart';
+import '../../services/youtube/youtube_notification_history.dart';
 import '../../theme/retrowave_colors.dart';
 
 /// The YouTube tab: newest uploads of the signed-in user's subscriptions.
@@ -78,6 +80,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       unawaited(_settings.markFeedSeen());
       if (mounted) setState(() {});
     }));
+    unawaited(YouTubeNotificationHistory.instance.load());
     YouTubeNotifier.onOpen = (video) {
       if (mounted) unawaited(YouTubePlayerScreen.open(context, [video]));
     };
@@ -403,6 +406,26 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                           onPressed: _syncHistoryNow,
                           icon: const AppIcon.retro(Symbols.history_rounded),
                         ),
+                      // Fork: history of new videos from favourite channels.
+                      ListenableBuilder(
+                        listenable: YouTubeNotificationHistory.instance,
+                        builder: (context, _) {
+                          final unread = YouTubeNotificationHistory.instance.unread;
+                          return IconButton(
+                            tooltip: unread > 0 ? YtStrings.notificationsUnread(unread) : YtStrings.notifications,
+                            onPressed: () => unawaited(
+                              Navigator.of(
+                                context,
+                              ).push(ytRoute<void>('notifications', (_) => const YouTubeNotificationsScreen())),
+                            ),
+                            icon: Badge(
+                              isLabelVisible: unread > 0,
+                              label: Text(unread > 99 ? '99+' : '$unread'),
+                              child: const AppIcon.retro(Symbols.notifications_rounded),
+                            ),
+                          );
+                        },
+                      ),
                       IconButton(
                         tooltip: YtStrings.myPlaylists,
                         onPressed: () => unawaited(_showMyPlaylists()),
