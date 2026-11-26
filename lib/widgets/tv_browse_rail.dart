@@ -176,6 +176,7 @@ class TvBrowseRailLayout {
     double tallPosterScale = 1.0,
     double widePosterScale = 1.0,
     bool hasLeading = false,
+    HomeRowCardStyle cardStyle = HomeRowCardStyle.standard,
   }) {
     final focusExtra = FocusTheme.focusBorderWidth * 2 * scale;
     final railEdgePadding = focusExtra + (12 * scale);
@@ -184,16 +185,16 @@ class TvBrowseRailLayout {
     // with the rest of the rail metrics (#2226).
     final itemGap = fullCardLayout ? fullCardItemGapForScale(scale) : gridSpacing.gridGap * scale;
     final isPersonHub = TvBrowseRailLayout.isPersonHub(hub);
-    // Fork: the Upcoming row has its own card design (wide: backdrop art,
-    // small: smaller posters).
-    final upcomingStyle = hub.identifier == UpcomingEpisodes.hubIdentifier
-        ? SettingsService.instance.read(SettingsService.upcomingCardStyle)
-        : null;
-    final upcomingWide = upcomingStyle == UpcomingCardStyle.wide;
-    if (upcomingStyle == UpcomingCardStyle.small) {
+    // Fork: a Home row's own card design (wide: backdrop art, poster: no
+    // episode thumbnails, small: smaller cards).
+    final upcomingWide = cardStyle == HomeRowCardStyle.wide;
+    if (cardStyle == HomeRowCardStyle.small) {
       density = (density - 2).clamp(LibraryDensity.min, LibraryDensity.max).toInt();
     }
     if (upcomingWide) episodePosterMode = EpisodePosterMode.episodeThumbnail;
+    if (cardStyle == HomeRowCardStyle.poster && episodePosterMode == EpisodePosterMode.episodeThumbnail) {
+      episodePosterMode = EpisodePosterMode.seriesPoster;
+    }
     final emptyEpisodeThumbnailHub =
         hub.items.isEmpty && hub.type == 'episode' && episodePosterMode == EpisodePosterMode.episodeThumbnail;
     final hasWide =
@@ -417,6 +418,9 @@ class TvBrowseRail extends StatefulWidget {
   final String? initialItemId;
   final bool autofocus;
   final EpisodePosterMode Function(MediaHub hub)? episodePosterModeForHub;
+
+  /// Fork: a row's own card design (Home).
+  final HomeRowCardStyle Function(MediaHub hub)? cardStyleFor;
   final double Function(MediaHub hub)? widePosterScaleForHub;
 
   /// Hubs whose episode cards belong to the show this rail sits under, so
@@ -457,6 +461,7 @@ class TvBrowseRail extends StatefulWidget {
     this.initialItemId,
     this.autofocus = false,
     this.episodePosterModeForHub,
+    this.cardStyleFor,
     this.widePosterScaleForHub,
     this.showTitleImpliedForHub,
     this.backgroundBleedLeft,
@@ -1264,7 +1269,7 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
       prefs: const [
         SettingsService.libraryDensity,
         SettingsService.episodePosterMode,
-        SettingsService.upcomingCardStyle,
+        SettingsService.homeRowCardStyles,
         SettingsService.tvFullCardLayout,
         SettingsService.gridSpacing,
       ],
@@ -1284,13 +1289,15 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
           final episodePosterMode = svc.read(SettingsService.episodePosterMode);
           final fullCardLayout = svc.read(SettingsService.tvFullCardLayout);
           final gridSpacing = svc.read(SettingsService.gridSpacing);
-          // Fork: a wide Upcoming row shows backdrop art (thumbnail mode).
-          final upcomingWide = svc.read(SettingsService.upcomingCardStyle) == UpcomingCardStyle.wide;
+          // Fork: a Home row's own design sets its poster mode.
           final modes = [
             for (final hub in widget.hubs)
-              upcomingWide && hub.identifier == UpcomingEpisodes.hubIdentifier
-                  ? EpisodePosterMode.episodeThumbnail
-                  : widget.episodePosterModeForHub?.call(hub) ?? episodePosterMode,
+              switch (widget.cardStyleFor?.call(hub) ?? HomeRowCardStyle.standard) {
+                HomeRowCardStyle.wide => EpisodePosterMode.episodeThumbnail,
+                HomeRowCardStyle.poster when episodePosterMode == EpisodePosterMode.episodeThumbnail =>
+                  EpisodePosterMode.seriesPoster,
+                _ => widget.episodePosterModeForHub?.call(hub) ?? episodePosterMode,
+              },
           ];
           final wideScales = [
             for (final hub in widget.hubs) widget.widePosterScaleForHub?.call(hub) ?? widget.widePosterScale,
@@ -1308,6 +1315,7 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
                 tallPosterScale: widget.tallPosterScale,
                 widePosterScale: wideScales[i],
                 hasLeading: _hasLeadingFor(widget.hubs[i]),
+                cardStyle: widget.cardStyleFor?.call(widget.hubs[i]) ?? HomeRowCardStyle.standard,
               ),
           ];
           final sectionHeights = [

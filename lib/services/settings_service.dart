@@ -103,8 +103,8 @@ extension GridSpacingMetrics on GridSpacing {
 
 enum ViewMode { grid, list }
 
-/// Fork: card design of the Upcoming episodes row on Home.
-enum UpcomingCardStyle { poster, wide, small }
+/// Fork: card design of a Home row ([standard] follows the app settings).
+enum HomeRowCardStyle { standard, poster, wide, small }
 
 enum EpisodePosterMode { seriesPoster, seasonPoster, episodeThumbnail }
 
@@ -882,11 +882,8 @@ class SettingsService extends BaseSharedPreferencesService {
 
   /// Fork: Upcoming episodes row on Home.
   static const upcomingOnHome = BoolPref('retrowave_upcoming_on_home', defaultValue: true);
-  static const upcomingCardStyle = EnumPref<UpcomingCardStyle>(
-    'retrowave_upcoming_card_style',
-    values: UpcomingCardStyle.values,
-    defaultValue: UpcomingCardStyle.poster,
-  );
+  /// Fork: card design per Home row, as `rowKey=style` entries.
+  static const homeRowCardStyles = StringListPref('retrowave_home_row_card_styles');
   static const startupSection = EnumPref<NavigationTabId>(
     'startup_section',
     values: NavigationTabId.values,
@@ -1601,7 +1598,7 @@ class SettingsService extends BaseSharedPreferencesService {
     gamepadInputEnabled,
     nightModeAudio,
     upcomingOnHome,
-    upcomingCardStyle,
+    homeRowCardStyles,
     startupSection,
     showExploreTab,
     alwaysKeepSidebarOpen,

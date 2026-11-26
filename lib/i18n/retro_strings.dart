@@ -69,10 +69,11 @@ class RetroStrings {
     'Dieses Video kann der App-Player nicht abspielen. Starte es zuerst auf der Seite und versuche es dann erneut.',
   );
   static String get tomorrow => _t('Tomorrow', 'Morgen');
-  static String upcomingCardStyle(String style) => _t('Card design: switch to $style', 'Kartendesign: wechseln zu $style');
-  static String get upcomingStylePoster => _t('Poster', 'Poster');
-  static String get upcomingStyleWide => _t('Wide (backdrop)', 'Breit (Hintergrundbild)');
-  static String get upcomingStyleSmall => _t('Small posters', 'Kleine Poster');
+  static String rowCardStyle(String style) => _t('Row design: switch to $style', 'Reihendesign: wechseln zu $style');
+  static String get rowStyleStandard => _t('Standard', 'Standard');
+  static String get rowStylePoster => _t('Posters', 'Poster');
+  static String get rowStyleWide => _t('Wide (backdrop)', 'Breit (Hintergrundbild)');
+  static String get rowStyleSmall => _t('Small posters', 'Kleine Poster');
   static String get upcomingTab => _t('Upcoming', 'Demnächst');
   static String upcomingChecking(int done, int total) =>
       _t('Checking air dates: $done of $total shows', 'Prüfe Sendetermine: $done von $total Serien');

@@ -45,6 +45,7 @@ import '../profiles/active_profile_provider.dart';
 import '../profiles/profile.dart';
 import '../profiles/profile_activation.dart';
 import '../profiles/profile_avatar.dart';
+import '../services/retrowave/home_row_styles.dart';
 import '../services/retrowave/upcoming_episodes.dart';
 import '../services/retrowave/virtual_libraries.dart';
 import '../services/settings_service.dart';
@@ -1088,6 +1089,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                       onRefresh: _discover.updateItem,
                       onRemoveFromContinueWatching: _discover.refreshContinueWatching,
                       isInContinueWatching: true,
+                      homeRow: true,
                       leadingCard: YouTubeContinueCard.builderIfAvailable(),
                       loadMoreItems: _discover.loadAllContinueWatching,
                       onVerticalNavigation: (isUp) => _handleVerticalNavigation(0, isUp),
@@ -1119,6 +1121,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                       key: i < _orderedHubKeys.length ? _orderedHubKeys[i] : null,
                       hub: hub,
                       hidesWatched: hidden,
+                      homeRow: true,
                       onToggleHideWatched: () => _toggleHideWatched(rowKey),
                       focusMemory: _hubFocusMemory,
                       icon: hubIconFor(_hubs[i]),
@@ -1222,12 +1225,13 @@ class _DiscoverScreenState extends State<DiscoverScreen>
       onNavigateUp: _focusTopActions,
       onNavigateToSidebar: _navigateToSidebar,
       tallPosterScale: TvBrowseRailLayout.compactTallPosterScale,
+      cardStyleFor: HomeRowStyles.styleFor,
       menuExtraEntriesFor: (hub) {
-        if (hub.isContinueWatchingHub) return const [];
+        if (hub.isContinueWatchingHub) return [HomeRowStyles.menuEntry(hub)];
         final rowKey = _homeRowKey(hub);
         final hidden = SettingsService.instance.read(SettingsService.homeRowsHideWatched).contains(rowKey);
         return [
-          if (hub.identifier == UpcomingEpisodes.hubIdentifier) UpcomingEpisodes.cardStyleMenuEntry(),
+          HomeRowStyles.menuEntry(hub),
           MediaMenuExtraEntry(
             icon: hidden ? Symbols.visibility_rounded : Symbols.visibility_off_rounded,
             label: hidden ? RetroStrings.showWatchedInRow : RetroStrings.hideWatchedInRow,

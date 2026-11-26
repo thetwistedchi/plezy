@@ -358,7 +358,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                       ),
                       // Fork: minimum length, also in the settings.
                       PopupMenuButton<int>(
-                        tooltip: YtStrings.minLength,
+                        tooltip: _settings.minMinutes == 0
+                            ? YtStrings.minLength
+                            : '${YtStrings.minLength}: ${YtStrings.minLengthLabel(_settings.minMinutes)}',
                         initialValue: _settings.minMinutes,
                         onSelected: (m) => unawaited(_settings.setMinMinutes(m)),
                         itemBuilder: (_) => [
@@ -369,20 +371,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                               child: Text(YtStrings.minLengthLabel(m)),
                             ),
                         ],
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const AppIcon.retro(Symbols.timer_rounded, size: 20),
-                              const SizedBox(width: 6),
-                              Text(
-                                _settings.minMinutes == 0
-                                    ? YtStrings.minLength
-                                    : '≥ ${YtStrings.minLengthLabel(_settings.minMinutes)}',
-                              ),
-                            ],
-                          ),
+                        icon: AppIcon.retro(
+                          Symbols.timer_rounded,
+                          retroOpacity: _settings.minMinutes == 0 ? 0.6 : null,
                         ),
                       ),
                       ],

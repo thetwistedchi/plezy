@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../i18n/retro_strings.dart';
@@ -13,8 +12,6 @@ import '../../media/media_kind.dart';
 import '../../media/media_library.dart';
 import '../../media/media_server_client.dart';
 import '../../utils/app_logger.dart';
-import '../../widgets/media_context_menu.dart' show MediaMenuExtraEntry;
-import '../settings_service.dart';
 
 /// One upcoming episode of a show in the library.
 class UpcomingEpisode {
@@ -172,27 +169,6 @@ class UpcomingEpisodes {
     all.value = results;
     allProgress.value = null;
     _allAt = DateTime.now();
-  }
-
-  /// The Upcoming row's card menu entry: switches to the next card design
-  /// (poster, wide, small) and names the one it switches to.
-  static MediaMenuExtraEntry cardStyleMenuEntry() {
-    final svc = SettingsService.instance;
-    final next = UpcomingCardStyle.values[(svc.read(SettingsService.upcomingCardStyle).index + 1) %
-        UpcomingCardStyle.values.length];
-    return MediaMenuExtraEntry(
-      icon: switch (next) {
-        UpcomingCardStyle.poster => Symbols.view_column_rounded,
-        UpcomingCardStyle.wide => Symbols.view_carousel_rounded,
-        UpcomingCardStyle.small => Symbols.view_module_rounded,
-      },
-      label: RetroStrings.upcomingCardStyle(switch (next) {
-        UpcomingCardStyle.poster => RetroStrings.upcomingStylePoster,
-        UpcomingCardStyle.wide => RetroStrings.upcomingStyleWide,
-        UpcomingCardStyle.small => RetroStrings.upcomingStyleSmall,
-      }),
-      onSelected: () => unawaited(svc.write(SettingsService.upcomingCardStyle, next)),
-    );
   }
 
   /// "S2 E5 · Tomorrow 21:00".

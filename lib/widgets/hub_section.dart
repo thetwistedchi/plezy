@@ -11,6 +11,7 @@ import '../focus/focus_theme.dart';
 import '../focus/input_mode_tracker.dart';
 import '../focus/focus_navigation_intent.dart';
 import '../focus/key_event_utils.dart';
+import '../services/retrowave/home_row_styles.dart';
 import '../services/retrowave/upcoming_episodes.dart';
 import '../services/settings_service.dart';
 import 'settings_builder.dart';
@@ -71,6 +72,9 @@ class HubSection extends StatefulWidget {
   /// Shows an eye toggle in the header (on hover, or always while active)
   /// that hides titles already watched in this row.
   final VoidCallback? onToggleHideWatched;
+
+  /// Fork: a Home row, with its own card design and the design menu entry.
+  final bool homeRow;
   final bool hidesWatched;
   final bool usesContinueWatchingAction;
   final bool showServerName;
@@ -125,6 +129,7 @@ class HubSection extends StatefulWidget {
     this.showInfoPills,
     this.leadingCard,
     this.onToggleHideWatched,
+    this.homeRow = false,
     this.hidesWatched = false,
     super.key,
     required this.hub,
@@ -706,32 +711,35 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                   SettingsService.libraryDensity,
                   SettingsService.episodePosterMode,
                   SettingsService.gridSpacing,
-                  SettingsService.upcomingCardStyle,
+                  SettingsService.homeRowCardStyles,
                 ],
                 builder: (context) => LayoutBuilder(
                   builder: (context, constraints) {
                     final svc = SettingsService.instanceOrNull;
                     if (svc == null) return const SizedBox.shrink();
-                    // Fork: the Upcoming row has its own card design.
-                    final upcomingStyle = widget.hub.identifier == UpcomingEpisodes.hubIdentifier
-                        ? svc.read(SettingsService.upcomingCardStyle)
-                        : null;
-                    final upcomingWide = upcomingStyle == UpcomingCardStyle.wide;
+                    // Fork: a Home row's own card design.
+                    final rowStyle = widget.homeRow ? HomeRowStyles.styleFor(widget.hub) : HomeRowCardStyle.standard;
+                    final upcomingWide = rowStyle == HomeRowCardStyle.wide;
                     final baseDensity = svc.read(SettingsService.libraryDensity);
-                    final density = upcomingStyle == UpcomingCardStyle.small
+                    final density = rowStyle == HomeRowCardStyle.small
                         ? (baseDensity - 2).clamp(LibraryDensity.min, LibraryDensity.max).toInt()
                         : baseDensity;
-                    final EpisodePosterMode episodePosterMode = upcomingWide
-                        ? EpisodePosterMode.episodeThumbnail
-                        : widget.episodePosterModeOverride ?? svc.read(SettingsService.episodePosterMode);
+                    final globalPosterMode =
+                        widget.episodePosterModeOverride ?? svc.read(SettingsService.episodePosterMode);
+                    final EpisodePosterMode episodePosterMode = switch (rowStyle) {
+                      HomeRowCardStyle.wide => EpisodePosterMode.episodeThumbnail,
+                      HomeRowCardStyle.poster when globalPosterMode == EpisodePosterMode.episodeThumbnail =>
+                        EpisodePosterMode.seriesPoster,
+                      _ => globalPosterMode,
+                    };
 
                     final hasEpisodes =
                         upcomingWide || widget.hub.items.any((item) => item.usesWideAspectRatio(episodePosterMode));
                     final hasNonEpisodes =
                         !upcomingWide && widget.hub.items.any((item) => !item.usesWideAspectRatio(episodePosterMode));
 
-                    // A wide Upcoming row counts as mixed: shows then use their
-                    // backdrop art in a 16:9 card.
+                    // A wide row counts as mixed: films and shows then use
+                    // their backdrop art in a 16:9 card.
                     final isMixedHub = upcomingWide || (hasEpisodes && hasNonEpisodes);
 
                     // 16:9 when every item is wide (episode thumbnails, clips,
@@ -959,7 +967,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                                               : RetroStrings.hideWatchedInRow,
                                           onSelected: toggle,
                                         ),
-                                      if (upcomingStyle != null) UpcomingEpisodes.cardStyleMenuEntry(),
+                                      if (widget.homeRow) HomeRowStyles.menuEntry(widget.hub),
                                     ],
                                   ),
                                 ),
