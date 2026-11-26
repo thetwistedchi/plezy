@@ -224,7 +224,7 @@ class TvBrowseRailLayout {
         ? posterWidth
         : (useWideLayout ? posterWidth * 9 / 16 : posterWidth * 1.5);
     // Fork: room for the quality/language pill row under the caption.
-    final pillsBand = !fullCardLayout && !isPersonHub && SettingsService.instance.read(SettingsService.posterInfoPills)
+    final pillsBand = !fullCardLayout && !isPersonHub && hub.identifier != UpcomingEpisodes.hubIdentifier && SettingsService.instance.read(SettingsService.posterInfoPills)
         ? MediaCard.infoPillsBand
         : 0.0;
     // Fork: a third caption line for the German voice actor.
