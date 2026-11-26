@@ -252,6 +252,9 @@ class ExoPlayerCore(private val activity: Activity) :
   // disable tunneling.
   private var audioPassthroughEnabled: Boolean = false
   private var audioNormalizationEnabled: Boolean = false
+  // Fork: what the user asked for; night mode also needs the effect chain.
+  private var userAudioNormalization: Boolean = false
+  private var nightModeEnabled: Boolean = false
 
   // Stereo downmix: runs as a ChannelMixingAudioProcessor inside the sink's
   // decoded-PCM pipeline, so encoded audio is force-decoded while enabled.
@@ -3559,6 +3562,26 @@ class ExoPlayerCore(private val activity: Activity) :
   }
 
   fun setAudioNormalization(enabled: Boolean) {
+    userAudioNormalization = enabled
+    applyAudioNormalization(enabled || nightModeEnabled)
+  }
+
+  /** Fork: night mode rides on the normalization effect with its own profile. */
+  fun setNightMode(enabled: Boolean) {
+    if (nightModeEnabled == enabled) return
+    nightModeEnabled = enabled
+    audioNormalization.nightMode = enabled
+    emitLog("info", "audio-normalization", "Night mode ${if (enabled) "enabled" else "disabled"}")
+    val effective = userAudioNormalization || enabled
+    if (effective && audioNormalizationEnabled) {
+      // Already processing: swap the profile in place.
+      audioNormalization.release()
+      attachNormalizationEffect()
+    }
+    applyAudioNormalization(effective)
+  }
+
+  private fun applyAudioNormalization(enabled: Boolean) {
     if (audioNormalizationEnabled == enabled) return
     audioNormalizationEnabled = enabled
     persistRuntimePlaybackDiagnostics(decoderName = audioDecoderInitName)

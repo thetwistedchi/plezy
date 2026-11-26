@@ -1015,8 +1015,8 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
           onAfterWrite: widget.player.setAudioNormalization,
         ),
 
-        // Fork: night mode (mpv only).
-        if (widget.player case final PlayerBase mpvPlayer when widget.player.playerType == 'mpv')
+        // Fork: night mode (mpv filter chain; ExoPlayer DynamicsProcessing).
+        if (widget.player case final PlayerBase mpvPlayer)
           _SettingsToggleItem(
             pref: SettingsService.nightModeAudio,
             icon: Symbols.bedtime_rounded,

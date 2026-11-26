@@ -142,6 +142,7 @@ class PlayerAndroid extends PlayerBase {
       // native core. Apply the latest requested values now so ExoPlayer and
       // the already-queued mpv fallback properties start in the same state.
       await invoke('setAudioNormalization', {'enabled': _audioNormalizationEnabled});
+      if (_nightModeEnabled) await invoke('setNightMode', {'enabled': true});
       await invoke('setAudioDownmix', {
         'enabled': _downmixEnabled,
         'centerBoostDb': _downmixCenterBoostDb,
@@ -357,6 +358,21 @@ class PlayerAndroid extends PlayerBase {
       default:
         await invoke('setMpvProperty', {'name': name, 'value': value});
     }
+  }
+
+  bool _nightModeEnabled = false;
+
+  /// Fork: night mode on ExoPlayer (DynamicsProcessing profile), and the
+  /// mpv filter for a fallback to mpv.
+  @override
+  Future<void> setNightMode(bool enabled) async {
+    if (disposed) return;
+    _nightModeEnabled = enabled;
+    await _applyWhenInitialized(
+      () => invoke('setNightMode', {'enabled': enabled}),
+      () => _nightModeEnabled == enabled,
+    );
+    await super.setNightMode(enabled);
   }
 
   @override

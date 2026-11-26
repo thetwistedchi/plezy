@@ -45,9 +45,20 @@ class AudioNormalizationEffect(private val log: (String, String, String) -> Unit
     const val DEFAULT_CHANNEL_COUNT = 2
     const val MAX_CHANNEL_COUNT = 8
 
+    // Fork: night mode. Earlier, firmer compression with less make-up gain,
+    // and a pre-EQ that lifts the speech band (1 to 4 kHz) by 4 dB.
+    const val NIGHT_THRESHOLD_DB = -30f
+    const val NIGHT_ATTACK_MS = 10f
+    const val NIGHT_RELEASE_MS = 250f
+    const val NIGHT_POST_GAIN_DB = 10f
+    const val NIGHT_SPEECH_GAIN_DB = 4f
+
     // LoudnessEnhancer fallback: fixed boost, internally limited.
     const val LOUDNESS_ENHANCER_GAIN_MB = 900 // +9 dB
   }
+
+  /** Fork: night mode profile; takes effect on the next [attach]. */
+  var nightMode: Boolean = false
 
   private var dynamicsProcessing: DynamicsProcessing? = null
   private var loudnessEnhancer: LoudnessEnhancer? = null
@@ -93,21 +104,33 @@ class AudioNormalizationEffect(private val log: (String, String, String) -> Unit
 
   @RequiresApi(28)
   private fun tryDynamicsProcessing(sessionId: Int, channelCount: Int): Boolean = try {
+    val night = nightMode
     val band = DynamicsProcessing.MbcBand(
       // inUse
       true,
       MBC_CUTOFF_HZ,
-      MBC_ATTACK_MS,
-      MBC_RELEASE_MS,
+      if (night) NIGHT_ATTACK_MS else MBC_ATTACK_MS,
+      if (night) NIGHT_RELEASE_MS else MBC_RELEASE_MS,
       MBC_RATIO,
-      MBC_THRESHOLD_DB,
+      if (night) NIGHT_THRESHOLD_DB else MBC_THRESHOLD_DB,
       MBC_KNEE_DB,
       MBC_NOISE_GATE_DB,
       MBC_EXPANDER_RATIO,
       // preGain
       0f,
-      MBC_POST_GAIN_DB
+      if (night) NIGHT_POST_GAIN_DB else MBC_POST_GAIN_DB
     )
+    // Night mode pre-EQ: below 1 kHz flat, 1 to 4 kHz lifted, above flat.
+    val preEqBands = if (night) 3 else 0
+    val preEq = if (night) {
+      DynamicsProcessing.Eq(true, true, preEqBands).apply {
+        setBand(0, DynamicsProcessing.EqBand(true, 1_000f, 0f))
+        setBand(1, DynamicsProcessing.EqBand(true, 4_000f, NIGHT_SPEECH_GAIN_DB))
+        setBand(2, DynamicsProcessing.EqBand(true, 20_000f, 0f))
+      }
+    } else {
+      null
+    }
     val mbc = DynamicsProcessing.Mbc(
       // inUse
       true,
@@ -134,9 +157,9 @@ class AudioNormalizationEffect(private val log: (String, String, String) -> Unit
       // inputGain
       0f,
       // preEqInUse
-      false,
+      night,
       // preEqBandCount
-      0,
+      preEqBands,
       // mbcInUse
       true,
       // mbcBandCount
@@ -148,6 +171,7 @@ class AudioNormalizationEffect(private val log: (String, String, String) -> Unit
       // limiterInUse
       true
     ).apply {
+      if (preEq != null) setPreEq(preEq)
       setMbc(mbc)
       setLimiter(limiter)
     }
@@ -155,9 +179,9 @@ class AudioNormalizationEffect(private val log: (String, String, String) -> Unit
       DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION,
       channelCount,
       // preEqInUse
-      false,
+      night,
       // preEqBandCount
-      0,
+      preEqBands,
       // mbcInUse
       true,
       // mbcBandCount

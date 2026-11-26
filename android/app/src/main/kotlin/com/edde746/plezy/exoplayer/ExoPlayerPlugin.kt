@@ -268,6 +268,7 @@ class ExoPlayerPlugin :
       "setVideoZoom" -> handleSetVideoZoom(call, result)
       "setDvConversionMode" -> handleSetDvConversionMode(call, result)
       "setAudioNormalization" -> handleSetAudioNormalization(call, result)
+      "setNightMode" -> handleSetNightMode(call, result)
       "setAudioPassthrough" -> handleSetAudioPassthrough(call, result)
       "setAudioDownmix" -> handleSetAudioDownmix(call, result)
       "observeProperty" -> handleObserveProperty(call, result)
@@ -1161,6 +1162,23 @@ class ExoPlayerPlugin :
       } else {
         result.error("INVALID_ARGS", "Invalid DV conversion mode: $mode", null)
       }
+    } ?: result.error("NO_ACTIVITY", "Activity not available", null)
+  }
+
+  // Fork: night mode (mpv fallback gets it through the 'af' chain).
+  private fun handleSetNightMode(call: MethodCall, result: MethodChannel.Result) {
+    val enabled = call.argument<Boolean>("enabled")
+    if (enabled == null) {
+      result.error("INVALID_ARGS", "Missing 'enabled'", null)
+      return
+    }
+    if (usingMpvFallback) {
+      result.success(true)
+      return
+    }
+    activity?.runOnUiThread {
+      playerCore?.setNightMode(enabled)
+      result.success(true)
     } ?: result.error("NO_ACTIVITY", "Activity not available", null)
   }
 
