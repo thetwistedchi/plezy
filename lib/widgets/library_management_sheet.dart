@@ -18,6 +18,7 @@ import '../providers/multi_server_provider.dart';
 import '../profiles/active_profile_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/content_utils.dart';
+import '../utils/language_codes.dart';
 import '../utils/dialogs.dart';
 import '../utils/platform_detector.dart';
 import '../utils/provider_extensions.dart';
@@ -699,42 +700,61 @@ class _LibraryLanguagesDialog extends StatefulWidget {
 }
 
 class _LibraryLanguagesDialogState extends State<_LibraryLanguagesDialog> {
-  late final _audio = TextEditingController(text: widget.audio ?? '');
-  late final _subtitle = TextEditingController(text: widget.subtitle ?? '');
+  late String _audio = _normalized(widget.audio);
+  late String _subtitle = _normalized(widget.subtitle);
 
-  @override
-  void dispose() {
-    _audio.dispose();
-    _subtitle.dispose();
-    super.dispose();
+  static String _normalized(String? code) =>
+      code == null || code.isEmpty ? '' : LanguageCodes.getIso6391Code(code) ?? code;
+
+  /// Common languages first, then every language by name. Empty = the
+  /// profile's language.
+  static final List<({String code, String name})> _choices = () {
+    const common = ['de', 'en', 'ja', 'fr', 'es', 'it', 'ko', 'zh', 'pt', 'ru', 'nl', 'sv', 'da', 'no', 'fi', 'pl', 'tr'];
+    final all = LanguageCodes.getAllLanguages();
+    final byCode = {for (final l in all) l.code: l};
+    return [
+      for (final code in common) ?byCode[code],
+      for (final l in all)
+        if (!common.contains(l.code)) l,
+    ];
+  }();
+
+  Widget _picker(String label, String value, ValueChanged<String> onChanged) {
+    return DropdownMenu<String>(
+      initialSelection: value,
+      label: Text(label),
+      expandedInsets: EdgeInsets.zero,
+      menuHeight: 360,
+      enableFilter: true,
+      requestFocusOnTap: true,
+      onSelected: (v) => onChanged(v ?? ''),
+      dropdownMenuEntries: [
+        DropdownMenuEntry(value: '', label: RetroStrings.profileLanguage),
+        for (final l in _choices) DropdownMenuEntry(value: l.code, label: l.name),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(RetroStrings.libraryLanguagesTitle(widget.title)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(RetroStrings.libraryLanguagesHelp),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _audio,
-            autofocus: true,
-            decoration: InputDecoration(labelText: RetroStrings.audioLanguageCode, hintText: 'ja'),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _subtitle,
-            decoration: InputDecoration(labelText: RetroStrings.subtitleLanguageCode, hintText: 'de'),
-          ),
-        ],
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _picker(RetroStrings.audioLanguageCode, _audio, (v) => setState(() => _audio = v)),
+            const SizedBox(height: 16),
+            _picker(RetroStrings.subtitleLanguageCode, _subtitle, (v) => setState(() => _subtitle = v)),
+          ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(t.common.cancel)),
         FilledButton(
-          onPressed: () => Navigator.pop(context, (audio: _audio.text, subtitle: _subtitle.text)),
+          onPressed: () => Navigator.pop(context, (audio: _audio, subtitle: _subtitle)),
           child: Text(t.common.save),
         ),
       ],
