@@ -1016,13 +1016,13 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
         ),
 
         // Fork: night mode (mpv filter chain; ExoPlayer DynamicsProcessing).
-        if (widget.player case final PlayerBase mpvPlayer)
+        if (widget.player case final PlayerBase basePlayer)
           _SettingsToggleItem(
             pref: SettingsService.nightModeAudio,
             icon: Symbols.bedtime_rounded,
             title: RetroStrings.nightMode,
             subtitle: RetroStrings.nightModeDescription,
-            onAfterWrite: mpvPlayer.setNightMode,
+            onAfterWrite: basePlayer.setNightMode,
           ),
 
         _SettingsMenuItem(

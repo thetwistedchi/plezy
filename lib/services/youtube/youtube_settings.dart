@@ -369,9 +369,7 @@ class YouTubeSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// When the feed was last looked at; newer videos get a "new" marker.
-  /// [markFeedSeen] is called when the feed is left, so the markers stay
-  /// while the user is still looking at them.
+  /// When the feed was last opened; newer videos get a "new" marker.
   DateTime? get feedSeenAt {
     final ms = _prefs?.getInt(_kFeedSeenAt);
     return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);

@@ -448,7 +448,7 @@ void main() {
     expect(find.byKey(startupFailureRestartKey), findsOneWidget);
   });
 
-  testWidgets('the restart state survives and still allows uploading the diagnostic', (tester) async {
+  testWidgets('the restart state survives and still allows copying the diagnostic', (tester) async {
     await tester.pumpWidget(
       StartupBootstrap<int>(
         initialize: () async => throw CorruptPreferenceStoreException(const FormatException('bad'), StackTrace.current),
@@ -461,10 +461,10 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    // Copy and Upload stay live — the whole point of the failure screen is
-    // that a stuck user can still get the diagnostic out.
+    // Copy stays live: the whole point of the failure screen is that a stuck
+    // user can still get the diagnostic out. (Fork: no upload button.)
     expect(find.byKey(startupFailureCopyKey), findsOneWidget);
-    expect(find.byKey(startupFailureUploadKey), findsOneWidget);
+    expect(find.byKey(startupFailureUploadKey), findsNothing);
   });
 
   testWidgets('repair receives a context below the bootstrap MaterialApp that can show its dialogs', (tester) async {

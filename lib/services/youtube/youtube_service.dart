@@ -778,8 +778,6 @@ class YouTubeService extends ChangeNotifier {
     );
   }
 
-  /// One page (50) of a channel's uploads, newest first, with details
-  /// (2 units).
   /// Fork: a channel's public playlists (signed in; Data API).
   Future<List<({String id, String title, int count, String? thumbnail})>> channelPlaylists(String channelId) async {
     final page = await _get('playlists', {
@@ -811,6 +809,8 @@ class YouTubeService extends ChangeNotifier {
     return videos;
   }
 
+  /// One page (50) of a channel's uploads, newest first, with details
+  /// (2 units). Fork: [playlistId] reads another playlist the same way.
   Future<({List<YouTubeVideo> items, String? nextPageToken})> channelUploads(
     String channelId, {
     String? pageToken,

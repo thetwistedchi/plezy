@@ -6,6 +6,7 @@ import '../../i18n/retro_strings.dart';
 import '../../media/ids.dart';
 import '../../media/media_item.dart';
 import '../../media/media_item_types.dart';
+import '../../media/media_server_client.dart';
 import '../../services/retrowave/upcoming_episodes.dart';
 import '../../services/settings_service.dart';
 import '../../utils/media_navigation_helper.dart';
@@ -38,13 +39,14 @@ class _UpcomingEpisodesScreenState extends State<UpcomingEpisodesScreen> {
 
   Future<void> _load() async {
     final onDeck = context.read<DiscoverProvider>().onDeck;
+    MediaServerClient? clientFor(String? serverId) => context.tryGetMediaClientForServer(serverIdOrNull(serverId));
     final shows = <String, MediaItem>{};
     for (final item in onDeck) {
       final showId = item.grandparentId ?? (item.isShow ? item.id : null);
       final serverId = item.serverId;
       if (showId == null || serverId == null || shows.containsKey('$serverId:$showId')) continue;
       try {
-        final client = context.tryGetMediaClientForServer(ServerId(serverId));
+        final client = clientFor(serverId);
         final show = item.isShow ? item : await client?.fetchItem(showId);
         if (show != null) shows['$serverId:$showId'] = show;
       } catch (e) {
@@ -55,7 +57,7 @@ class _UpcomingEpisodesScreenState extends State<UpcomingEpisodesScreen> {
     _shows = shows.length;
     final results = await UpcomingEpisodes.instance.forShows(
       shows.values.toList(),
-      (show) => context.tryGetMediaClientForServer(serverIdOrNull(show.serverId)),
+      (show) => clientFor(show.serverId),
       isCancelled: () => !mounted,
     );
     if (mounted) setState(() => _items = results);

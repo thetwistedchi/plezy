@@ -10,6 +10,7 @@ import '../../../focus/input_mode_tracker.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../mixins/controller_disposer_mixin.dart';
 import '../../../models/plex/plex_subtitle_search_result.dart';
+import '../../../i18n/retro_strings.dart';
 import '../../../services/jellyfin_client.dart';
 import '../../../services/settings_service.dart';
 import '../../../utils/error_message_utils.dart';
@@ -214,8 +215,8 @@ class _SubtitleSearchSheetState extends State<SubtitleSearchSheet> with Controll
 
     try {
       final client = context.tryGetPlexClientForServer(ServerId(widget.serverId));
-      final bool success;
       if (client == null) {
+        // Fork: Jellyfin and Emby download through their subtitle providers.
         final jellyfin = context.tryGetMediaClientForServer(ServerId(widget.serverId));
         if (jellyfin is! JellyfinClient) {
           if (!mounted) return;
@@ -223,9 +224,14 @@ class _SubtitleSearchSheetState extends State<SubtitleSearchSheet> with Controll
           return;
         }
         await jellyfin.downloadRemoteSubtitle(widget.ratingKey, result.key);
-        success = true;
-      } else {
-        success = await client.downloadSubtitle(
+        // The player can't pick up a server-side subtitle mid-session here,
+        // so say when it will be there instead of reporting a failed apply.
+        if (!mounted) return;
+        showSuccessSnackBar(context, RetroStrings.subtitleAddedOnServer);
+        OverlaySheetController.of(context).close();
+        return;
+      }
+      final success = await client.downloadSubtitle(
         widget.ratingKey,
         key: result.key,
         codec: result.codec ?? 'srt',
@@ -234,7 +240,6 @@ class _SubtitleSearchSheetState extends State<SubtitleSearchSheet> with Controll
         forced: result.forced,
         providerTitle: result.providerTitle ?? '',
       );
-      }
 
       if (!mounted) return;
 

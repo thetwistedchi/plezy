@@ -128,6 +128,8 @@ class YtStrings {
   static String queuePosition(int i, int n) => '$i / $n';
   static String upNext(String title) => _t('Up next: $title', 'Als Nächstes: $title');
   static String get playerLoading => _t('Loading player…', 'Player wird geladen…');
+  static String get playlistFailed =>
+      _t('The playlist could not be loaded.', 'Die Playlist konnte nicht geladen werden.');
   static String get playerFailed => _t('The player could not start.', 'Der Player konnte nicht starten.');
   static String get webviewMissing => _t(
     'The Microsoft Edge WebView2 runtime is needed for the in-app player.',

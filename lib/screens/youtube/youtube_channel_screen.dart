@@ -118,8 +118,8 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
       final navigator = Navigator.of(context);
       if (widget.returnPickedVideo) navigator.pop();
       unawaited(YouTubePlayerScreen.open(navigator.context, videos));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(YtStrings.playlistFailed)));
     }
   }
 

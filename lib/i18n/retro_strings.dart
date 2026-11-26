@@ -57,6 +57,10 @@ class RetroStrings {
   static String get upcomingNone => _t('No upcoming episodes announced.', 'Keine kommenden Folgen angekündigt.');
   static String get upcomingNoShows =>
       _t('No shows on Continue Watching yet.', 'Noch keine Serien unter Weiterschauen.');
+  static String get subtitleAddedOnServer => _t(
+    'Subtitle added on the server. It shows up the next time the video starts.',
+    'Untertitel auf dem Server hinzugefügt. Er steht beim nächsten Start des Videos bereit.',
+  );
   static String get tomorrow => _t('Tomorrow', 'Morgen');
   static String get upcomingTab => _t('Upcoming', 'Demnächst');
   static String upcomingChecking(int done, int total) =>

@@ -627,12 +627,42 @@ Future<void> _editLibraryLanguages(BuildContext context, MediaLibrary library) a
   await LibraryLanguageRules.load();
   if (!context.mounted) return;
   final rule = LibraryLanguageRules.forLibrary(library.globalKey);
-  final audio = TextEditingController(text: rule?.audio ?? '');
-  final subtitle = TextEditingController(text: rule?.subtitle ?? '');
-  final saved = await showScopedDialog<bool>(
+  final result = await showScopedDialog<({String audio, String subtitle})>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(RetroStrings.libraryLanguagesTitle(library.title)),
+    builder: (_) => _LibraryLanguagesDialog(title: library.title, audio: rule?.audio, subtitle: rule?.subtitle),
+  );
+  if (result != null) {
+    await LibraryLanguageRules.set(library.globalKey, audio: result.audio, subtitle: result.subtitle);
+  }
+}
+
+/// Owns its text controllers so they outlive the closing animation.
+class _LibraryLanguagesDialog extends StatefulWidget {
+  const _LibraryLanguagesDialog({required this.title, this.audio, this.subtitle});
+
+  final String title;
+  final String? audio;
+  final String? subtitle;
+
+  @override
+  State<_LibraryLanguagesDialog> createState() => _LibraryLanguagesDialogState();
+}
+
+class _LibraryLanguagesDialogState extends State<_LibraryLanguagesDialog> {
+  late final _audio = TextEditingController(text: widget.audio ?? '');
+  late final _subtitle = TextEditingController(text: widget.subtitle ?? '');
+
+  @override
+  void dispose() {
+    _audio.dispose();
+    _subtitle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(RetroStrings.libraryLanguagesTitle(widget.title)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -640,26 +670,24 @@ Future<void> _editLibraryLanguages(BuildContext context, MediaLibrary library) a
           Text(RetroStrings.libraryLanguagesHelp),
           const SizedBox(height: 12),
           TextField(
-            controller: audio,
+            controller: _audio,
             autofocus: true,
             decoration: InputDecoration(labelText: RetroStrings.audioLanguageCode, hintText: 'ja'),
           ),
           const SizedBox(height: 8),
           TextField(
-            controller: subtitle,
+            controller: _subtitle,
             decoration: InputDecoration(labelText: RetroStrings.subtitleLanguageCode, hintText: 'de'),
           ),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.common.cancel)),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t.common.save)),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(t.common.cancel)),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, (audio: _audio.text, subtitle: _subtitle.text)),
+          child: Text(t.common.save),
+        ),
       ],
-    ),
-  );
-  if (saved == true) {
-    await LibraryLanguageRules.set(library.globalKey, audio: audio.text, subtitle: subtitle.text);
+    );
   }
-  audio.dispose();
-  subtitle.dispose();
 }

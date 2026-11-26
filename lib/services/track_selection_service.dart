@@ -696,14 +696,16 @@ class TrackSelectionService {
   TrackSelectionService({this.player, this.profileSettings, required this.metadata, this.plexMediaInfo});
 
   /// The profile's preferred language for one track kind, or null when unset.
-  String? _preferredLanguage(MediaServerUserProfile profile, {required bool isAudio}) {
-    // Fork: a language rule of the title's library wins over the profile.
-    final rule = LibraryLanguageRules.forItem(serverId: metadata.serverId, libraryId: metadata.libraryId);
-    final ruled = isAudio ? rule?.audio : rule?.subtitle;
-    if (ruled != null) return ruled;
+  static String? _preferredLanguage(MediaServerUserProfile profile, {required bool isAudio}) {
     final primary = isAudio ? profile.defaultAudioLanguage : profile.defaultSubtitleLanguage;
     return primary == null || primary.isEmpty ? null : primary;
   }
+
+  /// Fork: the language rule of the title's library, if any. It ranks
+  /// right after the viewer's own carried choice and above the server's
+  /// pre-selection, which would otherwise always win on Plex.
+  ({String? audio, String? subtitle})? get _libraryRule =>
+      LibraryLanguageRules.forItem(serverId: metadata.serverId, libraryId: metadata.libraryId);
 
   /// Find the first track whose language matches the preferred language.
   ///
@@ -757,10 +759,7 @@ class TrackSelectionService {
   }
 
   AudioTrack? findAudioTrackByProfile(List<AudioTrack> availableTracks, MediaServerUserProfile profile) {
-    if (availableTracks.isEmpty) return null;
-    final hasRule =
-        LibraryLanguageRules.forItem(serverId: metadata.serverId, libraryId: metadata.libraryId)?.audio != null;
-    if (!profile.autoSelectAudio && !hasRule) return null;
+    if (availableTracks.isEmpty || !profile.autoSelectAudio) return null;
     final preferredLanguage = _preferredLanguage(profile, isAudio: true);
     if (preferredLanguage == null) return null;
     return _findTrackByPreferredLanguage<AudioTrack>(availableTracks, preferredLanguage, (t) => t.language);
@@ -982,6 +981,12 @@ class TrackSelectionService {
       appLogger.d('Audio carry declined: ${preferredAudioTrack.language}/${preferredAudioTrack.title}');
     }
 
+    // Fork: the library's audio language.
+    if (_libraryRule?.audio case final language?) {
+      final ruled = _findTrackByPreferredLanguage<AudioTrack>(availableTracks, language, (t) => t.language);
+      if (ruled != null) return TrackSelectionResult(ruled, TrackSelectionPriority.profile);
+    }
+
     // Priority 2: Check server-selected track from media info
     final info = plexMediaInfo;
     if (info != null && availableTracks.isNotEmpty) {
@@ -1101,6 +1106,13 @@ class TrackSelectionService {
           }
         }
         appLogger.d('Subtitle intent declined: $intent');
+    }
+
+    // Fork: the library's subtitle language, full subtitles before forced.
+    if (_libraryRule?.subtitle case final language?) {
+      final matching = availableTracks.where((t) => languageMatches(t.language, language));
+      final ruled = matching.where((t) => !t.effectiveForced).firstOrNull ?? matching.firstOrNull;
+      if (ruled != null) return TrackSelectionResult(ruled, TrackSelectionPriority.profile);
     }
 
     // Priority 2: Trust the server's selected track. Plex computes this from

@@ -67,8 +67,11 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       }),
     );
     unawaited(_watchlist.load());
+    // Fork: markers compare against the previous visit; this visit is
+    // stamped right away, as the feed screen may never be disposed.
     unawaited(_settings.load().then((_) {
       _feedSeenAtOnOpen = _settings.feedSeenAt;
+      unawaited(_settings.markFeedSeen());
       if (mounted) setState(() {});
     }));
     YouTubeNotifier.onOpen = (video) {
@@ -78,7 +81,6 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
 
   @override
   void dispose() {
-    unawaited(_settings.markFeedSeen());
     _settings.removeListener(_onSettingsChanged);
     YouTubeChannels.instance.removeListener(_onSettingsChanged);
     YouTubeChannelGroups.instance.removeListener(_onGroupsChanged);

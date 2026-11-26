@@ -6,6 +6,7 @@ import 'package:material_symbols_icons/symbols.dart';
 
 import '../../i18n/retro_strings.dart';
 import '../../mpv/mpv.dart';
+import '../../services/playback_coordinator.dart';
 import '../../widgets/app_icon.dart';
 
 /// Fork: plays a video found on a web page in the app's own player (mpv),
@@ -27,34 +28,49 @@ class WebVideoPlayerScreen extends StatefulWidget {
 }
 
 class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
-  late final Player _player = Player();
+  Player? _player;
   final _subs = <StreamSubscription<Object?>>[];
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   bool _playing = false;
   bool _controls = true;
+  bool _disposed = false;
   Timer? _hide;
 
   @override
   void initState() {
     super.initState();
-    _subs
-      ..add(_player.streams.position.listen((p) => setState(() => _position = p)))
-      ..add(_player.streams.duration.listen((d) => setState(() => _duration = d)))
-      ..add(_player.streams.playing.listen((p) => setState(() => _playing = p)));
-    unawaited(
-      _player.open(Media(widget.url, headers: {if (widget.referer != null) 'Referer': widget.referer!})),
-    );
+    unawaited(_start());
     _poke();
+  }
+
+  Future<void> _start() async {
+    // Like the main player: a playing music session goes first.
+    await PlaybackCoordinator.instance.claimVideo();
+    if (_disposed) return;
+    final player = Player();
+    _player = player;
+    _subs
+      ..add(player.streams.position.listen((p) => _update(() => _position = p)))
+      ..add(player.streams.duration.listen((d) => _update(() => _duration = d)))
+      ..add(player.streams.playing.listen((p) => _update(() => _playing = p)));
+    setState(() {});
+    await player.open(Media(widget.url, headers: {if (widget.referer != null) 'Referer': widget.referer!}));
+  }
+
+  void _update(VoidCallback change) {
+    if (mounted) setState(change);
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _hide?.cancel();
     for (final s in _subs) {
       unawaited(s.cancel());
     }
-    unawaited(_player.dispose());
+    final player = _player;
+    if (player != null) unawaited(player.dispose());
     super.dispose();
   }
 
@@ -67,13 +83,15 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
   }
 
   void _toggle() {
-    unawaited(_playing ? _player.pause() : _player.play());
+    final player = _player;
+    if (player == null) return;
+    unawaited(_playing ? player.pause() : player.play());
     _poke();
   }
 
   void _seekBy(int seconds) {
     final target = _position + Duration(seconds: seconds);
-    unawaited(_player.seek(target < Duration.zero ? Duration.zero : target));
+    unawaited(_player?.seek(target < Duration.zero ? Duration.zero : target));
     _poke();
   }
 
@@ -87,7 +105,7 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
     } else if (key == LogicalKeyboardKey.arrowRight) {
       _seekBy(10);
     } else if (key == LogicalKeyboardKey.escape) {
-      Navigator.of(context).maybePop();
+      unawaited(Navigator.of(context).maybePop());
     } else {
       _poke();
       return KeyEventResult.ignored;
@@ -116,7 +134,10 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Video(player: _player),
+                if (_player case final player?)
+                  Video(player: player)
+                else
+                  const Center(child: CircularProgressIndicator()),
                 AnimatedOpacity(
                   opacity: _controls ? 1 : 0,
                   duration: const Duration(milliseconds: 200),
@@ -177,7 +198,7 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
                                   onChanged: total <= 0
                                       ? null
                                       : (v) {
-                                          unawaited(_player.seek(Duration(milliseconds: v.round())));
+                                          unawaited(_player?.seek(Duration(milliseconds: v.round())));
                                           _poke();
                                         },
                                 ),

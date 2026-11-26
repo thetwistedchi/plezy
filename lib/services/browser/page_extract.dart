@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 /// Fork: reads a web page on the Dart side for the reader view and for
@@ -15,7 +17,11 @@ class PageExtract {
         .get(Uri.parse(url), headers: {'User-Agent': _userAgent, 'Accept': 'text/html,*/*'})
         .timeout(const Duration(seconds: 20));
     if (response.statusCode >= 400) throw Exception('HTTP ${response.statusCode}');
-    return response.body;
+    // Without a charset in the header package:http falls back to Latin-1;
+    // most pages without one are UTF-8.
+    final contentType = response.headers['content-type'] ?? '';
+    if (contentType.toLowerCase().contains('charset=')) return response.body;
+    return utf8.decode(response.bodyBytes, allowMalformed: true);
   }
 
   static const _mediaExtensions = ['.mp4', '.m4v', '.webm', '.mkv', '.mov', '.m3u8', '.mpd', '.mp3', '.m4a', '.ogg'];
@@ -100,11 +106,10 @@ class PageExtract {
           .trim();
 
   static String _decode(String s) => s
-      .replaceAllMapped(RegExp(r'&#(\d+);'), (m) => String.fromCharCode(int.parse(m.group(1)!)))
-      .replaceAllMapped(RegExp(r'&#x([0-9a-fA-F]+);'), (m) => String.fromCharCode(int.parse(m.group(1)!, radix: 16)))
+      .replaceAllMapped(RegExp(r'&#(\d+);'), (m) => _char(int.tryParse(m.group(1)!)))
+      .replaceAllMapped(RegExp(r'&#x([0-9a-fA-F]+);'), (m) => _char(int.tryParse(m.group(1)!, radix: 16)))
       .replaceAll('&nbsp;', ' ')
       .replaceAll('&quot;', '"')
-      .replaceAll('&#39;', "'")
       .replaceAll('&apos;', "'")
       .replaceAll('&lt;', '<')
       .replaceAll('&gt;', '>')
@@ -112,4 +117,7 @@ class PageExtract {
       .replaceAll('&ndash;', '–')
       .replaceAll('&mdash;', '-')
       .replaceAll('&amp;', '&');
+
+  /// A numeric entity's character; out-of-range codes become a space.
+  static String _char(int? code) => code != null && code > 0 && code <= 0x10FFFF ? String.fromCharCode(code) : ' ';
 }

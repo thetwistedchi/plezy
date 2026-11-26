@@ -29,6 +29,7 @@ class TraktImportScreen extends StatefulWidget {
 class _TraktImportScreenState extends State<TraktImportScreen> {
   bool _running = false;
   bool _done = false;
+  bool _failed = false;
   String _status = '';
   int _movies = 0;
   int _episodes = 0;
@@ -49,6 +50,11 @@ class _TraktImportScreenState extends State<TraktImportScreen> {
     ];
     setState(() {
       _running = true;
+      _done = false;
+      _failed = false;
+      _movies = 0;
+      _episodes = 0;
+      _missing = 0;
       _status = RetroStrings.traktReading;
     });
     try {
@@ -63,7 +69,7 @@ class _TraktImportScreenState extends State<TraktImportScreen> {
         final found = await _find(servers, _ids(movie['ids'] as Map?), MediaKind.movie, movie);
         if (found.isEmpty) _missing++;
         for (final (server, item) in found) {
-          if ((item.viewCount ?? 0) > 0) continue;
+          if (item.isWatched) continue;
           await server.markWatched(item);
           _movies++;
         }
@@ -84,7 +90,7 @@ class _TraktImportScreenState extends State<TraktImportScreen> {
         for (final (server, item) in found) {
           final episodes = await server.fetchPlayableDescendants(item.id);
           for (final ep in episodes) {
-            if ((ep.viewCount ?? 0) > 0) continue;
+            if (ep.isWatched) continue;
             if (!watched.contains('${ep.parentIndex}x${ep.index}')) continue;
             await server.markWatched(ep);
             _episodes++;
@@ -94,7 +100,7 @@ class _TraktImportScreenState extends State<TraktImportScreen> {
       }
     } catch (e, st) {
       appLogger.w('Trakt import failed', error: e, stackTrace: st);
-      if (mounted) setState(() => _status = RetroStrings.traktFailed);
+      _failed = true;
     }
     if (mounted) {
       setState(() {
@@ -154,6 +160,7 @@ class _TraktImportScreenState extends State<TraktImportScreen> {
                 const SizedBox(height: 20),
                 if (_running) ...[const LinearProgressIndicator(), const SizedBox(height: 8)],
                 if (_status.isNotEmpty && !_done) Text(_status, style: TextStyle(color: mono.textMuted)),
+                if (_done && _failed) Text(RetroStrings.traktFailed, style: theme.textTheme.titleMedium),
                 if (_done) Text(RetroStrings.traktImportDone(_movies, _episodes, _missing), style: theme.textTheme.titleMedium),
               ],
             ),

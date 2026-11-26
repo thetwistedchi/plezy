@@ -70,7 +70,7 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
 
   void _count(_Stats stats, MediaItem item) {
     final runtimeH = (item.durationMs ?? 0) / 3600000;
-    int watchedUnits;
+    final int watchedUnits;
     if (item.kind == MediaKind.movie) {
       watchedUnits = (item.viewCount ?? 0) > 0 ? 1 : 0;
       stats.movies += watchedUnits;

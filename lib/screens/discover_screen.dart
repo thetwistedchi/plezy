@@ -222,13 +222,14 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   }
 
   Future<void> _loadUpcoming(List<MediaItem> onDeck) async {
+    MediaServerClient? clientFor(String serverId) => context.tryGetMediaClientForServer(ServerId(serverId));
     final shows = <String, MediaItem>{};
     for (final item in onDeck) {
       final showId = item.grandparentId ?? (item.isShow ? item.id : null);
       final serverId = item.serverId;
       if (showId == null || serverId == null) continue;
       if (shows.containsKey('$serverId:$showId')) continue;
-      final client = context.tryGetMediaClientForServer(ServerId(serverId));
+      final client = clientFor(serverId);
       if (client == null) continue;
       try {
         final show = item.isShow ? item : await client.fetchItem(showId);
@@ -240,7 +241,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     }
     final results = await UpcomingEpisodes.instance.forShows(
       shows.values.toList(),
-      (show) => show.serverId == null ? null : context.tryGetMediaClientForServer(ServerId(show.serverId!)),
+      (show) => show.serverId == null ? null : clientFor(show.serverId!),
       isCancelled: () => !mounted || !identical(onDeck, _upcomingFor),
     );
     if (!mounted || !identical(onDeck, _upcomingFor)) return;

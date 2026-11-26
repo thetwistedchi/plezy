@@ -934,7 +934,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       case 'reopen':
         await _closedMenu(anchor);
       case 'reader':
-        if (url != null) await ReaderScreen.open(context, url);
+        if (url != null && mounted) await ReaderScreen.open(context, url);
       case 'video':
         if (url != null) await _playPageVideo(url);
       case 'history':
