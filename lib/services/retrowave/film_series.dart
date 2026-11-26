@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../i18n/strings.g.dart';
+import '../../media/media_item.dart';
 import '../../utils/app_logger.dart';
 
 /// One film of a series, in the series' order.
@@ -128,5 +129,59 @@ class FilmSeries {
     if (cache.length > 800) cache.remove(cache.keys.first);
     await prefs.setString(_cacheKey, jsonEncode(cache));
     return result;
+  }
+
+  static const _ownedKey = 'retrowave_film_series_owned_v1';
+  Map<String, dynamic>? _owned;
+
+  Future<Map<String, dynamic>> _ownedCache() async {
+    if (_owned case final o?) return o;
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      return _owned = Map<String, dynamic>.from(jsonDecode(prefs.getString(_ownedKey) ?? '{}') as Map);
+    } catch (_) {
+      return _owned = {};
+    }
+  }
+
+  /// The series as last shown on [movie]'s page, with the parts that were
+  /// found in the library, so the page can show it before the lookups end.
+  Future<({String name, List<({FilmSeriesPart part, MediaItem? owned})> parts})?> lastShown(MediaItem movie) async {
+    final hit = (await _ownedCache())[movie.globalKey];
+    if (hit is! Map) return null;
+    try {
+      return (
+        name: hit['name'] as String,
+        parts: [
+          for (final p in hit['parts'] as List)
+            (
+              part: FilmSeriesPart.fromJson(Map<String, dynamic>.from(p['p'] as Map)),
+              owned: p['o'] is Map ? MediaItem.fromJson(Map<String, dynamic>.from(p['o'] as Map)) : null,
+            ),
+        ],
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Keeps what [movie]'s page shows (owned parts without their raw data).
+  Future<void> remember(
+    MediaItem movie,
+    ({String name, List<({FilmSeriesPart part, MediaItem? owned})> parts}) series,
+  ) async {
+    final cache = await _ownedCache();
+    cache.remove(movie.globalKey);
+    cache[movie.globalKey] = {
+      'name': series.name,
+      'parts': [
+        for (final e in series.parts) {'p': e.part.toJson(), 'o': e.owned?.copyWith(raw: null).toJson()},
+      ],
+    };
+    while (cache.length > 400) {
+      cache.remove(cache.keys.first);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_ownedKey, jsonEncode(cache));
   }
 }

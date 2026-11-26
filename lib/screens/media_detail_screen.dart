@@ -959,6 +959,14 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     if (widget.isOffline || (!_metadata.isMovie && !_metadata.isShow)) return;
     final client = _getMediaClientForMetadata(context);
     if (client == null) return;
+    // Fork: the series as shown last time, right away; refreshed below.
+    if (_metadata.isMovie) {
+      unawaited(
+        FilmSeries.instance.lastShown(_metadata).then((cached) {
+          if (cached != null && _filmSeries == null && mounted) setState(() => _filmSeries = cached);
+        }),
+      );
+    }
     final ExternalIds ids;
     try {
       ids = await client.fetchExternalIds(_metadata.id);
@@ -1010,12 +1018,12 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                   .then((items) => items?.firstOrNull, onError: (Object _) => null),
     ]);
     if (!mounted) return;
-    setState(() {
-      _filmSeries = (
-        name: series.name,
-        parts: [for (var i = 0; i < parts.length; i++) (part: parts[i], owned: owned[i])],
-      );
-    });
+    final result = (
+      name: series.name,
+      parts: [for (var i = 0; i < parts.length; i++) (part: parts[i], owned: owned[i])],
+    );
+    setState(() => _filmSeries = result);
+    unawaited(FilmSeries.instance.remember(_metadata, result));
   }
 
   Widget _buildFilmSeries() {

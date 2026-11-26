@@ -143,10 +143,11 @@ class UpcomingEpisodes {
     MediaServerClient? Function(String serverId) clientFor, {
     Duration maxAge = const Duration(hours: 1),
     bool force = false,
-  }) {
+  }) async {
+    await _restoreAll();
     final at = _allAt;
     if (!force && at != null && DateTime.now().difference(at) < maxAge) return Future.value();
-    if (!force && _allRunning != null) return _allRunning!;
+    if (!force && _allRunning != null) return _allRunning;
     // A forced scan (other servers picked) replaces a running one.
     final generation = ++_generation;
     final scan = _scanAll(libraries, clientFor, () => generation != _generation);
@@ -157,6 +158,68 @@ class UpcomingEpisodes {
   }
 
   int _generation = 0;
+
+  static const _listKey = 'retrowave_upcoming_list_v1';
+  bool _restored = false;
+
+  /// Fork: the last finished scan, kept on the device, so Upcoming and the
+  /// Home row show at once after a restart while a new scan runs.
+  Future<void> _restoreAll() async {
+    if (_restored) return;
+    _restored = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_listKey);
+      if (raw == null) return;
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      final list = [
+        for (final e in (json['items'] as List).whereType<Map>())
+          UpcomingEpisode(
+            show: MediaItem.fromJson(Map<String, dynamic>.from(e['show'] as Map)),
+            airs: DateTime.parse(e['airs'] as String).toLocal(),
+            name: e['name'] as String?,
+            season: (e['season'] as num?)?.toInt(),
+            number: (e['number'] as num?)?.toInt(),
+            network: e['network'] as String?,
+          ),
+      ];
+      // Episodes that aired since are dropped until the next scan.
+      final now = DateTime.now().subtract(const Duration(hours: 3));
+      final current = [for (final e in list) if (e.airs.isAfter(now)) e];
+      for (final e in current) {
+        _labels['${e.show.serverId}:${e.show.id}'] = caption(e);
+      }
+      all.value ??= current;
+      _allAt ??= DateTime.fromMillisecondsSinceEpoch((json['at'] as num?)?.toInt() ?? 0);
+    } catch (e) {
+      appLogger.d('Upcoming: stored list unreadable', error: e);
+    }
+  }
+
+  Future<void> _storeAll(List<UpcomingEpisode> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _listKey,
+        jsonEncode({
+          'at': DateTime.now().millisecondsSinceEpoch,
+          'items': [
+            for (final e in list)
+              {
+                'show': e.show.copyWith(raw: null).toJson(),
+                'airs': e.airs.toUtc().toIso8601String(),
+                'name': e.name,
+                'season': e.season,
+                'number': e.number,
+                'network': e.network,
+              },
+          ],
+        }),
+      );
+    } catch (e) {
+      appLogger.d('Upcoming: storing the list failed', error: e);
+    }
+  }
 
   Future<void> _scanAll(
     List<MediaLibrary> libraries,
@@ -177,6 +240,7 @@ class UpcomingEpisodes {
       if (libraries.any((l) => l.kind == MediaKind.show)) {
         all.value = const [];
         _allAt = DateTime.now();
+        unawaited(_storeAll(const []));
       }
       return;
     }
@@ -200,6 +264,7 @@ class UpcomingEpisodes {
     shows.sort((a, b) => ((b.viewedLeafCount ?? 0) > 0 ? 1 : 0).compareTo((a.viewedLeafCount ?? 0) > 0 ? 1 : 0));
     allProgress.value = (done: 0, total: shows.length);
     if (isStale()) return;
+    final hadList = all.value?.isNotEmpty ?? false;
     final results = await forShows(
       shows,
       (show) => clients[show.serverId],
@@ -207,11 +272,13 @@ class UpcomingEpisodes {
       onProgress: (soFar, done) {
         if (isStale()) return;
         allProgress.value = (done: done, total: shows.length);
-        if (all.value == null || soFar.length != (all.value?.length ?? 0)) all.value = soFar;
+        // With a stored list on screen, only the finished scan replaces it.
+        if (!hadList && (all.value == null || soFar.length != (all.value?.length ?? 0))) all.value = soFar;
       },
     );
     if (isStale()) return;
     all.value = results;
+    unawaited(_storeAll(results));
     allProgress.value = null;
     _allAt = DateTime.now();
   }
