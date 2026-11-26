@@ -9,6 +9,7 @@ import '../../services/youtube/youtube_auth.dart';
 import '../../services/youtube/youtube_service.dart';
 import '../../services/youtube/youtube_settings.dart';
 import '../../services/youtube/youtube_webview.dart';
+import '../../services/youtube/youtube_watchlist.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../utils/app_logger.dart';
@@ -128,6 +129,73 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
     await YouTubeAuth.instance.signOut();
     YouTubeService.instance.clear();
     if (mounted) setState(() => _busy = false);
+  }
+
+  bool _importing = false;
+
+  void _say(String text) => ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(text)));
+
+  /// Fork: Watch later on youtube.com into the app's Watch later list.
+  Future<void> _importWatchLater() async {
+    if (_importing) return;
+    _importing = true;
+    _say(YtStrings.importRunning);
+    try {
+      final items = await YouTubeWebView.watchLater();
+      if (!mounted) return;
+      if (items == null) {
+        _say(YtStrings.importFailed);
+        return;
+      }
+      final watchlist = YouTubeWatchlist.instance;
+      await watchlist.load();
+      var added = 0;
+      for (final i in items) {
+        final id = i['id'] as String? ?? '';
+        if (id.isEmpty || watchlist.contains(id)) continue;
+        await watchlist.add(
+          YouTubeVideo(
+            id: id,
+            title: i['t'] as String? ?? '',
+            channelId: i['ci'] as String? ?? '',
+            channelTitle: i['c'] as String? ?? '',
+            thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
+            publishedAt: DateTime.now(),
+            viewCount: 0,
+            isShort: false,
+            duration: Duration(seconds: (i['s'] as num?)?.toInt() ?? 0),
+          ),
+        );
+        added++;
+      }
+      if (mounted) _say(YtStrings.importWatchLaterDone(added, items.length));
+    } finally {
+      _importing = false;
+    }
+  }
+
+  /// Fork: channels with the bell on "All" become favourites.
+  Future<void> _importBells() async {
+    if (_importing) return;
+    _importing = true;
+    _say(YtStrings.importRunning);
+    try {
+      final channels = await YouTubeWebView.bellChannels();
+      if (!mounted) return;
+      if (channels == null) {
+        _say(YtStrings.importFailed);
+        return;
+      }
+      var added = 0;
+      for (final c in channels) {
+        if (_settings.isFavorite(c.id)) continue;
+        await _settings.setFavorite(c.id, c.title, true);
+        added++;
+      }
+      if (mounted) _say(YtStrings.importBellsDone(added, channels.length));
+    } finally {
+      _importing = false;
+    }
   }
 
   @override
@@ -531,6 +599,19 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                                   );
                                 },
                               ),
+                            // Fork: imports from the signed-in YouTube account.
+                            ListTile(
+                              leading: AppIcon(Symbols.watch_later_rounded, color: mono.textMuted),
+                              title: Text(YtStrings.importWatchLater),
+                              subtitle: Text(YtStrings.importWatchLaterSub),
+                              onTap: () => unawaited(_importWatchLater()),
+                            ),
+                            ListTile(
+                              leading: AppIcon(Symbols.notifications_active_rounded, color: mono.textMuted),
+                              title: Text(YtStrings.importBells),
+                              subtitle: Text(YtStrings.importBellsSub),
+                              onTap: () => unawaited(_importBells()),
+                            ),
                             ListTile(
                               leading: AppIcon(Symbols.storage_rounded, color: mono.textMuted),
                               title: Text(YtStrings.cacheLimit),

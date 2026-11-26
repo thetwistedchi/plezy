@@ -392,6 +392,11 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                           icon: const AppIcon.retro(Symbols.history_rounded),
                         ),
                       IconButton(
+                        tooltip: YtStrings.myPlaylists,
+                        onPressed: () => unawaited(_showMyPlaylists()),
+                        icon: const AppIcon.retro(Symbols.playlist_play_rounded),
+                      ),
+                      IconButton(
                         tooltip: YtStrings.addChannels,
                         onPressed: _openChannels,
                         icon: const AppIcon.retro(Symbols.add_to_queue_rounded),
@@ -545,6 +550,45 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
         ],
       ),
     );
+  }
+
+  /// Fork: the account's own playlists; one tap plays it.
+  Future<void> _showMyPlaylists() async {
+    final lists = await _service.myPlaylists().catchError(
+      (Object _) => <({String id, String title, int count, String? thumbnail})>[],
+    );
+    if (!mounted) return;
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(YtStrings.myPlaylists),
+        children: [
+          if (lists.isEmpty)
+            Padding(padding: const EdgeInsets.all(24), child: Text(YtStrings.myPlaylistsEmpty))
+          else
+            for (final list in lists)
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, list.id),
+                child: Row(
+                  children: [
+                    const AppIcon.retro(Symbols.playlist_play_rounded, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(list.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    Text('${list.count}'),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    try {
+      final videos = await _service.playlistVideos(picked);
+      if (!mounted || videos.isEmpty) return;
+      await YouTubePlayerScreen.open(context, videos);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(YtStrings.playlistFailed)));
+    }
   }
 
   Future<void> _syncHistoryNow() async {

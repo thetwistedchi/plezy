@@ -414,6 +414,28 @@ class YtStrings {
   static String get addChannelsNoAccount => _t('Add channels', 'Kanäle hinzufügen');
   static String get signInOptional => _t('Sign in with Google (optional)', 'Mit Google anmelden (optional)');
   static String get channels => _t('Channels', 'Kanäle');
+  static String get importWatchLater => _t('Import Watch later from YouTube', 'Später ansehen von YouTube importieren');
+  static String get importWatchLaterSub => _t(
+    'Adds the videos of your Watch later list on youtube.com to the app\'s list (signed-in player needed)',
+    'Fügt die Videos deiner Später-ansehen-Liste auf youtube.com der Liste der App hinzu (angemeldeter Player nötig)',
+  );
+  static String get importBells => _t('Import bell channels as favourites', 'Glocken-Kanäle als Favoriten übernehmen');
+  static String get importBellsSub => _t(
+    'Channels whose bell is set to "All" on youtube.com become favourites (with notifications)',
+    'Kanäle mit Glocke auf „Alle“ auf youtube.com werden Favoriten (mit Benachrichtigung)',
+  );
+  static String get importRunning => _t('Reading your YouTube account…', 'Lese dein YouTube-Konto…');
+  static String get importFailed => _t(
+    'Could not read your YouTube account. Is the player signed in (YouTube settings)?',
+    'Dein YouTube-Konto konnte nicht gelesen werden. Ist der Player angemeldet (YouTube-Einstellungen)?',
+  );
+  static String importWatchLaterDone(int added, int total) =>
+      _t('$added of $total videos added to Watch later', '$added von $total Videos zu Später ansehen hinzugefügt');
+  static String importBellsDone(int added, int total) =>
+      _t('$added of $total bell channels added as favourites', '$added von $total Glocken-Kanälen als Favoriten übernommen');
+  static String get myPlaylists => _t('My playlists', 'Meine Playlists');
+  static String get myPlaylistsEmpty =>
+      _t('No playlists, or the account is not signed in.', 'Keine Playlists oder das Konto ist nicht angemeldet.');
   static String get addChannels => _t('Add channels', 'Kanäle hinzufügen');
   static String get syncHistoryButton => _t('Sync watched videos to the YouTube history', 'Geschaute Videos mit dem YouTube-Verlauf abgleichen');
   static String get guide => _t('How it works', 'So funktioniert es');

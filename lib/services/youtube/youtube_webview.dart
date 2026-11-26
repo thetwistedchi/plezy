@@ -570,6 +570,157 @@ class YouTubeWebView {
 })()
 '''.replaceAll('__PAGES__', '$pages');
 
+  /// Fork: reads the account's Watch later list ('wl') or its subscriptions
+  /// with their bell setting ('bells') through youtube.com's own requests,
+  /// with the page's sign-in. Answers "wait" until done, then a JSON object.
+  static String _importScript(String mode) => r'''
+(() => {
+  const S = window.__plezyImport || (window.__plezyImport = { state: 'idle' });
+  if (S.state === 'running') return 'wait';
+  if (S.state === 'done') return S.result;
+  const video = document.querySelector('video');
+  if (video) { video.muted = true; try { video.pause(); } catch (_) {} }
+  const cfg = window.ytcfg;
+  if (!cfg || !cfg.get || !cfg.get('INNERTUBE_API_KEY')) return 'wait';
+  S.state = 'running';
+  const mode = '__MODE__';
+  const walk = (o, fn) => {
+    if (!o || typeof o !== 'object') return;
+    fn(o);
+    for (const k in o) walk(o[k], fn);
+  };
+  const text = (t) => !t ? '' : (t.simpleText || (t.runs || []).map((r) => r.text).join('') || t.content || '');
+  const run = async () => {
+    const cookie = (n) => {
+      const c = document.cookie.split('; ').find((x) => x.startsWith(n + '='));
+      return c ? c.substring(n.length + 1) : '';
+    };
+    const sapisid = cookie('SAPISID') || cookie('__Secure-3PAPISID');
+    if (!sapisid) return JSON.stringify({ r: 'signedout' });
+    const ts = Math.floor(Date.now() / 1000);
+    const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(ts + ' ' + sapisid + ' ' + location.origin));
+    const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'SAPISIDHASH ' + ts + '_' + hex,
+      'X-Origin': location.origin,
+      'X-Goog-AuthUser': String(cfg.get('SESSION_INDEX') || 0),
+      'X-Youtube-Client-Name': String(cfg.get('INNERTUBE_CONTEXT_CLIENT_NAME') || 1),
+      'X-Youtube-Client-Version': String(cfg.get('INNERTUBE_CLIENT_VERSION') || ''),
+    };
+    const pageId = cfg.get('DELEGATED_SESSION_ID');
+    if (pageId) headers['X-Goog-PageId'] = String(pageId);
+    const browse = async (body) => {
+      const r = await fetch('/youtubei/v1/browse?key=' + cfg.get('INNERTUBE_API_KEY') + '&prettyPrint=false', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify(Object.assign({ context: cfg.get('INNERTUBE_CONTEXT') }, body)),
+      });
+      if (!r.ok) throw new Error('browse HTTP ' + r.status);
+      return r.json();
+    };
+    const out = [];
+    const seen = new Set();
+    let data = await browse({ browseId: mode === 'wl' ? 'VLWL' : 'FEchannels' });
+    for (let page = 0; page < 60 && data; page++) {
+      let next = null;
+      walk(data, (o) => {
+        if (mode === 'wl' && o.playlistVideoRenderer) {
+          const v = o.playlistVideoRenderer;
+          if (!v.videoId || seen.has(v.videoId)) return;
+          seen.add(v.videoId);
+          const by = (v.shortBylineText && v.shortBylineText.runs && v.shortBylineText.runs[0]) || {};
+          const ep = by.navigationEndpoint && by.navigationEndpoint.browseEndpoint;
+          out.push({ id: v.videoId, t: text(v.title), c: by.text || '', ci: (ep && ep.browseId) || '', s: Number(v.lengthSeconds || 0) });
+        }
+        if (mode === 'wl' && o.lockupViewModel && o.lockupViewModel.contentId) {
+          const l = o.lockupViewModel;
+          if (l.contentType !== 'LOCKUP_CONTENT_TYPE_VIDEO' || seen.has(l.contentId)) return;
+          seen.add(l.contentId);
+          let title = '';
+          walk(l, (x) => { if (!title && x.lockupMetadataViewModel) title = text(x.lockupMetadataViewModel.title); });
+          out.push({ id: l.contentId, t: title, c: '', ci: '', s: 0 });
+        }
+        if (mode === 'bells' && o.channelRenderer) {
+          const c = o.channelRenderer;
+          if (!c.channelId || seen.has(c.channelId)) return;
+          seen.add(c.channelId);
+          let icon = '';
+          walk(c, (x) => {
+            const t = x.subscriptionNotificationToggleButtonRenderer;
+            if (!t) return;
+            for (const st of (t.states || [])) {
+              if (st.stateId !== t.currentStateId) continue;
+              walk(st, (y) => { if (!icon && y.iconType) icon = y.iconType; });
+            }
+          });
+          out.push({ id: c.channelId, t: text(c.title), b: icon });
+        }
+        if (o.continuationItemRenderer) {
+          const ep = o.continuationItemRenderer.continuationEndpoint;
+          const cmd = ep && ep.continuationCommand;
+          if (cmd && cmd.token) next = cmd.token;
+        }
+      });
+      if (!next) break;
+      data = await browse({ continuation: next });
+    }
+    return JSON.stringify({ r: 'ok', items: out });
+  };
+  run().then(
+    (r) => { S.result = r; S.state = 'done'; },
+    (e) => { S.result = JSON.stringify({ r: 'error', error: String(e && e.message ? e.message : e) }); S.state = 'done'; },
+  );
+  return 'wait';
+})()
+'''.replaceAll('__MODE__', mode);
+
+  /// Fork: runs [_importScript] in the hidden view. Null when it failed;
+  /// the result's `r` says why ("signedout", "error").
+  static Future<Map<String, dynamic>?> _import(String mode) async {
+    if (!isSupported) return null;
+    return _withHiddenView(() async {
+      if (_signInOpen) return null;
+      final watch = Stopwatch()..start();
+      try {
+        final url = Uri.https('www.youtube.com', '/feed/channels');
+        await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
+        while (watch.elapsed < const Duration(seconds: 60)) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          final raw = await _channel.invokeMethod<String>('authScript', {'script': _importScript(mode)});
+          final value = raw == null ? null : jsonDecode(raw);
+          if (value is! String || value == 'wait') continue;
+          final result = jsonDecode(value);
+          appLogger.d('YouTube import $mode: ${result is Map ? result['r'] : '?'} after ${watch.elapsedMilliseconds} ms');
+          return result is Map<String, dynamic> ? result : null;
+        }
+      } catch (e) {
+        appLogger.d('YouTube import $mode failed', error: e);
+      } finally {
+        if (!_signInOpen) await closeSignIn().catchError((_) {});
+      }
+      return null;
+    });
+  }
+
+  /// Fork: the account's Watch later videos (id, title, channel, seconds).
+  static Future<List<Map<String, dynamic>>?> watchLater() async {
+    final r = await _import('wl');
+    if (r == null || r['r'] != 'ok') return null;
+    return [for (final i in r['items'] as List) if (i is Map<String, dynamic>) i];
+  }
+
+  /// Fork: subscribed channels whose bell is set to "All".
+  static Future<List<({String id, String title})>?> bellChannels() async {
+    final r = await _import('bells');
+    if (r == null || r['r'] != 'ok') return null;
+    return [
+      for (final i in r['items'] as List)
+        if (i is Map && i['b'] == 'NOTIFICATIONS_ACTIVE') (id: i['id'] as String, title: i['t'] as String? ?? ''),
+    ];
+  }
+
   static final Set<String> _likesFetched = {};
 
   /// Marks the comments of [videoId] the signed-in account already liked

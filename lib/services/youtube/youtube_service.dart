@@ -797,6 +797,33 @@ class YouTubeService extends ChangeNotifier {
     ];
   }
 
+  /// Fork: the signed-in account's own playlists (not Watch later, which the
+  /// API no longer hands out).
+  Future<List<({String id, String title, int count, String? thumbnail})>> myPlaylists() async {
+    final result = <({String id, String title, int count, String? thumbnail})>[];
+    String? token;
+    do {
+      final page = await _get('playlists', {
+        'part': 'snippet,contentDetails',
+        'mine': 'true',
+        'maxResults': '50',
+        'pageToken': ?token,
+      });
+      for (final raw in (page['items'] as List? ?? const [])) {
+        if (raw is Map && raw['id'] is String) {
+          result.add((
+            id: raw['id'] as String,
+            title: (raw['snippet']?['title'] as String?) ?? '',
+            count: (raw['contentDetails']?['itemCount'] as num?)?.toInt() ?? 0,
+            thumbnail: raw['snippet']?['thumbnails']?['medium']?['url'] as String?,
+          ));
+        }
+      }
+      token = page['nextPageToken'] as String?;
+    } while (token != null && result.length < 500);
+    return result;
+  }
+
   /// Fork: the videos of a playlist in its order (up to [limit]).
   Future<List<YouTubeVideo>> playlistVideos(String playlistId, {int limit = 200}) async {
     final videos = <YouTubeVideo>[];
