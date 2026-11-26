@@ -66,6 +66,12 @@ class TraktClient implements DisposableTrackerClient {
       _request('POST', '/scrobble/stop', body: body.toJson(), allowStatuses: _scrobbleAllowedStatuses);
 
   /// Body shape: see `trackerHistoryBody`.
+  /// Fork: every movie the user has watched on Trakt (with ids).
+  Future<List<dynamic>> getWatchedMovies() async => (await _request('GET', '/sync/watched/movies')) as List? ?? const [];
+
+  /// Fork: every show with its watched seasons and episodes.
+  Future<List<dynamic>> getWatchedShows() async => (await _request('GET', '/sync/watched/shows')) as List? ?? const [];
+
   Future<void> addToHistory(Map<String, dynamic> body) => _request('POST', '/sync/history', body: body);
 
   Future<void> removeFromHistory(Map<String, dynamic> body) => _request('POST', '/sync/history/remove', body: body);

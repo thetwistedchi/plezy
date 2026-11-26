@@ -50,6 +50,43 @@ class RetroStrings {
   static String filmSeries(String name, int have, int total) =>
       _t('$name: $have of $total in your library', '$name: $have von $total in deiner Mediathek');
   static String get notInLibrary => _t('Not in your library', 'Nicht in deiner Mediathek');
+  static String get yourViewing => _t('Your viewing', 'Dein Schauen');
+  static String get upcomingEpisodes => _t('Upcoming episodes', 'Kommende Folgen');
+  static String get upcomingEpisodesDescription =>
+      _t('Next air dates of the shows you are watching', 'Nächste Sendetermine deiner laufenden Serien');
+  static String get upcomingNone => _t('No upcoming episodes announced.', 'Keine kommenden Folgen angekündigt.');
+  static String get upcomingNoShows =>
+      _t('No shows on Continue Watching yet.', 'Noch keine Serien unter Weiterschauen.');
+  static String get today => _t('Today', 'Heute');
+  static String get tomorrow => _t('Tomorrow', 'Morgen');
+  static String get watchStats => _t('Watch statistics', 'Statistik');
+  static String get watchStatsDescription =>
+      _t('Hours watched, favourite genres, recent months', 'Gesehene Stunden, Lieblingsgenres, letzte Monate');
+  static String get statsHours => _t('hours watched', 'Stunden gesehen');
+  static String get statsMovies => _t('films', 'Filme');
+  static String get statsEpisodes => _t('episodes', 'Folgen');
+  static String get statsShows => _t('shows', 'Serien');
+  static String get statsGenres => _t('Favourite genres', 'Lieblingsgenres');
+  static String get statsMonths => _t('Last twelve months', 'Letzte zwölf Monate');
+  static String get statsMonthsHint =>
+      _t('Titles by the month they were last watched', 'Titel nach dem Monat, in dem sie zuletzt gesehen wurden');
+  static String get traktImport => _t('Import watch history from Trakt', 'Verlauf von Trakt importieren');
+  static String get traktImportDescription =>
+      _t('Mark everything watched on Trakt as watched', 'Alles auf Trakt Gesehene als gesehen markieren');
+  static String get traktImportHelp => _t(
+    'Every film and episode you have watched on Trakt is marked as watched on your servers. Titles are matched by their IMDb, TMDB and TVDB ids. Nothing is marked as unwatched.',
+    'Jeder Film und jede Folge, die du auf Trakt gesehen hast, wird auf deinen Servern als gesehen markiert. Zugeordnet wird über IMDb-, TMDB- und TVDB-IDs. Nichts wird als ungesehen markiert.',
+  );
+  static String get traktNotConnected =>
+      _t('Connect Trakt first under Settings > Services.', 'Zuerst Trakt unter Einstellungen > Dienste verbinden.');
+  static String get traktImportStart => _t('Start import', 'Import starten');
+  static String get traktReading => _t('Reading your Trakt history…', 'Trakt-Verlauf wird gelesen…');
+  static String traktProgress(int n, int total) => _t('Title $n of $total', 'Titel $n von $total');
+  static String get traktFailed => _t('The import stopped with an error.', 'Der Import wurde mit einem Fehler beendet.');
+  static String traktImportDone(int movies, int episodes, int missing) => _t(
+    'Done: $movies films and $episodes episodes marked as watched. $missing titles are not in your libraries.',
+    'Fertig: $movies Filme und $episodes Folgen als gesehen markiert. $missing Titel sind nicht in deinen Mediatheken.',
+  );
   static String get nightMode => _t('Night mode', 'Nachtmodus');
   static String get nightModeDescription => _t(
     'Quieter loud scenes and clearer dialogue at low volume',

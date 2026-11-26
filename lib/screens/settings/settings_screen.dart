@@ -66,6 +66,9 @@ import 'services_settings_screen.dart';
 import 'settings_utils.dart';
 import 'supporter_settings_tile.dart';
 import 'tracker_service_info.dart';
+import '../retrowave/trakt_import_screen.dart';
+import '../retrowave/upcoming_episodes_screen.dart';
+import '../retrowave/watch_stats_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -241,6 +244,32 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
                   // Hidden on Android TV / tvOS (no document picker); desktop in
                   // force-TV mode keeps it — FilePickerService works there.
                   if (!PlatformDetector.isTV() || PlatformDetector.isDesktopOS()) _buildBackupSection(),
+
+                  // Fork: viewing insights.
+                  const SizedBox(height: 24),
+                  SettingsGroup(
+                    title: RetroStrings.yourViewing,
+                    children: [
+                      SettingNavigationTile(
+                        icon: Symbols.calendar_month_rounded,
+                        title: RetroStrings.upcomingEpisodes,
+                        subtitle: RetroStrings.upcomingEpisodesDescription,
+                        destinationBuilder: (context) => const UpcomingEpisodesScreen(),
+                      ),
+                      SettingNavigationTile(
+                        icon: Symbols.monitoring_rounded,
+                        title: RetroStrings.watchStats,
+                        subtitle: RetroStrings.watchStatsDescription,
+                        destinationBuilder: (context) => const WatchStatsScreen(),
+                      ),
+                      SettingNavigationTile(
+                        icon: Symbols.history_rounded,
+                        title: RetroStrings.traktImport,
+                        subtitle: RetroStrings.traktImportDescription,
+                        destinationBuilder: (context) => const TraktImportScreen(),
+                      ),
+                    ],
+                  ),
 
                   const SizedBox(height: 24),
                   SettingsGroup(
