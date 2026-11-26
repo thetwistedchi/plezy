@@ -38,7 +38,8 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 **Details and ratings**
 - A **Ratings & links** row on every movie and show (Letterboxd, Trakt, IMDb, Rotten Tomatoes, TMDB, Metacritic, MyAnimeList) and a **rating median** on posters, with a side-by-side breakdown of every score. Optional MDBList and OMDb keys add more sources.
 - **Similar in your library**: titles from the same library that share genres.
-- **Film series**: every part of a movie's series, with the ones missing from your library marked.
+- **Film series**: every part of a movie's series, with the ones missing from your library marked (on TV as a row of the parts you have).
+- **Pictures for people** the server has none for, from Wikidata, kept on the device.
 - **Languages per library**, for example Japanese audio with German subtitles for anime.
 - Quality, HDR and audio language pills on posters, studio, producer and director on the details page, a larger **Play** button, and on desktop a poster preview on hover.
 - **Audio and subtitle pickers** below Play, with a description of each track.
@@ -47,6 +48,8 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 **Libraries and Home**
 - Quick filters (unwatched, 4K, HDR, audio language), saved filter sets, **Surprise me**, a search box per library, an A to Z bar and a startup library.
 - **Hide watched** per Home row, longer rows (40 titles) and **Show all** on Recently added rows.
+- **Row design** per Home row: standard, posters, wide backdrops or small posters.
+- **Upcoming episodes** and **Free on plex.tv** are entries in the libraries list that can be moved or hidden; Upcoming can also be a Home row, and TV libraries get an Upcoming tab.
 
 **Player**
 - **Play from start** next to Resume, trailers in the player, audio, subtitles and zoom remembered per title, a 4K / HDR badge and a neon **Skip intro / credits** button.
@@ -62,9 +65,10 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 **Browser** (Windows; Android as a beta)
 - Tabs, bookmarks, private tabs, a pop-up blocker, HTTPS upgrades, tracking prevention, Dark Reader and an ad blocker (Brave's adblock-rust with uBlock Origin's lists).
 - Reader view, playing a page's video in the app's player, and importing bookmarks from other browsers.
+- Pop-up notices can be turned off per site.
 
 **YouTube** (Windows only)
-- A tab with the newest videos of the channels you follow, channel groups, **Continue where you left off**, search, a minimum length filter, NEW markers, speed per channel, channel playlists, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
+- A tab with the newest videos of the channels you follow, channel groups, view counts, your own playlists, YouTube Watch later and bell subscriptions imported from your account, **Continue where you left off**, search, a minimum length filter, NEW markers, speed per channel, channel playlists, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
 
 **Android and Android TV**
 - Free on plex.tv plays full screen in the app, controlled with the remote.
@@ -72,8 +76,10 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - Holding Back goes to the home screen, and **Remote shortcuts** under Settings lists what each button does.
 - No YouTube tab.
 
-**Your viewing** (Settings)
-- **Upcoming episodes** of the shows you are watching, **watch statistics** and a **Trakt history import**.
+**Your viewing**
+- **Upcoming episodes**: next air dates of every show in your TV libraries (from TVmaze), per server, each show once, kept on the device for a fast start.
+- **Watch statistics** (sidebar, above Settings): hours, films, episodes, streaks, most watched shows, rewatches, directors and actors with pictures, genres, decades and a year in review. Every number opens the titles behind it, and single titles can be left out.
+- **Trakt history import** (Settings).
 
 **General**
 - Press **?** for all keyboard shortcuts.
