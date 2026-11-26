@@ -4084,12 +4084,15 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
+                          // Fork: fully clear for the last stretch, so the
+                          // rasterized edge leaves no 1px line over the page.
                           colors: [
                             theme.pageColor.withValues(alpha: 0.8),
                             theme.pageColor.withValues(alpha: 0.5),
                             theme.pageColor.withValues(alpha: 0),
+                            theme.pageColor.withValues(alpha: 0),
                           ],
-                          stops: const [0.0, 0.3, 1.0],
+                          stops: const [0.0, 0.3, 0.88, 1.0],
                         ),
                       ),
                     ),
