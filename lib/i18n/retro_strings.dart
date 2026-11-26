@@ -57,8 +57,13 @@ class RetroStrings {
   static String get upcomingNone => _t('No upcoming episodes announced.', 'Keine kommenden Folgen angekündigt.');
   static String get upcomingNoShows =>
       _t('No shows on Continue Watching yet.', 'Noch keine Serien unter Weiterschauen.');
-  static String get today => _t('Today', 'Heute');
   static String get tomorrow => _t('Tomorrow', 'Morgen');
+  static String get upcomingTab => _t('Upcoming', 'Demnächst');
+  static String upcomingChecking(int done, int total) =>
+      _t('Checking air dates: $done of $total shows', 'Prüfe Sendetermine: $done von $total Serien');
+  static String get upcomingOnHome => _t('Show on Home', 'Auf der Startseite zeigen');
+  static String get upcomingOnHomeDescription =>
+      _t('A row after Continue Watching', 'Eine Reihe nach Weiterschauen');
   static String get watchStats => _t('Watch statistics', 'Statistik');
   static String get watchStatsDescription =>
       _t('Hours watched, favourite genres, recent months', 'Gesehene Stunden, Lieblingsgenres, letzte Monate');

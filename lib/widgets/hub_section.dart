@@ -11,6 +11,7 @@ import '../focus/focus_theme.dart';
 import '../focus/input_mode_tracker.dart';
 import '../focus/focus_navigation_intent.dart';
 import '../focus/key_event_utils.dart';
+import '../services/retrowave/upcoming_episodes.dart';
 import '../services/settings_service.dart';
 import 'settings_builder.dart';
 import '../utils/layout_constants.dart';
@@ -544,6 +545,13 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
 
   @override
   Widget build(BuildContext context) {
+    final section = _buildSection(context);
+    // Fork: the Upcoming row's cards show the next air date.
+    final id = widget.hub.identifier;
+    return id == UpcomingEpisodes.hubIdentifier ? UpcomingLabelScope(child: section) : section;
+  }
+
+  Widget _buildSection(BuildContext context) {
     final hasFocus = _hubFocusNode.hasFocus;
     final isKeyboardMode = InputModeTracker.isKeyboardMode(context);
     final isTv = PlatformDetector.isTV();

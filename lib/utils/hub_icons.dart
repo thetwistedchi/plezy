@@ -13,6 +13,8 @@ import '../media/media_hub.dart';
 /// the more specific keywords are checked before the broader ones.
 IconData hubIconFor(MediaHub hub) {
   final title = hub.title.toLowerCase();
+  // Fork: the Upcoming episodes row.
+  if (hub.identifier == '_retrowave_upcoming_') return Symbols.calendar_month_rounded;
 
   if (hub.isContinueWatchingHub || title.contains('continue watching') || title.contains('on deck')) {
     return Symbols.play_circle_rounded;

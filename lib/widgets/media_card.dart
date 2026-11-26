@@ -4,6 +4,7 @@ import 'retro_pill.dart';
 import 'hover_preview.dart';
 import '../services/poster_info_cache.dart';
 import '../services/ratings/rating_median_cache.dart';
+import '../services/retrowave/upcoming_episodes.dart';
 import '../theme/retrowave_colors.dart';
 import '../utils/rating_median.dart';
 import 'dart:ui';
@@ -870,6 +871,10 @@ class _MediaCardList extends StatelessWidget {
 
   String _buildMetadataLine() {
     final current = item;
+    // Fork: upcoming episode caption in the Upcoming row and tab.
+    if (current is MediaItem) {
+      if (UpcomingLabelScope.labelIn(context, current) case final label?) return label;
+    }
     if (current is MediaPlaylist) {
       final parts = <String>[];
       if (current.leafCount != null && current.leafCount! > 0) {
@@ -1291,6 +1296,8 @@ class _MediaCardHelpers {
     bool showTitleImplied = false,
     CatalogItem? catalogItem,
   }) {
+    // Fork: upcoming episode caption in the Upcoming row and tab.
+    if (UpcomingLabelScope.labelIn(context, mi) case final label?) return _caption(context, label);
     final catalogMetadata = catalogItem == null
         ? ''
         : _buildMediaMetadataLine(mi, catalogItem: catalogItem, compact: true);

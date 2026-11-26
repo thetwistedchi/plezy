@@ -876,6 +876,9 @@ class SettingsService extends BaseSharedPreferencesService {
 
   /// Fork: night mode audio in the player.
   static const nightModeAudio = BoolPref('retrowave_night_mode_audio');
+
+  /// Fork: Upcoming episodes row on Home.
+  static const upcomingOnHome = BoolPref('retrowave_upcoming_on_home', defaultValue: true);
   static const startupSection = EnumPref<NavigationTabId>(
     'startup_section',
     values: NavigationTabId.values,
@@ -1589,6 +1592,7 @@ class SettingsService extends BaseSharedPreferencesService {
     germanVoiceActors,
     gamepadInputEnabled,
     nightModeAudio,
+    upcomingOnHome,
     startupSection,
     showExploreTab,
     alwaysKeepSidebarOpen,

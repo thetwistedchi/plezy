@@ -20,6 +20,7 @@ import '../media/media_hub.dart';
 import '../media/media_item.dart';
 import '../navigation/main_screen_scope.dart';
 import '../screens/hub_detail_screen.dart';
+import '../services/retrowave/upcoming_episodes.dart';
 import '../services/device_performance.dart';
 import '../services/settings_service.dart';
 import '../theme/mono_tokens.dart';
@@ -1891,7 +1892,7 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
     required bool fullCardLayout,
   }) {
     final artworkDim = _artworkDimForHub(context, hubIndex);
-    return metrics.isPersonHub
+    final card = metrics.isPersonHub
         ? MergeSemantics(
             child: _buildPersonCard(
               context,
@@ -1925,6 +1926,8 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
             menuExtraEntries: widget.menuExtraEntriesFor?.call(hub) ?? const [],
             infoPills: !fullCardLayout,
           );
+    // Fork: the Upcoming row's cards show the next air date.
+    return hub.identifier == UpcomingEpisodes.hubIdentifier ? UpcomingLabelScope(child: card) : card;
   }
 
   void _forwardRefresh(MediaItem source) => widget.onRefresh?.call(source);

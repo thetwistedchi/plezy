@@ -42,18 +42,21 @@ import 'library_search_field.dart';
 import 'tabs/library_collections_tab.dart';
 import 'tabs/library_genres_tab.dart';
 import 'tabs/library_playlists_tab.dart';
+import 'tabs/library_upcoming_tab.dart';
 import 'tabs/base_library_tab.dart';
 
-enum LibraryTabType { recommended, browse, collections, playlists, genres }
+enum LibraryTabType { recommended, browse, collections, playlists, genres, upcoming }
 
 List<LibraryTabType> visibleLibraryTabs(MediaLibrary library) {
   if (library.isShared) return [LibraryTabType.browse, LibraryTabType.playlists];
   // Genres filter the library's own type; only movie and show libraries
   // browse a type both backends tag with genres.
   final hasGenres = library.kind == MediaKind.movie || library.kind == MediaKind.show;
+  // Fork: Upcoming episodes, for show libraries.
+  final hasUpcoming = library.kind == MediaKind.show;
   return [
     for (final tab in LibraryTabType.values)
-      if (tab != LibraryTabType.genres || hasGenres) tab,
+      if ((tab != LibraryTabType.genres || hasGenres) && (tab != LibraryTabType.upcoming || hasUpcoming)) tab,
   ];
 }
 
@@ -83,6 +86,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
   final _browseTabKey = GlobalKey();
   final _collectionsTabKey = GlobalKey();
   final _genresTabKey = GlobalKey();
+  final _upcomingTabKey = GlobalKey();
   final _playlistsTabKey = GlobalKey();
 
   String? _selectedLibraryGlobalKey;
@@ -362,6 +366,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
       LibraryTabType.collections => _collectionsTabKey.currentState,
       LibraryTabType.genres => _genresTabKey.currentState,
       LibraryTabType.playlists => _playlistsTabKey.currentState,
+      LibraryTabType.upcoming => _upcomingTabKey.currentState,
     };
   }
 
@@ -469,6 +474,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
     LibraryTabType.collections => t.libraries.tabs.collections,
     LibraryTabType.genres => t.libraries.tabs.genres,
     LibraryTabType.playlists => t.libraries.tabs.playlists,
+    LibraryTabType.upcoming => RetroStrings.upcomingTab,
   };
 
   Widget _buildTabContent(
@@ -519,6 +525,14 @@ class _LibrariesScreenState extends State<LibrariesScreen>
       ),
       LibraryTabType.playlists => LibraryPlaylistsTab(
         key: _playlistsTabKey,
+        library: library,
+        isActive: isActive,
+        suppressAutoFocus: suppressAutoFocus,
+        onDataLoaded: () => _handleTabDataLoaded(tabIndex),
+        onBack: focusTabBar,
+      ),
+      LibraryTabType.upcoming => LibraryUpcomingTab(
+        key: _upcomingTabKey,
         library: library,
         isActive: isActive,
         suppressAutoFocus: suppressAutoFocus,
