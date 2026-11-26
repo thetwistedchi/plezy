@@ -469,6 +469,7 @@ class YtStrings {
   static String get needClientId => _t('Enter the client ID first.', 'Gib zuerst die Client ID ein.');
 
   static String get library => _t('Library', 'Mediathek');
+  static String get playlists => _t('Playlists', 'Playlists');
   static String get minLength => _t('Minimum length', 'Mindestlänge');
   static String get minLengthSub =>
       _t('Shorter videos are left out of the feed', 'Kürzere Videos werden im Feed ausgeblendet');

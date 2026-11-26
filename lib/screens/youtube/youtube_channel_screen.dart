@@ -43,6 +43,8 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
   final _scroll = ScrollController();
 
   YtChannelInfo? _info;
+  // Fork: the channel's playlists (signed in only).
+  List<({String id, String title, int count, String? thumbnail})> _playlists = const [];
   final List<YouTubeVideo> _videos = [];
   String? _nextPage;
   bool _loading = false;
@@ -70,6 +72,10 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
     try {
       final info = await _service.channelInfo(widget.channelId);
       if (mounted) setState(() => _info = info);
+    } catch (_) {}
+    try {
+      final lists = await _service.channelPlaylists(widget.channelId);
+      if (mounted) setState(() => _playlists = lists.where((l) => l.count > 0).toList());
     } catch (_) {}
   }
 
@@ -101,6 +107,18 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
       if (mounted) setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Fork: plays a whole playlist in a row, the next video lined up.
+  Future<void> _playPlaylist(String playlistId) async {
+    try {
+      final videos = await _service.playlistVideos(playlistId);
+      if (!mounted || videos.isEmpty) return;
+      if (widget.returnPickedVideo) Navigator.of(context).pop();
+      unawaited(YouTubePlayerScreen.open(context, videos));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
   }
 
@@ -219,6 +237,31 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
                 ),
               ),
             ),
+            if (_playlists.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(32, 24, 32, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(YtStrings.playlists, style: theme.textTheme.titleMedium),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final list in _playlists)
+                            ActionChip(
+                              avatar: const AppIcon(Symbols.playlist_play_rounded, size: 18),
+                              label: Text('${list.title} (${list.count})'),
+                              onPressed: () => unawaited(_playPlaylist(list.id)),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (_error != null && _videos.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,

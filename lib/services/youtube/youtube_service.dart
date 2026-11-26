@@ -780,14 +780,48 @@ class YouTubeService extends ChangeNotifier {
 
   /// One page (50) of a channel's uploads, newest first, with details
   /// (2 units).
+  /// Fork: a channel's public playlists (signed in; Data API).
+  Future<List<({String id, String title, int count, String? thumbnail})>> channelPlaylists(String channelId) async {
+    final page = await _get('playlists', {
+      'part': 'snippet,contentDetails',
+      'channelId': channelId,
+      'maxResults': '50',
+    });
+    return [
+      for (final raw in (page['items'] as List? ?? const []))
+        if (raw is Map && raw['id'] is String)
+          (
+            id: raw['id'] as String,
+            title: (raw['snippet']?['title'] as String?) ?? '',
+            count: (raw['contentDetails']?['itemCount'] as num?)?.toInt() ?? 0,
+            thumbnail: raw['snippet']?['thumbnails']?['medium']?['url'] as String?,
+          ),
+    ];
+  }
+
+  /// Fork: the videos of a playlist in its order (up to [limit]).
+  Future<List<YouTubeVideo>> playlistVideos(String playlistId, {int limit = 200}) async {
+    final videos = <YouTubeVideo>[];
+    String? token;
+    do {
+      final page = await channelUploads('', playlistId: playlistId, pageToken: token);
+      videos.addAll(page.items);
+      token = page.nextPageToken;
+    } while (token != null && videos.length < limit);
+    return videos;
+  }
+
   Future<({List<YouTubeVideo> items, String? nextPageToken})> channelUploads(
     String channelId, {
     String? pageToken,
+    String? playlistId,
   }) async {
-    if (!channelId.startsWith('UC')) return (items: const <YouTubeVideo>[], nextPageToken: null);
+    if (playlistId == null && !channelId.startsWith('UC')) {
+      return (items: const <YouTubeVideo>[], nextPageToken: null);
+    }
     final page = await _get('playlistItems', {
       'part': 'contentDetails',
-      'playlistId': 'UU${channelId.substring(2)}',
+      'playlistId': playlistId ?? 'UU${channelId.substring(2)}',
       'maxResults': '50',
       'pageToken': ?pageToken,
     });
@@ -813,7 +847,7 @@ class YouTubeService extends ChangeNotifier {
       byId[id] = YouTubeVideo(
         id: id,
         title: snippet['title'] as String? ?? '',
-        channelId: channelId,
+        channelId: playlistId == null ? channelId : (snippet['channelId'] as String? ?? channelId),
         channelTitle: snippet['channelTitle'] as String? ?? '',
         thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
         publishedAt: DateTime.tryParse(snippet['publishedAt'] as String? ?? '') ?? DateTime.now(),
