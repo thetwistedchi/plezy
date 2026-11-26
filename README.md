@@ -38,8 +38,7 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 **Details and ratings**
 - A **Ratings & links** row on every movie and show (Letterboxd, Trakt, IMDb, Rotten Tomatoes, TMDB, Metacritic, MyAnimeList) and a **rating median** on posters, with a side-by-side breakdown of every score. Optional MDBList and OMDb keys add more sources.
 - **Similar in your library**: titles from the same library that share genres.
-- **Film series**: every part of a movie's series, with the ones missing from your library marked (on TV as a row of the parts you have).
-- **Pictures for people** the server has none for, from Wikidata, kept on the device.
+- **Film series**: every part of a movie's series, with the ones missing from your library marked.
 - **Languages per library**, for example Japanese audio with German subtitles for anime.
 - Quality, HDR and audio language pills on posters, studio, producer and director on the details page, a larger **Play** button, and on desktop a poster preview on hover.
 - **Audio and subtitle pickers** below Play, with a description of each track.
@@ -65,10 +64,9 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 **Browser** (Windows; Android as a beta)
 - Tabs, bookmarks, private tabs, a pop-up blocker, HTTPS upgrades, tracking prevention, Dark Reader and an ad blocker (Brave's adblock-rust with uBlock Origin's lists).
 - Reader view, playing a page's video in the app's player, and importing bookmarks from other browsers.
-- Pop-up notices can be turned off per site.
 
 **YouTube** (Windows only)
-- A tab with the newest videos of the channels you follow, channel groups, view counts, your own playlists, YouTube Watch later and bell subscriptions imported from your account, **Continue where you left off**, search, a minimum length filter, NEW markers, speed per channel, channel playlists, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
+- A tab with the newest videos of the channels you follow, channel groups, your own playlists, YouTube Watch later and bell subscriptions imported from your account, **Continue where you left off**, search, a minimum length filter, NEW markers, speed per channel, channel playlists, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
 
 **Android and Android TV**
 - Free on plex.tv plays full screen in the app, controlled with the remote.
@@ -77,8 +75,8 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - No YouTube tab.
 
 **Your viewing**
-- **Upcoming episodes**: next air dates of every show in your TV libraries (from TVmaze), per server, each show once, kept on the device for a fast start.
-- **Watch statistics** (sidebar, above Settings): hours, films, episodes, streaks, most watched shows, rewatches, directors and actors with pictures, genres, decades and a year in review. Every number opens the titles behind it, and single titles can be left out.
+- **Upcoming episodes**: next air dates of every show in your TV libraries (from TVmaze).
+- **Watch statistics** (sidebar, above Settings): hours, films, episodes, streaks, most watched shows, rewatches, directors and actors with pictures, genres, decades and a year in review. Every number opens the titles behind it.
 - **Trakt history import** (Settings).
 
 **General**
