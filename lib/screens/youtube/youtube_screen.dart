@@ -20,6 +20,7 @@ import 'youtube_channel_screen.dart';
 import 'youtube_channels_screen.dart';
 import 'youtube_guide_screen.dart';
 import 'youtube_player_screen.dart';
+import 'youtube_playlist_screen.dart';
 import 'youtube_resume.dart';
 import 'youtube_settings_screen.dart';
 import 'youtube_strings.dart';
@@ -569,7 +570,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       (Object _) => <({String id, String title, int count, String? thumbnail})>[],
     );
     if (!mounted) return;
-    final picked = await showDialog<String>(
+    final picked = await showDialog<({String id, String title})>(
       context: context,
       builder: (context) => SimpleDialog(
         title: Text(YtStrings.myPlaylists),
@@ -579,7 +580,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
           else
             for (final list in lists)
               SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, list.id),
+                onPressed: () => Navigator.pop(context, (id: list.id, title: list.title)),
                 child: Row(
                   children: [
                     const AppIcon.retro(Symbols.playlist_play_rounded, size: 20),
@@ -593,13 +594,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       ),
     );
     if (picked == null || !mounted) return;
-    try {
-      final videos = await _service.playlistVideos(picked);
-      if (!mounted || videos.isEmpty) return;
-      await YouTubePlayerScreen.open(context, videos);
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(YtStrings.playlistFailed)));
-    }
+    await YouTubePlaylistScreen.open(context, playlistId: picked.id, title: picked.title);
   }
 
   Future<void> _syncHistoryNow() async {

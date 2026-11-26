@@ -12,6 +12,7 @@ import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../widgets/app_icon.dart';
 import 'youtube_player_screen.dart';
+import 'youtube_playlist_screen.dart';
 import 'youtube_strings.dart';
 import 'youtube_routes.dart';
 import '../../theme/retrowave_colors.dart';
@@ -111,18 +112,6 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
   }
 
   /// Fork: plays a whole playlist in a row, the next video lined up.
-  Future<void> _playPlaylist(String playlistId) async {
-    try {
-      final videos = await _service.playlistVideos(playlistId);
-      if (!mounted || videos.isEmpty) return;
-      final navigator = Navigator.of(context);
-      if (widget.returnPickedVideo) navigator.pop();
-      unawaited(YouTubePlayerScreen.open(navigator.context, videos));
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(YtStrings.playlistFailed)));
-    }
-  }
-
   void _open(YouTubeVideo video) {
     if (widget.returnPickedVideo) {
       Navigator.of(context).pop(video);
@@ -261,7 +250,9 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
                               ActionChip(
                                 avatar: const AppIcon.retro(Symbols.playlist_play_rounded, size: 18),
                                 label: Text('${list.title} (${list.count})'),
-                                onPressed: () => unawaited(_playPlaylist(list.id)),
+                                onPressed: () => unawaited(
+                                  YouTubePlaylistScreen.open(context, playlistId: list.id, title: list.title),
+                                ),
                               ),
                           ],
                         ),
