@@ -4978,6 +4978,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
         if (personId != null && personId.isNotEmpty) _tvDetailActorPersonIdRawKey: personId,
         // Fork: the German voice, shown as the card's third line.
         tvPersonVoiceKey: ?(_wantsGermanVoices ? _dubCast?.voiceFor(actor.tag) : null),
+        TvBrowseRailLayout.personTitleImdbKey: ?_externalIds?.imdb,
       },
     );
   }
@@ -5476,6 +5477,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
       members: [for (final actor in roles) (name: actor.tag, secondary: actor.role, imagePath: actor.thumbPath)],
       voices: _dubCast == null || !_wantsGermanVoices ? null : [for (final actor in roles) _dubCast!.voiceFor(actor.tag)],
       imageClient: getServerBoundMediaClient(context),
+      titleImdb: _externalIds?.imdb,
       onNavigateUp: _focusSectionDirectlyAboveCast,
       onNavigateDown: _focusSectionBelowCast,
       onMemberTap: (index) => _navigateToActorMedia(roles[index]),

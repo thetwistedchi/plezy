@@ -35,6 +35,9 @@ class CastMemberStrip extends StatefulWidget {
   /// Resolves server-relative image paths; null when [members] carry
   /// absolute URLs.
   final MediaServerClient? imageClient;
+
+  /// Fork: IMDb id of the title, so a missing picture is matched exactly.
+  final String? titleImdb;
   final void Function(int index)? onMemberTap;
 
   /// Fork: a third line per member (the German voice actor), by index.
@@ -48,6 +51,7 @@ class CastMemberStrip extends StatefulWidget {
     required this.members,
     this.imageClient,
     this.onMemberTap,
+    this.titleImdb,
     this.voices,
     this.onNavigateUp,
     this.onNavigateDown,
@@ -242,7 +246,7 @@ class CastMemberStripState extends State<CastMemberStrip> {
                                   // Fork: without a server picture, one from
                                   // Wikidata, kept on the device.
                                   child: (member.imagePath?.isEmpty ?? true)
-                                      ? ExternalPersonPicture(name: member.name, fallback: personIcon)
+                                      ? ExternalPersonPicture(name: member.name, fallback: personIcon, titleImdb: widget.titleImdb)
                                       : OptimizedMediaImage(
                                           client: widget.imageClient,
                                           imagePath: member.imagePath,
@@ -252,7 +256,11 @@ class CastMemberStripState extends State<CastMemberStrip> {
                                           imageType: ImageType.square,
                                           fallbackIcon: Symbols.person_rounded,
                                           errorWidget: (_, _, _) =>
-                                              ExternalPersonPicture(name: member.name, fallback: personIcon),
+                                              ExternalPersonPicture(
+                                                name: member.name,
+                                                fallback: personIcon,
+                                                titleImdb: widget.titleImdb,
+                                              ),
                                         ),
                                 ),
                               ),

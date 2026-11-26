@@ -465,15 +465,20 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
     return [
       LayoutBuilder(
         builder: (context, constraints) {
-          // Fork: the six tiles share one row when they fit at 170 px each.
+          // Fork: the six tiles share one row: full size from 170 px each,
+          // compact from 120 px; below that they wrap, centred.
           final fit = (constraints.maxWidth - 16 * 5) / 6;
-          final w = fit >= 170 ? fit.floorToDouble() : 190.0;
+          final fitCompact = (constraints.maxWidth - 10 * 5) / 6;
+          final compact = fit < 170 && fitCompact >= 120;
+          final w = fit >= 170 ? fit.floorToDouble() : (compact ? fitCompact.floorToDouble() : 190.0);
           return Wrap(
-        spacing: 16,
+        alignment: fit >= 170 || compact ? WrapAlignment.start : WrapAlignment.center,
+        spacing: compact ? 10 : 16,
         runSpacing: 16,
         children: [
           _StatTile(
             width: w,
+            compact: compact,
             icon: Symbols.hourglass_bottom_rounded,
             value: '${s.hours.round()}',
             label: RetroStrings.statsHours,
@@ -493,6 +498,7 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
           ),
           _StatTile(
             width: w,
+            compact: compact,
             icon: Symbols.movie_rounded,
             value: '${s.movies}',
             label: RetroStrings.statsMovies,
@@ -500,6 +506,7 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
           ),
           _StatTile(
             width: w,
+            compact: compact,
             icon: Symbols.tv_rounded,
             value: '${s.episodes}',
             label: RetroStrings.statsEpisodes,
@@ -509,6 +516,7 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
           ),
           _StatTile(
             width: w,
+            compact: compact,
             icon: Symbols.video_library_rounded,
             value: '${s.shows}',
             label: RetroStrings.statsShows,
@@ -518,12 +526,14 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
           ),
           _StatTile(
             width: w,
+            compact: compact,
             icon: Symbols.local_fire_department_rounded,
             value: '${s.longestStreak}',
             label: RetroStrings.statsLongestStreak,
           ),
           _StatTile(
             width: w,
+            compact: compact,
             icon: Symbols.bolt_rounded,
             value: '${s.currentStreak}',
             label: RetroStrings.statsCurrentStreak,
@@ -790,8 +800,16 @@ class _Section extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.icon, required this.value, required this.label, this.onTap, this.width = 190});
+  const _StatTile({
+    required this.icon,
+    required this.value,
+    required this.label,
+    this.onTap,
+    this.width = 190,
+    this.compact = false,
+  });
   final double width;
+  final bool compact;
   final IconData icon;
   final String value;
   final String label;
@@ -811,15 +829,15 @@ class _StatTile extends StatelessWidget {
         onTap: onTap,
         child: Container(
           width: width,
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(compact ? 10 : 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(mono.radiusMd),
             border: Border.all(color: mono.outline),
           ),
           child: Row(
             children: [
-              AppIcon.retro(icon, size: 30),
-              const SizedBox(width: 14),
+              AppIcon.retro(icon, size: compact ? 22 : 30),
+              SizedBox(width: compact ? 8 : 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -828,14 +846,18 @@ class _StatTile extends StatelessWidget {
                       shaderCallback: (rect) => LinearGradient(colors: colors).createShader(rect),
                       child: Text(
                         value,
-                        style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900, color: Colors.white),
+                        maxLines: 1,
+                        style: (compact ? theme.textTheme.titleLarge : theme.textTheme.headlineSmall)?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                     Text(label, maxLines: 2, style: TextStyle(color: mono.textMuted, fontSize: 12)),
                   ],
                 ),
               ),
-              if (onTap != null) AppIcon.retro(Symbols.chevron_right_rounded, size: 18, color: mono.textMuted),
+              if (onTap != null && !compact) AppIcon.retro(Symbols.chevron_right_rounded, size: 18, color: mono.textMuted),
             ],
           ),
         ),

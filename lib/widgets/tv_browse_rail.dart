@@ -23,7 +23,7 @@ import '../screens/hub_detail_screen.dart';
 import '../services/retrowave/upcoming_episodes.dart';
 import '../services/device_performance.dart';
 import '../services/settings_service.dart';
-import '../i18n/retro_strings.dart';
+import '../services/retrowave/person_pictures.dart';
 import '../theme/mono_tokens.dart';
 import '../utils/layout_constants.dart';
 import '../utils/media_image_helper.dart';
@@ -151,6 +151,9 @@ class TvBrowseRailLayout {
   static const textHubType = 'retrowave_text';
   static const textMissingKey = 'retrowave_missing';
   static const textCurrentKey = 'retrowave_current';
+
+  /// Fork: `raw` key of a person card's title IMDb id (picture matching).
+  static const personTitleImdbKey = 'retrowave_title_imdb';
   static bool isTextHub(MediaHub hub) => hub.type == textHubType;
 
   /// Fork: `raw` key of a person item's German voice actor (third line).
@@ -231,7 +234,7 @@ class TvBrowseRailLayout {
     final cardWidth = isTextHub ? 300 * scale : baseCardWidth * (useWideLayout ? widePosterScale : tallPosterScale);
     final posterWidth = fullCardLayout || isTextHub ? cardWidth : cardWidth - (6 * scale);
     final posterHeight = isTextHub
-        ? 64 * scale
+        ? 46 * scale
         : (isPersonHub || isSquareHub)
         ? posterWidth
         : (useWideLayout ? posterWidth * 9 / 16 : posterWidth * 1.5);
@@ -1987,6 +1990,35 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
     return built;
   }
 
+  /// Fork: a person's server picture, or one from Wikidata when the server
+  /// has none (matched through the title's IMDb id when known).
+  Widget _personImage(BuildContext context, MediaItem item, double width, double height, Animation<double>? dim) {
+    Widget server() => OptimizedMediaImage(
+      client: context.tryGetMediaClientWithFallback(serverIdOrNull(item.serverId)),
+      imagePath: item.thumbPath,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      imageType: ImageType.square,
+      fallbackIcon: Symbols.person_rounded,
+      artworkDim: dim,
+    );
+    if (item.thumbPath?.isNotEmpty ?? false) return server();
+    final mono = tokens(context);
+    return SizedBox(
+      width: width,
+      height: height,
+      child: ExternalPersonPicture(
+        name: item.title ?? '',
+        titleImdb: item.raw?[TvBrowseRailLayout.personTitleImdbKey] as String?,
+        fallback: ColoredBox(
+          color: mono.surface,
+          child: Center(child: AppIcon.retro(Symbols.person_rounded, size: height * 0.3, color: mono.textMuted)),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPersonCard(
     BuildContext context,
     MediaItem item, {
@@ -2010,16 +2042,7 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
             child: Stack(
               fit: StackFit.expand,
               children: [
-                OptimizedMediaImage(
-                  client: context.tryGetMediaClientWithFallback(serverIdOrNull(item.serverId)),
-                  imagePath: item.thumbPath,
-                  width: cardWidth,
-                  height: imageSize,
-                  fit: BoxFit.cover,
-                  imageType: ImageType.square,
-                  fallbackIcon: Symbols.person_rounded,
-                  artworkDim: artworkDim,
-                ),
+                _personImage(context, item, cardWidth, imageSize, artworkDim),
                 RasterizedGradient(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -2092,16 +2115,7 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
               borderRadius: tokens(context).radiusSm,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(tokens(context).radiusSm),
-                child: OptimizedMediaImage(
-                  client: context.tryGetMediaClientWithFallback(serverIdOrNull(item.serverId)),
-                  imagePath: item.thumbPath,
-                  width: imageSize,
-                  height: imageSize,
-                  fit: BoxFit.cover,
-                  imageType: ImageType.square,
-                  fallbackIcon: Symbols.person_rounded,
-                  artworkDim: artworkDim,
-                ),
+                child: _personImage(context, item, imageSize, imageSize, artworkDim),
               ),
             ),
             SizedBox(height: 6 * scale),
@@ -2523,33 +2537,20 @@ class _TvTextCard extends StatelessWidget {
         children: [
           AppIcon.retro(
             missing ? Symbols.remove_rounded : Symbols.check_rounded,
-            size: 22 * scale,
+            size: 20 * scale,
             color: missing ? mono.textMuted : theme.colorScheme.primary,
           ),
           SizedBox(width: 10 * scale),
           Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 16 * scale,
-                    fontWeight: current ? FontWeight.w800 : FontWeight.w600,
-                    color: missing ? mono.textMuted : mono.text,
-                  ),
-                ),
-                if (item.year != null || missing)
-                  Text(
-                    [if (item.year != null) '${item.year}', if (missing) RetroStrings.notInLibrary].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13 * scale, color: mono.textMuted),
-                  ),
-              ],
+            child: Text(
+              item.year != null ? '$title (${item.year})' : title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 15 * scale,
+                fontWeight: current ? FontWeight.w800 : FontWeight.w600,
+                color: missing ? mono.textMuted : mono.text,
+              ),
             ),
           ),
         ],
