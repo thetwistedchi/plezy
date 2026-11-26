@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart' show FileType;
 import 'package:path/path.dart' as p;
@@ -26,6 +25,7 @@ import '../../main.dart' show gitCommit;
 import '../../services/background_work_diagnostics_service.dart';
 import '../../services/device_performance.dart';
 import '../../services/file_picker_service.dart';
+import '../../services/log_upload_service.dart' show constrainLogUploadPayload;
 import '../../i18n/retro_strings.dart';
 import '../../services/startup_diagnostics.dart';
 import '../../services/video_decode_capabilities.dart';
