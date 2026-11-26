@@ -490,6 +490,10 @@ class _LogsScreenState extends State<LogsScreen> with MountedSetStateMixin {
                         pinned: true,
                         actions: [
                           FocusableActionBar(
+                            // Fork: Left from the first button moves on to the
+                            // back arrow instead of stopping at the row's edge.
+                            onNavigateLeft: () =>
+                                FocusManager.instance.primaryFocus?.focusInDirection(TraversalDirection.left),
                             actions: [
                               FocusableAction(
                                 icon: Symbols.refresh_rounded,
