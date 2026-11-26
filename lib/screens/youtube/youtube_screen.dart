@@ -364,8 +364,15 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                             : const AppIcon.retro(Symbols.refresh_rounded),
                       ),
+                      // Fork: send watched videos to the YouTube history now.
+                      if (_settings.syncHistory)
+                        IconButton(
+                          tooltip: YtStrings.historySyncNow,
+                          onPressed: _syncHistoryNow,
+                          icon: const AppIcon.retro(Symbols.sync_rounded),
+                        ),
                       IconButton(
-                        tooltip: YtStrings.channels,
+                        tooltip: YtStrings.addChannels,
                         onPressed: _openChannels,
                         icon: const AppIcon.retro(Symbols.subscriptions_rounded),
                       ),
@@ -517,6 +524,14 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
             ),
         ],
       ),
+    );
+  }
+
+  Future<void> _syncHistoryNow() async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final started = await YouTubeWebView.backfillHistory(now: true);
+    messenger?.showSnackBar(
+      SnackBar(content: Text(started > 0 ? YtStrings.historySyncStarted(started) : YtStrings.historySyncNowSub(0))),
     );
   }
 

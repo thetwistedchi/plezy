@@ -1035,6 +1035,17 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
           runSpacing: 8,
           children: [
             for (final entry in series.parts)
+              if (entry.owned?.id == _metadata.id)
+                // This film: highlighted, nothing to open.
+                Chip(
+                  avatar: AppIcon(Symbols.check_rounded, size: 16, color: theme.colorScheme.primary),
+                  side: BorderSide(color: theme.colorScheme.primary),
+                  label: Text(
+                    entry.part.year != null ? '${entry.part.title} (${entry.part.year})' : entry.part.title,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                )
+              else
               ActionChip(
                 avatar: AppIcon(
                   entry.owned != null ? Symbols.check_rounded : Symbols.remove_rounded,
@@ -1046,7 +1057,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                   style: TextStyle(color: entry.owned != null ? null : mono.textMuted),
                 ),
                 tooltip: entry.owned != null ? null : RetroStrings.notInLibrary,
-                onPressed: entry.owned == null || entry.owned!.id == _metadata.id
+                onPressed: entry.owned == null
                     ? null
                     : () => Navigator.of(context).push(
                         MaterialPageRoute<void>(builder: (_) => MediaDetailScreen(metadata: entry.owned!)),

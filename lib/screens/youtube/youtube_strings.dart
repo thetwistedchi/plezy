@@ -414,6 +414,7 @@ class YtStrings {
   static String get addChannelsNoAccount => _t('Add channels', 'Kanäle hinzufügen');
   static String get signInOptional => _t('Sign in with Google (optional)', 'Mit Google anmelden (optional)');
   static String get channels => _t('Channels', 'Kanäle');
+  static String get addChannels => _t('Add channels', 'Kanäle hinzufügen');
   static String get guide => _t('How it works', 'So funktioniert es');
   static String get channelsTitle => _t('Followed channels', 'Gefolgte Kanäle');
   static String get channelsSubtitle => _t(
