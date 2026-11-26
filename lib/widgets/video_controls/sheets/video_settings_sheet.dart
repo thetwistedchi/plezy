@@ -28,6 +28,8 @@ import '../../../services/video_filter_manager.dart';
 import '../../../theme/gapped_track_shape.dart';
 import '../../../theme/player_style.dart';
 import '../../../screens/youtube/youtube_strings.dart';
+import '../../../i18n/retro_strings.dart';
+import '../../../mpv/player/player_base.dart';
 import '../../../focus/focusable_wrapper.dart';
 import '../../../utils/dialogs.dart';
 import '../../../utils/app_logger.dart';
@@ -1012,6 +1014,16 @@ class _VideoSettingsSheetState extends State<VideoSettingsSheet> {
               : null,
           onAfterWrite: widget.player.setAudioNormalization,
         ),
+
+        // Fork: night mode (mpv only).
+        if (widget.player case final PlayerBase mpvPlayer when widget.player.playerType == 'mpv')
+          _SettingsToggleItem(
+            pref: SettingsService.nightModeAudio,
+            icon: Symbols.bedtime_rounded,
+            title: RetroStrings.nightMode,
+            subtitle: RetroStrings.nightModeDescription,
+            onAfterWrite: mpvPlayer.setNightMode,
+          ),
 
         _SettingsMenuItem(
           icon: Symbols.speaker_group_rounded,

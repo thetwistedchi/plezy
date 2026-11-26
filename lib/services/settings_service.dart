@@ -873,6 +873,9 @@ class SettingsService extends BaseSharedPreferencesService {
 
   /// Fork: desktop game controller input (Xbox, PlayStation and similar).
   static const gamepadInputEnabled = BoolPref('retrowave_gamepad_input', defaultValue: true);
+
+  /// Fork: night mode audio in the player.
+  static const nightModeAudio = BoolPref('retrowave_night_mode_audio');
   static const startupSection = EnumPref<NavigationTabId>(
     'startup_section',
     values: NavigationTabId.values,
@@ -1585,6 +1588,7 @@ class SettingsService extends BaseSharedPreferencesService {
     useExoPlayer,
     germanVoiceActors,
     gamepadInputEnabled,
+    nightModeAudio,
     startupSection,
     showExploreTab,
     alwaysKeepSidebarOpen,

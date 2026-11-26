@@ -1404,8 +1404,35 @@ abstract class PlayerBase with PlayerStreamControllersMixin implements Player {
 
   @override
   Future<void> setAudioNormalization(bool enabled) async {
-    final filter = Platform.isAndroid ? _androidNormalizationFilter : _loudnormFilter;
-    await setProperty('af', enabled ? filter : '');
+    _normalizationFilterOn = enabled;
+    await _applyAudioFilters();
+  }
+
+  /// Fork: night mode. Squeezes loud scenes (a compressor over all channels
+  /// together), lifts the speech band and caps peaks, so dialogue stays
+  /// clear at low volume. Cheap enough for TV boxes; mpv backends only.
+  static const String _nightModeFilter =
+      'acompressor=threshold=-30dB:ratio=4:knee=6dB:attack=10:release=250:makeup=10dB:link=maximum,'
+      'equalizer=f=2500:t=q:w=1.2:g=4,'
+      'alimiter=limit=-2dB:attack=1:release=60:level=false';
+
+  bool _normalizationFilterOn = false;
+  bool _nightModeOn = false;
+
+  /// Fork: night mode (not on the [Player] interface, so test fakes need
+  /// nothing new). A bitstream in passthrough can't be filtered.
+  Future<void> setNightMode(bool enabled) async {
+    if (_nightModeOn == enabled) return;
+    _nightModeOn = enabled;
+    await _applyAudioFilters();
+  }
+
+  Future<void> _applyAudioFilters() async {
+    final filters = [
+      if (_normalizationFilterOn) Platform.isAndroid ? _androidNormalizationFilter : _loudnormFilter,
+      if (_nightModeOn) _nightModeFilter,
+    ];
+    await setProperty('af', filters.join(','));
   }
 
   /// mpv's `audio-channels` for each limit. The 5.1 limit is a list so stereo

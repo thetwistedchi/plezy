@@ -19,6 +19,11 @@ class RetroStrings {
   static String germanVoicesFrom(String source) => _t('German voices: $source', 'Deutsche Stimmen: $source');
   static String get audioTrack => _t('Audio track', 'Tonspur');
   static String get subtitleTrack => _t('Subtitles', 'Untertitel');
+  static String get nightMode => _t('Night mode', 'Nachtmodus');
+  static String get nightModeDescription => _t(
+    'Quieter loud scenes and clearer dialogue at low volume',
+    'Leisere laute Szenen und verständlichere Dialoge bei geringer Lautstärke',
+  );
   static String get importBookmarks => _t('Import bookmarks', 'Lesezeichen importieren');
   static String get importBookmarksDescription => _t(
     'From an HTML export of Chrome, Firefox, Edge, Brave or Safari',
