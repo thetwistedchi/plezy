@@ -176,6 +176,43 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
     }
   }
 
+  Future<void> _editTitleFilters() async {
+    final controller = TextEditingController(text: _settings.titleFilters.join('\n'));
+    final words = await showDialog<List<String>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(YtStrings.titleFilters),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(YtStrings.titleFiltersHint),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                minLines: 5,
+                maxLines: 10,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(MaterialLocalizations.of(context).cancelButtonLabel)),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.split('\n')),
+            child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (words != null) await _settings.setTitleFilters(words);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -332,6 +369,19 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                                 if (v != null) unawaited(_settings.setMinMinutes(v));
                               },
                             ),
+                          ),
+                          // Fork: hide feed videos by words in the title.
+                          ListTile(
+                            title: Text(YtStrings.titleFilters),
+                            subtitle: Text(
+                              _settings.titleFilters.isEmpty
+                                  ? YtStrings.titleFiltersHint
+                                  : _settings.titleFilters.join(', '),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: const Icon(Icons.edit_outlined),
+                            onTap: () => unawaited(_editTitleFilters()),
                           ),
                           ListTile(
                             title: Text(YtStrings.defaultSpeed),

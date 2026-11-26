@@ -29,6 +29,7 @@ import '../../services/youtube/youtube_categories.dart';
 import '../../services/youtube/youtube_channel_groups.dart';
 import 'youtube_routes.dart';
 import 'youtube_notifications_screen.dart';
+import 'youtube_play_all.dart';
 import '../../services/youtube/youtube_notification_history.dart';
 import '../../theme/retrowave_colors.dart';
 
@@ -253,6 +254,16 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     );
   }
 
+  /// Fork: the videos "Play all" picks from: the selected channel group (or
+  /// every channel), with the feed's Shorts, length and word filters.
+  List<YouTubeVideo> _playAllSource() {
+    final group = _group == YouTubeChannelGroupsBar.latestPerChannel
+        ? null
+        : YouTubeChannelGroups.instance.byName(_group);
+    final all = _service.visibleVideos(sort: YouTubeSort.newest);
+    return group == null ? all : [for (final v in all) if (group.channelIds.contains(v.channelId)) v];
+  }
+
   Widget _buildFeed(BuildContext context) {
     final theme = Theme.of(context);
     final mono = tokens(context);
@@ -391,6 +402,8 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                           retroOpacity: _settings.minMinutes == 0 ? 0.6 : null,
                         ),
                       ),
+                      // Fork: play the selected group (or the whole feed).
+                      YouTubePlayAllButton(videos: _playAllSource),
                       ],
                       IconButton(
                         tooltip: YtStrings.refresh,

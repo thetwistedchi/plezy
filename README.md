@@ -66,7 +66,7 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - Reader view, playing a page's video in the app's player, and importing bookmarks from other browsers.
 
 **YouTube** (Windows only)
-- A tab with the newest videos of the channels you follow, channel groups, your own playlists, YouTube Watch later and bell subscriptions imported from your account, **Continue where you left off**, search, a minimum length filter, NEW markers, speed per channel, channel playlists, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
+- A tab with the newest videos of the channels you follow, channel groups, your own playlists, YouTube Watch later and bell subscriptions imported from your account, **Continue where you left off**, search, a minimum length filter, a word filter, NEW markers, a notification history, Play all in different orders, audio only, speed and captions per channel, channel playlists, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
 
 **Android and Android TV**
 - Free on plex.tv plays full screen in the app, controlled with the remote.

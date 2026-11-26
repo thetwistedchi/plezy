@@ -130,6 +130,7 @@ abstract final class RetroGlyphs {
   static const _overscan = '<rect x="3" y="5" width="18" height="14" rx="2.5"/>|<path d="M6.5 12h11M8.5 10l-2 2 2 2M15.5 10l2 2-2 2"/>';
   static const _theaters = '<rect x="5" y="3.5" width="14" height="17" rx="2"/>|<path d="M9 3.5v17M15 3.5v17"/>';
   static const _check = '|<path d="M5 12.5l4.5 4.5L19 7.5"/>';
+  static const _headphones = '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/>|<rect x="3.5" y="14" width="4.5" height="6.5" rx="1.5"/><rect x="16" y="14" width="4.5" height="6.5" rx="1.5"/>';
   static const _bell = '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z"/>|<path d="M10 20.5a2 2 0 0 0 4 0"/>';
   static const _doneAll = '<path d="M2.5 12.5 7 17l9.5-9.5"/>|<path d="M12 16l1 1 9.5-9.5"/>';
   static const _clearAll = '<path d="M4 7h12M4 12h12M4 17h8"/>|<path d="M15.5 15.5l5 5M20.5 15.5l-5 5"/>';
@@ -168,6 +169,7 @@ abstract final class RetroGlyphs {
     Symbols.theaters_rounded: _theaters,
     Symbols.check_rounded: _check,
     Symbols.notifications_rounded: _bell,
+    Symbols.headphones_rounded: _headphones,
     Symbols.done_all_rounded: _doneAll,
     Symbols.clear_all_rounded: _clearAll,
     Symbols.remove_done_rounded: _removeDone,

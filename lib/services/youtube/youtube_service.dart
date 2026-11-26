@@ -312,6 +312,7 @@ class YouTubeService extends ChangeNotifier {
         return false;
       }
       if (settings.isHidden(v.id) || settings.isMuted(v.channelId)) return false;
+      if (settings.matchesTitleFilter(v.title)) return false;
       switch (filter) {
         case YouTubeFilter.all:
           return true;

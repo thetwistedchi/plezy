@@ -77,6 +77,9 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kMinMinutes = 'youtube_min_minutes';
   static const _kFeedSeenAt = 'youtube_feed_seen_at';
   static const _kChannelSpeeds = 'youtube_channel_speeds';
+  static const _kTitleFilters = 'youtube_title_filters';
+  static const _kChannelCaptions = 'youtube_channel_captions';
+  static const _kAudioOnlyChannels = 'youtube_audio_only_channels';
   static const List<int> minMinutesChoices = [0, 1, 3, 5, 10, 20];
 
   /// Player controls that can be hidden in the settings, in display order.
@@ -97,6 +100,7 @@ class YouTubeSettings extends ChangeNotifier {
     'speed',
     'audio',
     'captions',
+    'audioOnly',
     'sleep',
     'chapters',
     'description',
@@ -379,6 +383,57 @@ class YouTubeSettings extends ChangeNotifier {
     await load();
     await _prefs!.setInt(_kFeedSeenAt, DateTime.now().millisecondsSinceEpoch);
   }
+
+  /// Fork: words that hide a feed video when its title contains one
+  /// (case does not matter).
+  List<String> get titleFilters => _prefs?.getStringList(_kTitleFilters) ?? const [];
+
+  Future<void> setTitleFilters(List<String> words) async {
+    await load();
+    final clean = {for (final w in words) if (w.trim().isNotEmpty) w.trim()}.toList();
+    await _prefs!.setStringList(_kTitleFilters, clean);
+    notifyListeners();
+  }
+
+  bool matchesTitleFilter(String title) {
+    final filters = titleFilters;
+    if (filters.isEmpty) return false;
+    final lower = title.toLowerCase();
+    return filters.any((w) => lower.contains(w.toLowerCase()));
+  }
+
+  Map<String, dynamic> _jsonMap(String key) {
+    try {
+      return Map<String, dynamic>.from(jsonDecode(_prefs?.getString(key) ?? '{}') as Map);
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _setInJsonMap(String key, String id, Object? value) async {
+    await load();
+    final map = _jsonMap(key);
+    if (value == null) {
+      map.remove(id);
+    } else {
+      map[id] = value;
+    }
+    await _prefs!.setString(key, jsonEncode(map));
+    notifyListeners();
+  }
+
+  /// Fork: captions remembered for a channel: a language code, `off`, or
+  /// null (the general caption setting applies).
+  String? channelCaptions(String channelId) => _jsonMap(_kChannelCaptions)[channelId] as String?;
+
+  Future<void> setChannelCaptions(String channelId, String? value) =>
+      _setInJsonMap(_kChannelCaptions, channelId, value);
+
+  /// Fork: channels played as audio only (picture hidden, lowest quality).
+  bool isAudioOnlyChannel(String channelId) => _jsonMap(_kAudioOnlyChannels)[channelId] == true;
+
+  Future<void> setAudioOnlyChannel(String channelId, bool on) =>
+      _setInJsonMap(_kAudioOnlyChannels, channelId, on ? true : null);
 
   /// Speed remembered for a channel, else null (the default speed applies).
   double? channelSpeed(String channelId) {

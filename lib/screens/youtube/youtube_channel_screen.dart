@@ -16,6 +16,7 @@ import 'youtube_playlist_screen.dart';
 import 'youtube_strings.dart';
 import 'youtube_routes.dart';
 import '../../theme/retrowave_colors.dart';
+import 'youtube_play_all.dart';
 
 /// A channel's page: banner, name and counts, and all uploads newest first,
 /// loaded 50 at a time while scrolling.
@@ -140,6 +141,13 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
         title: Text(info?.title ?? widget.channelTitle),
         actions: [
           const YouTubeHomeButton(),
+          // Fork: play this channel's loaded videos in a row.
+          YouTubePlayAllButton(
+            videos: () => [
+              for (final v in _videos)
+                if ((_settings.showShorts || !v.isShort) && !_settings.matchesTitleFilter(v.title)) v,
+            ],
+          ),
           IconButton(
             tooltip: _settings.isFavorite(widget.channelId) ? YtStrings.unfavoriteChannel : YtStrings.favoriteChannelAction,
             onPressed: () async {

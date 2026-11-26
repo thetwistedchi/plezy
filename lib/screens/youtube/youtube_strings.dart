@@ -33,6 +33,18 @@ class YtStrings {
   static String get unwatched => _t('Unwatched', 'Ungesehen');
   static String get refresh => _t('Refresh', 'Aktualisieren');
   static String get settings => _t('YouTube settings', 'YouTube-Einstellungen');
+  static String get audioOnly => _t('Audio only', 'Nur Ton');
+  static String get titleFilters => _t('Hide videos with these words', 'Videos mit diesen Wörtern ausblenden');
+  static String get titleFiltersHint => _t(
+    'One word or phrase per line; checked in the title, case does not matter.',
+    'Ein Wort oder eine Wendung pro Zeile; geprüft im Titel, Groß- und Kleinschreibung egal.',
+  );
+  static String titleFiltersCount(int n) => _t('$n words', '$n Wörter');
+  static String get playAllOldest => _t('Unwatched, oldest first', 'Ungesehene, älteste zuerst');
+  static String get playAllNewest => _t('Unwatched, newest first', 'Ungesehene, neueste zuerst');
+  static String get playAllEverythingNewest => _t('All, newest first', 'Alle, neueste zuerst');
+  static String get nothingToPlay => _t('Nothing to play.', 'Nichts zum Abspielen.');
+  static String get playAllShuffle => _t('All, shuffled', 'Alle, gemischt');
   static String get notifications => _t('Notifications', 'Benachrichtigungen');
   static String notificationsUnread(int n) => _t('Notifications ($n new)', 'Benachrichtigungen ($n neu)');
   static String get notificationsNone => _t(
@@ -296,6 +308,7 @@ class YtStrings {
     'speed' => speed,
     'audio' => audioLanguage,
     'captions' => captions,
+    'audioOnly' => audioOnly,
     'sleep' => sleepTimer,
     'chapters' => chapters,
     'fullscreen' => fullscreen,

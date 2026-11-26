@@ -144,6 +144,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
 
   /// The quality the user picked in this session, or the saved preference.
   late String _wantedQuality = _settings.preferredQuality;
+
+  /// Fork: audio only for this video (null: the channel's setting).
+  bool? _audioOnlyOverride;
+  bool get _audioOnly => _audioOnlyOverride ?? _settings.isAudioOnlyChannel(_video.channelId);
+
+  /// The quality to ask for: the lowest while audio only.
+  String get _effectiveQuality => _audioOnly ? 'tiny' : _wantedQuality;
   bool _qualityApplied = false;
 
   YtVideoInfo? _info;
@@ -532,7 +539,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
         }
         if (!_qualityApplied && levels.isNotEmpty) {
           _qualityApplied = true;
-          if (_wantedQuality != 'auto') _applyQuality(_pickQuality(levels, _wantedQuality));
+          if (_effectiveQuality != 'auto') _applyQuality(_pickQuality(levels, _effectiveQuality));
         }
       case 'processFailed':
         if (!_recovering) unawaited(_recover(fresh: true));
@@ -632,7 +639,28 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   void _selectQuality(String quality) {
     _wantedQuality = quality;
     unawaited(_settings.setPreferredQuality(quality));
+    if (_audioOnly) _audioOnlyOverride = false;
     _applyQuality(quality);
+  }
+
+  /// Fork: 0 toggles audio only for this video, 1 "always for this channel".
+  void _selectAudioOnly(int choice) {
+    final channelId = _video.channelId;
+    if (choice == 1) {
+      final always = _settings.isAudioOnlyChannel(channelId);
+      unawaited(_settings.setAudioOnlyChannel(channelId, !always));
+      _setAudioOnly(!always);
+      return;
+    }
+    _setAudioOnly(!_audioOnly);
+  }
+
+  void _setAudioOnly(bool on) {
+    setState(() => _audioOnlyOverride = on);
+    if (_qualities.isNotEmpty) {
+      final want = on ? 'tiny' : _wantedQuality;
+      _applyQuality(want == 'auto' ? 'auto' : _pickQuality(_qualities, want));
+    }
   }
 
   /// [wanted] if offered, else the best level below it, else the lowest.
@@ -737,11 +765,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   /// else (if allowed) a translation, else none.
   void _applyCaptionPreference() {
     final s = _settings;
-    if (!s.captionsEnabled) {
+    // Fork: captions remembered for this channel win over the general ones.
+    final channel = s.channelCaptions(_video.channelId);
+    if (channel == 'off' || (channel == null && !s.captionsEnabled)) {
       _sendCaptions();
       return;
     }
-    final lang = s.captionsLanguage;
+    final lang = channel ?? s.captionsLanguage;
     var index = _ccTracks.indexWhere((t) => _sameLanguage(t.code, lang) && t.kind != 'asr');
     if (index < 0 && s.captionsAllowAuto) index = _ccTracks.indexWhere((t) => _sameLanguage(t.code, lang));
     if (index >= 0) {
@@ -761,16 +791,36 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   void _selectCaptions(int choice) {
+    final channelId = _video.channelId;
+    final perChannel = _settings.channelCaptions(channelId) != null;
+    if (choice == -3) {
+      // Fork: "Always for this channel": keep what is showing now, or off.
+      final current = _ccCurrent;
+      unawaited(
+        _settings.setChannelCaptions(
+          channelId,
+          perChannel ? null : (current == null ? 'off' : (current.tr ?? current.code.split('-').first)),
+        ),
+      );
+      return;
+    }
     if (choice == -1) {
       _sendCaptions();
       setState(() => _ccCurrent = null);
-      unawaited(_settings.setCaptions(enabled: false));
+      unawaited(
+        perChannel ? _settings.setChannelCaptions(channelId, 'off') : _settings.setCaptions(enabled: false),
+      );
     } else if (choice == -2) {
       unawaited(_pickTranslation());
     } else if (choice >= 0 && choice < _ccTracks.length) {
       final track = _ccTracks[choice];
       _sendCaptions(index: choice);
-      unawaited(_settings.setCaptions(enabled: true, language: track.code.split('-').first));
+      final language = track.code.split('-').first;
+      unawaited(
+        perChannel
+            ? _settings.setChannelCaptions(channelId, language)
+            : _settings.setCaptions(enabled: true, language: language),
+      );
     }
   }
 
@@ -796,7 +846,11 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
     );
     if (picked == null || !mounted) return;
     _sendCaptions(index: _baseTrackForTranslation(), translate: picked);
-    unawaited(_settings.setCaptions(enabled: true, language: picked, translate: true));
+    if (_settings.channelCaptions(_video.channelId) != null) {
+      unawaited(_settings.setChannelCaptions(_video.channelId, picked));
+    } else {
+      unawaited(_settings.setCaptions(enabled: true, language: picked, translate: true));
+    }
     _focusNode.requestFocus();
   }
 
@@ -965,6 +1019,7 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
       _qualityNames = const {};
       _currentQualityLabel = '';
       _qualityApplied = false;
+      _audioOnlyOverride = null;
     });
     unawaited(YouTubeSettings.instance.markOpened(_video.id, _video.channelId));
     unawaited(YouTubeSettings.instance.setLastVideo(_video.toJson()));
@@ -1400,6 +1455,10 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                 onDoubleTap: () => unawaited(_toggleFullscreen()),
               ),
             ],
+            // Fork: audio only: the picture is covered (and played at the
+            // lowest quality).
+            if (_audioOnly && _webReady && _initError == null && _errorCode == null)
+              IgnorePointer(child: _AudioOnlyCover(videoId: _video.id, title: _video.title, channel: _video.channelTitle)),
             if (_poster && _initError == null && _errorCode == null)
               IgnorePointer(
                 child: Stack(
@@ -1836,6 +1895,35 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                     child: Center(child: AppIcon(Symbols.record_voice_over_rounded, fill: 1, color: Colors.white)),
                   ),
                 ),
+              if (_show('audioOnly'))
+                PopupMenuButton<int>(
+                  tooltip: YtStrings.audioOnly,
+                  onSelected: _selectAudioOnly,
+                  itemBuilder: (_) => [
+                    CheckedPopupMenuItem(value: 0, checked: _audioOnly, child: Text(YtStrings.audioOnly)),
+                    const PopupMenuDivider(),
+                    CheckedPopupMenuItem(
+                      value: 1,
+                      checked: _settings.isAudioOnlyChannel(_video.channelId),
+                      enabled: _video.channelId.isNotEmpty,
+                      child: Text(YtStrings.speedForChannel),
+                    ),
+                  ],
+                  child: SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Center(
+                      child: AppIcon(
+                        Symbols.headphones_rounded,
+                        fill: 1,
+                        color: _audioOnly ? accent : Colors.white,
+                        retro: true,
+                        retroSoft: !_audioOnly,
+                        retroGlow: false,
+                      ),
+                    ),
+                  ),
+                ),
               if (_show('captions'))
                 PopupMenuButton<int>(
                 tooltip: YtStrings.captions,
@@ -1864,6 +1952,13 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                             : '${YtStrings.autoTranslate}: ${_ccTranslations.where((l) => l.code == _ccCurrent!.tr).firstOrNull?.name ?? _ccCurrent!.tr}',
                       ),
                     ),
+                  const PopupMenuDivider(),
+                  CheckedPopupMenuItem(
+                    value: -3,
+                    checked: _settings.channelCaptions(_video.channelId) != null,
+                    enabled: _video.channelId.isNotEmpty,
+                    child: Text(YtStrings.speedForChannel),
+                  ),
                 ],
                 child: SizedBox(
                   width: 48,
@@ -2883,4 +2978,68 @@ class _YouTubeMiniSession implements VideoMiniSession {
 
   @override
   void stop() => _screen._stopMinimized();
+}
+
+/// Fork: what the video area shows while a video plays as audio only.
+class _AudioOnlyCover extends StatelessWidget {
+  const _AudioOnlyCover({required this.videoId, required this.title, required this.channel});
+
+  final String videoId;
+  final String title;
+  final String channel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const ColoredBox(color: Colors.black),
+        Opacity(
+          opacity: 0.25,
+          child: ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+            child: CachedNetworkImage(
+              imageUrl: 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 320,
+                    height: 180,
+                    child: CachedNetworkImage(
+                      imageUrl: 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const ColoredBox(color: Colors.black26),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const AppIcon(Symbols.headphones_rounded, size: 28, color: Colors.white70, retro: true),
+                const SizedBox(height: 8),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(channel, style: const TextStyle(color: Colors.white70)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
