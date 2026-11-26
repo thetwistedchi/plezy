@@ -342,6 +342,9 @@ ThemeData _buildMonoTheme(MonoPalette c, {required TargetPlatform platform}) {
           bodyMedium: TextStyle(color: c.text),
           bodySmall: TextStyle(color: c.textMuted),
         ),
+    // Fork: retrowave chips as neon pills, like the poster badges: dark
+    // body, violet tube, magenta when selected, pale lavender text.
+    chipTheme: c == MonoPalette.retrowave ? _retroChipTheme : null,
     cardTheme: CardThemeData(
       color: c.surface,
       elevation: 0,
@@ -443,3 +446,26 @@ InputDecorationTheme _inputDecorationTheme(Color text, Color textMuted) {
     hintStyle: TextStyle(color: textMuted),
   );
 }
+
+/// Fork: chips (filters, groups, film series) in the retrowave theme.
+final ChipThemeData _retroChipTheme = ChipThemeData(
+  color: WidgetStateProperty.resolveWith((states) {
+    if (states.contains(WidgetState.selected)) return const Color(0x40C10093);
+    if (states.contains(WidgetState.disabled)) return const Color(0x801D0333);
+    if (states.contains(WidgetState.hovered) || states.contains(WidgetState.focused)) return const Color(0xF02A0848);
+    return const Color(0xE01D0333);
+  }),
+  side: WidgetStateBorderSide.resolveWith((states) {
+    if (states.contains(WidgetState.selected)) return const BorderSide(color: Color(0xFFFF28C8), width: 1.4);
+    if (states.contains(WidgetState.disabled)) return const BorderSide(color: Color(0x4D8C78FF));
+    if (states.contains(WidgetState.focused)) return const BorderSide(color: Color(0xFF22D2EB), width: 1.4);
+    return const BorderSide(color: Color(0xB38C78FF), width: 1.2);
+  }),
+  labelStyle: const TextStyle(color: Color(0xFFE8E2FF), fontWeight: FontWeight.w600),
+  secondaryLabelStyle: const TextStyle(color: Color(0xFFFFD6F4), fontWeight: FontWeight.w700),
+  checkmarkColor: const Color(0xFFFF28C8),
+  iconTheme: const IconThemeData(color: Color(0xFFFF28C8), size: 18),
+  shape: const StadiumBorder(),
+  showCheckmark: true,
+);
+
