@@ -25,10 +25,10 @@ env:
 
 jobs:
   build-macos:
-    # Intel runner: the Apple Silicon (arm64) pool is often too short of
-    # capacity and drops jobs. Flutter's release build is universal anyway,
-    # so the DMG still runs natively on Apple Silicon.
-    runs-on: macos-15-intel
+    # macOS 26 with Xcode 26: connectivity_plus needs the macOS 26 SDK
+    # (NWPath.isUltraConstrained), which the Intel macOS 15 image lacks.
+    # Flutter's release build is universal, so the DMG runs on Intel too.
+    runs-on: macos-26
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
