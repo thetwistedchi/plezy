@@ -869,7 +869,7 @@ class _MediaCardList extends StatelessWidget {
     return (showServerName && it.serverName != null) || libraryName != null;
   }
 
-  String _buildMetadataLine() {
+  String _buildMetadataLine(BuildContext context) {
     final current = item;
     // Fork: upcoming episode caption in the Upcoming row and tab.
     if (current is MediaItem) {
@@ -935,7 +935,7 @@ class _MediaCardList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final metadataLine = _buildMetadataLine();
+    final metadataLine = _buildMetadataLine(context);
     final subtitle = _buildSubtitleText();
 
     // List rows keep the whole-row border; inside stroke so adjacent rows

@@ -29,7 +29,6 @@ import '../../../theme/gapped_track_shape.dart';
 import '../../../theme/player_style.dart';
 import '../../../screens/youtube/youtube_strings.dart';
 import '../../../i18n/retro_strings.dart';
-import '../../../mpv/player/player_base.dart';
 import '../../../focus/focusable_wrapper.dart';
 import '../../../utils/dialogs.dart';
 import '../../../utils/app_logger.dart';

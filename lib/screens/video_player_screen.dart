@@ -140,7 +140,6 @@ import '../watch_together/providers/watch_together_provider.dart';
 import '../watch_together/models/watch_copy.dart';
 import '../watch_together/services/player_adapter.dart';
 import '../utils/error_message_utils.dart';
-import '../mpv/player/player_base.dart';
 
 part 'video_player/parts/companion_remote.dart';
 part 'video_player/parts/display_matching.dart';
