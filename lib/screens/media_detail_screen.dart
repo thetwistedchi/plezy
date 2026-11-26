@@ -165,6 +165,7 @@ const String _tvDetailSeasonsErrorHubId = 'detail_seasons_error';
 const String _tvDetailSeasonHubIdPrefix = 'detail_season_';
 const String _tvDetailExtrasHubId = 'detail_extras';
 const String _tvDetailActorsHubId = 'detail_actors';
+const String _tvDetailFilmSeriesHubId = 'detail_film_series';
 const String _tvDetailActorPersonIdRawKey = 'tvDetailActorPersonId';
 
 enum _SyncRuleAction { edit, remove, delete }
@@ -4358,7 +4359,10 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
 
         void openDetails() => _openTvDetailsSheet(context, metadata, hideSpoilers: hideSpoilers);
 
+        // Fork: clipped top and bottom only, so a wide action row may reach
+        // past the column's right edge.
         return ClipRect(
+          clipper: const _VerticalOnlyClipper(),
           child: SizedBox(
             height: availableHeight,
             child: Align(
@@ -4824,6 +4828,22 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
         );
       }
     }
+    // Fork: the film series on TV, as a row of the parts in the library
+    // (the title says how many of all parts that is).
+    if (_filmSeries case final series?) {
+      final owned = [for (final p in series.parts) ?p.owned];
+      if (owned.length > 1 || (owned.length == 1 && series.parts.length > 1)) {
+        hubs.add(
+          MediaHub(
+            id: _tvDetailFilmSeriesHubId,
+            title: RetroStrings.filmSeries(series.name, owned.length, series.parts.length),
+            type: 'movie',
+            items: owned,
+            size: owned.length,
+          ),
+        );
+      }
+    }
     final actors = _tvDetailActorItems(metadata);
     if (actors.isNotEmpty) {
       hubs.add(
@@ -5108,6 +5128,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     if (hub.id == 'detail_episodes') return Symbols.tv_rounded;
     if (hub.id == _tvDetailExtrasHubId) return Symbols.theaters_rounded;
     if (hub.id == _tvDetailActorsHubId) return Symbols.group_rounded;
+    if (hub.id == _tvDetailFilmSeriesHubId) return Symbols.movie_rounded;
     return _getRelatedHubIcon(hub);
   }
 
@@ -5559,4 +5580,15 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
 
     return Symbols.play_arrow_rounded; // Default play icon
   }
+}
+
+/// Fork: clips above and below its child only; sideways it may overflow.
+class _VerticalOnlyClipper extends CustomClipper<Rect> {
+  const _VerticalOnlyClipper();
+
+  @override
+  Rect getClip(Size size) => Rect.fromLTRB(-10000, 0, size.width + 10000, size.height);
+
+  @override
+  bool shouldReclip(_VerticalOnlyClipper oldClipper) => false;
 }

@@ -463,11 +463,17 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
     final actors = WatchSummary.ranked(s.byActor, n);
     final topShows = WatchSummary.ranked(s.byShow, n);
     return [
-      Wrap(
+      LayoutBuilder(
+        builder: (context, constraints) {
+          // Fork: the six tiles share one row when they fit at 170 px each.
+          final fit = (constraints.maxWidth - 16 * 5) / 6;
+          final w = fit >= 170 ? fit.floorToDouble() : 190.0;
+          return Wrap(
         spacing: 16,
         runSpacing: 16,
         children: [
           _StatTile(
+            width: w,
             icon: Symbols.hourglass_bottom_rounded,
             value: '${s.hours.round()}',
             label: RetroStrings.statsHours,
@@ -486,12 +492,14 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
             ),
           ),
           _StatTile(
+            width: w,
             icon: Symbols.movie_rounded,
             value: '${s.movies}',
             label: RetroStrings.statsMovies,
             onTap: () => _openDetail(RetroStrings.statsMovies, _movieEntries(s.movieRecords)),
           ),
           _StatTile(
+            width: w,
             icon: Symbols.tv_rounded,
             value: '${s.episodes}',
             label: RetroStrings.statsEpisodes,
@@ -500,6 +508,7 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
             ]),
           ),
           _StatTile(
+            width: w,
             icon: Symbols.video_library_rounded,
             value: '${s.shows}',
             label: RetroStrings.statsShows,
@@ -507,9 +516,21 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
               for (final key in WatchSummary.ranked(s.byShow, 1000)) _showEntry(s, key, s.byShow[key]!.length),
             ]),
           ),
-          _StatTile(icon: Symbols.local_fire_department_rounded, value: '${s.longestStreak}', label: RetroStrings.statsLongestStreak),
-          _StatTile(icon: Symbols.bolt_rounded, value: '${s.currentStreak}', label: RetroStrings.statsCurrentStreak),
+          _StatTile(
+            width: w,
+            icon: Symbols.local_fire_department_rounded,
+            value: '${s.longestStreak}',
+            label: RetroStrings.statsLongestStreak,
+          ),
+          _StatTile(
+            width: w,
+            icon: Symbols.bolt_rounded,
+            value: '${s.currentStreak}',
+            label: RetroStrings.statsCurrentStreak,
+          ),
         ],
+      );
+        },
       ),
       if (_period != StatsPeriod.allTime) ...[
         const SizedBox(height: 10),
@@ -769,7 +790,8 @@ class _Section extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.icon, required this.value, required this.label, this.onTap});
+  const _StatTile({required this.icon, required this.value, required this.label, this.onTap, this.width = 190});
+  final double width;
   final IconData icon;
   final String value;
   final String label;
@@ -788,7 +810,7 @@ class _StatTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(mono.radiusMd),
         onTap: onTap,
         child: Container(
-          width: 190,
+          width: width,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(mono.radiusMd),

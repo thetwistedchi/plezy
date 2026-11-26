@@ -631,6 +631,16 @@ extension _MediaDetailActionButtons on _MediaDetailScreenState {
             ? allActions
             : compactActionsFor(maxWidth);
         final status = tracksStatusFor(actions, maxWidth);
+        // Fork: on TV every action stays; when the hero column is too narrow
+        // the row reaches past it instead of cutting off the last button.
+        if (isTv && maxWidth.isFinite && estimatedRowWidth(actions) > maxWidth) {
+          return OverflowBox(
+            alignment: AlignmentDirectional.centerStart,
+            minWidth: 0,
+            maxWidth: estimatedRowWidth(actions) + gap,
+            child: actionBar(actions),
+          );
+        }
         if (status == null) return actionBar(actions);
         return SizedBox(
           height: actionSize,

@@ -39,15 +39,17 @@ Future<void> showRetrowaveUpdateDialog(BuildContext context, RetrowaveRelease re
 /// Once after an update: what this version brought.
 Future<void> showRetrowaveWhatsNewDialog(BuildContext context, RetrowaveRelease release) => showDialog<void>(
   context: context,
-  builder: (context) => AlertDialog(
-    title: Text(_t("What's new in ${release.version}", 'Neu in ${release.version}')),
-    content: SizedBox(
-      width: 520,
-      child: _ScrollableNotes(notes: _withoutTitle(release.notes), autofocus: true),
+  builder: (context) => _NotesScrollScope(
+    builder: (controller) => AlertDialog(
+      title: Text(_t("What's new in ${release.version}", 'Neu in ${release.version}')),
+      content: SizedBox(
+        width: 520,
+        child: _ScrollableNotes(notes: _withoutTitle(release.notes), controller: controller),
+      ),
+      actions: [
+        FilledButton(autofocus: true, onPressed: () => Navigator.pop(context), child: Text(_t('Close', 'Schließen'))),
+      ],
     ),
-    actions: [
-      FilledButton(onPressed: () => Navigator.pop(context), child: Text(_t('Close', 'Schließen'))),
-    ],
   ),
 );
 
@@ -99,22 +101,19 @@ Future<void> checkForRetrowaveUpdate(BuildContext context) async {
   }
 }
 
-/// Release notes that scroll with touch, mouse and the remote: the notes take
-/// focus, Up/Down scroll them, and at the top or bottom the key moves on to
-/// the buttons as usual.
-class _ScrollableNotes extends StatefulWidget {
-  const _ScrollableNotes({required this.notes, this.autofocus = false});
+/// Fork: Up/Down scroll the release notes while the focus stays on the
+/// dialog's buttons (Close, Install), so the remote never has to leave them.
+class _NotesScrollScope extends StatefulWidget {
+  const _NotesScrollScope({required this.builder});
 
-  final String notes;
-  final bool autofocus;
+  final Widget Function(ScrollController controller) builder;
 
   @override
-  State<_ScrollableNotes> createState() => _ScrollableNotesState();
+  State<_NotesScrollScope> createState() => _NotesScrollScopeState();
 }
 
-class _ScrollableNotesState extends State<_ScrollableNotes> {
+class _NotesScrollScopeState extends State<_NotesScrollScope> {
   final _controller = ScrollController();
-  bool _focused = false;
 
   @override
   void dispose() {
@@ -124,44 +123,47 @@ class _ScrollableNotesState extends State<_ScrollableNotes> {
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+    final down = event.logicalKey == LogicalKeyboardKey.arrowDown;
+    final up = event.logicalKey == LogicalKeyboardKey.arrowUp;
+    if (!down && !up) return KeyEventResult.ignored;
     if (!_controller.hasClients) return KeyEventResult.ignored;
     final position = _controller.position;
+    if (position.maxScrollExtent <= 0) return KeyEventResult.ignored;
     final step = position.viewportDimension * 0.6;
-    double? target;
-    if (event.logicalKey == LogicalKeyboardKey.arrowDown && position.pixels < position.maxScrollExtent) {
-      target = (position.pixels + step).clamp(0.0, position.maxScrollExtent);
-    } else if (event.logicalKey == LogicalKeyboardKey.arrowUp && position.pixels > position.minScrollExtent) {
-      target = (position.pixels - step).clamp(0.0, position.maxScrollExtent);
+    final target = (position.pixels + (down ? step : -step)).clamp(0.0, position.maxScrollExtent);
+    if (target != position.pixels) {
+      unawaited(_controller.animateTo(target, duration: const Duration(milliseconds: 160), curve: Curves.easeOut));
     }
-    if (target == null) return KeyEventResult.ignored;
-    unawaited(_controller.animateTo(target, duration: const Duration(milliseconds: 160), curve: Curves.easeOut));
     return KeyEventResult.handled;
   }
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Focus(
-      autofocus: widget.autofocus,
-      onKeyEvent: _onKey,
-      onFocusChange: (focused) => setState(() => _focused = focused),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: _focused ? scheme.primary : Colors.transparent, width: 2),
-        ),
-        child: Scrollbar(
-          controller: _controller,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _controller,
-            padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
-            child: SimpleMarkdown(widget.notes),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Focus(
+    canRequestFocus: false,
+    skipTraversal: true,
+    onKeyEvent: _onKey,
+    child: widget.builder(_controller),
+  );
+}
+
+/// Release notes that scroll with touch, mouse and (through
+/// [_NotesScrollScope]) the remote.
+class _ScrollableNotes extends StatelessWidget {
+  const _ScrollableNotes({required this.notes, required this.controller});
+
+  final String notes;
+  final ScrollController controller;
+
+  @override
+  Widget build(BuildContext context) => Scrollbar(
+    controller: controller,
+    thumbVisibility: true,
+    child: SingleChildScrollView(
+      controller: controller,
+      padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
+      child: SimpleMarkdown(notes),
+    ),
+  );
 }
 
 class _UpdateDialog extends StatefulWidget {
@@ -268,7 +270,9 @@ class _UpdateDialogState extends State<_UpdateDialog> with WidgetsBindingObserve
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => _NotesScrollScope(builder: (controller) => _dialog(context, controller));
+
+  Widget _dialog(BuildContext context, ScrollController controller) {
     final theme = Theme.of(context);
     final release = widget.release;
     return AlertDialog(
@@ -288,7 +292,10 @@ class _UpdateDialogState extends State<_UpdateDialog> with WidgetsBindingObserve
             ),
             const SizedBox(height: 12),
             Flexible(
-              child: _ScrollableNotes(notes: release.notes.trim().isEmpty ? '–' : _withoutTitle(release.notes)),
+              child: _ScrollableNotes(
+                notes: release.notes.trim().isEmpty ? '–' : _withoutTitle(release.notes),
+                controller: controller,
+              ),
             ),
             if (_busy) ...[
               const SizedBox(height: 16),
