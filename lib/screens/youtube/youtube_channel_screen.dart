@@ -115,8 +115,9 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
     try {
       final videos = await _service.playlistVideos(playlistId);
       if (!mounted || videos.isEmpty) return;
-      if (widget.returnPickedVideo) Navigator.of(context).pop();
-      unawaited(YouTubePlayerScreen.open(context, videos));
+      final navigator = Navigator.of(context);
+      if (widget.returnPickedVideo) navigator.pop();
+      unawaited(YouTubePlayerScreen.open(navigator.context, videos));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
