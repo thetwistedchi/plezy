@@ -11,6 +11,7 @@ import '../../media/media_kind.dart';
 import '../../media/media_library.dart';
 import '../../media/media_server_client.dart';
 import '../../providers/libraries_provider.dart';
+import '../../services/retrowave/person_pictures.dart';
 import '../../services/retrowave/watch_stats.dart';
 import '../../services/settings_service.dart';
 import '../../theme/mono_tokens.dart';
@@ -937,7 +938,7 @@ class _PosterStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 214,
+      height: 232,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: entries.length,
@@ -1176,7 +1177,8 @@ class _PersonPictureState extends State<_PersonPicture> {
       future: _picture,
       builder: (context, snapshot) {
         final p = snapshot.data;
-        if (p == null) return fallback;
+        final external = ExternalPersonPicture(name: widget.name, fallback: fallback);
+        if (p == null) return snapshot.connectionState == ConnectionState.done ? external : fallback;
         return OptimizedMediaImage(
           client: widget.client(p.server),
           imagePath: p.path,
@@ -1184,7 +1186,7 @@ class _PersonPictureState extends State<_PersonPicture> {
           imageType: ImageType.avatar,
           fallbackIcon: Symbols.person_rounded,
           placeholder: (_, _) => fallback,
-          errorWidget: (_, _, _) => fallback,
+          errorWidget: (_, _, _) => external,
         );
       },
     );

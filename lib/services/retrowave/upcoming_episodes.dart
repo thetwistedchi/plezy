@@ -69,6 +69,8 @@ class UpcomingEpisodes {
     bool Function()? isCancelled,
   }) async {
     final results = <UpcomingEpisode>[];
+    // Fork: the same show on several servers (or libraries) is listed once.
+    final seen = <String>{};
     var done = 0;
     for (final show in shows) {
       if (isCancelled?.call() ?? false) break;
@@ -76,7 +78,17 @@ class UpcomingEpisodes {
         final client = clientFor(show);
         if (client != null) {
           final ids = await _idsFor(show, client);
-          final next = await _next(tvdb: ids.tvdb, imdb: ids.imdb);
+          final title = (show.title ?? '').trim().toLowerCase();
+          final keys = [
+            if (ids.tvdb != null) 'tvdb:${ids.tvdb}',
+            if (ids.imdb != null) 'imdb:${ids.imdb}',
+            if (title.isNotEmpty) 'title:$title:${show.year ?? ''}',
+          ];
+          final duplicate = keys.any(seen.contains);
+          seen.addAll(keys);
+          final found = duplicate ? null : await _next(tvdb: ids.tvdb, imdb: ids.imdb);
+          // The same TVmaze show reached through different ids.
+          final next = found != null && seen.add('tvmaze:${found.show}') ? found : null;
           if (next != null) {
             final e = UpcomingEpisode(
               show: show,
@@ -195,7 +207,7 @@ class UpcomingEpisodes {
     return '${d.day}.${d.month}.${d.year}';
   }
 
-  Future<({String? name, int? season, int? number, DateTime airs, String? network})?> _next({
+  Future<({int show, String? name, int? season, int? number, DateTime airs, String? network})?> _next({
     int? tvdb,
     String? imdb,
   }) async {
@@ -219,7 +231,7 @@ class UpcomingEpisodes {
       cache[key] = show;
       _scheduleSave();
     }
-    final id = show['id'];
+    final id = (show['id'] as num?)?.toInt();
     if (id == null || show['ended'] == true) return null;
 
     var next = show['next'] as Map<String, dynamic>?;
@@ -247,6 +259,7 @@ class UpcomingEpisodes {
     final airs = DateTime.tryParse(next['airs'] as String? ?? '');
     if (airs == null) return null;
     return (
+      show: id,
       name: next['name'] as String?,
       season: (next['season'] as num?)?.toInt(),
       number: (next['number'] as num?)?.toInt(),

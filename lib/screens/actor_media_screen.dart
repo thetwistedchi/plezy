@@ -24,6 +24,9 @@ import '../i18n/app_locale_utils.dart';
 import '../i18n/strings.g.dart';
 import 'base_media_list_detail_screen.dart';
 import 'focusable_detail_screen_mixin.dart';
+import '../widgets/app_icon.dart';
+import '../theme/mono_tokens.dart';
+import '../services/retrowave/person_pictures.dart';
 import '../mixins/grid_focus_node_mixin.dart';
 import '../focus/focusable_action_bar.dart';
 
@@ -191,15 +194,28 @@ class _ActorMediaScreenState extends BaseMediaListDetailScreen<ActorMediaScreen>
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(40),
-                  child: OptimizedMediaImage(
-                    client: _mediaClientOrNull,
-                    imagePath: widget.actorThumb,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    imageType: ImageType.avatar,
-                    fallbackIcon: Symbols.person_rounded,
-                  ),
+                  child: (widget.actorThumb?.isEmpty ?? true)
+                      // Fork: a picture from Wikidata when the server has none.
+                      ? SizedBox(
+                          width: 80,
+                          height: 80,
+                          child: ExternalPersonPicture(
+                            name: widget.actorName,
+                            fallback: ColoredBox(
+                              color: tokens(context).surface,
+                              child: const Center(child: AppIcon.retro(Symbols.person_rounded, size: 32)),
+                            ),
+                          ),
+                        )
+                      : OptimizedMediaImage(
+                          client: _mediaClientOrNull,
+                          imagePath: widget.actorThumb,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          imageType: ImageType.avatar,
+                          fallbackIcon: Symbols.person_rounded,
+                        ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

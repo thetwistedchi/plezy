@@ -5,12 +5,14 @@ import '../focus/card_focus_scope.dart';
 import '../focus/dpad_navigator.dart';
 import '../focus/key_event_utils.dart';
 import '../media/media_server_client.dart';
+import '../services/retrowave/person_pictures.dart';
 import '../services/settings_service.dart';
 import '../theme/mono_tokens.dart';
 import '../utils/grid_size_calculator.dart';
 import '../utils/media_image_helper.dart';
 import '../utils/scroll_utils.dart';
 import 'focus_builders.dart';
+import 'app_icon.dart';
 import 'horizontal_scroll_with_arrows.dart';
 import 'optimized_media_image.dart';
 import '../theme/retrowave_colors.dart';
@@ -197,6 +199,12 @@ class CastMemberStripState extends State<CastMemberStrip> {
             itemCount: widget.members.length,
             itemBuilder: (context, index) {
               final member = widget.members[index];
+              final personIcon = ColoredBox(
+                color: tokens(context).surface,
+                child: Center(
+                  child: AppIcon.retro(Symbols.person_rounded, size: imageSize * 0.3, color: tokens(context).textMuted),
+                ),
+              );
               final voices = widget.voices;
               final voice = voices != null && index < voices.length ? voices[index] : null;
 
@@ -228,14 +236,24 @@ class CastMemberStripState extends State<CastMemberStrip> {
                                   : null,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(tokens(context).radiusSm),
-                                child: OptimizedMediaImage(
-                                  client: widget.imageClient,
-                                  imagePath: member.imagePath,
+                                child: SizedBox(
                                   width: imageSize,
                                   height: imageSize,
-                                  fit: BoxFit.cover,
-                                  imageType: ImageType.square,
-                                  fallbackIcon: Symbols.person_rounded,
+                                  // Fork: without a server picture, one from
+                                  // Wikidata, kept on the device.
+                                  child: (member.imagePath?.isEmpty ?? true)
+                                      ? ExternalPersonPicture(name: member.name, fallback: personIcon)
+                                      : OptimizedMediaImage(
+                                          client: widget.imageClient,
+                                          imagePath: member.imagePath,
+                                          width: imageSize,
+                                          height: imageSize,
+                                          fit: BoxFit.cover,
+                                          imageType: ImageType.square,
+                                          fallbackIcon: Symbols.person_rounded,
+                                          errorWidget: (_, _, _) =>
+                                              ExternalPersonPicture(name: member.name, fallback: personIcon),
+                                        ),
                                 ),
                               ),
                             ),

@@ -5141,7 +5141,17 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
             final offset = _scrollController.hasClients ? _scrollController.offset : 0.0;
             return Transform.translate(offset: Offset(0, -offset), child: child);
           },
-          child: RepaintBoundary(
+          // Fork: the box's bottom edge fades out, so the solid scrim colour
+          // meets the page's own backdrop without a hard 1px seam.
+          child: ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (rect) => const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.white, Colors.white, Colors.transparent],
+              stops: [0.0, 0.8, 1.0],
+            ).createShader(rect),
+            child: RepaintBoundary(
             child: Stack(
               fit: .expand,
               children: [
@@ -5205,6 +5215,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),
