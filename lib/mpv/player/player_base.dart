@@ -1412,9 +1412,9 @@ abstract class PlayerBase with PlayerStreamControllersMixin implements Player {
   /// together), lifts the speech band and caps peaks, so dialogue stays
   /// clear at low volume. Cheap enough for TV boxes; mpv backends only.
   static const String _nightModeFilter =
-      'acompressor=threshold=-30dB:ratio=4:knee=6dB:attack=10:release=250:makeup=10dB:link=maximum,'
-      'equalizer=f=2500:t=q:w=1.2:g=4,'
-      'alimiter=limit=-2dB:attack=1:release=60:level=false';
+      'acompressor=threshold=-24dB:ratio=6:knee=6dB:attack=10:release=250:makeup=3dB:link=maximum,'
+      'equalizer=f=2500:t=q:w=1.2:g=3,'
+      'alimiter=limit=-6dB:attack=1:release=60:level=false';
 
   bool _normalizationFilterOn = false;
   bool _nightModeOn = false;

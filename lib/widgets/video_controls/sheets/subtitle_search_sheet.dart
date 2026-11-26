@@ -4,6 +4,7 @@ import '../../../media/ids.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import '../../../exceptions/media_server_exceptions.dart';
 import '../../../focus/focusable_button.dart';
 import '../../../focus/focusable_text_field.dart';
 import '../../../focus/input_mode_tracker.dart';
@@ -153,8 +154,15 @@ class _SubtitleSearchSheetState extends State<SubtitleSearchSheet> with Controll
       });
     } catch (e) {
       if (!mounted || generation != _searchGeneration) return;
+      // Fork: Jellyfin/Emby only let users with subtitle management search.
+      final refused =
+          (e is MediaServerHttpException && (e.statusCode == 401 || e.statusCode == 403)) ||
+          e is MediaServerAuthException;
+      final jellyfin = context.tryGetPlexClientForServer(ServerId(widget.serverId)) == null;
       setState(() {
-        _error = t.errors.searchFailed(error: localizedErrorReason(e));
+        _error = refused && jellyfin
+            ? RetroStrings.subtitleManagementNotAllowed
+            : t.errors.searchFailed(error: localizedErrorReason(e));
         _isSearching = false;
       });
     }

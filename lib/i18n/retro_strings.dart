@@ -59,6 +59,12 @@ class RetroStrings {
   static String get upcomingNone => _t('No upcoming episodes announced.', 'Keine kommenden Folgen angekündigt.');
   static String get upcomingNoShows =>
       _t('No shows on Continue Watching yet.', 'Noch keine Serien unter Weiterschauen.');
+  static String get subtitleManagementNotAllowed => _t(
+    'This server lets only users with subtitle management search for subtitles. '
+        'An administrator can turn on "Allow subtitle management" for your user in the dashboard (Users).',
+    'Dieser Server erlaubt die Untertitelsuche nur Benutzern mit Untertitelverwaltung. '
+        'Ein Administrator kann „Untertitelverwaltung erlauben“ für deinen Benutzer im Dashboard (Benutzer) einschalten.',
+  );
   static String get subtitleAddedOnServer => _t(
     'Subtitle added on the server. It shows up the next time the video starts.',
     'Untertitel auf dem Server hinzugefügt. Er steht beim nächsten Start des Videos bereit.',

@@ -45,13 +45,16 @@ class AudioNormalizationEffect(private val log: (String, String, String) -> Unit
     const val DEFAULT_CHANNEL_COUNT = 2
     const val MAX_CHANNEL_COUNT = 8
 
-    // Fork: night mode. Earlier, firmer compression with less make-up gain,
-    // and a pre-EQ that lifts the speech band (1 to 4 kHz) by 4 dB.
-    const val NIGHT_THRESHOLD_DB = -30f
+    // Fork: night mode. Loud passages are pulled down hard (ratio 6 above
+    // -24 dB, ceiling -6 dB) with only a little make-up gain, so the overall
+    // level drops while speech (1 to 4 kHz, +3 dB) stays clear.
+    const val NIGHT_THRESHOLD_DB = -24f
+    const val NIGHT_RATIO = 6f
     const val NIGHT_ATTACK_MS = 10f
     const val NIGHT_RELEASE_MS = 250f
-    const val NIGHT_POST_GAIN_DB = 10f
-    const val NIGHT_SPEECH_GAIN_DB = 4f
+    const val NIGHT_POST_GAIN_DB = 3f
+    const val NIGHT_SPEECH_GAIN_DB = 3f
+    const val NIGHT_LIMITER_THRESHOLD_DB = -6f
 
     // LoudnessEnhancer fallback: fixed boost, internally limited.
     const val LOUDNESS_ENHANCER_GAIN_MB = 900 // +9 dB
@@ -111,7 +114,7 @@ class AudioNormalizationEffect(private val log: (String, String, String) -> Unit
       MBC_CUTOFF_HZ,
       if (night) NIGHT_ATTACK_MS else MBC_ATTACK_MS,
       if (night) NIGHT_RELEASE_MS else MBC_RELEASE_MS,
-      MBC_RATIO,
+      if (night) NIGHT_RATIO else MBC_RATIO,
       if (night) NIGHT_THRESHOLD_DB else MBC_THRESHOLD_DB,
       MBC_KNEE_DB,
       MBC_NOISE_GATE_DB,
@@ -149,7 +152,7 @@ class AudioNormalizationEffect(private val log: (String, String, String) -> Unit
       LIMITER_ATTACK_MS,
       LIMITER_RELEASE_MS,
       LIMITER_RATIO,
-      LIMITER_THRESHOLD_DB,
+      if (night) NIGHT_LIMITER_THRESHOLD_DB else LIMITER_THRESHOLD_DB,
       // postGain
       0f
     )
