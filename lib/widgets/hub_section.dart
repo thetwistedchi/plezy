@@ -724,7 +724,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                     final density = rowStyle == HomeRowCardStyle.small
                         ? (baseDensity - 2).clamp(LibraryDensity.min, LibraryDensity.max).toInt()
                         : baseDensity;
-                    final globalPosterMode =
+                    final EpisodePosterMode globalPosterMode =
                         widget.episodePosterModeOverride ?? svc.read(SettingsService.episodePosterMode);
                     final EpisodePosterMode episodePosterMode = switch (rowStyle) {
                       HomeRowCardStyle.wide => EpisodePosterMode.episodeThumbnail,
