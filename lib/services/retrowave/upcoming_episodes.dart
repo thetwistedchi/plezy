@@ -180,7 +180,8 @@ class UpcomingEpisodes {
     await _restoreAll();
     final at = _allAt;
     if (!force && at != null && DateTime.now().difference(at) < maxAge) return Future.value();
-    if (!force && _allRunning case final running?) return running;
+    final running = _allRunning;
+    if (!force && running != null) return running;
     // A forced scan (other servers picked) replaces a running one.
     final generation = ++_generation;
     final scan = _scanAll(libraries, clientFor, () => generation != _generation);
