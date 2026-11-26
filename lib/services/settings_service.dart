@@ -885,6 +885,15 @@ class SettingsService extends BaseSharedPreferencesService {
   /// Fork: servers left out of Upcoming episodes.
   static const upcomingServersOff = StringListPref('retrowave_upcoming_servers_off');
 
+  /// Fork: entries per statistics list (10, 20 or 50).
+  static const statsListLength = IntPref('retrowave_stats_list_length', defaultValue: 10);
+
+  /// Fork: `server:id` of films and shows left out of the statistics.
+  static const statsExcluded = StringListPref('retrowave_stats_excluded');
+
+  /// Fork: `server:id` of films whose rewatches are not counted.
+  static const statsCountOnce = StringListPref('retrowave_stats_count_once');
+
   /// Fork: card design per Home row, as `rowKey=style` entries.
   static const homeRowCardStyles = StringListPref('retrowave_home_row_card_styles');
   static const startupSection = EnumPref<NavigationTabId>(
@@ -1603,6 +1612,9 @@ class SettingsService extends BaseSharedPreferencesService {
     upcomingOnHome,
     homeRowCardStyles,
     upcomingServersOff,
+    statsListLength,
+    statsExcluded,
+    statsCountOnce,
     startupSection,
     showExploreTab,
     alwaysKeepSidebarOpen,

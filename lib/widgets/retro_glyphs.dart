@@ -56,6 +56,7 @@ abstract final class RetroGlyphs {
   static const _textSmaller = '<path d="M3 19 8 6l5 13M4.8 14.5h6.4"/>|<path d="M15.5 12h6"/>';
   static const _textLarger = '<path d="M3 19 8 6l5 13M4.8 14.5h6.4"/>|<path d="M15.5 12h6M18.5 9v6"/>';
   static const _remove = '|<path d="M6 12h12"/>';
+  static const _countOnce = '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5"/>|<path d="M10 9l2.5-1.5V16.5"/>';
   static const _checkCircle = '<circle cx="12" cy="12" r="8.5"/>|<path d="M8 12.3l2.7 2.7L16.2 9.5"/>';
   static const _pauseCircle = '<circle cx="12" cy="12" r="8.5"/>|<path d="M10 9v6M14 9v6"/>';
   static const _clapper = '<rect x="3.5" y="9" width="17" height="11" rx="2"/>|<path d="M3.5 9 4.6 4.5h14.8L20.5 9M8.5 4.5 10 9M13.5 4.5 15 9"/>';
@@ -191,6 +192,7 @@ abstract final class RetroGlyphs {
     Symbols.local_activity_rounded: _freeOnPlex,
     Symbols.visibility_rounded: _visibility,
     Symbols.visibility_off_rounded: _visibilityOff,
+    Symbols.looks_one_rounded: _countOnce,
     Symbols.dns_rounded: _dns,
     Symbols.wifi_rounded: _wifi,
     Symbols.sync_rounded: _sync,

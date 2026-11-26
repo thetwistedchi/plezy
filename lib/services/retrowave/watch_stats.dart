@@ -298,7 +298,16 @@ enum StatsPeriod { allTime, thisYear, last12Months }
 /// Everything the statistics screen shows, for one filter, with the titles
 /// behind each number for the detail views.
 class WatchSummary {
-  WatchSummary(WatchData data, {String? server, String? library, StatsPeriod period = StatsPeriod.allTime}) {
+  /// [excluded] holds `server:id` keys of films and shows left out;
+  /// [countOnce] holds film keys whose extra plays are ignored.
+  WatchSummary(
+    WatchData data, {
+    String? server,
+    String? library,
+    StatsPeriod period = StatsPeriod.allTime,
+    Set<String> excluded = const {},
+    Set<String> countOnce = const {},
+  }) {
     final now = DateTime.now();
     bool inPeriod(DateTime? d) => switch (period) {
       StatsPeriod.allTime => true,
@@ -312,15 +321,18 @@ class WatchSummary {
     final days = <DateTime>{};
     for (final r in data.records) {
       if (!inScope(r.server, r.library) || !inPeriod(r.watchedAt)) continue;
+      final key = keyOf(r);
+      if (key != null && excluded.contains(key)) continue;
       records.add(r);
       // Within a period only the last viewing has a date: count one play.
-      final plays = period == StatsPeriod.allTime ? r.plays : 1;
+      final once = key != null && countOnce.contains(key);
+      final plays = period == StatsPeriod.allTime && !once ? r.plays : 1;
       final h = r.minutes * plays / 60;
       hours += h;
       hoursByLibrary[r.library] = (hoursByLibrary[r.library] ?? 0) + h;
       if (r.isMovie) {
         movieRecords.add(r);
-        if (r.plays > 1) rewatched.add(r);
+        if (r.plays > 1 && !once) rewatched.add(r);
         for (final d in r.directors) {
           add(byDirector, d, r);
         }
@@ -368,6 +380,7 @@ class WatchSummary {
     final halfYearAgo = now.subtract(const Duration(days: 183));
     for (final s in data.shows) {
       if (!inScope(s.server, s.library) || s.watched == 0) continue;
+      if (excluded.contains('${s.server}:${s.id}')) continue;
       if (period != StatsPeriod.allTime && !inPeriod(s.lastWatched)) continue;
       if (s.episodes > 0 && s.watched >= s.episodes) {
         finished.add(s);
@@ -403,6 +416,12 @@ class WatchSummary {
   final abandoned = <ShowRecord>[];
 
   int get movies => movieRecords.length;
+
+  /// The key a record is excluded by: the film, or the episode's show.
+  static String? keyOf(WatchRecord r) {
+    final id = r.isMovie ? r.id : r.showId;
+    return id == null ? null : '${r.server}:$id';
+  }
   int get shows => byShow.length;
 
   /// Keys of [map] by the number of titles, most first.

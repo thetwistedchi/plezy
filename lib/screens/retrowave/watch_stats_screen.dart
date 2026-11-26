@@ -12,6 +12,7 @@ import '../../media/media_library.dart';
 import '../../media/media_server_client.dart';
 import '../../providers/libraries_provider.dart';
 import '../../services/retrowave/watch_stats.dart';
+import '../../services/settings_service.dart';
 import '../../theme/mono_tokens.dart';
 import '../../theme/player_style.dart';
 import '../../theme/retrowave_colors.dart';
@@ -34,13 +35,29 @@ class WatchStatsScreen extends StatefulWidget {
 
 /// One title in a detail view or poster strip.
 class _Entry {
-  const _Entry({required this.server, required this.title, this.id, this.thumb, this.badge});
+  const _Entry({
+    required this.server,
+    required this.title,
+    this.id,
+    this.thumb,
+    this.badge,
+    this.isMovie = false,
+    this.plays = 1,
+  });
   final String server;
   final String? id;
   final String? thumb;
   final String title;
   final String? badge;
+  final bool isMovie;
+  final int plays;
+
+  /// The key it is excluded by (see [WatchSummary.keyOf]).
+  String? get key => id == null ? null : '$server:$id';
 }
+
+/// Opens the statistics menu of an entry at a position.
+typedef _EntryMenu = Future<bool> Function(_Entry entry, Offset position);
 
 class _WatchStatsScreenState extends State<WatchStatsScreen> {
   WatchData? _data;
@@ -49,6 +66,139 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
   String? _server;
   String? _library;
   StatsPeriod _period = StatsPeriod.allTime;
+  int _listLength = SettingsService.instance.read(SettingsService.statsListLength);
+  Set<String> _excluded = SettingsService.instance.read(SettingsService.statsExcluded).toSet();
+  Set<String> _countOnce = SettingsService.instance.read(SettingsService.statsCountOnce).toSet();
+
+  WatchSummary _summary(WatchData data, StatsPeriod period) => WatchSummary(
+    data,
+    server: _server,
+    library: _library,
+    period: period,
+    excluded: _excluded,
+    countOnce: _countOnce,
+  );
+
+  Future<void> _saveExclusions() async {
+    final svc = SettingsService.instance;
+    await svc.write(SettingsService.statsExcluded, _excluded.toList());
+    await svc.write(SettingsService.statsCountOnce, _countOnce.toList());
+  }
+
+  /// Right click or long press on a title. True when it was excluded.
+  Future<bool> _entryMenu(_Entry entry, Offset position) async {
+    final key = entry.key;
+    if (key == null) return false;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final once = _countOnce.contains(key);
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(position & const Size(1, 1), Offset.zero & overlay.size),
+      items: [
+        if (entry.isMovie && (entry.plays > 1 || once))
+          PopupMenuItem(
+            value: 'once',
+            child: ListTile(
+              leading: AppIcon.retro(once ? Symbols.replay_rounded : Symbols.looks_one_rounded),
+              title: Text(once ? RetroStrings.statsCountAll : RetroStrings.statsCountOnce),
+            ),
+          ),
+        PopupMenuItem(
+          value: 'exclude',
+          child: ListTile(
+            leading: const AppIcon.retro(Symbols.visibility_off_rounded),
+            title: Text(RetroStrings.statsExclude),
+          ),
+        ),
+      ],
+    );
+    if (choice == null || !mounted) return false;
+    setState(() {
+      if (choice == 'exclude') {
+        _excluded = {..._excluded, key};
+      } else {
+        _countOnce = once ? (_countOnce.toSet()..remove(key)) : {..._countOnce, key};
+      }
+    });
+    await _saveExclusions();
+    return choice == 'exclude';
+  }
+
+  /// Title of an excluded key, from the collected data.
+  String _titleOf(String key) {
+    final data = _data;
+    if (data == null) return key;
+    for (final sh in data.shows) {
+      if ('${sh.server}:${sh.id}' == key) return sh.title;
+    }
+    for (final r in data.records) {
+      if (WatchSummary.keyOf(r) == key && r.title != null) return r.title!;
+    }
+    return key;
+  }
+
+  Future<void> _showExcluded() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialog) {
+          final keys = [
+            for (final k in _excluded) (k, false),
+            for (final k in _countOnce) (k, true),
+          ];
+          void restore(String key, bool once) {
+            setState(() {
+              if (once) {
+                _countOnce = _countOnce.toSet()..remove(key);
+              } else {
+                _excluded = _excluded.toSet()..remove(key);
+              }
+            });
+            setDialog(() {});
+            unawaited(_saveExclusions());
+          }
+
+          return AlertDialog(
+            title: Text(RetroStrings.statsExcludedTitles),
+            content: SizedBox(
+              width: 420,
+              child: keys.isEmpty
+                  ? Text(RetroStrings.statsExcludedNone)
+                  : ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final (key, once) in keys)
+                          ListTile(
+                            title: Text(_titleOf(key), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: once ? Text(RetroStrings.statsCountedOnce) : null,
+                            trailing: TextButton(
+                              onPressed: () => restore(key, once),
+                              child: Text(RetroStrings.statsRestore),
+                            ),
+                          ),
+                      ],
+                    ),
+            ),
+            actions: [
+              if (keys.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _excluded = {};
+                      _countOnce = {};
+                    });
+                    setDialog(() {});
+                    unawaited(_saveExclusions());
+                  },
+                  child: Text(RetroStrings.statsRestoreAll),
+                ),
+              TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: Text(RetroStrings.close)),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -104,7 +254,13 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
     unawaited(
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => _StatsDetailScreen(title: title, entries: entries, client: _client, onOpen: _openItem),
+          builder: (_) => _StatsDetailScreen(
+            title: title,
+            entries: entries,
+            client: _client,
+            onOpen: _openItem,
+            onMenu: _entryMenu,
+          ),
         ),
       ),
     );
@@ -118,7 +274,9 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
           id: r.id,
           thumb: r.thumb,
           title: r.title ?? '',
-          badge: r.plays > 1 ? '×${r.plays}' : null,
+          badge: r.plays > 1 && !_countOnce.contains(WatchSummary.keyOf(r)) ? '×${r.plays}' : null,
+          isMovie: true,
+          plays: r.plays,
         ),
   ];
 
@@ -165,6 +323,12 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
           CustomAppBar(
             title: Text(RetroStrings.watchStats),
             actions: [
+              if (_excluded.isNotEmpty || _countOnce.isNotEmpty)
+                IconButton(
+                  tooltip: '${RetroStrings.statsExcludedTitles} (${_excluded.length + _countOnce.length})',
+                  onPressed: () => unawaited(_showExcluded()),
+                  icon: const AppIcon.retro(Symbols.visibility_off_rounded),
+                ),
               IconButton(
                 tooltip: RetroStrings.statsRefresh,
                 onPressed: _loading ? null : () => unawaited(_refresh()),
@@ -205,13 +369,13 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
                   const SizedBox(height: 20),
                   ..._content(
                     context,
-                    WatchSummary(data, server: _server, library: _library, period: _period),
+                    _summary(data, _period),
                     libraries,
                   ),
                   const SizedBox(height: 28),
                   _yearInReview(
                     context,
-                    WatchSummary(data, server: _server, library: _library, period: StatsPeriod.thisYear),
+                    _summary(data, StatsPeriod.thisYear),
                   ),
                 ],
               ),
@@ -249,6 +413,22 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
           selected: {_period},
           onSelectionChanged: (s) => setState(() => _period = s.first),
         ),
+        Tooltip(
+          message: RetroStrings.statsShowCount,
+          child: SegmentedButton<int>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 10, label: Text('10')),
+              ButtonSegment(value: 20, label: Text('20')),
+              ButtonSegment(value: 50, label: Text('50')),
+            ],
+            selected: {_listLength},
+            onSelectionChanged: (s) {
+              setState(() => _listLength = s.first);
+              unawaited(SettingsService.instance.write(SettingsService.statsListLength, s.first));
+            },
+          ),
+        ),
         if (servers.length > 1)
           DropdownButton<String?>(
             value: _server,
@@ -275,11 +455,12 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
 
   List<Widget> _content(BuildContext context, WatchSummary s, List<MediaLibrary> libraries) {
     final libraryTitle = {for (final l in libraries) l.globalKey: l.title};
-    final genres = WatchSummary.ranked(s.byGenre, 10);
+    final n = _listLength;
+    final genres = WatchSummary.ranked(s.byGenre, n);
     final decades = s.byDecade.keys.toList()..sort();
-    final directors = WatchSummary.ranked(s.byDirector, 12);
-    final actors = WatchSummary.ranked(s.byActor, 12);
-    final topShows = WatchSummary.ranked(s.byShow, 15);
+    final directors = WatchSummary.ranked(s.byDirector, n);
+    final actors = WatchSummary.ranked(s.byActor, n);
+    final topShows = WatchSummary.ranked(s.byShow, n);
     return [
       Wrap(
         spacing: 16,
@@ -340,12 +521,18 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
             entries: [for (final key in topShows) _showEntry(s, key, s.byShow[key]!.length)],
             client: _client,
             onOpen: _openItem,
+            onMenu: _entryMenu,
           ),
         ),
       if (s.rewatched.isNotEmpty)
         _Section(
           title: RetroStrings.statsRewatched,
-          child: _PosterStrip(entries: _movieEntries(s.rewatched.take(15)), client: _client, onOpen: _openItem),
+          child: _PosterStrip(
+            entries: _movieEntries(s.rewatched.take(n)),
+            client: _client,
+            onOpen: _openItem,
+            onMenu: _entryMenu,
+          ),
         ),
       if (directors.isNotEmpty)
         _Section(
@@ -543,6 +730,12 @@ List<Color> _gradient(BuildContext context) {
   return [primary.withValues(alpha: 0.55), primary];
 }
 
+/// [_gradient], muted for bars and columns: the same fade, half strength.
+List<Color> _softGradient(BuildContext context) {
+  final g = _gradient(context);
+  return [g.first.withValues(alpha: 0.3), g.last.withValues(alpha: 0.7)];
+}
+
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.child, this.hint});
   final String title;
@@ -590,6 +783,7 @@ class _StatTile extends StatelessWidget {
       color: RetroColors.isActive(context) ? RetroColors.dusk : mono.surface,
       borderRadius: BorderRadius.circular(mono.radiusMd),
       child: InkWell(
+        mouseCursor: onTap == null ? null : SystemMouseCursors.click,
         borderRadius: BorderRadius.circular(mono.radiusMd),
         onTap: onTap,
         child: Container(
@@ -597,7 +791,7 @@ class _StatTile extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(mono.radiusMd),
-            border: Border.all(color: colors.first.withValues(alpha: 0.5)),
+            border: Border.all(color: mono.outline),
           ),
           child: Row(
             children: [
@@ -636,12 +830,13 @@ class _Bars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mono = tokens(context);
-    final colors = _gradient(context);
+    final colors = _softGradient(context);
     final max = entries.fold<int>(1, (m, e) => e.value > m ? e.value : m);
     return Column(
       children: [
         for (final e in entries)
           InkWell(
+            mouseCursor: onTap == null ? null : SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(8),
             onTap: onTap == null ? null : () => onTap!(e.key),
             child: Padding(
@@ -654,14 +849,11 @@ class _Bars extends StatelessWidget {
                       builder: (context, c) => Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
-                          height: 12,
+                          height: 8,
                           width: (c.maxWidth * e.value / max).clamp(4.0, c.maxWidth),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(colors: colors),
-                            borderRadius: BorderRadius.circular(6),
-                            boxShadow: RetroColors.isActive(context)
-                                ? [BoxShadow(color: colors.last.withValues(alpha: 0.35), blurRadius: 8)]
-                                : null,
+                            borderRadius: BorderRadius.circular(4),
                           ),
                         ),
                       ),
@@ -690,7 +882,7 @@ class _Columns extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mono = tokens(context);
-    final colors = _gradient(context);
+    final colors = _softGradient(context);
     final max = entries.fold<int>(1, (m, e) => e.value > m ? e.value : m);
     return SizedBox(
       height: height + 36,
@@ -702,6 +894,7 @@ class _Columns extends StatelessWidget {
               child: Tooltip(
                 message: '${e.key} · ${e.value}',
                 child: InkWell(
+                  mouseCursor: onTap == null || e.key.isEmpty ? null : SystemMouseCursors.click,
                   onTap: onTap == null || e.key.isEmpty ? null : () => onTap!(e.key),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -735,10 +928,11 @@ class _Columns extends StatelessWidget {
 
 /// Posters in a row with a badge; a tap opens the title.
 class _PosterStrip extends StatelessWidget {
-  const _PosterStrip({required this.entries, required this.client, required this.onOpen});
+  const _PosterStrip({required this.entries, required this.client, required this.onOpen, this.onMenu});
   final List<_Entry> entries;
   final MediaServerClient? Function(String server) client;
   final Future<void> Function(String server, String? id) onOpen;
+  final _EntryMenu? onMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -750,7 +944,7 @@ class _PosterStrip extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 12),
         itemBuilder: (context, i) => SizedBox(
           width: 120,
-          child: _PosterTile(entry: entries[i], rank: i + 1, client: client, onOpen: onOpen),
+          child: _PosterTile(entry: entries[i], rank: i + 1, client: client, onOpen: onOpen, onMenu: onMenu),
         ),
       ),
     );
@@ -758,19 +952,26 @@ class _PosterStrip extends StatelessWidget {
 }
 
 class _PosterTile extends StatelessWidget {
-  const _PosterTile({required this.entry, required this.client, required this.onOpen, this.rank});
+  const _PosterTile({required this.entry, required this.client, required this.onOpen, this.rank, this.onMenu});
   final _Entry entry;
   final int? rank;
   final MediaServerClient? Function(String server) client;
   final Future<void> Function(String server, String? id) onOpen;
+  final _EntryMenu? onMenu;
 
   @override
   Widget build(BuildContext context) {
     final mono = tokens(context);
     final colors = _gradient(context);
+    Offset? pressAt;
+    final menu = onMenu;
     return InkWell(
+      mouseCursor: SystemMouseCursors.click,
       borderRadius: BorderRadius.circular(mono.radiusSm),
       onTap: () => unawaited(onOpen(entry.server, entry.id)),
+      onTapDown: (d) => pressAt = d.globalPosition,
+      onSecondaryTapDown: menu == null ? null : (d) => unawaited(menu(entry, d.globalPosition)),
+      onLongPress: menu == null ? null : () => unawaited(menu(entry, pressAt ?? Offset.zero)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -817,10 +1018,11 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
     decoration: BoxDecoration(
-      gradient: LinearGradient(colors: colors),
+      color: Colors.black.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: colors.last.withValues(alpha: 0.55)),
     ),
-    child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+    child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
   );
 }
 
@@ -851,6 +1053,7 @@ class _PeopleGrid extends StatelessWidget {
       children: [
         for (final name in names)
           InkWell(
+            mouseCursor: SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(12),
             onTap: () => onTap(name),
             child: SizedBox(
@@ -861,8 +1064,8 @@ class _PeopleGrid extends StatelessWidget {
                     clipBehavior: Clip.none,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(2.5),
-                        decoration: BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: colors)),
+                        padding: const EdgeInsets.all(1.5),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: colors.last.withValues(alpha: 0.5)),
                         child: ClipOval(
                           child: SizedBox(
                             width: 82,
@@ -960,10 +1163,13 @@ class _PersonPictureState extends State<_PersonPicture> {
         .take(2)
         .map((p) => p[0].toUpperCase())
         .join();
+    final mono = tokens(context);
     final fallback = ColoredBox(
-      color: RetroColors.isActive(context) ? RetroColors.dusk : tokens(context).surface,
+      color: RetroColors.isActive(context) ? RetroColors.dusk : mono.surface,
       child: Center(
-        child: Text(initials, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+        child: initials.isEmpty
+            ? AppIcon.retro(Symbols.person_rounded, size: 40, color: mono.textMuted)
+            : Text(initials, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: mono.textMuted)),
       ),
     );
     return FutureBuilder<({String server, String path})?>(
@@ -976,6 +1182,8 @@ class _PersonPictureState extends State<_PersonPicture> {
           imagePath: p.path,
           fit: BoxFit.cover,
           imageType: ImageType.avatar,
+          fallbackIcon: Symbols.person_rounded,
+          placeholder: (_, _) => fallback,
           errorWidget: (_, _, _) => fallback,
         );
       },
@@ -984,15 +1192,40 @@ class _PersonPictureState extends State<_PersonPicture> {
 }
 
 /// The titles behind a number, as a poster grid.
-class _StatsDetailScreen extends StatelessWidget {
-  const _StatsDetailScreen({required this.title, required this.entries, required this.client, required this.onOpen});
+class _StatsDetailScreen extends StatefulWidget {
+  const _StatsDetailScreen({
+    required this.title,
+    required this.entries,
+    required this.client,
+    required this.onOpen,
+    required this.onMenu,
+  });
   final String title;
   final List<_Entry> entries;
   final MediaServerClient? Function(String server) client;
   final Future<void> Function(String server, String? id) onOpen;
+  final _EntryMenu onMenu;
+
+  @override
+  State<_StatsDetailScreen> createState() => _StatsDetailScreenState();
+}
+
+class _StatsDetailScreenState extends State<_StatsDetailScreen> {
+  final _removed = <String>{};
+
+  Future<bool> _menu(_Entry entry, Offset position) async {
+    final excluded = await widget.onMenu(entry, position);
+    if (excluded && mounted && entry.key != null) setState(() => _removed.add(entry.key!));
+    return excluded;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.title;
+    final entries = [
+      for (final e in widget.entries)
+        if (!_removed.contains(e.key)) e,
+    ];
     return Scaffold(
       appBar: AppBar(title: Text('$title · ${entries.length}')),
       body: GridView.builder(
@@ -1004,7 +1237,8 @@ class _StatsDetailScreen extends StatelessWidget {
           childAspectRatio: 0.52,
         ),
         itemCount: entries.length,
-        itemBuilder: (context, i) => _PosterTile(entry: entries[i], client: client, onOpen: onOpen),
+        itemBuilder: (context, i) =>
+            _PosterTile(entry: entries[i], client: widget.client, onOpen: widget.onOpen, onMenu: _menu),
       ),
     );
   }

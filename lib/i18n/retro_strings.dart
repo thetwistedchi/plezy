@@ -115,6 +115,15 @@ class RetroStrings {
   static String get statsTopActor => _t('Top actor', 'Top-Darsteller');
   static String get statsHoursByLibrary => _t('Hours by library', 'Stunden nach Mediathek');
   static String statsEpisodeCount(int n) => _t('$n ep.', '$n Fo.');
+  static String get statsShowCount => _t('Entries per list', 'Einträge pro Liste');
+  static String get statsExclude => _t('Exclude from statistics', 'Aus der Statistik nehmen');
+  static String get statsCountOnce => _t('Count as watched once', 'Nur einmal zählen');
+  static String get statsCountAll => _t('Count every viewing', 'Jede Wiedergabe zählen');
+  static String get statsExcludedTitles => _t('Excluded titles', 'Ausgenommene Titel');
+  static String get statsExcludedNone => _t('No titles are excluded.', 'Keine Titel ausgenommen.');
+  static String get statsCountedOnce => _t('counted once', 'einmal gezählt');
+  static String get statsRestore => _t('Restore', 'Wiederherstellen');
+  static String get statsRestoreAll => _t('Restore all', 'Alle wiederherstellen');
   static String get statsPeopleHint => _t('From films, as far as the server lists them', 'Aus Filmen, soweit der Server sie nennt');
   static String get statsTopShows => _t('Most watched shows', 'Meistgesehene Serien');
   static String get statsRewatched => _t('Watched more than once', 'Mehrfach gesehen');
