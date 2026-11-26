@@ -7,6 +7,8 @@ import '../../media/ids.dart';
 import '../../media/media_server_client.dart';
 import '../../providers/libraries_provider.dart';
 import '../../services/retrowave/upcoming_episodes.dart';
+import '../../services/settings_service.dart';
+import '../../media/media_kind.dart';
 import '../../utils/media_navigation_helper.dart';
 import '../../theme/mono_tokens.dart';
 import '../../utils/provider_extensions.dart';
@@ -30,9 +32,47 @@ class _UpcomingEpisodesScreenState extends State<UpcomingEpisodesScreen> {
     super.initState();
     _service.all.addListener(_changed);
     _service.allProgress.addListener(_changed);
+    _scan();
+  }
+
+  void _scan({bool force = false}) {
     final libraries = context.read<LibrariesProvider>().libraries;
     MediaServerClient? clientFor(String serverId) => context.tryGetMediaClientForServer(ServerId(serverId));
-    unawaited(_service.refreshAll(libraries, clientFor));
+    unawaited(_service.refreshAll(libraries, clientFor, force: force));
+  }
+
+  /// Fork: which servers Upcoming reads.
+  Widget _serverFilter() {
+    final servers = <String, String>{
+      for (final l in context.read<LibrariesProvider>().libraries)
+        if (l.kind == MediaKind.show && l.serverId != null) l.serverId!: l.serverName ?? l.serverId!,
+    };
+    if (servers.length < 2) return const SizedBox.shrink();
+    final svc = SettingsService.instance;
+    final off = svc.read(SettingsService.upcomingServersOff).toSet();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final e in servers.entries)
+            FilterChip(
+              label: Text(e.value),
+              selected: !off.contains(e.key),
+              onSelected: (on) async {
+                final next = {...off};
+                on ? next.remove(e.key) : next.add(e.key);
+                await svc.write(SettingsService.upcomingServersOff, next.toList());
+                if (mounted) {
+                  setState(() {});
+                  _scan(force: true);
+                }
+              },
+            ),
+        ],
+      ),
+    );
   }
 
   void _changed() {
@@ -55,6 +95,7 @@ class _UpcomingEpisodesScreenState extends State<UpcomingEpisodesScreen> {
       body: CustomScrollView(
         slivers: [
           CustomAppBar(title: Text(RetroStrings.upcomingEpisodes)),
+          SliverToBoxAdapter(child: _serverFilter()),
           if (_service.allProgress.value case final progress?)
             SliverToBoxAdapter(
               child: Padding(

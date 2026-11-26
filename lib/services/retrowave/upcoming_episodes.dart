@@ -12,6 +12,7 @@ import '../../media/media_kind.dart';
 import '../../media/media_library.dart';
 import '../../media/media_server_client.dart';
 import '../../utils/app_logger.dart';
+import '../settings_service.dart';
 
 /// One upcoming episode of a show in the library.
 class UpcomingEpisode {
@@ -137,9 +138,18 @@ class UpcomingEpisodes {
   }
 
   Future<void> _scanAll(List<MediaLibrary> libraries, MediaServerClient? Function(String serverId) clientFor) async {
-    final showLibraries = libraries.where((l) => l.kind == MediaKind.show && l.serverId != null).toList();
-    // Libraries not loaded yet: try again on the next call.
-    if (showLibraries.isEmpty) return;
+    final off = SettingsService.instance.read(SettingsService.upcomingServersOff).toSet();
+    final showLibraries = libraries
+        .where((l) => l.kind == MediaKind.show && l.serverId != null && !off.contains(l.serverId))
+        .toList();
+    if (showLibraries.isEmpty) {
+      // Every server switched off: nothing to show.
+      if (libraries.any((l) => l.kind == MediaKind.show)) {
+        all.value = const [];
+        _allAt = DateTime.now();
+      }
+      return;
+    }
     final shows = <MediaItem>[];
     for (final library in showLibraries) {
       final client = clientFor(library.serverId!);

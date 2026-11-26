@@ -882,6 +882,9 @@ class SettingsService extends BaseSharedPreferencesService {
 
   /// Fork: Upcoming episodes row on Home.
   static const upcomingOnHome = BoolPref('retrowave_upcoming_on_home', defaultValue: true);
+  /// Fork: servers left out of Upcoming episodes.
+  static const upcomingServersOff = StringListPref('retrowave_upcoming_servers_off');
+
   /// Fork: card design per Home row, as `rowKey=style` entries.
   static const homeRowCardStyles = StringListPref('retrowave_home_row_card_styles');
   static const startupSection = EnumPref<NavigationTabId>(
@@ -1599,6 +1602,7 @@ class SettingsService extends BaseSharedPreferencesService {
     nightModeAudio,
     upcomingOnHome,
     homeRowCardStyles,
+    upcomingServersOff,
     startupSection,
     showExploreTab,
     alwaysKeepSidebarOpen,
