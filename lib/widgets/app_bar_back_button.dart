@@ -6,6 +6,7 @@ import '../focus/focusable_wrapper.dart';
 import '../i18n/strings.g.dart';
 import 'app_icon.dart';
 import 'mini_player/video_mini_player.dart' show MinimizableRoute;
+import '../utils/platform_detector.dart';
 
 /// Defines the visual style of the back button
 enum BackButtonStyle {
@@ -104,7 +105,11 @@ class _AppBarBackButtonState extends State<AppBarBackButton> {
     };
 
     final semanticLabel = widget.semanticLabel ?? t.common.back;
-    final button = FocusableWrapper(
+    // Fork: on TV the margin sits outside the focus wrapper, so the focus
+    // ring hugs the 40 px circle and stays inside the bar instead of being
+    // cut off at the top edge of the screen.
+    final tv = PlatformDetector.isTV();
+    Widget button = FocusableWrapper(
       focusNode: widget.focusNode,
       semanticLabel: semanticLabel,
       onSelect: _handlePressed,
@@ -125,7 +130,7 @@ class _AppBarBackButtonState extends State<AppBarBackButton> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               curve: Curves.easeInOut,
-              margin: const EdgeInsets.all(8),
+              margin: tv ? EdgeInsets.zero : const EdgeInsets.all(8),
               width: 40,
               height: 40,
               decoration: BoxDecoration(color: _hovered ? hover : base, shape: BoxShape.circle),
@@ -136,6 +141,7 @@ class _AppBarBackButtonState extends State<AppBarBackButton> {
       ),
     );
 
+    if (tv) button = Padding(padding: const EdgeInsets.all(8), child: button);
     return widget.style == BackButtonStyle.circular ? SafeArea(child: button) : button;
   }
 }
