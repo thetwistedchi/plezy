@@ -356,6 +356,35 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                         selected: {_filter},
                         onSelectionChanged: (s) => setState(() => _filter = s.first),
                       ),
+                      // Fork: minimum length, also in the settings.
+                      PopupMenuButton<int>(
+                        tooltip: YtStrings.minLength,
+                        initialValue: _settings.minMinutes,
+                        onSelected: (m) => unawaited(_settings.setMinMinutes(m)),
+                        itemBuilder: (_) => [
+                          for (final m in YouTubeSettings.minMinutesChoices)
+                            CheckedPopupMenuItem(
+                              value: m,
+                              checked: m == _settings.minMinutes,
+                              child: Text(YtStrings.minLengthLabel(m)),
+                            ),
+                        ],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const AppIcon.retro(Symbols.timer_rounded, size: 20),
+                              const SizedBox(width: 6),
+                              Text(
+                                _settings.minMinutes == 0
+                                    ? YtStrings.minLength
+                                    : '≥ ${YtStrings.minLengthLabel(_settings.minMinutes)}',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                       ],
                       IconButton(
                         tooltip: YtStrings.refresh,
