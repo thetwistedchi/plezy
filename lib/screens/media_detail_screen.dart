@@ -1038,7 +1038,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
               if (entry.owned?.id == _metadata.id)
                 // This film: highlighted, nothing to open.
                 Chip(
-                  avatar: AppIcon(Symbols.check_rounded, size: 16, color: theme.colorScheme.primary),
+                  avatar: AppIcon.retro(Symbols.check_rounded, size: 16, color: theme.colorScheme.primary),
                   side: BorderSide(color: theme.colorScheme.primary),
                   label: Text(
                     '${index + 1}. ${entry.part.year != null ? '${entry.part.title} (${entry.part.year})' : entry.part.title}',
@@ -1047,10 +1047,11 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                 )
               else
               ActionChip(
-                avatar: AppIcon(
+                avatar: AppIcon.retro(
                   entry.owned != null ? Symbols.check_rounded : Symbols.remove_rounded,
                   size: 16,
                   color: entry.owned != null ? theme.colorScheme.primary : mono.textMuted,
+                  retroOpacity: entry.owned != null ? null : 0.45,
                 ),
                 label: Text(
                   '${index + 1}. ${entry.part.year != null ? '${entry.part.title} (${entry.part.year})' : entry.part.title}',

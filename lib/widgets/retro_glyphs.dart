@@ -52,6 +52,10 @@ abstract final class RetroGlyphs {
   static const _swapVert = '<path d="M8 19.5V4.5M4.5 8 8 4.5 11.5 8"/>|<path d="M16 4.5v15M12.5 16l3.5 3.5 3.5-3.5"/>';
   static const _bolt = '|<path d="M13 2.5 5.5 13.5h6L10.5 21.5 18.5 10.5h-6Z"/>';
   static const _help = '<circle cx="12" cy="12" r="8.8"/>|<path d="M9.6 9.5a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.8M12 17.2h.01"/>';
+  static const _reader = '<path d="M3 5.5h7a2 2 0 0 1 2 2V20a1.5 1.5 0 0 0-1.5-1.5H3ZM21 5.5h-7a2 2 0 0 0-2 2V20a1.5 1.5 0 0 1 1.5-1.5H21Z"/>|<path d="M5.5 9h4M5.5 12h4M14.5 9h4M14.5 12h4"/>';
+  static const _textSmaller = '<path d="M3 19 8 6l5 13M4.8 14.5h6.4"/>|<path d="M15.5 12h6"/>';
+  static const _textLarger = '<path d="M3 19 8 6l5 13M4.8 14.5h6.4"/>|<path d="M15.5 12h6M18.5 9v6"/>';
+  static const _remove = '|<path d="M6 12h12"/>';
   static const _addChannel = '<rect x="2.5" y="8" width="13.5" height="10.5" rx="2.2"/><path d="M5 5h8.5"/>|<path d="M7.75 10.9v4.7l3.8-2.35Z"/><path d="M20 9.5v7M16.5 13h7"/>';
   static const _history = '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/>|<path d="M4.2 3.8v4.5h4.5M12 8v4.3l3 1.8"/>';
   static const _subscriptions = '<rect x="3" y="9.5" width="18" height="11" rx="2.2"/><path d="M6 3.5h12M4.5 6.5h15"/>|<path d="M10.5 12.5v5l4-2.5Z"/>';
@@ -203,6 +207,10 @@ abstract final class RetroGlyphs {
     Symbols.help_rounded: _help,
     Symbols.subscriptions_rounded: _subscriptions,
     Symbols.add_to_queue_rounded: _addChannel,
+    Symbols.chrome_reader_mode_rounded: _reader,
+    Symbols.text_decrease_rounded: _textSmaller,
+    Symbols.text_increase_rounded: _textLarger,
+    Symbols.remove_rounded: _remove,
     Symbols.history_rounded: _history,
     Symbols.play_circle_rounded: _continueWatching,
     Symbols.new_releases_rounded: _recentlyAdded,

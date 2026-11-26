@@ -178,7 +178,7 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
                             child: Row(
                               children: [
                                 IconButton(
-                                  icon: const AppIcon(Symbols.arrow_back_rounded, color: Colors.white),
+                                  icon: const AppIcon.retro(Symbols.arrow_back_rounded, color: Colors.white, retroSoft: true),
                                   onPressed: () => Navigator.of(context).maybePop(),
                                 ),
                                 Expanded(
@@ -201,19 +201,20 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
                             children: [
                               IconButton(
                                 tooltip: RetroStrings.back10,
-                                icon: const AppIcon(Symbols.replay_10_rounded, color: Colors.white),
+                                icon: const AppIcon.retro(Symbols.replay_10_rounded, color: Colors.white, retroSoft: true),
                                 onPressed: () => _seekBy(-10),
                               ),
                               IconButton(
-                                icon: AppIcon(
+                                icon: AppIcon.retro(
                                   _playing ? Symbols.pause_rounded : Symbols.play_arrow_rounded,
                                   color: Colors.white,
+                                  retroSoft: true,
                                 ),
                                 onPressed: _toggle,
                               ),
                               IconButton(
                                 tooltip: RetroStrings.forward10,
-                                icon: const AppIcon(Symbols.forward_10_rounded, color: Colors.white),
+                                icon: const AppIcon.retro(Symbols.forward_10_rounded, color: Colors.white, retroSoft: true),
                                 onPressed: () => _seekBy(10),
                               ),
                               Text(_fmt(_position), style: const TextStyle(color: Colors.white)),

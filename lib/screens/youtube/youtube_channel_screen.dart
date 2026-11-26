@@ -250,7 +250,7 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
                       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                       expandedAlignment: Alignment.centerLeft,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(mono.radiusMd)),
-                      leading: const AppIcon(Symbols.playlist_play_rounded),
+                      leading: const AppIcon.retro(Symbols.playlist_play_rounded),
                       title: Text('${YtStrings.playlists} (${_playlists.length})', style: theme.textTheme.titleMedium),
                       children: [
                         Wrap(
@@ -259,7 +259,7 @@ class _YouTubeChannelScreenState extends State<YouTubeChannelScreen> {
                           children: [
                             for (final list in _playlists)
                               ActionChip(
-                                avatar: const AppIcon(Symbols.playlist_play_rounded, size: 18),
+                                avatar: const AppIcon.retro(Symbols.playlist_play_rounded, size: 18),
                                 label: Text('${list.title} (${list.count})'),
                                 onPressed: () => unawaited(_playPlaylist(list.id)),
                               ),

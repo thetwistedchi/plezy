@@ -55,12 +55,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
         actions: [
           IconButton(
             tooltip: RetroStrings.smallerText,
-            icon: const AppIcon(Symbols.text_decrease_rounded),
+            icon: const AppIcon.retro(Symbols.text_decrease_rounded),
             onPressed: () => setState(() => _scale = (_scale - 0.1).clamp(0.7, 2.0)),
           ),
           IconButton(
             tooltip: RetroStrings.largerText,
-            icon: const AppIcon(Symbols.text_increase_rounded),
+            icon: const AppIcon.retro(Symbols.text_increase_rounded),
             onPressed: () => setState(() => _scale = (_scale + 0.1).clamp(0.7, 2.0)),
           ),
         ],
