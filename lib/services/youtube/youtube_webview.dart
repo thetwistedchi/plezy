@@ -678,17 +678,35 @@ class YouTubeWebView {
 
   /// Fork: runs [_importScript] in the hidden view. Null when it failed;
   /// the result's `r` says why ("signedout", "error").
-  static Future<Map<String, dynamic>?> _import(String mode) async {
+  static Future<Map<String, dynamic>?> _import(String mode) =>
+      _runHidden(Uri.https('www.youtube.com', '/feed/channels'), _importScript(mode), mode);
+
+  /// Fork: whether the player's YouTube profile is signed in; null while
+  /// unknown. Checked with [checkPlayerSignIn].
+  static final ValueNotifier<bool?> playerSignedIn = ValueNotifier(null);
+
+  static Future<void> checkPlayerSignIn() async {
+    const script = r'''
+(() => {
+  const c = window.ytcfg;
+  if (!c || !c.get || c.get('LOGGED_IN') === undefined) return 'wait';
+  return JSON.stringify({ r: 'ok', in: !!c.get('LOGGED_IN') });
+})()
+''';
+    final r = await _runHidden(Uri.https('www.youtube.com', '/'), script, 'sign-in check');
+    if (r != null && r['r'] == 'ok') playerSignedIn.value = r['in'] == true;
+  }
+
+  static Future<Map<String, dynamic>?> _runHidden(Uri url, String script, String mode) async {
     if (!isSupported) return null;
     return _withHiddenView(() async {
       if (_signInOpen) return null;
       final watch = Stopwatch()..start();
       try {
-        final url = Uri.https('www.youtube.com', '/feed/channels');
         await _channel.invokeMethod<void>('authVisit', {...await _profileArgs(), 'url': url.toString()});
         while (watch.elapsed < const Duration(seconds: 60)) {
           await Future<void>.delayed(const Duration(milliseconds: 700));
-          final raw = await _channel.invokeMethod<String>('authScript', {'script': _importScript(mode)});
+          final raw = await _channel.invokeMethod<String>('authScript', {'script': script});
           final value = raw == null ? null : jsonDecode(raw);
           if (value is! String || value == 'wait') continue;
           final result = jsonDecode(value);

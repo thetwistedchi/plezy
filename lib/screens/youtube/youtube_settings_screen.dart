@@ -71,6 +71,9 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
   void initState() {
     super.initState();
     unawaited(_refreshCacheSize());
+    if (YouTubeWebView.isSupported && YouTubeWebView.playerSignedIn.value == null) {
+      unawaited(YouTubeWebView.checkPlayerSignIn());
+    }
     unawaited(
       _settings.load().then((_) {
         if (!mounted) return;
@@ -550,6 +553,27 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                               leading: AppIcon(Symbols.workspace_premium_rounded, color: accent),
                               title: Text(YtStrings.playerAccount),
                               subtitle: Text(YtStrings.playerAccountSub),
+                              // Fork: whether the player is signed in.
+                              trailing: ValueListenableBuilder<bool?>(
+                                valueListenable: YouTubeWebView.playerSignedIn,
+                                builder: (context, signedIn, _) => Chip(
+                                  avatar: AppIcon(
+                                    signedIn == true
+                                        ? Symbols.check_circle_rounded
+                                        : signedIn == false
+                                        ? Symbols.cancel_rounded
+                                        : Symbols.hourglass_empty_rounded,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    signedIn == true
+                                        ? YtStrings.playerSignedIn
+                                        : signedIn == false
+                                        ? YtStrings.playerSignedOut
+                                        : YtStrings.playerChecking,
+                                  ),
+                                ),
+                              ),
                             ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -558,13 +582,19 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                                 runSpacing: 8,
                                 children: [
                                   FilledButton(
-                                    onPressed: () => Navigator.of(context).push(
-                                      ytRoute<void>('signin', (_) => const YouTubeWebSignInScreen()),
-                                    ),
+                                    onPressed: () async {
+                                      await Navigator.of(context).push(
+                                        ytRoute<void>('signin', (_) => const YouTubeWebSignInScreen()),
+                                      );
+                                      unawaited(YouTubeWebView.checkPlayerSignIn());
+                                    },
                                     child: Text(YtStrings.signInPlayer),
                                   ),
                                   OutlinedButton(
-                                    onPressed: () => unawaited(YouTubeWebSignInScreen.signOut()),
+                                    onPressed: () async {
+                                      await YouTubeWebSignInScreen.signOut();
+                                      YouTubeWebView.playerSignedIn.value = false;
+                                    },
                                     child: Text(YtStrings.signOutPlayer),
                                   ),
                                 ],

@@ -433,6 +433,9 @@ class YtStrings {
       _t('$added of $total videos added to Watch later', '$added von $total Videos zu Später ansehen hinzugefügt');
   static String importBellsDone(int added, int total) =>
       _t('$added of $total bell channels added as favourites', '$added von $total Glocken-Kanälen als Favoriten übernommen');
+  static String get playerSignedIn => _t('Signed in', 'Angemeldet');
+  static String get playerSignedOut => _t('Not signed in', 'Nicht angemeldet');
+  static String get playerChecking => _t('Checking…', 'Prüfe…');
   static String get myPlaylists => _t('My playlists', 'Meine Playlists');
   static String get myPlaylistsEmpty =>
       _t('No playlists, or the account is not signed in.', 'Keine Playlists oder das Konto ist nicht angemeldet.');
