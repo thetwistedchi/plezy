@@ -453,6 +453,8 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
         }
         _recoveries = 0;
         _send({'cmd': 'volume', 'v': _volume});
+        // Fork: a speed remembered for this channel wins over the default.
+        _rate = _settings.channelSpeed(_video.channelId) ?? _settings.playbackSpeed;
         if (_rate != 1) _applyRate(_rate);
         setState(() => _errorCode = null);
       case 'time':
@@ -594,9 +596,24 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
   }
 
   void _setRate(double rate) {
+    // Fork: -1 / -2 from the speed menu remember / forget the current speed
+    // for this video's channel.
+    final channelId = _video.channelId;
+    if (rate == -1) {
+      unawaited(_settings.setChannelSpeed(channelId, _rate));
+      return;
+    }
+    if (rate == -2) {
+      unawaited(_settings.setChannelSpeed(channelId, null));
+      return;
+    }
     _applyRate(rate);
     setState(() => _rate = rate);
-    unawaited(_settings.setPlaybackSpeed(rate));
+    if (_settings.channelSpeed(channelId) != null) {
+      unawaited(_settings.setChannelSpeed(channelId, rate));
+    } else {
+      unawaited(_settings.setPlaybackSpeed(rate));
+    }
   }
 
   void _applyRate(double rate) {
@@ -1785,6 +1802,11 @@ class _YouTubePlayerScreenState extends State<YouTubePlayerScreen> {
                 itemBuilder: (_) => [
                   for (final s in _speeds)
                     PopupMenuItem(value: s, child: Text(s == 1 ? YtStrings.normalSpeed : '${_trim(s)}×')),
+                  const PopupMenuDivider(),
+                  if (_settings.channelSpeed(_video.channelId) == null)
+                    PopupMenuItem(value: -1, child: Text(YtStrings.speedForChannel))
+                  else
+                    PopupMenuItem(value: -2, child: Text(YtStrings.speedForChannelOff)),
                 ],
                 child: SizedBox(
                   width: 48,

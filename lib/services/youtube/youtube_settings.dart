@@ -73,6 +73,11 @@ class YouTubeSettings extends ChangeNotifier {
   static const _kHistorySynced = 'youtube_history_synced';
   static const _kHiddenButtons = 'youtube_hidden_player_buttons';
   static const _kChannelStrip = 'youtube_show_channel_strip';
+  // Fork: feed length filter, "new since last visit" and per-channel speed.
+  static const _kMinMinutes = 'youtube_min_minutes';
+  static const _kFeedSeenAt = 'youtube_feed_seen_at';
+  static const _kChannelSpeeds = 'youtube_channel_speeds';
+  static const List<int> minMinutesChoices = [0, 1, 3, 5, 10, 20];
 
   /// Player controls that can be hidden in the settings, in display order.
   static const List<String> playerButtons = [
@@ -355,6 +360,56 @@ class YouTubeSettings extends ChangeNotifier {
 
   Future<void> setShowShorts(bool value) => _setBool(_kShowShorts, value);
   Future<void> setShowPremieres(bool value) => _setBool(_kShowPremieres, value);
+
+  /// Videos shorter than this many minutes are left out of the feed (0 = all).
+  int get minMinutes => _prefs?.getInt(_kMinMinutes) ?? 0;
+  Future<void> setMinMinutes(int value) async {
+    await load();
+    await _prefs!.setInt(_kMinMinutes, value);
+    notifyListeners();
+  }
+
+  /// When the feed was last looked at; newer videos get a "new" marker.
+  /// [markFeedSeen] is called when the feed is left, so the markers stay
+  /// while the user is still looking at them.
+  DateTime? get feedSeenAt {
+    final ms = _prefs?.getInt(_kFeedSeenAt);
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  Future<void> markFeedSeen() async {
+    await load();
+    await _prefs!.setInt(_kFeedSeenAt, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  /// Speed remembered for a channel, else null (the default speed applies).
+  double? channelSpeed(String channelId) {
+    final raw = _prefs?.getString(_kChannelSpeeds);
+    if (raw == null) return null;
+    try {
+      final value = (jsonDecode(raw) as Map<String, dynamic>)[channelId];
+      return value is num ? value.toDouble() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setChannelSpeed(String channelId, double? speed) async {
+    await load();
+    Map<String, dynamic> map;
+    try {
+      map = jsonDecode(_prefs!.getString(_kChannelSpeeds) ?? '{}') as Map<String, dynamic>;
+    } catch (_) {
+      map = {};
+    }
+    if (speed == null) {
+      map.remove(channelId);
+    } else {
+      map[channelId] = speed;
+    }
+    await _prefs!.setString(_kChannelSpeeds, jsonEncode(map));
+    notifyListeners();
+  }
   Future<void> dismissHiddenBanner() => _setBool(_kBannerDismissed, true);
   Future<void> setSponsorBlockEnabled(bool value) => _setBool(_kSbEnabled, value);
   Future<void> setShowSegmentsOnTimeline(bool value) => _setBool(_kSbShowSegments, value);

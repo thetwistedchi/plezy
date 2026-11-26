@@ -272,6 +272,22 @@ class _YouTubeSettingsScreenState extends State<YouTubeSettingsScreen> {
                             onChanged: (v) => unawaited(_settings.setShowPremieres(v)),
                           ),
                           ListTile(
+                            title: Text(YtStrings.minLength),
+                            subtitle: Text(YtStrings.minLengthSub),
+                            trailing: DropdownButton<int>(
+                              value: YouTubeSettings.minMinutesChoices.contains(_settings.minMinutes)
+                                  ? _settings.minMinutes
+                                  : 0,
+                              items: [
+                                for (final m in YouTubeSettings.minMinutesChoices)
+                                  DropdownMenuItem(value: m, child: Text(YtStrings.minLengthLabel(m))),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) unawaited(_settings.setMinMinutes(v));
+                              },
+                            ),
+                          ),
+                          ListTile(
                             title: Text(YtStrings.defaultSpeed),
                             subtitle: Text(YtStrings.defaultSpeedSub),
                             trailing: DropdownButton<double>(

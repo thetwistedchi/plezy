@@ -67,6 +67,10 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
       }),
     );
     unawaited(_watchlist.load());
+    unawaited(_settings.load().then((_) {
+      _feedSeenAtOnOpen = _settings.feedSeenAt;
+      if (mounted) setState(() {});
+    }));
     YouTubeNotifier.onOpen = (video) {
       if (mounted) unawaited(YouTubePlayerScreen.open(context, [video]));
     };
@@ -74,6 +78,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
 
   @override
   void dispose() {
+    unawaited(_settings.markFeedSeen());
     _settings.removeListener(_onSettingsChanged);
     YouTubeChannels.instance.removeListener(_onSettingsChanged);
     YouTubeChannelGroups.instance.removeListener(_onGroupsChanged);
@@ -701,6 +706,15 @@ class _VideoCard extends StatefulWidget {
   State<_VideoCard> createState() => _VideoCardState();
 }
 
+/// Fork: the time the feed was last left, read once per visit so the
+/// markers don't vanish while the feed is open.
+DateTime? _feedSeenAtOnOpen;
+
+bool _isNewSinceLastVisit(YouTubeVideo video) {
+  final seen = _feedSeenAtOnOpen;
+  return seen != null && !video.isUpcoming && video.publishedAt.isAfter(seen);
+}
+
 class _VideoCardState extends State<_VideoCard> {
   bool _highlighted = false;
 
@@ -771,7 +785,10 @@ class _VideoCardState extends State<_VideoCard> {
                               : CachedNetworkImage(imageUrl: video.thumbnailUrl!, fit: BoxFit.cover),
                         ),
                       if (widget.watched)
-                        Positioned(left: 8, bottom: 10, child: _Chip(text: YtStrings.watched)),
+                        Positioned(left: 8, bottom: 10, child: _Chip(text: YtStrings.watched))
+                      // Fork: published since the feed was last looked at.
+                      else if (_isNewSinceLastVisit(video))
+                        Positioned(left: 8, bottom: 10, child: _Chip(text: YtStrings.newBadge)),
                       if (badge != null) Positioned(right: 8, bottom: 8, child: _Chip(text: badge)),
                       Positioned(
                         left: 6,

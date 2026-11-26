@@ -303,6 +303,12 @@ class YouTubeService extends ChangeNotifier {
     final list = _videos.where((v) {
       if (!settings.showShorts && v.isShort) return false;
       if (!settings.showPremieres && (v.isUpcoming || v.isLive)) return false;
+      // Fork: minimum length (videos without a known length stay).
+      if (settings.minMinutes > 0 &&
+          v.duration > Duration.zero &&
+          v.duration < Duration(minutes: settings.minMinutes)) {
+        return false;
+      }
       if (settings.isHidden(v.id) || settings.isMuted(v.channelId)) return false;
       switch (filter) {
         case YouTubeFilter.all:

@@ -469,6 +469,13 @@ class YtStrings {
   static String get needClientId => _t('Enter the client ID first.', 'Gib zuerst die Client ID ein.');
 
   static String get library => _t('Library', 'Mediathek');
+  static String get minLength => _t('Minimum length', 'Mindestlänge');
+  static String get minLengthSub =>
+      _t('Shorter videos are left out of the feed', 'Kürzere Videos werden im Feed ausgeblendet');
+  static String minLengthLabel(int m) => m == 0 ? _t('Any', 'Alle') : '$m min';
+  static String get newBadge => _t('NEW', 'NEU');
+  static String get speedForChannel => _t('Always for this channel', 'Immer für diesen Kanal');
+  static String get speedForChannelOff => _t('Forget for this channel', 'Für diesen Kanal vergessen');
   static String get showShorts => _t('Show Shorts', 'Shorts anzeigen');
   static String get showPremieres => _t('Show premieres and upcoming', 'Premieren und Geplantes anzeigen');
   static String get hiddenByDefault => _t('Hidden by default', 'Standardmäßig ausgeblendet');
