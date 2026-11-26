@@ -57,7 +57,6 @@ abstract final class RetroGlyphs {
   static const _textLarger = '<path d="M3 19 8 6l5 13M4.8 14.5h6.4"/>|<path d="M15.5 12h6M18.5 9v6"/>';
   static const _remove = '|<path d="M6 12h12"/>';
   static const _addChannel = '<rect x="2.5" y="8" width="13.5" height="10.5" rx="2.2"/><path d="M5 5h8.5"/>|<path d="M7.75 10.9v4.7l3.8-2.35Z"/><path d="M20 9.5v7M16.5 13h7"/>';
-  static const _history = '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/>|<path d="M4.2 3.8v4.5h4.5M12 8v4.3l3 1.8"/>';
   static const _subscriptions = '<rect x="3" y="9.5" width="18" height="11" rx="2.2"/><path d="M6 3.5h12M4.5 6.5h15"/>|<path d="M10.5 12.5v5l4-2.5Z"/>';
   static const _continueWatching = '<path d="M3.5 15a8.5 8.5 0 0 1 17 0M3 18.5h18"/>|<path d="M10.75 9.4v4.6l3.8-2.3Z"/>';
   static const _recentlyAdded = '<path d="M10.5 3.5l1.8 5.2 5.2 1.8-5.2 1.8-1.8 5.2-1.8-5.2-5.2-1.8 5.2-1.8Z"/>|<path d="M18 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z"/>';
@@ -211,7 +210,6 @@ abstract final class RetroGlyphs {
     Symbols.text_decrease_rounded: _textSmaller,
     Symbols.text_increase_rounded: _textLarger,
     Symbols.remove_rounded: _remove,
-    Symbols.history_rounded: _history,
     Symbols.play_circle_rounded: _continueWatching,
     Symbols.new_releases_rounded: _recentlyAdded,
     Symbols.schedule_rounded: _recentlyAdded,

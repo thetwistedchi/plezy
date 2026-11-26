@@ -72,7 +72,7 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
         ? refererUri.origin
         : null;
     await player.open(
-      Media(widget.url, headers: {if (referer != null) 'Referer': referer, if (origin != null) 'Origin': origin}),
+      Media(widget.url, headers: {'Referer': ?referer, 'Origin': ?origin}),
     );
   }
 
