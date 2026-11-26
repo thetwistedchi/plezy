@@ -814,6 +814,8 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                       widget.usesContinueWatchingAction,
                       widget.hidesWatched,
                       infoPills,
+                      // Fork: the card menu names the next row design.
+                      rowStyle,
                     );
 
                     return SizedBox(

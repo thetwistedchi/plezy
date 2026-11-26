@@ -1720,6 +1720,8 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
     // key and index and the card callbacks resolve the live hub when they fire.
     final cardEpoch = (
       _hubKey(hub),
+      // Fork: the card menu names the next row design.
+      widget.cardStyleFor?.call(hub),
       hubIndex,
       leadingCount,
       metrics,
