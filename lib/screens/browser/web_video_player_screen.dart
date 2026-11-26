@@ -72,6 +72,9 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
     final origin = refererUri != null && (refererUri.isScheme('http') || refererUri.isScheme('https'))
         ? refererUri.origin
         : null;
+    // Web streams often start mid-segment: ffmpeg reports the first broken
+    // packets it skips. Only real failures go to the log.
+    await player.setProperty('msg-level', 'all=error,ffmpeg=fatal');
     final uri = Uri.tryParse(widget.url);
     appLogger.d('Browser video: ${uri?.host} ${uri?.pathSegments.lastOrNull ?? ''}');
     await player.open(
