@@ -37,7 +37,7 @@ import '../theme/mono_tokens.dart';
 import '../widgets/backend_badge.dart';
 import '../i18n/retro_strings.dart';
 import '../i18n/strings.g.dart';
-import '../screens/free_on_plex_screen.dart' show FreeOnPlexScreen, hasPlexServer;
+import '../screens/retrowave/watch_stats_screen.dart';
 import '../services/retrowave/virtual_libraries.dart';
 
 enum _LibraryNavSection { visible, hidden }
@@ -481,7 +481,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
   static const _kDownloads = 'downloads';
   static const _kYouTube = 'youtube';
   static const _kBrowser = 'browser';
-  static const _kFreeOnPlex = 'free_on_plex';
+  static const _kStats = 'watch_stats';
   static const _kSettings = 'settings';
   static const _kReconnect = 'reconnect';
   static const _kFullscreen = 'fullscreen';
@@ -698,8 +698,8 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
       _kSearch,
       _kYouTube,
       _kBrowser,
-      _kFreeOnPlex,
       if (_showDownloads) _kDownloads,
+      if (!widget.isOfflineMode) _kStats,
       _kSettings,
       _kReconnect,
       if (hasHiddenLibraries) _kHiddenLibraries,
@@ -790,8 +790,6 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
             _kHiddenLibraries,
             if (_hiddenLibrariesExpanded) ..._focusKeysForLibraryRows(hiddenRows),
           ],
-          // Fork entries; an unmounted one is skipped by the D-pad scan.
-          if (hasPlexServer(context)) _kFreeOnPlex,
         ],
         if (hasLiveTv) 'liveTv',
         if (hasExplore) _kExplore,
@@ -800,6 +798,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
         if (BrowserNative.isSupported) _kBrowser,
       ],
       if (_showDownloads) _kDownloads,
+      if (!widget.isOfflineMode) _kStats,
       _kSettings,
       if (_showFullscreenToggle) _kFullscreen,
     ];
@@ -1136,6 +1135,23 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                                       ),
                                       const SizedBox(height: _itemGap),
                                     ],
+                                    // Fork: watch statistics, above Settings.
+                                    if (!widget.isOfflineMode) ...[
+                                      _buildNavItem(
+                                        icon: Symbols.bar_chart_rounded,
+                                        selectedIcon: Symbols.bar_chart_rounded,
+                                        label: RetroStrings.watchStats,
+                                        isSelected: false,
+                                        onTap: () => unawaited(
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute<void>(builder: (_) => const WatchStatsScreen()),
+                                          ),
+                                        ),
+                                        focusNode: _focusTracker.get(_kStats),
+                                        isCollapsed: isCollapsed,
+                                      ),
+                                      const SizedBox(height: _itemGap),
+                                    ],
                                     _buildNavItem(
                                       icon: Symbols.settings_rounded,
                                       selectedIcon: Symbols.settings_rounded,
@@ -1398,7 +1414,6 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
                     _buildHiddenLibrariesHeader(hiddenLibraryCount, t),
                     if (_hiddenLibrariesExpanded) _buildLibraryGroupedColumn(hiddenRows, t),
                   ],
-                  if (hasPlexServer(context)) _buildFreeOnPlexItem(t),
                 ],
               ],
             ),
@@ -1551,27 +1566,6 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
   }
 
   /// Fork: Plex's free catalog as an entry under the libraries.
-  Widget _buildFreeOnPlexItem(dynamic t) {
-    return NavigationRailItem(
-      icon: Symbols.local_activity_rounded,
-      selectedIcon: Symbols.local_activity_rounded,
-      label: Text(
-        RetroStrings.freeOnPlex,
-        style: TextStyle(fontSize: 13, color: t.textMuted),
-        overflow: .ellipsis,
-      ),
-      isSelected: false,
-      onTap: () => unawaited(
-        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FreeOnPlexScreen())),
-      ),
-      focusNode: _focusTracker.get(_kFreeOnPlex),
-      iconSize: 18,
-      expandedHeight: 40,
-      suppressSelectedBackground: widget.isSidebarFocused,
-      onNavigateRight: widget.onNavigateToContent,
-    );
-  }
-
   Widget _buildLibraryItem(_LibraryNavSection section, MediaLibrary library, dynamic t, {bool showServerName = false}) {
     final isSelected =
         widget.selectedTab == NavigationTabId.libraries && widget.selectedLibraryKey == library.globalKey;

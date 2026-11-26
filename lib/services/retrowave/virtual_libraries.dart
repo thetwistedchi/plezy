@@ -6,18 +6,19 @@ import '../../i18n/retro_strings.dart';
 import '../../media/media_backend.dart';
 import '../../media/media_kind.dart';
 import '../../media/media_library.dart';
+import '../../screens/free_on_plex_screen.dart' show FreeOnPlexScreen;
 import '../../screens/retrowave/upcoming_episodes_screen.dart';
-import '../../screens/retrowave/watch_stats_screen.dart';
+
 
 /// Fork: app pages that sit in the libraries list like a library: Upcoming
-/// episodes and Watch statistics. They can be moved and hidden in Manage
+/// episodes and Free on Plex. They can be moved and hidden in Manage
 /// libraries like real ones; their place among the real libraries is kept
 /// here (the server libraries' own order stays where it was).
 class VirtualLibraries {
   VirtualLibraries._();
 
   static const upcomingId = 'retrowave-upcoming';
-  static const statsId = 'retrowave-stats';
+  static const freeOnPlexId = 'retrowave-freeonplex';
   static const _orderKey = 'retrowave_virtual_library_order';
 
   /// Bumped when the order changes, for the sidebar and Home.
@@ -30,21 +31,23 @@ class VirtualLibraries {
     revision.value++;
   }
 
-  static List<MediaLibrary> get entries => [
+  static List<MediaLibrary> entries({required bool withPlex}) => [
     MediaLibrary(id: upcomingId, backend: MediaBackend.plex, title: RetroStrings.upcomingEpisodes, kind: MediaKind.show),
-    MediaLibrary(id: statsId, backend: MediaBackend.plex, title: RetroStrings.watchStats),
+    if (withPlex) MediaLibrary(id: freeOnPlexId, backend: MediaBackend.plex, title: RetroStrings.freeOnPlex),
   ];
 
   static bool isVirtual(MediaLibrary library) => library.serverId == null && library.id.startsWith('retrowave-');
 
   static IconData iconFor(MediaLibrary library) =>
-      library.id == upcomingId ? Symbols.calendar_month_rounded : Symbols.bar_chart_rounded;
+      library.id == upcomingId ? Symbols.calendar_month_rounded : Symbols.local_activity_rounded;
 
   /// [libraries] with the app pages at their saved places (at the end when
   /// never moved). An app page follows the library it was placed after.
+  /// Free on Plex only with a Plex server among [libraries].
   static List<MediaLibrary> merge(List<MediaLibrary> libraries) {
     final result = List<MediaLibrary>.of(libraries);
-    for (final entry in entries) {
+    final withPlex = libraries.any((l) => l.serverId != null && l.backend == MediaBackend.plex);
+    for (final entry in entries(withPlex: withPlex)) {
       final at = _order.indexOf(entry.globalKey);
       if (at < 0) {
         result.add(entry);
@@ -76,7 +79,7 @@ class VirtualLibraries {
 
   static Future<void> open(BuildContext context, MediaLibrary library) => Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) => library.id == upcomingId ? const UpcomingEpisodesScreen() : const WatchStatsScreen(),
+      builder: (_) => library.id == upcomingId ? const UpcomingEpisodesScreen() : const FreeOnPlexScreen(),
     ),
   );
 }
