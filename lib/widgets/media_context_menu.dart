@@ -631,18 +631,37 @@ class MediaContextMenuState extends State<MediaContextMenu> {
     // For episodes, the show key is grandparentId; for seasons, it's parentId
     final itemSeriesKey = mediaKind == MediaKind.episode ? mediaItem.grandparentId : mediaItem.parentId;
 
+    // Fork: grouped as play, go to, watch state, the user's lists and
+    // downloads, then file and admin tools; deletes always come last.
+    final media = _mediaSourceMenuActions(menu, mediaItem);
+    final playbackSource = [for (final a in media) if (a.value != 'fileinfo') a];
+    final fileInfo = [for (final a in media) if (a.value == 'fileinfo') a];
     return [
       if (mediaKind.isMusic) ..._musicMenuActions(context, menu, mediaItem),
+      // Play
       if (hasActiveProgress)
         _MenuAction(value: 'play_from_beginning', icon: Symbols.replay_rounded, label: t.mediaMenu.playFromBeginning),
+      if (mediaKind == MediaKind.show || mediaKind == MediaKind.season)
+        _MenuAction(value: 'shuffle_play', icon: Symbols.shuffle_rounded, label: t.mediaMenu.shufflePlay),
       // Trailer playback. The detail row may hide its trailer button on small
       // screens, so surface it here whenever the screen wires up onPlayTrailer.
       if (widget.onPlayTrailer != null)
         _MenuAction(value: 'play_trailer', icon: Symbols.theaters_rounded, label: t.tooltips.playTrailer),
+      ...playbackSource,
+      // Go to
+      if (widget.isInContinueWatching && isVideoKind)
+        _MenuAction(value: 'details', icon: Symbols.info_rounded, label: t.mediaMenu.viewDetails),
+      if ((mediaKind == MediaKind.episode || mediaKind == MediaKind.season) &&
+          itemSeriesKey != null &&
+          !widget.isInContinueWatching &&
+          ancestorSeriesKey != itemSeriesKey)
+        _MenuAction(value: 'series', icon: Symbols.tv_rounded, label: t.mediaMenu.goToSeries),
+      // Watch state
       if (!mediaItem.isWatched || isPartiallyWatched || hasActiveProgress)
         _MenuAction(value: 'watch', icon: Symbols.check_circle_outline_rounded, label: t.mediaMenu.markAsWatched),
       if (mediaItem.isWatched || isPartiallyWatched || hasActiveProgress)
         _MenuAction(value: 'unwatch', icon: Symbols.remove_circle_outline_rounded, label: t.mediaMenu.markAsUnwatched),
+      if (isVideoKind) _MenuAction(value: 'rate', icon: Symbols.star_rounded, label: t.mediaMenu.rate),
       // Fork: offered on every server; those that cannot remove it hide it here.
       if (widget.isInContinueWatching && mediaItem.serverId != null)
         _MenuAction(
@@ -650,9 +669,20 @@ class MediaContextMenuState extends State<MediaContextMenu> {
           icon: Symbols.close_rounded,
           label: t.mediaMenu.removeFromContinueWatching,
         ),
-      if (widget.isInContinueWatching && isVideoKind)
-        _MenuAction(value: 'details', icon: Symbols.info_rounded, label: t.mediaMenu.viewDetails),
-      if (isVideoKind) _MenuAction(value: 'rate', icon: Symbols.star_rounded, label: t.mediaMenu.rate),
+      // Lists and downloads
+      ..._libraryMenuActions(context, menu, mediaItem),
+      // Remove from Collection (only when viewing items within a collection).
+      // Every backend implements `removeFromCollection`.
+      if (widget.collectionId != null && menu.canManageCollections)
+        _MenuAction(
+          value: 'remove_from_collection',
+          icon: Symbols.delete_outline_rounded,
+          label: t.collections.removeFromCollection,
+        ),
+      // File and admin tools
+      ...fileInfo,
+      if (canLinkItem(mediaItem))
+        _MenuAction(value: 'show_link', icon: Symbols.link_rounded, label: t.deepLinks.showLink),
       // Edit Metadata — admin-only and backend-capability gated.
       if (menu.canEditMetadata)
         _MenuAction(value: 'edit_metadata', icon: Symbols.edit_rounded, label: t.metadataEdit.editMetadata),
@@ -669,25 +699,6 @@ class MediaContextMenuState extends State<MediaContextMenu> {
         ),
         if (!isUnmatched) _MenuAction(value: 'unmatch', icon: Symbols.link_off_rounded, label: t.matchScreen.unmatch),
       ],
-      // Remove from Collection (only when viewing items within a collection).
-      // Every backend implements `removeFromCollection`.
-      if (widget.collectionId != null && menu.canManageCollections)
-        _MenuAction(
-          value: 'remove_from_collection',
-          icon: Symbols.delete_outline_rounded,
-          label: t.collections.removeFromCollection,
-        ),
-      if ((mediaKind == MediaKind.episode || mediaKind == MediaKind.season) &&
-          itemSeriesKey != null &&
-          !widget.isInContinueWatching &&
-          ancestorSeriesKey != itemSeriesKey)
-        _MenuAction(value: 'series', icon: Symbols.tv_rounded, label: t.mediaMenu.goToSeries),
-      if (mediaKind == MediaKind.show || mediaKind == MediaKind.season)
-        _MenuAction(value: 'shuffle_play', icon: Symbols.shuffle_rounded, label: t.mediaMenu.shufflePlay),
-      if (canLinkItem(mediaItem))
-        _MenuAction(value: 'show_link', icon: Symbols.link_rounded, label: t.deepLinks.showLink),
-      ..._mediaSourceMenuActions(menu, mediaItem),
-      ..._libraryMenuActions(context, menu, mediaItem),
     ];
   }
 
@@ -1079,15 +1090,21 @@ class MediaContextMenuState extends State<MediaContextMenu> {
     t.messages.errorLoadingSeries,
   );
 
+  /// Fork: destructive entries always come last, after a divider, so
+  /// caller extras (like the row design on Home) never follow a delete.
   List<AppMenuEntry<String>> _menuEntries(List<_MenuAction> actions) {
+    AppMenuItem<String> item(_MenuAction action) => AppMenuItem<String>(
+      value: action.value,
+      icon: action.icon,
+      label: action.label,
+      destructive: action.destructive,
+    );
+    final safe = [for (final a in actions) if (!a.destructive) a];
+    final destructive = [for (final a in actions) if (a.destructive) a];
     return [
-      for (final action in actions)
-        AppMenuItem<String>(
-          value: action.value,
-          icon: action.icon,
-          label: action.label,
-          destructive: action.destructive,
-        ),
+      for (final a in safe) item(a),
+      if (safe.isNotEmpty && destructive.isNotEmpty) const AppMenuDivider<String>(),
+      for (final a in destructive) item(a),
     ];
   }
 
