@@ -28,7 +28,12 @@ class RetroStrings {
   };
   static String get libraryLanguages => _t('Languages for this library', 'Sprachen für diese Mediathek');
   static String libraryLanguagesTitle(String library) => _t('Languages: $library', 'Sprachen: $library');
-  static String get profileLanguage => _t('Profile language', 'Sprache des Profils');
+  static String get profileLanguage => _t('None (profile language)', 'Keine (Sprache des Profils)');
+  static String libraryLanguagesActive(String audio, String subtitle) => _t(
+    'Languages: audio $audio · subtitles $subtitle',
+    'Sprachen: Audio $audio · Untertitel $subtitle',
+  );
+  static String get languageDefault => _t('default', 'Standard');
   static String get audioLanguageCode => _t('Audio language', 'Audiosprache');
   static String get subtitleLanguageCode => _t('Subtitle language', 'Untertitelsprache');
   static String get readerView => _t('Reader view', 'Leseansicht');

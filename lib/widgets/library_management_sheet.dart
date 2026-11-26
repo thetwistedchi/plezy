@@ -364,6 +364,17 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
 
   bool _hasLibraryMenu(MediaLibrary library) => widget.getLibraryMenuItems(library).isNotEmpty;
 
+  /// Fork: "Languages: audio Japanese · subtitles German" when the library
+  /// has a language rule.
+  String? _languageRule(MediaLibrary library) {
+    if (VirtualLibraries.isVirtual(library)) return null;
+    final rule = LibraryLanguageRules.forLibrary(library.globalKey);
+    if (rule == null) return null;
+    String name(String? code) =>
+        code == null ? RetroStrings.languageDefault : LanguageCodes.getLanguageName(code) ?? code;
+    return RetroStrings.libraryLanguagesActive(name(rule.audio), name(rule.subtitle));
+  }
+
   /// Fork: Upcoming episodes carries its "Show on Home" switch in the row.
   bool _hasHomeSwitch(MediaLibrary library) => library.id == VirtualLibraries.upcomingId;
 
@@ -398,6 +409,11 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
     super.initState();
     _tempLibraries = VirtualLibraries.merge(widget.librariesProvider.libraries);
     widget.librariesProvider.addListener(_onLibrariesChanged);
+    LibraryLanguageRules.revision.addListener(_onRulesChanged);
+  }
+
+  void _onRulesChanged() {
+    if (mounted) setState(() {});
   }
 
   /// Follows library loads and changes made while the sheet is open, keeping
@@ -417,6 +433,7 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
   @override
   void dispose() {
     widget.librariesProvider.removeListener(_onLibrariesChanged);
+    LibraryLanguageRules.revision.removeListener(_onRulesChanged);
     _listFocusNode.dispose();
     _dialogScrollController.dispose();
     _sheetScrollController.dispose();
@@ -605,10 +622,25 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
             ),
           ],
         ),
-        title: Text(library.title),
-        subtitle: showServerName
+        title: Row(
+          children: [
+            Flexible(child: Text(library.title, overflow: TextOverflow.ellipsis)),
+            // Fork: a language rule is set for this library.
+            if (_languageRule(library) != null) ...[
+              const SizedBox(width: 8),
+              Tooltip(
+                message: _languageRule(library)!,
+                child: AppIcon.retro(Symbols.translate_rounded, size: 18, color: colorScheme.primary),
+              ),
+            ],
+          ],
+        ),
+        subtitle: showServerName || _languageRule(library) != null
             ? Text(
-                library.serverName!,
+                [
+                  if (showServerName) library.serverName!,
+                  ?_languageRule(library),
+                ].join(' · '),
                 style: TextStyle(
                   fontSize: 11,
                   color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),

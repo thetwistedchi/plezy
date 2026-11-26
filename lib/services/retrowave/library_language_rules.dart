@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/global_key_utils.dart';
@@ -52,6 +53,9 @@ class LibraryLanguageRules {
     return _rules[key];
   }
 
+  /// Bumped on every change, for screens that show the rules.
+  static final ValueNotifier<int> revision = ValueNotifier(0);
+
   static Future<void> set(String libraryGlobalKey, {String? audio, String? subtitle}) async {
     await load();
     final a = _clean(audio);
@@ -68,5 +72,6 @@ class LibraryLanguageRules {
         for (final e in _rules.entries) e.key: {'audio': e.value.audio, 'subtitle': e.value.subtitle},
       }),
     );
+    revision.value++;
   }
 }
