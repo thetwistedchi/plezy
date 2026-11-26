@@ -47,6 +47,9 @@ class RetroStrings {
   );
   static String get back10 => _t('Back 10 seconds', '10 Sekunden zurück');
   static String get forward10 => _t('Forward 10 seconds', '10 Sekunden vor');
+  static String filmSeries(String name, int have, int total) =>
+      _t('$name: $have of $total in your library', '$name: $have von $total in deiner Mediathek');
+  static String get notInLibrary => _t('Not in your library', 'Nicht in deiner Mediathek');
   static String get nightMode => _t('Night mode', 'Nachtmodus');
   static String get nightModeDescription => _t(
     'Quieter loud scenes and clearer dialogue at low volume',

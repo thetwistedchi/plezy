@@ -125,6 +125,7 @@ import '../providers/account_preferences_controller.dart';
 import '../services/playback_track_preview.dart';
 import '../utils/error_message_utils.dart';
 import '../theme/retrowave_colors.dart';
+import '../services/retrowave/film_series.dart';
 
 part 'media_detail/action_buttons.dart';
 part 'media_detail/playback_tracks_status.dart';
@@ -966,6 +967,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     }
     if (!_canUseDetail || !ids.hasCatalogIds) return;
     setState(() => _externalIds = ids);
+    if (_metadata.isMovie && ids.imdb != null) unawaited(_loadFilmSeries(client, ids.imdb!));
     final fetched = await TitleLinksService.instance.withFetchedScores(
       _titleLinksFor(_metadata),
       kind: _metadata.kind,
@@ -980,6 +982,79 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
     RatingMedianCache.instance.storeFromDetail(
       _metadata,
       ratingMedian([for (final link in _titleLinksFor(_metadata)) ?link.rating]),
+    );
+  }
+
+  /// Fork: the film series this movie belongs to, with the parts found in
+  /// the library (owned) and the rest (missing).
+  ({String name, List<({FilmSeriesPart part, MediaItem? owned})> parts})? _filmSeries;
+
+  Future<void> _loadFilmSeries(MediaServerClient client, String imdb) async {
+    final series = await FilmSeries.instance.lookup(imdb);
+    if (series == null || !mounted) return;
+    final parts = series.parts.take(20).toList();
+    final owned = await Future.wait([
+      for (final part in parts)
+        part.imdb == _externalIds?.imdb
+            ? Future<MediaItem?>.value(_metadata)
+            : part.imdb == null
+            ? Future<MediaItem?>.value()
+            : client
+                  .findByExternalIds(
+                    ExternalIds(imdb: part.imdb),
+                    kind: MediaKind.movie,
+                    titles: [part.title],
+                    year: part.year,
+                  )
+                  .then((items) => items?.firstOrNull, onError: (Object _) => null),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _filmSeries = (
+        name: series.name,
+        parts: [for (var i = 0; i < parts.length; i++) (part: parts[i], owned: owned[i])],
+      );
+    });
+  }
+
+  Widget _buildFilmSeries() {
+    final series = _filmSeries!;
+    final theme = Theme.of(context);
+    final mono = tokens(context);
+    final have = series.parts.where((p) => p.owned != null).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          RetroStrings.filmSeries(series.name, have, series.parts.length),
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final entry in series.parts)
+              ActionChip(
+                avatar: AppIcon(
+                  entry.owned != null ? Symbols.check_rounded : Symbols.remove_rounded,
+                  size: 16,
+                  color: entry.owned != null ? theme.colorScheme.primary : mono.textMuted,
+                ),
+                label: Text(
+                  entry.part.year != null ? '${entry.part.title} (${entry.part.year})' : entry.part.title,
+                  style: TextStyle(color: entry.owned != null ? null : mono.textMuted),
+                ),
+                tooltip: entry.owned != null ? null : RetroStrings.notInLibrary,
+                onPressed: entry.owned == null || entry.owned!.id == _metadata.id
+                    ? null
+                    : () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => MediaDetailScreen(metadata: entry.owned!)),
+                      ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -3854,6 +3929,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                                 _buildCreditsLine(metadata),
                                 const SizedBox(height: 20),
                               ],
+                              if (_filmSeries != null) ...[_buildFilmSeries(), const SizedBox(height: 20)],
 
                               // Seasons / Episodes (for TV shows and seasons)
                               if (isShow && !_showEpisodesDirectly) ...[
