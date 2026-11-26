@@ -38,6 +38,8 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 **Details and ratings**
 - A **Ratings & links** row on every movie and show (Letterboxd, Trakt, IMDb, Rotten Tomatoes, TMDB, Metacritic, MyAnimeList) and a **rating median** on posters, with a side-by-side breakdown of every score. Optional MDBList and OMDb keys add more sources.
 - **Similar in your library**: titles from the same library that share genres.
+- **Film series**: every part of a movie's series, with the ones missing from your library marked.
+- **Languages per library**, for example Japanese audio with German subtitles for anime.
 - Quality, HDR and audio language pills on posters, studio, producer and director on the details page, a larger **Play** button, and on desktop a poster preview on hover.
 - **Audio and subtitle pickers** below Play, with a description of each track.
 - **German voice actors** from the Deutsche Synchronkartei under the cast while German audio is selected (can be turned off).
@@ -52,21 +54,26 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - A **mini player** bar (Plex and YouTube) to keep watching while browsing; Back can minimize instead of closing.
 - **HDR brightness boost** and a brighter HDR tone curve (Windows), click to pause, and badges for the playing quality and audio format.
 - Calm neon icons for all player controls, in the app's player and the YouTube player alike.
+- **Night mode** audio, skipping of Jellyfin recap, preview and ad segments, and subtitle search on Jellyfin and Emby.
 
 **Free on plex.tv**
 - Plex's free, ad-supported movies and shows as their own section, with search, the Plex watchlist, continue watching and a season and episode list. Titles play in Plex Web.
 
 **Browser** (Windows; Android as a beta)
 - Tabs, bookmarks, private tabs, a pop-up blocker, HTTPS upgrades, tracking prevention, Dark Reader and an ad blocker (Brave's adblock-rust with uBlock Origin's lists).
+- Reader view, playing a page's video in the app's player, and importing bookmarks from other browsers.
 
 **YouTube** (Windows only)
-- A tab with the newest videos of the channels you follow, channel groups, **Continue where you left off**, search, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
+- A tab with the newest videos of the channels you follow, channel groups, **Continue where you left off**, search, a minimum length filter, NEW markers, speed per channel, channel playlists, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
 
 **Android and Android TV**
 - Free on plex.tv plays full screen in the app, controlled with the remote.
 - The browser works with the remote: it selects links and buttons, offers an optional pointer, and a phone can be used as remote through a QR code.
 - Holding Back goes to the home screen, and **Remote shortcuts** under Settings lists what each button does.
 - No YouTube tab.
+
+**Your viewing** (Settings)
+- **Upcoming episodes** of the shows you are watching, **watch statistics** and a **Trakt history import**.
 
 **General**
 - Press **?** for all keyboard shortcuts.
