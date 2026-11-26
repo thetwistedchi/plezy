@@ -87,7 +87,7 @@ class _LibraryUpcomingTabState extends BaseLibraryTabState<MediaItem, LibraryUpc
     });
     await UpcomingEpisodes.instance.forShows(
       shows,
-      (show) => context.tryGetMediaClientForServer(serverIdOrNull(show.serverId)),
+      (show) => mounted ? context.tryGetMediaClientForServer(serverIdOrNull(show.serverId)) : null,
       isCancelled: () => !mounted || id != _scanId,
       onProgress: (soFar, done) {
         if (!mounted || id != _scanId) return;

@@ -146,14 +146,32 @@ class UpcomingEpisodes {
   }) {
     final at = _allAt;
     if (!force && at != null && DateTime.now().difference(at) < maxAge) return Future.value();
-    return _allRunning ??= _scanAll(libraries, clientFor).whenComplete(() => _allRunning = null);
+    if (!force && _allRunning != null) return _allRunning!;
+    // A forced scan (other servers picked) replaces a running one.
+    final generation = ++_generation;
+    final scan = _scanAll(libraries, clientFor, () => generation != _generation);
+    _allRunning = scan;
+    return scan.whenComplete(() {
+      if (generation == _generation) _allRunning = null;
+    });
   }
 
-  Future<void> _scanAll(List<MediaLibrary> libraries, MediaServerClient? Function(String serverId) clientFor) async {
+  int _generation = 0;
+
+  Future<void> _scanAll(
+    List<MediaLibrary> libraries,
+    MediaServerClient? Function(String serverId) clientFor,
+    bool Function() isStale,
+  ) async {
     final off = SettingsService.instance.read(SettingsService.upcomingServersOff).toSet();
     final showLibraries = libraries
         .where((l) => l.kind == MediaKind.show && l.serverId != null && !off.contains(l.serverId))
         .toList();
+    // Clients are looked up now: the caller's context may be gone (Home
+    // rebuilt, screen closed) long before the scan ends.
+    final clients = <String, MediaServerClient?>{
+      for (final l in showLibraries) l.serverId!: clientFor(l.serverId!),
+    };
     if (showLibraries.isEmpty) {
       // Every server switched off: nothing to show.
       if (libraries.any((l) => l.kind == MediaKind.show)) {
@@ -164,7 +182,8 @@ class UpcomingEpisodes {
     }
     final shows = <MediaItem>[];
     for (final library in showLibraries) {
-      final client = clientFor(library.serverId!);
+      if (isStale()) return;
+      final client = clients[library.serverId!];
       if (client == null) continue;
       try {
         final page = await client.fetchLibraryPagedContent(
@@ -180,14 +199,18 @@ class UpcomingEpisodes {
     // Shows being watched first, so the likely ones turn up early.
     shows.sort((a, b) => ((b.viewedLeafCount ?? 0) > 0 ? 1 : 0).compareTo((a.viewedLeafCount ?? 0) > 0 ? 1 : 0));
     allProgress.value = (done: 0, total: shows.length);
+    if (isStale()) return;
     final results = await forShows(
       shows,
-      (show) => show.serverId == null ? null : clientFor(show.serverId!),
+      (show) => clients[show.serverId],
+      isCancelled: isStale,
       onProgress: (soFar, done) {
+        if (isStale()) return;
         allProgress.value = (done: done, total: shows.length);
         if (all.value == null || soFar.length != (all.value?.length ?? 0)) all.value = soFar;
       },
     );
+    if (isStale()) return;
     all.value = results;
     allProgress.value = null;
     _allAt = DateTime.now();
