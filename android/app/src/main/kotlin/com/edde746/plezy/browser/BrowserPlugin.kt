@@ -539,7 +539,9 @@ document.addEventListener(t,e=>{if(muted&&t!=='volumechange'&&e.target&&'muted' 
     val manifest = path.endsWith(".m3u8") || path.endsWith(".mpd")
     val file = path.endsWith(".mp4") || path.endsWith(".webm") || path.endsWith(".mkv") || path.endsWith(".m4v")
     if (!manifest && !file) return
-    if (url == tab.mediaUrl || (tab.mediaIsManifest && !manifest)) return
+    // The first manifest is usually the master playlist with every quality;
+    // later ones are variant or audio-only renditions (audio without picture).
+    if (url == tab.mediaUrl || tab.mediaIsManifest) return
     tab.mediaUrl = url
     tab.mediaIsManifest = manifest
     val referer = request.requestHeaders.entries.firstOrNull { it.key.equals("Referer", true) }?.value ?: ""

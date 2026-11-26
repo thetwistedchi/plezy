@@ -422,7 +422,9 @@ void BrowserWebPlugin::NoteMedia(BrowserTab& tab, const std::wstring& uri, ICore
   const bool manifest = ends(L".m3u8") || ends(L".mpd");
   const bool file = ends(L".mp4") || ends(L".webm") || ends(L".mkv") || ends(L".m4v");
   if (!manifest && !file) return;
-  if (uri == tab.media_url || (tab.media_is_manifest && !manifest)) return;
+  // The first manifest is usually the master playlist with every quality;
+  // later ones are variant or audio-only renditions (audio without picture).
+  if (uri == tab.media_url || tab.media_is_manifest) return;
   tab.media_url = uri;
   tab.media_is_manifest = manifest;
   std::wstring referer;

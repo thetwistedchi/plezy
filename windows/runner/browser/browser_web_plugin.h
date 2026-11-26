@@ -74,7 +74,7 @@ struct BrowserTab {
   // Id of the installed dark mode script, to remove it again.
   std::wstring dark_script_id;
   // Fork: the last video stream the page (or one of its frames) loaded, for
-  // "Play in app player". A manifest (HLS/DASH) is kept over plain files.
+  // "Play in app player". The first manifest (HLS/DASH) is kept.
   std::wstring media_url;
   bool media_is_manifest = false;
 };

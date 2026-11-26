@@ -7,6 +7,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../../i18n/retro_strings.dart';
 import '../../mpv/mpv.dart';
 import '../../services/playback_coordinator.dart';
+import '../../utils/app_logger.dart';
 import '../../services/youtube/youtube_webview.dart';
 import '../../widgets/app_icon.dart';
 
@@ -71,6 +72,8 @@ class _WebVideoPlayerScreenState extends State<WebVideoPlayerScreen> {
     final origin = refererUri != null && (refererUri.isScheme('http') || refererUri.isScheme('https'))
         ? refererUri.origin
         : null;
+    final uri = Uri.tryParse(widget.url);
+    appLogger.d('Browser video: ${uri?.host} ${uri?.pathSegments.lastOrNull ?? ''}');
     await player.open(
       Media(widget.url, headers: {'Referer': ?referer, 'Origin': ?origin}),
     );
