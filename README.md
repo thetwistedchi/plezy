@@ -8,7 +8,7 @@
 
 An unofficial fork of [Plezy](https://github.com/edde746/plezy) for Windows and Android / Android TV. It keeps everything Plezy does and adds a retrowave look, ratings from the major movie sites, Plex's free movies and shows, a YouTube tab and a built-in browser.
 
-Current version: **1.1.5**. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
+Current version: **1.2**. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
 
 ## Download
 
