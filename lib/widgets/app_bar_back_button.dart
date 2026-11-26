@@ -4,9 +4,9 @@ import 'package:material_symbols_icons/symbols.dart';
 
 import '../focus/focusable_wrapper.dart';
 import '../i18n/strings.g.dart';
+import '../utils/platform_detector.dart';
 import 'app_icon.dart';
 import 'mini_player/video_mini_player.dart' show MinimizableRoute;
-import '../utils/platform_detector.dart';
 
 /// Defines the visual style of the back button
 enum BackButtonStyle {
