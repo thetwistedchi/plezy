@@ -1,0 +1,25 @@
+name: Analyze (Plezy Retrowave)
+
+# Started by hand: flutter analyze on the retrowave branch, so problems show
+# up before the release script runs.
+on:
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.1"
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: analyze
+          path: analyze.txt
