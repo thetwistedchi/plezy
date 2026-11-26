@@ -27,6 +27,8 @@ import 'app_menu.dart';
 import 'bottom_sheet_page_scaffold.dart';
 import 'media_context_menu.dart' show isAdminActionAllowedForMediaItem;
 import 'overlay_sheet.dart';
+import '../services/retrowave/library_language_rules.dart';
+import '../i18n/retro_strings.dart';
 
 class ContextMenuItem {
   final String value;
@@ -157,8 +159,15 @@ List<ContextMenuItem> _getLibraryMenuItems(MediaLibrary library) {
   // Analyze / empty trash hit Plex-only endpoints, so backend capability
   // gating keeps them out of MediaBrowser menus. The library-qualified
   // resolver independently requires the exact owning Plex server.
-  if (library.backend != MediaBackend.plex) return [scan, refresh];
+  // Fork: audio and subtitle languages for this library.
+  final languages = ContextMenuItem(
+    value: 'languages',
+    icon: Symbols.translate_rounded,
+    label: RetroStrings.libraryLanguages,
+  );
+  if (library.backend != MediaBackend.plex) return [languages, scan, refresh];
   return [
+    languages,
     scan,
     ContextMenuItem(
       value: 'analyze',
@@ -199,6 +208,9 @@ Future<void> _handleLibraryMenuAction(BuildContext context, String action, Media
   }
 
   switch (action) {
+    case 'languages':
+      unawaited(_editLibraryLanguages(context, library));
+      break;
     case 'scan':
       unawaited(_scanLibrary(context, library));
       break;
@@ -606,4 +618,48 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
       ),
     );
   }
+}
+
+
+/// Fork: asks for the audio and subtitle language of a library (ISO codes
+/// such as "ja" or "de"; empty = the profile's languages).
+Future<void> _editLibraryLanguages(BuildContext context, MediaLibrary library) async {
+  await LibraryLanguageRules.load();
+  if (!context.mounted) return;
+  final rule = LibraryLanguageRules.forLibrary(library.globalKey);
+  final audio = TextEditingController(text: rule?.audio ?? '');
+  final subtitle = TextEditingController(text: rule?.subtitle ?? '');
+  final saved = await showScopedDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(RetroStrings.libraryLanguagesTitle(library.title)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(RetroStrings.libraryLanguagesHelp),
+          const SizedBox(height: 12),
+          TextField(
+            controller: audio,
+            autofocus: true,
+            decoration: InputDecoration(labelText: RetroStrings.audioLanguageCode, hintText: 'ja'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: subtitle,
+            decoration: InputDecoration(labelText: RetroStrings.subtitleLanguageCode, hintText: 'de'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.common.cancel)),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t.common.save)),
+      ],
+    ),
+  );
+  if (saved == true) {
+    await LibraryLanguageRules.set(library.globalKey, audio: audio.text, subtitle: subtitle.text);
+  }
+  audio.dispose();
+  subtitle.dispose();
 }

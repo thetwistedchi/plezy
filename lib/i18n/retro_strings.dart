@@ -26,6 +26,14 @@ class RetroStrings {
     'commercial' => _t('Skip ad', 'Werbung überspringen'),
     _ => null,
   };
+  static String get libraryLanguages => _t('Languages for this library', 'Sprachen für diese Mediathek');
+  static String libraryLanguagesTitle(String library) => _t('Languages: $library', 'Sprachen: $library');
+  static String get libraryLanguagesHelp => _t(
+    'Two-letter language codes, for example ja, de or en. Leave a field empty to use your profile language.',
+    'Sprachcodes mit zwei Buchstaben, z. B. ja, de oder en. Leer lassen = Sprache des Profils.',
+  );
+  static String get audioLanguageCode => _t('Audio language', 'Audiosprache');
+  static String get subtitleLanguageCode => _t('Subtitle language', 'Untertitelsprache');
   static String get nightMode => _t('Night mode', 'Nachtmodus');
   static String get nightModeDescription => _t(
     'Quieter loud scenes and clearer dialogue at low volume',

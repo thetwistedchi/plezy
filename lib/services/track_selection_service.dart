@@ -11,6 +11,7 @@ import '../utils/app_logger.dart';
 import '../utils/language_codes.dart';
 import '../utils/subtitle_forced_semantics.dart';
 import 'subtitle_preference.dart';
+import 'retrowave/library_language_rules.dart';
 
 // These functions match MPV tracks to Plex tracks by properties (language,
 // codec, title, etc.) instead of list index, since the two may be ordered
@@ -695,7 +696,11 @@ class TrackSelectionService {
   TrackSelectionService({this.player, this.profileSettings, required this.metadata, this.plexMediaInfo});
 
   /// The profile's preferred language for one track kind, or null when unset.
-  static String? _preferredLanguage(MediaServerUserProfile profile, {required bool isAudio}) {
+  String? _preferredLanguage(MediaServerUserProfile profile, {required bool isAudio}) {
+    // Fork: a language rule of the title's library wins over the profile.
+    final rule = LibraryLanguageRules.forItem(serverId: metadata.serverId, libraryId: metadata.libraryId);
+    final ruled = isAudio ? rule?.audio : rule?.subtitle;
+    if (ruled != null) return ruled;
     final primary = isAudio ? profile.defaultAudioLanguage : profile.defaultSubtitleLanguage;
     return primary == null || primary.isEmpty ? null : primary;
   }
@@ -752,7 +757,10 @@ class TrackSelectionService {
   }
 
   AudioTrack? findAudioTrackByProfile(List<AudioTrack> availableTracks, MediaServerUserProfile profile) {
-    if (availableTracks.isEmpty || !profile.autoSelectAudio) return null;
+    if (availableTracks.isEmpty) return null;
+    final hasRule =
+        LibraryLanguageRules.forItem(serverId: metadata.serverId, libraryId: metadata.libraryId)?.audio != null;
+    if (!profile.autoSelectAudio && !hasRule) return null;
     final preferredLanguage = _preferredLanguage(profile, isAudio: true);
     if (preferredLanguage == null) return null;
     return _findTrackByPreferredLanguage<AudioTrack>(availableTracks, preferredLanguage, (t) => t.language);
