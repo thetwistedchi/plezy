@@ -184,13 +184,25 @@ class TvBrowseRailLayout {
     // with the rest of the rail metrics (#2226).
     final itemGap = fullCardLayout ? fullCardItemGapForScale(scale) : gridSpacing.gridGap * scale;
     final isPersonHub = TvBrowseRailLayout.isPersonHub(hub);
+    // Fork: the Upcoming row has its own card design (wide: backdrop art,
+    // small: smaller posters).
+    final upcomingStyle = hub.identifier == UpcomingEpisodes.hubIdentifier
+        ? SettingsService.instance.read(SettingsService.upcomingCardStyle)
+        : null;
+    final upcomingWide = upcomingStyle == UpcomingCardStyle.wide;
+    if (upcomingStyle == UpcomingCardStyle.small) {
+      density = (density - 2).clamp(LibraryDensity.min, LibraryDensity.max).toInt();
+    }
+    if (upcomingWide) episodePosterMode = EpisodePosterMode.episodeThumbnail;
     final emptyEpisodeThumbnailHub =
         hub.items.isEmpty && hub.type == 'episode' && episodePosterMode == EpisodePosterMode.episodeThumbnail;
     final hasWide =
-        !isPersonHub &&
-        (emptyEpisodeThumbnailHub || hub.items.any((item) => item.usesWideAspectRatio(episodePosterMode)));
-    final hasTall = !isPersonHub && hub.items.any((item) => !item.usesWideAspectRatio(episodePosterMode));
-    final isMixedHub = hasWide && hasTall;
+        upcomingWide ||
+        (!isPersonHub &&
+            (emptyEpisodeThumbnailHub || hub.items.any((item) => item.usesWideAspectRatio(episodePosterMode))));
+    final hasTall =
+        !upcomingWide && !isPersonHub && hub.items.any((item) => !item.usesWideAspectRatio(episodePosterMode));
+    final isMixedHub = upcomingWide || (hasWide && hasTall);
     final useWideLayout = hasWide && (!hasTall || episodePosterMode == EpisodePosterMode.episodeThumbnail);
     // Music hubs render square album/artist artwork (person hubs are already square).
     final isSquareHub =
@@ -1252,6 +1264,7 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
       prefs: const [
         SettingsService.libraryDensity,
         SettingsService.episodePosterMode,
+        SettingsService.upcomingCardStyle,
         SettingsService.tvFullCardLayout,
         SettingsService.gridSpacing,
       ],
@@ -1271,7 +1284,14 @@ class TvBrowseRailState extends State<TvBrowseRail> with TickerProviderStateMixi
           final episodePosterMode = svc.read(SettingsService.episodePosterMode);
           final fullCardLayout = svc.read(SettingsService.tvFullCardLayout);
           final gridSpacing = svc.read(SettingsService.gridSpacing);
-          final modes = [for (final hub in widget.hubs) widget.episodePosterModeForHub?.call(hub) ?? episodePosterMode];
+          // Fork: a wide Upcoming row shows backdrop art (thumbnail mode).
+          final upcomingWide = svc.read(SettingsService.upcomingCardStyle) == UpcomingCardStyle.wide;
+          final modes = [
+            for (final hub in widget.hubs)
+              upcomingWide && hub.identifier == UpcomingEpisodes.hubIdentifier
+                  ? EpisodePosterMode.episodeThumbnail
+                  : widget.episodePosterModeForHub?.call(hub) ?? episodePosterMode,
+          ];
           final wideScales = [
             for (final hub in widget.hubs) widget.widePosterScaleForHub?.call(hub) ?? widget.widePosterScale,
           ];

@@ -4,22 +4,17 @@ import 'package:provider/provider.dart';
 
 import '../../i18n/retro_strings.dart';
 import '../../media/ids.dart';
-import '../../media/media_item.dart';
-import '../../media/media_item_types.dart';
 import '../../media/media_server_client.dart';
+import '../../providers/libraries_provider.dart';
 import '../../services/retrowave/upcoming_episodes.dart';
-import '../../services/settings_service.dart';
 import '../../utils/media_navigation_helper.dart';
-import '../../widgets/settings_builder.dart';
-import '../../providers/discover_provider.dart';
 import '../../theme/mono_tokens.dart';
-import '../../utils/app_logger.dart';
 import '../../utils/provider_extensions.dart';
 import '../../widgets/desktop_app_bar.dart';
 
-/// Fork: the next episodes of the shows you are watching (the shows on
-/// Continue Watching / Next Up), with air dates from TVmaze. No account or
-/// key needed.
+/// Fork: the next episodes of every show in your TV libraries, with air
+/// dates from TVmaze. No account or key needed. Opened from the libraries
+/// list; the same scan feeds the Upcoming row on Home.
 class UpcomingEpisodesScreen extends StatefulWidget {
   const UpcomingEpisodesScreen({super.key});
 
@@ -28,69 +23,55 @@ class UpcomingEpisodesScreen extends StatefulWidget {
 }
 
 class _UpcomingEpisodesScreenState extends State<UpcomingEpisodesScreen> {
-  List<UpcomingEpisode>? _items;
-  int _shows = 0;
+  final _service = UpcomingEpisodes.instance;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    _service.all.addListener(_changed);
+    _service.allProgress.addListener(_changed);
+    final libraries = context.read<LibrariesProvider>().libraries;
+    MediaServerClient? clientFor(String serverId) => context.tryGetMediaClientForServer(ServerId(serverId));
+    unawaited(_service.refreshAll(libraries, clientFor));
   }
 
-  Future<void> _load() async {
-    final onDeck = context.read<DiscoverProvider>().onDeck;
-    MediaServerClient? clientFor(String? serverId) => context.tryGetMediaClientForServer(serverIdOrNull(serverId));
-    final shows = <String, MediaItem>{};
-    for (final item in onDeck) {
-      final showId = item.grandparentId ?? (item.isShow ? item.id : null);
-      final serverId = item.serverId;
-      if (showId == null || serverId == null || shows.containsKey('$serverId:$showId')) continue;
-      try {
-        final client = clientFor(serverId);
-        final show = item.isShow ? item : await client?.fetchItem(showId);
-        if (show != null) shows['$serverId:$showId'] = show;
-      } catch (e) {
-        appLogger.d('Upcoming: show $showId failed', error: e);
-      }
-      if (!mounted) return;
-    }
-    _shows = shows.length;
-    final results = await UpcomingEpisodes.instance.forShows(
-      shows.values.toList(),
-      (show) => clientFor(show.serverId),
-      isCancelled: () => !mounted,
-    );
-    if (mounted) setState(() => _items = results);
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _service.all.removeListener(_changed);
+    _service.allProgress.removeListener(_changed);
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final mono = tokens(context);
     final theme = Theme.of(context);
-    final items = _items;
+    final items = _service.all.value;
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           CustomAppBar(title: Text(RetroStrings.upcomingEpisodes)),
-          SliverToBoxAdapter(
-            child: SettingsBuilder(
-              prefs: const [SettingsService.upcomingOnHome],
-              builder: (context) => SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-                title: Text(RetroStrings.upcomingOnHome),
-                subtitle: Text(RetroStrings.upcomingOnHomeDescription),
-                value: SettingsService.instance.read(SettingsService.upcomingOnHome),
-                onChanged: (v) => unawaited(SettingsService.instance.write(SettingsService.upcomingOnHome, v)),
+          if (_service.allProgress.value case final progress?)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 4),
+                child: Text(
+                  RetroStrings.upcomingChecking(progress.done, progress.total),
+                  style: TextStyle(color: mono.textMuted),
+                ),
               ),
             ),
-          ),
           if (items == null)
             const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
           else if (items.isEmpty)
             SliverFillRemaining(
               child: Center(
                 child: Text(
-                  _shows == 0 ? RetroStrings.upcomingNoShows : RetroStrings.upcomingNone,
+                  RetroStrings.upcomingNone,
                   style: TextStyle(color: mono.textMuted),
                 ),
               ),

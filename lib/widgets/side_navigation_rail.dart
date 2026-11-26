@@ -38,6 +38,7 @@ import '../widgets/backend_badge.dart';
 import '../i18n/retro_strings.dart';
 import '../i18n/strings.g.dart';
 import '../screens/free_on_plex_screen.dart' show FreeOnPlexScreen, hasPlexServer;
+import '../services/retrowave/virtual_libraries.dart';
 
 enum _LibraryNavSection { visible, hidden }
 
@@ -882,7 +883,8 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
     final hiddenLibrariesProvider = context.watch<HiddenLibrariesProvider>();
     final hiddenKeys = hiddenLibrariesProvider.hiddenLibraryKeys;
 
-    final allLibraries = librariesProvider.libraries;
+    // Fork: app pages (Upcoming episodes, statistics) among the libraries.
+    final allLibraries = VirtualLibraries.merge(librariesProvider.libraries);
     final visibleLibraries = <MediaLibrary>[];
     final hiddenLibraries = <MediaLibrary>[];
     final serverIds = <String>{};
@@ -915,6 +917,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
     return ListenableBuilder(
       listenable: Listenable.merge([
         FullscreenStateManager(),
+        VirtualLibraries.revision,
         SettingsService.instance.listenable(SettingsService.groupLibrariesByServer),
         SettingsService.instance.listenable(SettingsService.showExploreTab),
         SettingsService.instance.listenable(SettingsService.librariesSectionExpanded),
@@ -1575,9 +1578,11 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
     final focusKey = _libraryItemFocusKey(section, library);
     final focusNode = _focusTracker.get(focusKey);
 
+    final virtual = VirtualLibraries.isVirtual(library);
+    final icon = virtual ? VirtualLibraries.iconFor(library) : ContentTypeHelper.getLibraryIcon(library.kind.id);
     return NavigationRailItem(
-      icon: ContentTypeHelper.getLibraryIcon(library.kind.id),
-      selectedIcon: ContentTypeHelper.getLibraryIcon(library.kind.id),
+      icon: icon,
+      selectedIcon: icon,
       label: Column(
         crossAxisAlignment: .start,
         mainAxisSize: .min,
@@ -1600,7 +1605,7 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
         ],
       ),
       isSelected: isSelected,
-      onTap: () => widget.onLibrarySelected(library.globalKey),
+      onTap: () => virtual ? unawaited(VirtualLibraries.open(context, library)) : widget.onLibrarySelected(library.globalKey),
       focusNode: focusNode,
       iconSize: 18,
       expandedHeight: 40,

@@ -55,10 +55,8 @@ class RetroStrings {
   static String get yourViewing => _t('Your viewing', 'Dein Schauen');
   static String get upcomingEpisodes => _t('Upcoming episodes', 'Kommende Folgen');
   static String get upcomingEpisodesDescription =>
-      _t('Next air dates of the shows you are watching', 'Nächste Sendetermine deiner laufenden Serien');
+      _t('Next air dates of the shows in your libraries', 'Nächste Sendetermine der Serien in deinen Mediatheken');
   static String get upcomingNone => _t('No upcoming episodes announced.', 'Keine kommenden Folgen angekündigt.');
-  static String get upcomingNoShows =>
-      _t('No shows on Continue Watching yet.', 'Noch keine Serien unter Weiterschauen.');
   static String get subtitleManagementNotAllowed => _t(
     'This server lets only users with subtitle management search for subtitles. '
         'An administrator can turn on "Allow subtitle management" for your user in the dashboard (Users).',
@@ -74,12 +72,14 @@ class RetroStrings {
     'Dieses Video kann der App-Player nicht abspielen. Starte es zuerst auf der Seite und versuche es dann erneut.',
   );
   static String get tomorrow => _t('Tomorrow', 'Morgen');
+  static String upcomingCardStyle(String style) => _t('Card design: switch to $style', 'Kartendesign: wechseln zu $style');
+  static String get upcomingStylePoster => _t('Poster', 'Poster');
+  static String get upcomingStyleWide => _t('Wide (backdrop)', 'Breit (Hintergrundbild)');
+  static String get upcomingStyleSmall => _t('Small posters', 'Kleine Poster');
   static String get upcomingTab => _t('Upcoming', 'Demnächst');
   static String upcomingChecking(int done, int total) =>
       _t('Checking air dates: $done of $total shows', 'Prüfe Sendetermine: $done von $total Serien');
   static String get upcomingOnHome => _t('Show on Home', 'Auf der Startseite zeigen');
-  static String get upcomingOnHomeDescription =>
-      _t('A row after Continue Watching', 'Eine Reihe nach Weiterschauen');
   static String get watchStats => _t('Watch statistics', 'Statistik');
   static String get watchStatsDescription =>
       _t('Hours watched, favourite genres, recent months', 'Gesehene Stunden, Lieblingsgenres, letzte Monate');

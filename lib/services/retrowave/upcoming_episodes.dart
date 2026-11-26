@@ -3,12 +3,18 @@ import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../i18n/retro_strings.dart';
+import '../../media/library_query.dart';
 import '../../media/media_item.dart';
+import '../../media/media_kind.dart';
+import '../../media/media_library.dart';
 import '../../media/media_server_client.dart';
 import '../../utils/app_logger.dart';
+import '../../widgets/media_context_menu.dart' show MediaMenuExtraEntry;
+import '../settings_service.dart';
 
 /// One upcoming episode of a show in the library.
 class UpcomingEpisode {
@@ -71,7 +77,7 @@ class UpcomingEpisodes {
       try {
         final client = clientFor(show);
         if (client != null) {
-          final ids = await client.fetchExternalIds(show.id);
+          final ids = await _idsFor(show, client);
           final next = await _next(tvdb: ids.tvdb, imdb: ids.imdb);
           if (next != null) {
             final e = UpcomingEpisode(
@@ -97,6 +103,96 @@ class UpcomingEpisodes {
     }
     results.sort((a, b) => a.airs.compareTo(b.airs));
     return results;
+  }
+
+  /// The show's TVDB / IMDb id, kept on the device so later scans need no
+  /// server request per show.
+  Future<({int? tvdb, String? imdb})> _idsFor(MediaItem show, MediaServerClient client) async {
+    final cache = await _load();
+    final ids = (cache['ids'] ??= <String, dynamic>{}) as Map<String, dynamic>;
+    final key = '${show.serverId}:${show.id}';
+    final known = ids[key];
+    if (known is Map) return (tvdb: (known['t'] as num?)?.toInt(), imdb: known['i'] as String?);
+    final fetched = await client.fetchExternalIds(show.id);
+    ids[key] = {'t': fetched.tvdb, 'i': fetched.imdb};
+    _scheduleSave();
+    return (tvdb: fetched.tvdb, imdb: fetched.imdb);
+  }
+
+  /// The latest scan over every visible TV library (Home row, Upcoming
+  /// screen). Null until the first scan finished.
+  final ValueNotifier<List<UpcomingEpisode>?> all = ValueNotifier(null);
+  final ValueNotifier<({int done, int total})?> allProgress = ValueNotifier(null);
+  DateTime? _allAt;
+  Future<void>? _allRunning;
+
+  /// Scans the shows of [libraries] (TV libraries), unless a scan finished
+  /// in the last [maxAge] or one is running.
+  Future<void> refreshAll(
+    List<MediaLibrary> libraries,
+    MediaServerClient? Function(String serverId) clientFor, {
+    Duration maxAge = const Duration(hours: 1),
+    bool force = false,
+  }) {
+    final at = _allAt;
+    if (!force && at != null && DateTime.now().difference(at) < maxAge) return Future.value();
+    return _allRunning ??= _scanAll(libraries, clientFor).whenComplete(() => _allRunning = null);
+  }
+
+  Future<void> _scanAll(List<MediaLibrary> libraries, MediaServerClient? Function(String serverId) clientFor) async {
+    final showLibraries = libraries.where((l) => l.kind == MediaKind.show && l.serverId != null).toList();
+    // Libraries not loaded yet: try again on the next call.
+    if (showLibraries.isEmpty) return;
+    final shows = <MediaItem>[];
+    for (final library in showLibraries) {
+      final client = clientFor(library.serverId!);
+      if (client == null) continue;
+      try {
+        final page = await client.fetchLibraryPagedContent(
+          library.id,
+          libraryKind: library.kind,
+          query: LibraryQuery(kind: library.kind, limit: 5000),
+        );
+        shows.addAll(page.items.where((i) => i.kind == MediaKind.show));
+      } catch (e) {
+        appLogger.d('Upcoming: library ${library.title} failed', error: e);
+      }
+    }
+    // Shows being watched first, so the likely ones turn up early.
+    shows.sort((a, b) => ((b.viewedLeafCount ?? 0) > 0 ? 1 : 0).compareTo((a.viewedLeafCount ?? 0) > 0 ? 1 : 0));
+    allProgress.value = (done: 0, total: shows.length);
+    final results = await forShows(
+      shows,
+      (show) => show.serverId == null ? null : clientFor(show.serverId!),
+      onProgress: (soFar, done) {
+        allProgress.value = (done: done, total: shows.length);
+        if (all.value == null || soFar.length != (all.value?.length ?? 0)) all.value = soFar;
+      },
+    );
+    all.value = results;
+    allProgress.value = null;
+    _allAt = DateTime.now();
+  }
+
+  /// The Upcoming row's card menu entry: switches to the next card design
+  /// (poster, wide, small) and names the one it switches to.
+  static MediaMenuExtraEntry cardStyleMenuEntry() {
+    final svc = SettingsService.instance;
+    final next = UpcomingCardStyle.values[(svc.read(SettingsService.upcomingCardStyle).index + 1) %
+        UpcomingCardStyle.values.length];
+    return MediaMenuExtraEntry(
+      icon: switch (next) {
+        UpcomingCardStyle.poster => Symbols.view_column_rounded,
+        UpcomingCardStyle.wide => Symbols.view_carousel_rounded,
+        UpcomingCardStyle.small => Symbols.view_module_rounded,
+      },
+      label: RetroStrings.upcomingCardStyle(switch (next) {
+        UpcomingCardStyle.poster => RetroStrings.upcomingStylePoster,
+        UpcomingCardStyle.wide => RetroStrings.upcomingStyleWide,
+        UpcomingCardStyle.small => RetroStrings.upcomingStyleSmall,
+      }),
+      onSelected: () => unawaited(svc.write(SettingsService.upcomingCardStyle, next)),
+    );
   }
 
   /// "S2 E5 · Tomorrow 21:00".

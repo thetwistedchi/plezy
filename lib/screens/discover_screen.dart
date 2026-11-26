@@ -31,6 +31,7 @@ import '../widgets/rasterized_gradient.dart';
 import '../widgets/toolbar_scrim.dart';
 import '../widgets/system_clock.dart';
 import '../providers/discover_provider.dart';
+import '../providers/libraries_provider.dart';
 import '../providers/multi_server_provider.dart';
 import '../providers/watch_state_store.dart';
 import '../widgets/hub_section.dart';
@@ -45,6 +46,7 @@ import '../profiles/profile.dart';
 import '../profiles/profile_activation.dart';
 import '../profiles/profile_avatar.dart';
 import '../services/retrowave/upcoming_episodes.dart';
+import '../services/retrowave/virtual_libraries.dart';
 import '../services/settings_service.dart';
 import '../widgets/settings_builder.dart';
 import '../widgets/fitting_title_text.dart';
@@ -94,7 +96,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   int _seenLoadGeneration = 0;
 
   List<MediaItem> get _onDeck => _discover.onDeck;
-  List<MediaHub> get _hubs => _discover.hubs;
   bool get _hasMoreContinueWatching => _discover.hasMoreContinueWatching;
   bool get _isLoading => _discover.isLoading;
   bool get _areHubsLoading => _discover.areHubsLoading;
@@ -174,81 +175,62 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     if (_continueWatchingHubKey != null && _onDeck.isNotEmpty) {
       keys.add(_continueWatchingHubKey!);
     }
-    if (_upcomingHub != null) keys.add(_upcomingHubKey);
     keys.addAll(_orderedHubKeys);
     return keys;
   }
 
-  // Fork: Upcoming episodes row, right after Continue Watching.
-  final _upcomingHubKey = GlobalKey<HubSectionState>();
-  List<MediaItem> _upcomingItems = const [];
-  List<MediaItem>? _upcomingFor;
+  // Fork: Upcoming episodes row, placed among the rows like a library (its
+  // place in the libraries list). Fed by the scan over all TV libraries.
   ValueNotifier<bool>? _upcomingListenable;
-  MediaHub? _upcomingHubCache;
+  (List<MediaHub>, List<UpcomingEpisode>?, int, bool)? _hubsCacheKey;
+  List<MediaHub> _hubsCache = const [];
 
-  MediaHub? get _upcomingHub {
-    if (_upcomingItems.isEmpty || !SettingsService.instance.read(SettingsService.upcomingOnHome)) return null;
-    final cached = _upcomingHubCache;
-    if (cached != null && identical(cached.items, _upcomingItems)) return cached;
-    return _upcomingHubCache = MediaHub(
+  /// The provider's hubs with the Upcoming row at its place.
+  List<MediaHub> get _hubs {
+    final base = _discover.hubs;
+    final results = UpcomingEpisodes.instance.all.value;
+    final on = SettingsService.instance.read(SettingsService.upcomingOnHome);
+    final key = (base, results, VirtualLibraries.revision.value, on);
+    if (key == _hubsCacheKey) return _hubsCache;
+    _hubsCacheKey = key;
+    if (!on || results == null || results.isEmpty) return _hubsCache = base;
+    final hub = MediaHub(
       id: 'retrowave_upcoming',
       title: RetroStrings.upcomingEpisodes,
       type: 'show',
       identifier: UpcomingEpisodes.hubIdentifier,
-      size: _upcomingItems.length,
-      items: _upcomingItems,
+      size: results.length,
+      items: [for (final e in results) e.show],
     );
+    // After the rows of the libraries placed before it in the list.
+    final libraries = VirtualLibraries.merge(context.read<LibrariesProvider>().libraries);
+    final at = libraries.indexWhere((l) => l.id == VirtualLibraries.upcomingId);
+    final before = {for (final l in libraries.take(at < 0 ? 0 : at)) l.globalKey};
+    var insertAt = 0;
+    for (var i = 0; i < base.length; i++) {
+      final h = base[i];
+      final hubKey = h.serverId != null && h.libraryId != null ? '${h.serverId}:${h.libraryId}' : null;
+      if (hubKey != null && before.contains(hubKey)) insertAt = i + 1;
+    }
+    if (at < 0 || at >= libraries.length - 1) insertAt = base.length;
+    return _hubsCache = [...base.take(insertAt), hub, ...base.skip(insertAt)];
   }
-
-  int get _rowsBeforeHubs => (_onDeck.isNotEmpty ? 1 : 0) + (_upcomingHub != null ? 1 : 0);
 
   void _onUpcomingSettingChanged() {
     if (!mounted) return;
-    _upcomingFor = null;
-    setState(() {});
-    _refreshUpcoming();
+    setState(_updateHubKeys);
+    _startUpcomingScan();
   }
 
-  /// Looks up the shows on Continue Watching again when that list changes.
-  void _refreshUpcoming() {
-    final onDeck = _onDeck;
-    if (identical(onDeck, _upcomingFor)) return;
-    _upcomingFor = onDeck;
-    if (!SettingsService.instance.read(SettingsService.upcomingOnHome) || onDeck.isEmpty) {
-      if (_upcomingItems.isNotEmpty) setState(() => _upcomingItems = const []);
-      return;
-    }
-    unawaited(_loadUpcoming(onDeck));
+  void _onUpcomingChanged() {
+    if (!mounted) return;
+    setState(_updateHubKeys);
   }
 
-  Future<void> _loadUpcoming(List<MediaItem> onDeck) async {
+  void _startUpcomingScan() {
+    if (!SettingsService.instance.read(SettingsService.upcomingOnHome)) return;
     MediaServerClient? clientFor(String serverId) => context.tryGetMediaClientForServer(ServerId(serverId));
-    final shows = <String, MediaItem>{};
-    for (final item in onDeck) {
-      final showId = item.grandparentId ?? (item.isShow ? item.id : null);
-      final serverId = item.serverId;
-      if (showId == null || serverId == null) continue;
-      if (shows.containsKey('$serverId:$showId')) continue;
-      final client = clientFor(serverId);
-      if (client == null) continue;
-      try {
-        final show = item.isShow ? item : await client.fetchItem(showId);
-        if (show != null) shows['$serverId:$showId'] = show;
-      } catch (e) {
-        appLogger.d('Upcoming: show $showId failed', error: e);
-      }
-      if (!mounted || !identical(onDeck, _upcomingFor)) return;
-    }
-    final results = await UpcomingEpisodes.instance.forShows(
-      shows.values.toList(),
-      (show) => show.serverId == null ? null : clientFor(show.serverId!),
-      isCancelled: () => !mounted || !identical(onDeck, _upcomingFor),
-    );
-    if (!mounted || !identical(onDeck, _upcomingFor)) return;
-    setState(() {
-      _upcomingItems = [for (final e in results) e.show];
-      _updateHubKeys();
-    });
+    unawaited(UpcomingEpisodes.instance.refreshAll(context.read<LibrariesProvider>().libraries, clientFor));
   }
 
   bool get _isHeroSectionVisible => _onDeck.isNotEmpty && context.settingsRead(SettingsService.showHeroSection);
@@ -258,25 +240,16 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   // rebuilds hand TvBrowseRail the same hubs list and its didUpdateWidget
   // fast path — and the cached rail widget below — kick in.
   List<MediaHub>? _tvBrowseHubsCache;
-  (List<MediaItem>, List<MediaHub>, bool, String, String, List<MediaItem>?)? _tvBrowseHubsCacheKey;
+  (List<MediaItem>, List<MediaHub>, bool, String, String)? _tvBrowseHubsCacheKey;
 
   List<MediaHub> get _tvBrowseHubs {
     final hidden = SettingsService.instance.read(SettingsService.homeRowsHideWatched);
-    final upcoming = _upcomingHub;
-    final key = (
-      _onDeck,
-      _hubs,
-      _hasMoreContinueWatching,
-      t.discover.continueWatching,
-      hidden.join('|'),
-      upcoming?.items,
-    );
+    final key = (_onDeck, _hubs, _hasMoreContinueWatching, t.discover.continueWatching, hidden.join('|'));
     if (_tvBrowseHubsCache != null && key == _tvBrowseHubsCacheKey) return _tvBrowseHubsCache!;
     final hubs = <MediaHub>[];
     if (_onDeck.isNotEmpty) {
       hubs.add(_continueWatchingHub);
     }
-    if (upcoming != null) hubs.add(upcoming);
     for (final hub in _hubs) {
       final shown = hidden.contains(_homeRowKey(hub))
           ? hub.copyWith(items: [
@@ -454,6 +427,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
     _discover.addListener(_onDiscoverChanged);
     _upcomingListenable = SettingsService.instance.listenable(SettingsService.upcomingOnHome)
       ..addListener(_onUpcomingSettingChanged);
+    UpcomingEpisodes.instance.all.addListener(_onUpcomingChanged);
+    VirtualLibraries.revision.addListener(_onUpcomingChanged);
     _updateHubKeys();
     unawaited(_discover.load());
     _startAutoScroll();
@@ -490,7 +465,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
       });
     }
     _applyPendingTvBrowseRailFocus();
-    _refreshUpcoming();
+    _startUpcomingScan();
 
     if ((isNewLoad || heroOutOfBounds) && _heroController.hasClients && _onDeck.isNotEmpty) {
       _heroController.jumpToPage(0);
@@ -569,6 +544,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
   void dispose() {
     _discover.removeListener(_onDiscoverChanged);
     _upcomingListenable?.removeListener(_onUpcomingSettingChanged);
+    UpcomingEpisodes.instance.all.removeListener(_onUpcomingChanged);
+    VirtualLibraries.revision.removeListener(_onUpcomingChanged);
     WidgetsBinding.instance.removeObserver(this);
     _autoScrollTimer?.cancel();
     _indicatorTimer?.cancel();
@@ -1119,20 +1096,6 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                     ),
                   ),
 
-                if (_upcomingHub case final upcoming?)
-                  SliverToBoxAdapter(
-                    child: HubSection(
-                      key: _upcomingHubKey,
-                      hub: upcoming,
-                      focusMemory: _hubFocusMemory,
-                      icon: hubIconFor(upcoming),
-                      onRefresh: _discover.updateItem,
-                      onVerticalNavigation: (isUp) => _handleVerticalNavigation(_onDeck.isNotEmpty ? 1 : 0, isUp),
-                      onNavigateUp: _onDeck.isEmpty ? _focusTopBoundary : null,
-                      onNavigateToSidebar: _navigateToSidebar,
-                    ),
-                  ),
-
                 // Recommendation Hubs (Trending, Top in Genre, etc.)
                 for (int i = 0; i < _hubs.length; i++)
                   SliverToBoxAdapter(
@@ -1162,8 +1125,8 @@ class _DiscoverScreenState extends State<DiscoverScreen>
                       showServerName: showServerNameOnHubs || hubsSpanMultipleServers,
                       onRefresh: _discover.updateItem,
                       // Hub index is i + 1 if continue watching exists, otherwise i
-                      onVerticalNavigation: (isUp) => _handleVerticalNavigation(_rowsBeforeHubs + i, isUp),
-                      onNavigateUp: (i == 0 && _rowsBeforeHubs == 0) ? _focusTopBoundary : null,
+                      onVerticalNavigation: (isUp) => _handleVerticalNavigation(_onDeck.isNotEmpty ? i + 1 : i, isUp),
+                      onNavigateUp: (i == 0 && _onDeck.isEmpty) ? _focusTopBoundary : null,
                       onNavigateToSidebar: _navigateToSidebar,
                     );
                       },
@@ -1264,6 +1227,7 @@ class _DiscoverScreenState extends State<DiscoverScreen>
         final rowKey = _homeRowKey(hub);
         final hidden = SettingsService.instance.read(SettingsService.homeRowsHideWatched).contains(rowKey);
         return [
+          if (hub.identifier == UpcomingEpisodes.hubIdentifier) UpcomingEpisodes.cardStyleMenuEntry(),
           MediaMenuExtraEntry(
             icon: hidden ? Symbols.visibility_rounded : Symbols.visibility_off_rounded,
             label: hidden ? RetroStrings.showWatchedInRow : RetroStrings.hideWatchedInRow,

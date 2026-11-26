@@ -114,6 +114,7 @@ import 'widgets/dialog_action_button.dart';
 import 'widgets/startup_failure_view.dart';
 import 'retrowave_version.dart';
 import 'services/retrowave/library_language_rules.dart';
+import 'services/retrowave/virtual_libraries.dart';
 
 const bool _enableSentry = bool.fromEnvironment('ENABLE_SENTRY', defaultValue: false);
 const String _sentryDsn = 'https://6a1a6ef8c72140099b2798973c1bfb2f@bugs.plezy.app/1';
@@ -1063,6 +1064,7 @@ void _startNonessentialInitialization(SettingsService settings) {
     GamepadService.instance.start();
     // Fork: per-library audio/subtitle languages, read synchronously later.
     unawaited(LibraryLanguageRules.load());
+    unawaited(VirtualLibraries.load());
     if (PlatformDetector.isAppleTV()) AppleTvRemoteTouchService.instance.start();
   });
 

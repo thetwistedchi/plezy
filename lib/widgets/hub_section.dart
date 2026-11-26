@@ -706,19 +706,33 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                   SettingsService.libraryDensity,
                   SettingsService.episodePosterMode,
                   SettingsService.gridSpacing,
+                  SettingsService.upcomingCardStyle,
                 ],
                 builder: (context) => LayoutBuilder(
                   builder: (context, constraints) {
                     final svc = SettingsService.instanceOrNull;
                     if (svc == null) return const SizedBox.shrink();
-                    final density = svc.read(SettingsService.libraryDensity);
-                    final EpisodePosterMode episodePosterMode =
-                        widget.episodePosterModeOverride ?? svc.read(SettingsService.episodePosterMode);
+                    // Fork: the Upcoming row has its own card design.
+                    final upcomingStyle = widget.hub.identifier == UpcomingEpisodes.hubIdentifier
+                        ? svc.read(SettingsService.upcomingCardStyle)
+                        : null;
+                    final upcomingWide = upcomingStyle == UpcomingCardStyle.wide;
+                    final baseDensity = svc.read(SettingsService.libraryDensity);
+                    final density = upcomingStyle == UpcomingCardStyle.small
+                        ? (baseDensity - 2).clamp(LibraryDensity.min, LibraryDensity.max).toInt()
+                        : baseDensity;
+                    final EpisodePosterMode episodePosterMode = upcomingWide
+                        ? EpisodePosterMode.episodeThumbnail
+                        : widget.episodePosterModeOverride ?? svc.read(SettingsService.episodePosterMode);
 
-                    final hasEpisodes = widget.hub.items.any((item) => item.usesWideAspectRatio(episodePosterMode));
-                    final hasNonEpisodes = widget.hub.items.any((item) => !item.usesWideAspectRatio(episodePosterMode));
+                    final hasEpisodes =
+                        upcomingWide || widget.hub.items.any((item) => item.usesWideAspectRatio(episodePosterMode));
+                    final hasNonEpisodes =
+                        !upcomingWide && widget.hub.items.any((item) => !item.usesWideAspectRatio(episodePosterMode));
 
-                    final isMixedHub = hasEpisodes && hasNonEpisodes;
+                    // A wide Upcoming row counts as mixed: shows then use their
+                    // backdrop art in a 16:9 card.
+                    final isMixedHub = upcomingWide || (hasEpisodes && hasNonEpisodes);
 
                     // 16:9 when every item is wide (episode thumbnails, clips,
                     // home videos), or for mixed hubs in episode-thumbnail
@@ -726,7 +740,8 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                     // same gate as TvBrowseRail — since episodes already fold
                     // the mode into usesWideAspectRatio (#2036).
                     final useWideLayout =
-                        hasEpisodes && (!hasNonEpisodes || episodePosterMode == EpisodePosterMode.episodeThumbnail);
+                        upcomingWide ||
+                        (hasEpisodes && (!hasNonEpisodes || episodePosterMode == EpisodePosterMode.episodeThumbnail));
 
                     // Music hubs render square album/artist artwork
                     final isSquareHub =
@@ -944,6 +959,7 @@ class HubSectionState extends State<HubSection> with MountedSetStateMixin, Skele
                                               : RetroStrings.hideWatchedInRow,
                                           onSelected: toggle,
                                         ),
+                                      if (upcomingStyle != null) UpcomingEpisodes.cardStyleMenuEntry(),
                                     ],
                                   ),
                                 ),

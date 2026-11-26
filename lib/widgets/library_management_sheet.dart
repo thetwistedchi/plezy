@@ -29,6 +29,8 @@ import 'media_context_menu.dart' show isAdminActionAllowedForMediaItem;
 import 'overlay_sheet.dart';
 import '../services/retrowave/library_language_rules.dart';
 import '../i18n/retro_strings.dart';
+import '../services/retrowave/virtual_libraries.dart';
+import '../services/settings_service.dart';
 
 class ContextMenuItem {
   final String value;
@@ -100,12 +102,21 @@ Future<void> showLibraryManagementSheet(
     isDialog: isDialog,
     librariesProvider: librariesProvider,
     hiddenLibraryKeys: hiddenLibrariesProvider.hiddenLibraryKeys,
-    onReorder: (reorderedLibraries) {
-      librariesProvider.updateLibraryOrder(reconcileLibraryOrder(reorderedLibraries, librariesProvider.libraries));
+    onReorder: (reorderedLibraries) async {
+      // Fork: the app pages keep their places; the server libraries are
+      // saved as before.
+      final real = await VirtualLibraries.saveOrder(reorderedLibraries);
+      await librariesProvider.updateLibraryOrder(reconcileLibraryOrder(real, librariesProvider.libraries));
       onOrderChanged?.call();
     },
     onToggleVisibility: onToggleVisibility ?? defaultToggleVisibility,
-    getLibraryMenuItems: (library) => canAdminister(library) ? _getLibraryMenuItems(library) : const [],
+    // Fork: the language rule is the viewer's own, so every library has it;
+    // the server actions stay with admins.
+    getLibraryMenuItems: (library) => VirtualLibraries.isVirtual(library)
+        ? const []
+        : canAdminister(library)
+        ? _getLibraryMenuItems(library)
+        : [_languagesMenuItem()],
     onLibraryMenuAction: (action, library) => _handleLibraryMenuAction(context, action, library),
   );
 
@@ -134,6 +145,10 @@ List<MediaLibrary> reconcileLibraryOrder(List<MediaLibrary> sheetOrder, List<Med
   return [for (final library in sheetOrder) ?remaining.remove(library.globalKey), ...remaining.values];
 }
 
+/// Fork: audio and subtitle languages for this library.
+ContextMenuItem _languagesMenuItem() =>
+    ContextMenuItem(value: 'languages', icon: Symbols.translate_rounded, label: RetroStrings.libraryLanguages);
+
 List<ContextMenuItem> _getLibraryMenuItems(MediaLibrary library) {
   // Scan and refresh metadata are the admin actions every backend supports —
   // Plex hits `/library/sections/{id}/refresh` (with `force=1` to refresh);
@@ -159,12 +174,7 @@ List<ContextMenuItem> _getLibraryMenuItems(MediaLibrary library) {
   // Analyze / empty trash hit Plex-only endpoints, so backend capability
   // gating keeps them out of MediaBrowser menus. The library-qualified
   // resolver independently requires the exact owning Plex server.
-  // Fork: audio and subtitle languages for this library.
-  final languages = ContextMenuItem(
-    value: 'languages',
-    icon: Symbols.translate_rounded,
-    label: RetroStrings.libraryLanguages,
-  );
+  final languages = _languagesMenuItem();
   if (library.backend != MediaBackend.plex) return [languages, scan, refresh];
   return [
     languages,
@@ -346,9 +356,21 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
   /// Column 2 (the options button) exists only on rows with admin actions.
   @override
   int get lastReorderColumn =>
-      focusedIndex < _tempLibraries.length && _hasLibraryMenu(_tempLibraries[focusedIndex]) ? 2 : 1;
+      focusedIndex < _tempLibraries.length &&
+          (_hasLibraryMenu(_tempLibraries[focusedIndex]) || _hasHomeSwitch(_tempLibraries[focusedIndex]))
+      ? 2
+      : 1;
 
   bool _hasLibraryMenu(MediaLibrary library) => widget.getLibraryMenuItems(library).isNotEmpty;
+
+  /// Fork: Upcoming episodes carries its "Show on Home" switch in the row.
+  bool _hasHomeSwitch(MediaLibrary library) => library.id == VirtualLibraries.upcomingId;
+
+  void _toggleHome() {
+    final svc = SettingsService.instance;
+    unawaited(svc.write(SettingsService.upcomingOnHome, !svc.read(SettingsService.upcomingOnHome)));
+    setState(() {});
+  }
 
   /// Both layouts scroll the focused row into view: the TV dialog is the D-pad
   /// surface, and the sheet still shows the same cursor to a keyboard user.
@@ -363,6 +385,8 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
     final library = _tempLibraries[index];
     if (column == 1) {
       widget.onToggleVisibility(library);
+    } else if (column == 2 && _hasHomeSwitch(library)) {
+      _toggleHome();
     } else if (column == 2 && _hasLibraryMenu(library)) {
       _showLibraryMenuBottomSheet(context, library);
     }
@@ -371,7 +395,7 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
   @override
   void initState() {
     super.initState();
-    _tempLibraries = List.of(widget.librariesProvider.libraries);
+    _tempLibraries = VirtualLibraries.merge(widget.librariesProvider.libraries);
     widget.librariesProvider.addListener(_onLibrariesChanged);
   }
 
@@ -381,7 +405,7 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
   void _onLibrariesChanged() {
     if (!mounted || movingIndex != null) return;
     setState(() {
-      _tempLibraries = reconcileLibraryOrder(_tempLibraries, widget.librariesProvider.libraries);
+      _tempLibraries = reconcileLibraryOrder(_tempLibraries, VirtualLibraries.merge(widget.librariesProvider.libraries));
       if (focusedIndex >= _tempLibraries.length) {
         focusedIndex = _tempLibraries.isEmpty ? 0 : _tempLibraries.length - 1;
         focusedColumn = 0;
@@ -572,7 +596,12 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
               ),
             ),
             const SizedBox(width: 8),
-            AppIcon(ContentTypeHelper.getLibraryIcon(library.kind.id), fill: 1),
+            AppIcon(
+              VirtualLibraries.isVirtual(library)
+                  ? VirtualLibraries.iconFor(library)
+                  : ContentTypeHelper.getLibraryIcon(library.kind.id),
+              fill: 1,
+            ),
           ],
         ),
         title: Text(library.title),
@@ -600,6 +629,27 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
                 onPressed: () => widget.onToggleVisibility(library),
               ),
             ),
+            if (_hasHomeSwitch(library))
+              Tooltip(
+                message: RetroStrings.upcomingOnHome,
+                child: Container(
+                  decoration: FocusTheme.focusBackgroundDecoration(
+                    context,
+                    isFocused: isOptionsButtonFocused,
+                    borderRadius: 20,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const AppIcon(Symbols.home_rounded, size: 18),
+                      Switch(
+                        value: SettingsService.instance.read(SettingsService.upcomingOnHome),
+                        onChanged: (_) => _toggleHome(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (_hasLibraryMenu(library))
               Container(
                 decoration: FocusTheme.focusBackgroundDecoration(
