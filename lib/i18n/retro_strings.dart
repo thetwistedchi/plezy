@@ -143,7 +143,6 @@ class RetroStrings {
   static String statsYearInReview(int year) => _t('Your $year', 'Dein $year');
   static String get statsTopGenre => _t('Top genre', 'Top-Genre');
   static String get statsTopShow => _t('Top show', 'Top-Serie');
-  static String get statsTopPerson => _t('Most seen person', 'Am häufigsten gesehen');
   static String get statsBusiestMonth => _t('Busiest month', 'Stärkster Monat');
   static List<String> get weekdaysShort => _de
       ? const ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
@@ -151,8 +150,6 @@ class RetroStrings {
   static String monthName(int month) => (_de
       ? const ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
       : const ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])[(month - 1).clamp(0, 11)];
-  static String get statsMonthsHint =>
-      _t('Titles by the month they were last watched', 'Titel nach dem Monat, in dem sie zuletzt gesehen wurden');
   static String get traktImport => _t('Import watch history from Trakt', 'Verlauf von Trakt importieren');
   static String get traktImportDescription =>
       _t('Mark everything watched on Trakt as watched', 'Alles auf Trakt Gesehene als gesehen markieren');

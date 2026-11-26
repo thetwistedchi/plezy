@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../utils/app_logger.dart';
 import 'secure_token_store.dart';
 
 /// What happens when playback reaches a SponsorBlock segment.
@@ -635,7 +636,7 @@ class YouTubeSettings extends ChangeNotifier {
       await tmp.rename(file.path);
     } catch (e) {
       _progressDirty = true;
-      debugPrint('YouTube progress not saved: $e');
+      appLogger.w('YouTube progress not saved', error: e);
     }
   }
 

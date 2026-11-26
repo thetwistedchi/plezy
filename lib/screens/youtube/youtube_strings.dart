@@ -39,7 +39,6 @@ class YtStrings {
     'One word or phrase per line; checked in the title, case does not matter.',
     'Ein Wort oder eine Wendung pro Zeile; geprüft im Titel, Groß- und Kleinschreibung egal.',
   );
-  static String titleFiltersCount(int n) => _t('$n words', '$n Wörter');
   static String get playAllOldest => _t('Unwatched, oldest first', 'Ungesehene, älteste zuerst');
   static String get playAllNewest => _t('Unwatched, newest first', 'Ungesehene, neueste zuerst');
   static String get playAllEverythingNewest => _t('All, newest first', 'Alle, neueste zuerst');
@@ -147,7 +146,6 @@ class YtStrings {
   static String get ratingFailed => _t('Could not save the rating.', 'Bewertung konnte nicht gespeichert werden.');
   static String queuePosition(int i, int n) => '$i / $n';
   static String upNext(String title) => _t('Up next: $title', 'Als Nächstes: $title');
-  static String get playerLoading => _t('Loading player…', 'Player wird geladen…');
   static String get playlistFailed =>
       _t('The playlist could not be loaded.', 'Die Playlist konnte nicht geladen werden.');
   static String get playerFailed => _t('The player could not start.', 'Der Player konnte nicht starten.');
@@ -398,7 +396,6 @@ class YtStrings {
   );
 
   // Comments
-  static String commentsCount(int? n) => n == null ? comments : '$comments  $n';
   static String get sortTop => _t('Top comments', 'Top-Kommentare');
   static String get sortNewest => _t('Newest first', 'Neueste zuerst');
   static String get close => _t('Close', 'Schließen');
@@ -498,11 +495,6 @@ class YtStrings {
     '+ $n subscriptions from your Google account',
     '+ $n Abos aus deinem Google-Konto',
   );
-  static String get signInForComments => _t(
-    'Sign in with Google in the YouTube settings to see comments.',
-    'Melde dich in den YouTube-Einstellungen mit Google an, um Kommentare zu sehen.',
-  );
-  static String get openSettings => _t('Set up YouTube', 'YouTube einrichten');
 
   static String get account => _t('Account', 'Konto');
   static String get oauthClient => _t('Google OAuth client', 'Google-OAuth-Client');
@@ -582,5 +574,4 @@ class YtStrings {
     'Categories come from the YouTube account. Sign in and refresh to get suggestions.',
     'Kategorien kommen vom YouTube-Konto. Anmelden und aktualisieren, um Vorschläge zu erhalten.',
   );
-  static String get uncategorized => _t('Other', 'Sonstige');
 }
