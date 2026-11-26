@@ -56,6 +56,7 @@ import '../i18n/retro_strings.dart';
 import '../widgets/retro_pill.dart' show isRetrowave, retroHeadingColor, retroTitleColor, retroTitleGlow;
 import '../i18n/strings.g.dart';
 import '../theme/mono_tokens.dart';
+import '../widgets/clickable_cursor.dart';
 import '../widgets/cycling_media_backdrop.dart';
 import '../widgets/optimized_media_image.dart';
 import '../utils/media_image_helper.dart';
@@ -1785,7 +1786,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
             }
             return KeyEventResult.ignored;
           },
-          child: GestureDetector(
+          child: ClickableCursor(child: GestureDetector(
             onTap: activate,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
@@ -1820,7 +1821,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                 ),
               ),
             ),
-          ),
+          )),
         );
       },
     );
@@ -4409,7 +4410,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                               autoScroll: false,
                               borderRadius: 8,
                               descendantsAreFocusable: false,
-                              child: GestureDetector(
+                              child: ClickableCursor(child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
                                 onTap: openDetails,
                                 child: Column(
@@ -4462,7 +4463,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen>
                                     ],
                                   ],
                                 ),
-                              ),
+                              )),
                             ),
                           ],
                         ),
