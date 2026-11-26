@@ -71,7 +71,11 @@ class UpcomingEpisodes {
     await SettingsService.instance.write(SettingsService.upcomingHiddenShows, [...hidden, key]);
     final list = all.value;
     if (list != null) {
-      final next = [for (final e in list) if ('${e.show.serverId}:${e.show.id}' != key) e];
+      final title = (show.title ?? '').trim().toLowerCase();
+      final next = [
+        for (final e in list)
+          if ('${e.show.serverId}:${e.show.id}' != key && (e.show.title ?? '').trim().toLowerCase() != title) e,
+      ];
       all.value = next;
       unawaited(_storeAll(next));
     }
@@ -100,10 +104,17 @@ class UpcomingEpisodes {
     // Fork: the same show on several servers (or libraries) is listed once.
     final seen = <String>{};
     final hiddenShows = hidden;
+    // A hidden show stays hidden on every server, matched by its title.
+    final titles = ((await _load())['titles'] as Map?) ?? const {};
+    final hiddenTitles = {
+      for (final k in hiddenShows)
+        if (titles[k] is String) (titles[k] as String).trim().toLowerCase(),
+    };
     var done = 0;
     for (final show in shows) {
       if (isCancelled?.call() ?? false) break;
-      if (hiddenShows.contains('${show.serverId}:${show.id}')) {
+      if (hiddenShows.contains('${show.serverId}:${show.id}') ||
+          hiddenTitles.contains((show.title ?? '').trim().toLowerCase())) {
         done++;
         continue;
       }
