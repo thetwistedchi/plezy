@@ -50,6 +50,8 @@ class YtStrings {
     'New videos from favourite channels are listed here.',
     'Neue Videos von Lieblingskanälen erscheinen hier.',
   );
+  static String get notificationsRemoveHint =>
+      _t('Right click or long press removes an entry.', 'Rechtsklick oder langes Drücken entfernt einen Eintrag.');
   static String get markAllRead => _t('Mark all as read', 'Alle als gelesen markieren');
   static String get clearNotifications => _t('Clear list', 'Liste leeren');
   static String get hiddenBanner =>

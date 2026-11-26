@@ -103,6 +103,14 @@ class YouTubeNotificationHistory extends ChangeNotifier {
     await _save();
   }
 
+  Future<void> remove(String videoId) async {
+    final before = _entries.length;
+    _entries.removeWhere((e) => e.video.id == videoId);
+    if (_entries.length == before) return;
+    notifyListeners();
+    await _save();
+  }
+
   Future<void> markAllRead() async {
     if (unread == 0) return;
     for (final e in _entries) {
