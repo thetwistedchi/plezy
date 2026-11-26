@@ -167,6 +167,13 @@ String? _jellyfinSegmentMarkerType(String? value) {
     case 'outro':
     case 'credits':
       return 'credits';
+    // Fork: the other Jellyfin 10.10 segment kinds, skippable like an intro.
+    case 'recap':
+      return 'recap';
+    case 'preview':
+      return 'preview';
+    case 'commercial':
+      return 'commercial';
   }
   return null;
 }

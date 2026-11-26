@@ -486,7 +486,8 @@ class PlaybackExtras {
     if (markers.isNotEmpty) {
       // Reclassify markers with non-standard types against the patterns.
       final reclassified = markers.map((m) {
-        if (m.type == 'intro' || m.type == 'credits') return m;
+        // Fork: recap, preview and commercial segments (Jellyfin 10.10+) pass as is.
+        if (const {'intro', 'credits', 'recap', 'preview', 'commercial'}.contains(m.type)) return m;
         final newType = _classifyChapterTitle(m.type, introPattern, creditsPattern);
         if (newType != null) {
           return MediaMarker(

@@ -10,6 +10,7 @@ import '../../../theme/mono_tokens.dart';
 import '../../../theme/player_style.dart';
 import '../../app_icon.dart';
 import '../../../theme/retrowave_colors.dart';
+import '../../../i18n/retro_strings.dart';
 
 class SkipMarkerButton extends StatelessWidget {
   final MediaMarker marker;
@@ -48,6 +49,8 @@ class SkipMarkerButton extends StatelessWidget {
       baseButtonText = t.videoControls.nextEpisode;
     } else if (isCredits) {
       baseButtonText = t.videoControls.skipCredits;
+    } else if (RetroStrings.skipSegment(marker.type) case final label?) {
+      baseButtonText = label;
     } else {
       baseButtonText = t.videoControls.skipIntro;
     }

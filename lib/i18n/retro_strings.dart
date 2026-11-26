@@ -19,6 +19,13 @@ class RetroStrings {
   static String germanVoicesFrom(String source) => _t('German voices: $source', 'Deutsche Stimmen: $source');
   static String get audioTrack => _t('Audio track', 'Tonspur');
   static String get subtitleTrack => _t('Subtitles', 'Untertitel');
+  /// Skip button label for the extra Jellyfin segment kinds, else null.
+  static String? skipSegment(String type) => switch (type) {
+    'recap' => _t('Skip recap', 'Rückblick überspringen'),
+    'preview' => _t('Skip preview', 'Vorschau überspringen'),
+    'commercial' => _t('Skip ad', 'Werbung überspringen'),
+    _ => null,
+  };
   static String get nightMode => _t('Night mode', 'Nachtmodus');
   static String get nightModeDescription => _t(
     'Quieter loud scenes and clearer dialogue at low volume',
