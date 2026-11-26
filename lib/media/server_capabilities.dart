@@ -118,7 +118,8 @@ class ServerCapabilities {
     richHubs: false,
     numericUserRating: false,
     userFavorites: true,
-    externalSubtitleSearch: false,
+    // Fork: /Items/{id}/RemoteSearch/Subtitles.
+    externalSubtitleSearch: true,
     richMetadataEdit: true,
     scrubThumbnails: true,
     folderGrouping: true,
@@ -148,7 +149,8 @@ class ServerCapabilities {
     numericUserRating: false,
     userFavorites: true,
     continueWatchingRemoval: true,
-    externalSubtitleSearch: false,
+    // Fork: /Items/{id}/RemoteSearch/Subtitles.
+    externalSubtitleSearch: true,
     richMetadataEdit: true,
     scrubThumbnails: true,
     folderGrouping: true,

@@ -68,6 +68,21 @@ String? _videoCodecWithoutDecoder(Map<String, dynamic> source) {
 }
 
 mixin _JellyfinPlaybackMethods on _JellyfinClientInternals {
+  /// Fork: subtitles from the server's subtitle providers (OpenSubtitles
+  /// plugin and others). [language] is a 3-letter ISO 639-2 code.
+  Future<List<Map<String, dynamic>>> searchRemoteSubtitles(String itemId, String language) async {
+    final response = await _http.get('/Items/$itemId/RemoteSearch/Subtitles/$language');
+    throwIfHttpError(response);
+    final data = response.data;
+    return data is List ? [for (final e in data) if (e is Map<String, dynamic>) e] : const [];
+  }
+
+  /// Fork: lets the server download [subtitleId] and add it to the item.
+  Future<void> downloadRemoteSubtitle(String itemId, String subtitleId) async {
+    final response = await _http.post('/Items/$itemId/RemoteSearch/Subtitles/${Uri.encodeComponent(subtitleId)}');
+    throwIfHttpError(response);
+  }
+
   // Implemented by _JellyfinBrowseMethods (cross-part call, same pattern as
   // _JellyfinImageDownloadMethods' redeclarations).
   Future<MediaItem?> fetchItemFreshCacheFirst(String id);

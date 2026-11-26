@@ -10,6 +10,7 @@ import '../../../focus/input_mode_tracker.dart';
 import '../../../i18n/strings.g.dart';
 import '../../../mixins/controller_disposer_mixin.dart';
 import '../../../models/plex/plex_subtitle_search_result.dart';
+import '../../../services/jellyfin_client.dart';
 import '../../../services/settings_service.dart';
 import '../../../utils/error_message_utils.dart';
 import '../../../utils/language_codes.dart';
@@ -105,6 +106,34 @@ class _SubtitleSearchSheetState extends State<SubtitleSearchSheet> with Controll
     try {
       final client = context.tryGetPlexClientForServer(ServerId(widget.serverId));
       if (client == null) {
+        // Fork: Jellyfin and Emby search through their subtitle providers.
+        final jellyfin = context.tryGetMediaClientForServer(ServerId(widget.serverId));
+        if (jellyfin is JellyfinClient) {
+          final code3 = LanguageCodes.getVariations(_languageCode).firstWhere((c) => c.length == 3, orElse: () => _languageCode);
+          final raw = await jellyfin.searchRemoteSubtitles(widget.ratingKey, code3);
+          if (!mounted || generation != _searchGeneration) return;
+          setState(() {
+            _results = [
+              for (final r in raw)
+                if (r['Id'] is String)
+                  PlexSubtitleSearchResult(
+                    id: 0,
+                    key: r['Id'] as String,
+                    codec: r['Format'] as String?,
+                    language: r['ThreeLetterISOLanguageName'] as String?,
+                    languageCode: _languageCode,
+                    providerTitle: r['ProviderName'] as String?,
+                    title: r['Name'] as String?,
+                    displayTitle: r['Name'] as String?,
+                    hearingImpaired: r['HearingImpaired'] == true,
+                    perfectMatch: r['IsHashMatch'] == true,
+                    forced: r['Forced'] == true,
+                  ),
+            ];
+            _isSearching = false;
+          });
+          return;
+        }
         if (!mounted || generation != _searchGeneration) return;
         setState(() => _isSearching = false);
         return;
@@ -185,12 +214,18 @@ class _SubtitleSearchSheetState extends State<SubtitleSearchSheet> with Controll
 
     try {
       final client = context.tryGetPlexClientForServer(ServerId(widget.serverId));
+      final bool success;
       if (client == null) {
-        if (!mounted) return;
-        setState(() => _downloadingKey = null);
-        return;
-      }
-      final success = await client.downloadSubtitle(
+        final jellyfin = context.tryGetMediaClientForServer(ServerId(widget.serverId));
+        if (jellyfin is! JellyfinClient) {
+          if (!mounted) return;
+          setState(() => _downloadingKey = null);
+          return;
+        }
+        await jellyfin.downloadRemoteSubtitle(widget.ratingKey, result.key);
+        success = true;
+      } else {
+        success = await client.downloadSubtitle(
         widget.ratingKey,
         key: result.key,
         codec: result.codec ?? 'srt',
@@ -199,6 +234,7 @@ class _SubtitleSearchSheetState extends State<SubtitleSearchSheet> with Controll
         forced: result.forced,
         providerTitle: result.providerTitle ?? '',
       );
+      }
 
       if (!mounted) return;
 
