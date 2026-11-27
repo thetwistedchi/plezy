@@ -48,6 +48,7 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - Quick filters (unwatched, 4K, HDR, audio language), saved filter sets, **Surprise me**, a search box per library, an A to Z bar and a startup library.
 - **Hide watched** per Home row, longer rows (40 titles) and **Show all** on Recently added rows.
 - **Row design** per Home row: standard, posters, wide backdrops or small posters.
+- With several servers, Home and the library list show up as soon as the quick servers answer; slow servers are added when they respond.
 - **Upcoming episodes** and **Free on plex.tv** are entries in the libraries list that can be moved or hidden; Upcoming can also be a Home row, and TV libraries get an Upcoming tab.
 
 **Player**
@@ -66,14 +67,16 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - Reader view, playing a page's video in the app's player, and importing bookmarks from other browsers.
 
 **Music, audiobooks, audio dramas and podcasts**
-- Music libraries can be marked as audiobooks, audio dramas or podcasts: skip buttons, speed per book, continue where you stopped, chapters, bookmarks and a sleep timer at the end of a chapter.
-- Volume levelling (ReplayGain or automatic), fading between albums, an equalizer, night mode, scrobbling to ListenBrainz and Last.fm, music statistics, and Plex radio stations and "Sonically similar".
+- Music libraries can be marked as audiobooks, audio dramas or podcasts: skip buttons, speed per book, continue where you stopped, chapters, bookmarks, a sleep timer (end of chapter, track or folder) and "Only this track".
+- Recommended rows for books and podcasts (Continue listening, Next in your series, New episodes and more) and sorting of tracks and albums, also in reverse.
+- Podcasts: ad chapters are skipped, a fixed intro and outro can be cut per podcast, and each episode shows its release date.
+- Volume levelling (ReplayGain or automatic), fading between albums, an equalizer, night mode, lyrics from LRCLIB when the server has none, scrobbling to ListenBrainz and Last.fm, music statistics, and Plex radio stations and "Sonically similar".
 
 **YouTube** (Windows only)
 - A tab with the newest videos of the channels you follow, channel groups, your own playlists, YouTube Watch later and bell subscriptions imported from your account, **Continue where you left off**, search, a minimum length filter, a word filter, NEW markers, a notification history, Play all in different orders, audio only, speed and captions per channel, channel playlists, played with the retrowave controls, SponsorBlock, DeArrow, chapters, captions, audio tracks, a watchlist, comments (liking them with a signed-in account) and Return YouTube Dislike counts. No account is needed; Google sign-in is optional, and YouTube Premium works through the player's own sign-in.
 
 **Android and Android TV**
-- Free on plex.tv plays full screen in the app, controlled with the remote.
+- Free on plex.tv is controlled with the remote.
 - The browser works with the remote: it selects links and buttons, offers an optional pointer, and a phone can be used as remote through a QR code.
 - Holding Back goes to the home screen, and **Remote shortcuts** under Settings lists what each button does.
 - No YouTube tab.
