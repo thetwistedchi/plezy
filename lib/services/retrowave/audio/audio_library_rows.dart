@@ -10,6 +10,7 @@ import '../../../media/media_server_client.dart';
 import '../../../utils/app_logger.dart';
 import 'audio_extras.dart';
 import 'audio_settings.dart';
+import 'release_date.dart';
 
 /// Fork: extra rows on the Recommended page of audiobook, audio drama and
 /// podcast libraries, built from one listing of the library's tracks (kept
@@ -71,8 +72,7 @@ class AudioLibraryRows {
 
   static List<MediaHub> _podcastRows(MediaLibrary library, List<MediaItem> tracks) {
     final extras = AudioExtras.instance;
-    int stamp(MediaItem i) =>
-        DateTime.tryParse(i.originallyAvailableAt ?? '')?.millisecondsSinceEpoch ?? (i.addedAt ?? 0) * 1000;
+    int stamp(MediaItem i) => ReleaseDate.sortStamp(i);
     final fresh = [
       for (final t in tracks)
         if (!extras.isPlayed(t) && (t.viewCount ?? 0) == 0) t,

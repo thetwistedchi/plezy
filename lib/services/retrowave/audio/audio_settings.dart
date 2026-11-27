@@ -1,5 +1,6 @@
 import '../../../media/media_item.dart';
 import '../../settings_service.dart';
+import 'release_date.dart';
 
 /// Fork: what a music library holds. Audiobooks and audio dramas
 /// (Hörspiele) play like books: skip buttons, speed, resume, chapters.
@@ -156,7 +157,7 @@ abstract final class AudioSorting {
   };
 
   static int _date(MediaItem i) =>
-      DateTime.tryParse(i.originallyAvailableAt ?? '')?.millisecondsSinceEpoch ??
+      ReleaseDate.of(i)?.millisecondsSinceEpoch ??
       (i.year != null ? DateTime(i.year!).millisecondsSinceEpoch : (i.addedAt ?? 0) * 1000);
 
   /// [tracks] (in the server's order) sorted by [sort], reversed on request.

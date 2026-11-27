@@ -40,6 +40,7 @@ import '../../utils/error_message_utils.dart';
 import '../../i18n/retro_strings.dart';
 import '../../services/retrowave/audio/audio_extras.dart';
 import '../../services/retrowave/audio/audio_settings.dart';
+import '../../services/retrowave/audio/release_date.dart';
 import '../../services/settings_service.dart';
 import '../../widgets/app_menu.dart';
 import '../../widgets/overlay_sheet.dart';
@@ -163,11 +164,8 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
 
   /// Release date of a podcast episode (or when it was added).
   static String? _releaseDate(MediaItem item) {
-    final date = item.originallyAvailableAt;
-    if (date != null && date.isNotEmpty) return formatAbbreviatedDate(date);
-    final added = item.addedAt;
-    if (added == null) return null;
-    return formatAbbreviatedDate(DateTime.fromMillisecondsSinceEpoch(added * 1000).toIso8601String());
+    final date = ReleaseDate.orAdded(item);
+    return date == null ? null : formatAbbreviatedDate(date.toIso8601String());
   }
 
   /// Fork: where a book stopped, with the time left and a restart button.
