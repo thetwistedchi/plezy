@@ -13,6 +13,7 @@ import '../providers/catalog_sources_provider.dart';
 import '../services/browser/browser_controller.dart';
 import '../services/browser/browser_native.dart';
 import '../services/fullscreen_state_manager.dart';
+import '../theme/page_backdrop.dart';
 import '../utils/app_logger.dart';
 import '../utils/external_url.dart';
 
@@ -36,15 +37,11 @@ class FreePlexPlayerScreen extends StatefulWidget {
       appLogger.d('Free on plex.tv: no Plex sign-in for Plex Web: $e');
     }
     if (!context.mounted) return;
-    await Navigator.of(
-      context,
-    ).push(
-      MaterialPageRoute<void>(
-        builder: (_) => Platform.isWindows
-            ? _FreePlexWindowsPage(url: url, plexToken: token)
-            : FreePlexPlayerScreen(url: url, plexToken: token),
-      ),
-    );
+    // Windows: see-through, the native page shows beneath the Flutter view.
+    final route = Platform.isWindows
+        ? NoPageBackdropRoute<void>(builder: (_) => _FreePlexWindowsPage(url: url, plexToken: token))
+        : MaterialPageRoute<void>(builder: (_) => FreePlexPlayerScreen(url: url, plexToken: token));
+    await Navigator.of(context).push(route);
   }
 
   @override
@@ -271,10 +268,12 @@ class _FreePlexWindowsState extends State<_FreePlexWindowsPage> {
       child: Focus(
         autofocus: true,
         child: Scaffold(
-          backgroundColor: Colors.black,
+          // Transparent: the page shows through the area below the bar.
+          backgroundColor: Colors.transparent,
           body: Column(
             children: [
-              SizedBox(
+              Container(
+                color: Colors.black,
                 height: _barHeight,
                 child: Row(
                   children: [
@@ -301,7 +300,9 @@ class _FreePlexWindowsState extends State<_FreePlexWindowsPage> {
               ),
               Expanded(
                 child: _failed
-                    ? Center(
+                    ? Container(
+                        color: Colors.black,
+                        alignment: Alignment.center,
                         child: Text(
                           RetroStrings.freeOnPlexPageFailed,
                           style: const TextStyle(color: Colors.white70),
