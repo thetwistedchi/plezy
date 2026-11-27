@@ -126,6 +126,7 @@ class _FreePlexWindowsState extends State<_FreePlexWindowsPage> {
   StreamSubscription<BrowserEvent>? _events;
   final _approved = <String>{};
   List<int>? _sentRect;
+  Timer? _rectTimer;
   bool _enteredFullscreen = false;
   bool _failed = false;
   bool _closing = false;
@@ -139,6 +140,9 @@ class _FreePlexWindowsState extends State<_FreePlexWindowsPage> {
       unawaited(manager.enterFullscreen());
     }
     _events = BrowserNative.instance.events.where((e) => e.tab == _tabId).listen(_onEvent);
+    // The page's place is measured again while it is open: the route's
+    // transition and the switch to full screen move it without a rebuild.
+    _rectTimer = Timer.periodic(const Duration(milliseconds: 250), (_) => _syncRect());
     unawaited(_start());
   }
 
@@ -146,7 +150,8 @@ class _FreePlexWindowsState extends State<_FreePlexWindowsPage> {
     try {
       await BrowserController.instance.showStandalone(_tabId, widget.url);
       _sentRect = null;
-      if (mounted) WidgetsBinding.instance.addPostFrameCallback((_) => _syncRect());
+      _syncRect();
+      appLogger.i('Free on plex.tv: page opened in the app (${_sentRect ?? 'no place yet'})');
     } catch (e) {
       appLogger.w('Free on plex.tv: WebView2 could not start', error: e);
       if (mounted) setState(() => _failed = true);
@@ -155,13 +160,17 @@ class _FreePlexWindowsState extends State<_FreePlexWindowsPage> {
 
   void _onEvent(BrowserEvent e) {
     switch (e.type) {
+      case 'loaded':
+        appLogger.d('Free on plex.tv: page loaded (ok ${e.flag('ok')}, error ${e.integer('error')})');
       case 'loading' || 'state':
         final url = e.str('url');
+        if (e.type == 'loading') appLogger.d('Free on plex.tv: loading ${Uri.tryParse(url ?? '')?.host ?? ''}');
         if (url != null) unawaited(_maybeApproveSignIn(url));
       case 'shortcut':
         final key = e.str('key');
         if (key == 'closeTab' || key == 'back') unawaited(_close());
       case 'crashed':
+        appLogger.w('Free on plex.tv: page process failed (kind ${e.integer('kind')})');
         unawaited(BrowserController.instance.closeStandalone(_tabId));
         if (mounted) setState(() => _failed = true);
     }
@@ -214,7 +223,7 @@ class _FreePlexWindowsState extends State<_FreePlexWindowsPage> {
   void _syncRect() {
     if (!mounted || _closing) return;
     final box = _pageKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return;
+    if (box == null || !box.hasSize || !box.attached) return;
     final position = box.localToGlobal(Offset.zero);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final rect = [
@@ -246,6 +255,7 @@ class _FreePlexWindowsState extends State<_FreePlexWindowsPage> {
   @override
   void dispose() {
     _closing = true;
+    _rectTimer?.cancel();
     unawaited(_events?.cancel());
     unawaited(BrowserController.instance.closeStandalone(_tabId));
     if (_enteredFullscreen) unawaited(FullscreenStateManager().exitFullscreen());
