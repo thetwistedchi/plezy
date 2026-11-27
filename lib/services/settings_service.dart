@@ -874,6 +874,9 @@ class SettingsService extends BaseSharedPreferencesService {
   /// cast on details pages while German audio is selected.
   static const germanVoiceActors = BoolPref('retrowave_german_voice_actors', defaultValue: true);
 
+  /// Fork: the "Hidden libraries (N)" entry in the sidebar.
+  static const showHiddenLibrariesEntry = BoolPref('retrowave_show_hidden_libraries_entry', defaultValue: true);
+
   /// Fork: the film series on a movie's page.
   static const showFilmSeries = BoolPref('retrowave_show_film_series', defaultValue: true);
 
@@ -1620,6 +1623,7 @@ class SettingsService extends BaseSharedPreferencesService {
     upcomingServersOff,
     upcomingHiddenShows,
     showFilmSeries,
+    showHiddenLibrariesEntry,
     statsListLength,
     statsExcluded,
     statsCountOnce,

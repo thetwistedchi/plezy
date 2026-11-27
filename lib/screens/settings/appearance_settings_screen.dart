@@ -170,6 +170,13 @@ class AppearanceSettingsScreen extends StatelessWidget {
                 title: t.settings.groupLibrariesByServer,
                 subtitle: t.settings.groupLibrariesByServerDescription,
               ),
+            if (PlatformDetector.shouldUseSideNavigation(context))
+              SettingSwitchTile(
+                pref: SettingsService.showHiddenLibrariesEntry,
+                icon: Symbols.visibility_off_rounded,
+                title: RetroStrings.showHiddenLibrariesEntry,
+                subtitle: RetroStrings.showHiddenLibrariesEntryHint,
+              ),
             if (!PlatformDetector.shouldUseSideNavigation(context))
               SettingSwitchTile(
                 pref: SettingsService.showNavBarLabels,

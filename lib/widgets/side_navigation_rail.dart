@@ -885,12 +885,12 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
     // Fork: app pages (Upcoming episodes, statistics) among the libraries.
     final allLibraries = VirtualLibraries.merge(librariesProvider.libraries);
     final visibleLibraries = <MediaLibrary>[];
-    final hiddenLibraries = <MediaLibrary>[];
+    final allHiddenLibraries = <MediaLibrary>[];
     final serverIds = <String>{};
     for (final lib in allLibraries) {
       if (lib.serverId != null) serverIds.add(lib.serverId!);
       if (hiddenKeys.contains(lib.globalKey)) {
-        hiddenLibraries.add(lib);
+        allHiddenLibraries.add(lib);
       } else {
         visibleLibraries.add(lib);
       }
@@ -920,8 +920,13 @@ class SideNavigationRailState extends State<SideNavigationRail> with MountedSetS
         SettingsService.instance.listenable(SettingsService.groupLibrariesByServer),
         SettingsService.instance.listenable(SettingsService.showExploreTab),
         SettingsService.instance.listenable(SettingsService.librariesSectionExpanded),
+        SettingsService.instance.listenable(SettingsService.showHiddenLibrariesEntry),
       ]),
       builder: (context, _) {
+        // Fork: the "Hidden libraries (N)" entry can be switched off.
+        final hiddenLibraries = SettingsService.instance.read(SettingsService.showHiddenLibrariesEntry)
+            ? allHiddenLibraries
+            : const <MediaLibrary>[];
         final hasExplore = hasExploreSource && SettingsService.instance.read(SettingsService.showExploreTab);
         // Server grouping: only when multi-server AND the user-facing toggle is on.
         final groupByServerSetting = SettingsService.instance.read(SettingsService.groupLibrariesByServer);

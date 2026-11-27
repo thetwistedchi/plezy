@@ -341,6 +341,12 @@ class RetroStrings {
   static String get gamepadInput => _t('Game controller input', 'Controller-Eingaben');
   static String get gamepadInputDescription =>
       _t('Navigate with a connected game controller', 'Mit einem angeschlossenen Controller navigieren');
+  static String get showHiddenLibrariesEntry =>
+      _t('"Hidden libraries" in the sidebar', '„Ausgeblendete Bibliotheken" in der Seitenleiste');
+  static String get showHiddenLibrariesEntryHint => _t(
+    'Off: hidden libraries stay reachable in Manage libraries only.',
+    'Aus: ausgeblendete Bibliotheken sind nur noch über Bibliotheken verwalten erreichbar.',
+  );
   static String get showFilmSeries => _t('Film series', 'Filmreihen');
   static String get showFilmSeriesDescription => _t(
     "On a movie's page, every part of its series, with the ones missing from the library marked",
