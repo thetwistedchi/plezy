@@ -38,12 +38,17 @@ class FreePlexPlayerScreen extends StatefulWidget {
     if (!context.mounted) return;
     await Navigator.of(
       context,
-    ).push(MaterialPageRoute<void>(builder: (_) => FreePlexPlayerScreen(url: url, plexToken: token)));
+    ).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Platform.isWindows
+            ? _FreePlexWindowsPage(url: url, plexToken: token)
+            : FreePlexPlayerScreen(url: url, plexToken: token),
+      ),
+    );
   }
 
   @override
-  State<FreePlexPlayerScreen> createState() =>
-      Platform.isWindows ? _FreePlexWindowsState() : _FreePlexPlayerScreenState();
+  State<FreePlexPlayerScreen> createState() => _FreePlexPlayerScreenState();
 }
 
 class _FreePlexPlayerScreenState extends State<FreePlexPlayerScreen> {
@@ -103,7 +108,17 @@ class _FreePlexPlayerScreenState extends State<FreePlexPlayerScreen> {
 /// Windows: Plex Web in a WebView2 page of the in-app browser's engine,
 /// below a slim bar with Close and "Open in browser" (the fallback when a
 /// title does not play here).
-class _FreePlexWindowsState extends State<FreePlexPlayerScreen> {
+class _FreePlexWindowsPage extends StatefulWidget {
+  const _FreePlexWindowsPage({required this.url, this.plexToken});
+
+  final String url;
+  final String? plexToken;
+
+  @override
+  State<_FreePlexWindowsPage> createState() => _FreePlexWindowsState();
+}
+
+class _FreePlexWindowsState extends State<_FreePlexWindowsPage> {
   static const _tabId = 900001;
   static const _barHeight = 40.0;
 
