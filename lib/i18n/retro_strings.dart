@@ -131,6 +131,12 @@ class RetroStrings {
   );
   static String get audioContinueListening => _t('Continue listening', 'Weiterhören');
   static String get audioRecentlyFinished => _t('Recently finished', 'Zuletzt beendet');
+  static String get audioNewEpisodes => _t('New episodes', 'Neue Folgen');
+  static String get audioNextInSeries => _t('Next in your series', 'Als Nächstes in deinen Reihen');
+  static String audioMoreFrom(String author) => _t('More from $author', 'Mehr von $author');
+  static String get audioShortListens => _t('Short listens (under 3 h)', 'Kurz gehört (unter 3 Std.)');
+  static String get audioNotStarted => _t('Not started yet', 'Noch nicht begonnen');
+  static String get audioNotHeardYet => _t('Not heard yet', 'Noch nicht gehört');
   static String get audioSortBy => _t('Sort by', 'Sortieren nach');
   static String audioTrackSort(AudioTrackSort s) => switch (s) {
     AudioTrackSort.trackOrder => _t('Track order', 'Reihenfolge'),

@@ -264,6 +264,24 @@ class AudioExtras extends ChangeNotifier {
     ];
   }
 
+  /// Keys (`server:album`) of started and of finished books.
+  Set<String> get startedKeys => _resume.keys.toSet();
+  Set<String> get finishedKeys => _finished.keys.toSet();
+
+  /// Author (album artist) of the book listened to last in a library.
+  String? lastAuthor(String serverId, String libraryId) {
+    final all = [
+      ..._resume.entries,
+      ..._finished.entries,
+    ].where((e) => e.key.startsWith('$serverId:') && (e.value['lib'] == null || e.value['lib'] == libraryId)).toList()
+      ..sort((a, b) => ((b.value['at'] as num?) ?? 0).compareTo((a.value['at'] as num?) ?? 0));
+    for (final e in all) {
+      final author = e.value['ar'] as String?;
+      if (author != null && author.isNotEmpty) return author;
+    }
+    return null;
+  }
+
   /// Books of a library that were started and not finished.
   List<MediaItem> continueListening(String serverId, String libraryId) => _albums(_resume, serverId, libraryId);
 

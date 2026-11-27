@@ -30,6 +30,8 @@ import 'base_library_tab.dart';
 import '../../../services/retrowave/audio/audio_extras.dart';
 import '../../../services/retrowave/audio/audio_settings.dart';
 import '../../../i18n/retro_strings.dart';
+import '../../../services/retrowave/audio/audio_library_rows.dart';
+import '../../../media/media_kind.dart';
 
 /// Recommended tab for library screen
 /// Shows library-specific hubs and recommendations, including dedicated Continue Watching
@@ -213,10 +215,20 @@ class _LibraryRecommendedTabState extends BaseLibraryTabState<MediaHub, LibraryR
       hubs.insert(0, cwHub);
     }
 
-    // Fork: audiobooks and audio dramas: started books first, finished last.
+    // Fork: audiobooks, audio dramas and podcasts: own rows after the
+    // server's, then started books first and finished books last.
     final library = widget.library;
     final serverId = library.serverId;
-    if (serverId != null && AudioSettings.modeForLibrary(serverId, library.id).isBookLike) {
+    final audioMode = AudioSettings.modeForLibrary(serverId, library.id);
+    if (client != null && audioMode.isSpoken && library.kind == MediaKind.artist) {
+      final rows = await AudioLibraryRows.build(client, library, audioMode);
+      // "Next in series" leads, the rest follows the server's rows.
+      final lead = rows.where((h) => h.identifier == 'retrowave_next_in_series').toList();
+      hubs
+        ..insertAll(0, lead)
+        ..addAll(rows.where((h) => h.identifier != 'retrowave_next_in_series'));
+    }
+    if (serverId != null && audioMode.isBookLike) {
       await AudioExtras.instance.load();
       final started = AudioExtras.instance.continueListening(serverId, library.id);
       final finished = AudioExtras.instance.recentlyFinished(serverId, library.id);
