@@ -10,6 +10,7 @@ import '../focus/input_mode_tracker.dart';
 import '../i18n/strings.g.dart';
 import '../media/ids.dart';
 import '../media/media_backend.dart';
+import '../media/media_kind.dart';
 import '../media/media_library.dart';
 import '../media/media_server_client.dart';
 import '../providers/hidden_libraries_provider.dart';
@@ -32,6 +33,7 @@ import '../services/retrowave/library_language_rules.dart';
 import '../i18n/retro_strings.dart';
 import '../services/retrowave/virtual_libraries.dart';
 import '../services/settings_service.dart';
+import '../services/retrowave/audio/audio_settings.dart';
 
 class ContextMenuItem {
   final String value;
@@ -176,9 +178,14 @@ List<ContextMenuItem> _getLibraryMenuItems(MediaLibrary library) {
   // gating keeps them out of MediaBrowser menus. The library-qualified
   // resolver independently requires the exact owning Plex server.
   final languages = _languagesMenuItem();
-  if (library.backend != MediaBackend.plex) return [languages, scan, refresh];
+  // Fork: music libraries can hold audiobooks, audio dramas or podcasts.
+  final audioMode = library.kind == MediaKind.artist
+      ? ContextMenuItem(value: 'audio_mode', icon: Symbols.headphones_rounded, label: RetroStrings.audioLibraryType)
+      : null;
+  if (library.backend != MediaBackend.plex) return [languages, ?audioMode, scan, refresh];
   return [
     languages,
+    ?audioMode,
     scan,
     ContextMenuItem(
       value: 'analyze',
@@ -221,6 +228,9 @@ Future<void> _handleLibraryMenuAction(BuildContext context, String action, Media
   switch (action) {
     case 'languages':
       unawaited(_editLibraryLanguages(context, library));
+      break;
+    case 'audio_mode':
+      unawaited(_editAudioMode(context, library));
       break;
     case 'scan':
       unawaited(_scanLibrary(context, library));
@@ -366,6 +376,13 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
 
   /// Fork: "Languages: audio Japanese · subtitles German" when the library
   /// has a language rule.
+  /// Fork: the type of a music library that is not plain music.
+  String? _audioModeLabel(MediaLibrary library) {
+    if (library.kind != MediaKind.artist) return null;
+    final mode = AudioSettings.modeForLibrary(library.serverId, library.id);
+    return mode == AudioMode.music ? null : RetroStrings.audioMode(mode);
+  }
+
   String? _languageRule(MediaLibrary library) {
     if (VirtualLibraries.isVirtual(library)) return null;
     final rule = LibraryLanguageRules.forLibrary(library.globalKey);
@@ -635,10 +652,11 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
             ],
           ],
         ),
-        subtitle: showServerName || _languageRule(library) != null
+        subtitle: showServerName || _languageRule(library) != null || _audioModeLabel(library) != null
             ? Text(
                 [
                   if (showServerName) library.serverName!,
+                  ?_audioModeLabel(library),
                   ?_languageRule(library),
                 ].join(' · '),
                 style: TextStyle(
@@ -703,6 +721,39 @@ class _LibraryManagementSheetState extends State<_LibraryManagementSheet>
   }
 }
 
+
+/// Fork: what a music library holds (music, audiobooks, audio dramas,
+/// podcasts).
+Future<void> _editAudioMode(BuildContext context, MediaLibrary library) async {
+  final serverId = library.serverId;
+  if (serverId == null) return;
+  final current = AudioSettings.modeForLibrary(serverId, library.id);
+  final picked = await showScopedDialog<AudioMode>(
+    context: context,
+    builder: (dialogContext) => SimpleDialog(
+      title: Text('${RetroStrings.audioLibraryType}: ${library.title}'),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+          child: Text(RetroStrings.audioLibraryTypeHint, style: const TextStyle(fontSize: 12)),
+        ),
+        for (final mode in AudioMode.values)
+          ListTile(
+            leading: AppIcon(
+              mode == current ? Symbols.radio_button_checked_rounded : Symbols.radio_button_unchecked_rounded,
+              fill: 1,
+            ),
+            title: Text(RetroStrings.audioMode(mode)),
+            onTap: () => Navigator.of(dialogContext).pop(mode),
+          ),
+      ],
+    ),
+  );
+  if (picked != null && picked != current) {
+    await AudioSettings.setMode(serverId, library.id, picked);
+    LibraryLanguageRules.revision.value++;
+  }
+}
 
 /// Fork: asks for the audio and subtitle language of a library (ISO codes
 /// such as "ja" or "de"; empty = the profile's languages).

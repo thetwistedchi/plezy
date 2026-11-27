@@ -69,6 +69,7 @@ import 'tracker_service_info.dart';
 import '../retrowave/trakt_import_screen.dart';
 import '../retrowave/upcoming_episodes_screen.dart';
 import '../retrowave/watch_stats_screen.dart';
+import 'audio_player_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -225,6 +226,13 @@ class _SettingsScreenState extends State<SettingsScreen> with FocusableTab, Moun
                       _buildGeneralTile(),
                       _buildAppearanceTile(),
                       _buildPlaybackTile(),
+                      // Fork: music, audiobook and podcast player.
+                      SettingNavigationTile(
+                        icon: Symbols.headphones_rounded,
+                        title: RetroStrings.audioSettings,
+                        subtitle: RetroStrings.audioSettingsDescription,
+                        destinationBuilder: (context) => const AudioPlayerSettingsScreen(),
+                      ),
                       if (hasLibraries) _buildManageLibrariesTile(sheetContext),
                       _buildServicesTile(),
                     ],

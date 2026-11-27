@@ -12,6 +12,7 @@ import '../../focus/input_mode_tracker.dart';
 import '../../mixins/tab_navigation_mixin.dart';
 import '../../mixins/tab_visibility_aware.dart';
 import '../../media/ids.dart';
+import '../../media/media_backend.dart';
 import '../../media/library_genre.dart';
 import '../../media/media_kind.dart';
 import '../../media/media_library.dart';
@@ -43,9 +44,10 @@ import 'tabs/library_collections_tab.dart';
 import 'tabs/library_genres_tab.dart';
 import 'tabs/library_playlists_tab.dart';
 import 'tabs/library_upcoming_tab.dart';
+import 'tabs/library_radio_tab.dart';
 import 'tabs/base_library_tab.dart';
 
-enum LibraryTabType { recommended, browse, collections, playlists, genres, upcoming }
+enum LibraryTabType { recommended, browse, collections, playlists, genres, upcoming, radio }
 
 List<LibraryTabType> visibleLibraryTabs(MediaLibrary library) {
   if (library.isShared) return [LibraryTabType.browse, LibraryTabType.playlists];
@@ -54,9 +56,14 @@ List<LibraryTabType> visibleLibraryTabs(MediaLibrary library) {
   final hasGenres = library.kind == MediaKind.movie || library.kind == MediaKind.show;
   // Fork: Upcoming episodes, for show libraries.
   final hasUpcoming = library.kind == MediaKind.show;
+  // Fork: Plex radio stations, for music libraries.
+  final hasRadio = library.kind == MediaKind.artist && library.backend == MediaBackend.plex;
   return [
     for (final tab in LibraryTabType.values)
-      if ((tab != LibraryTabType.genres || hasGenres) && (tab != LibraryTabType.upcoming || hasUpcoming)) tab,
+      if ((tab != LibraryTabType.genres || hasGenres) &&
+          (tab != LibraryTabType.upcoming || hasUpcoming) &&
+          (tab != LibraryTabType.radio || hasRadio))
+        tab,
   ];
 }
 
@@ -87,6 +94,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
   final _collectionsTabKey = GlobalKey();
   final _genresTabKey = GlobalKey();
   final _upcomingTabKey = GlobalKey();
+  final _radioTabKey = GlobalKey();
   final _playlistsTabKey = GlobalKey();
 
   String? _selectedLibraryGlobalKey;
@@ -367,6 +375,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
       LibraryTabType.genres => _genresTabKey.currentState,
       LibraryTabType.playlists => _playlistsTabKey.currentState,
       LibraryTabType.upcoming => _upcomingTabKey.currentState,
+      LibraryTabType.radio => _radioTabKey.currentState,
     };
   }
 
@@ -475,6 +484,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
     LibraryTabType.genres => t.libraries.tabs.genres,
     LibraryTabType.playlists => t.libraries.tabs.playlists,
     LibraryTabType.upcoming => RetroStrings.upcomingTab,
+    LibraryTabType.radio => RetroStrings.audioStations,
   };
 
   Widget _buildTabContent(
@@ -533,6 +543,14 @@ class _LibrariesScreenState extends State<LibrariesScreen>
       ),
       LibraryTabType.upcoming => LibraryUpcomingTab(
         key: _upcomingTabKey,
+        library: library,
+        isActive: isActive,
+        suppressAutoFocus: suppressAutoFocus,
+        onDataLoaded: () => _handleTabDataLoaded(tabIndex),
+        onBack: focusTabBar,
+      ),
+      LibraryTabType.radio => LibraryRadioTab(
+        key: _radioTabKey,
         library: library,
         isActive: isActive,
         suppressAutoFocus: suppressAutoFocus,

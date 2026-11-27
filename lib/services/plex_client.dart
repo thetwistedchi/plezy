@@ -3660,6 +3660,45 @@ class PlexClient
     return tracks.length > limit ? tracks.sublist(0, limit) : tracks;
   }
 
+  /// Fork: tracks that sound like [trackId] (Plex sonic analysis, Plex Pass
+  /// servers that analysed the library). Empty when the server has none.
+  Future<List<MediaItem>> fetchSonicallySimilar(String trackId, {int limit = 50}) async {
+    final response = await _getWithFailover(
+      '/library/metadata/$trackId/nearest',
+      queryParameters: {'limit': limit, 'maxDistance': 0.25},
+    );
+    return _extractMetadataList(response).map(PlexMappers.mediaItem).toList();
+  }
+
+  /// Fork: the radio stations Plex offers for a music library (Library
+  /// radio, Time travel radio, Deep cuts and the like), as title and key.
+  Future<List<({String title, String key, String? summary})>> fetchMusicStations(String sectionId) async {
+    final response = await _getWithFailover('/hubs/sections/$sectionId', queryParameters: {'includeStations': 1});
+    final hubs = _getMediaContainer(response)?['Hub'];
+    final stations = <({String title, String key, String? summary})>[];
+    if (hubs is! List) return stations;
+    for (final hub in hubs.whereType<Map>()) {
+      final id = '${hub['hubIdentifier'] ?? ''} ${hub['type'] ?? ''}'.toLowerCase();
+      if (!id.contains('station')) continue;
+      for (final m in ((hub['Metadata'] as List?) ?? const []).whereType<Map>()) {
+        final key = m['key'] as String?;
+        final title = m['title'] as String?;
+        if (key == null || title == null) continue;
+        stations.add((title: title, key: key, summary: m['summary'] as String?));
+      }
+    }
+    return stations;
+  }
+
+  /// Fork: the tracks of a station from [fetchMusicStations].
+  Future<List<MediaItem>> fetchStationTracks(String key, {int limit = 100}) async {
+    final machineId = config.machineIdentifier ?? await getMachineIdentifier();
+    if (machineId == null) throw Exception('Could not get server machine identifier');
+    final queue = await createPlayQueue(uri: 'server://$machineId/com.plexapp.plugins.library$key', type: 'audio');
+    final tracks = queue.items ?? const <MediaItem>[];
+    return tracks.length > limit ? tracks.sublist(0, limit) : tracks;
+  }
+
   /// Plex lyrics: sidecar `.lrc`/`.txt` files surface as track Part streams
   /// with `streamType 4`. Plex normalizes the selected stream to a structured
   /// `Lyrics > Line > Span` response at `/library/streams/{id}?format=xml`.

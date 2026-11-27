@@ -64,6 +64,8 @@ import '../i18n/strings.g.dart';
 import '../utils/error_message_utils.dart';
 import '../services/retrowave/upcoming_episodes.dart';
 import '../i18n/retro_strings.dart';
+import '../services/retrowave/audio/audio_extras.dart';
+import '../services/retrowave/audio/audio_settings.dart';
 
 class _MenuAction {
   final String value;
@@ -749,6 +751,20 @@ class MediaContextMenuState extends State<MediaContextMenu> {
         _MenuAction(value: 'music_album', icon: Symbols.album_rounded, label: t.music.goToAlbum),
       if (musicArtistId != null && ancestorArtistId != musicArtistId)
         _MenuAction(value: 'music_artist', icon: Symbols.artist_rounded, label: t.music.goToArtist),
+      // Fork: Plex sonic analysis, and played state of podcast episodes.
+      if (mediaKind == MediaKind.track &&
+          menu.itemServerOnline &&
+          menu.mediaClient is PlexClient &&
+          context.read<MusicPlaybackService?>() != null)
+        _MenuAction(value: 'music_sonic', icon: Symbols.graphic_eq_rounded, label: RetroStrings.audioSonicallySimilar),
+      if (mediaKind == MediaKind.track && AudioSettings.modeFor(mediaItem) == AudioMode.podcast)
+        AudioExtras.instance.isPlayed(mediaItem)
+            ? _MenuAction(
+                value: 'audio_unplayed',
+                icon: Symbols.remove_done_rounded,
+                label: RetroStrings.audioMarkUnplayed,
+              )
+            : _MenuAction(value: 'audio_played', icon: Symbols.done_rounded, label: RetroStrings.audioMarkPlayed),
     ];
   }
 
@@ -1006,6 +1022,33 @@ class MediaContextMenuState extends State<MediaContextMenu> {
         break;
       case 'delete_media':
         await _handleDeleteMediaItem(context, mediaItem.kind);
+        break;
+      case 'music_sonic':
+        final sonicClient = context.tryGetMediaClientWithFallback(serverIdOrNull(mediaItem.serverId));
+        if (sonicClient is! PlexClient) break;
+        try {
+          final similar = await sonicClient.fetchSonicallySimilar(mediaItem.id);
+          if (!context.mounted) break;
+          if (similar.isEmpty) {
+            showErrorSnackBar(context, t.music.instantMixEmpty);
+            break;
+          }
+          await context.read<MusicPlaybackService>().playFromList(
+            tracks: [mediaItem, ...similar.where((x) => x.id != mediaItem.id)],
+            playContext: MusicPlayContext(
+              title: '${RetroStrings.audioSonicallySimilar}: ${mediaItem.displayTitle}',
+              kind: MusicPlayContextKind.mix,
+            ),
+          );
+        } catch (e) {
+          if (context.mounted) showErrorSnackBar(context, t.music.instantMixFailed);
+        }
+        break;
+      case 'audio_played':
+        await AudioExtras.instance.setPlayed(mediaItem, true);
+        break;
+      case 'audio_unplayed':
+        await AudioExtras.instance.setPlayed(mediaItem, false);
         break;
       case 'music_play':
         await _handleMusicPlay(context);
