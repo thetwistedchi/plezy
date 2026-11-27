@@ -68,6 +68,13 @@ abstract final class AudioSettings {
   /// Lyrics from LRCLIB when the server has none.
   static const onlineLyrics = BoolPref('retrowave_audio_online_lyrics', defaultValue: true);
 
+  /// Podcasts: skip chapters whose title names an ad (as Podshelf does).
+  static const skipAdChapters = BoolPref('retrowave_audio_skip_ad_chapters', defaultValue: true);
+  static const adKeywords = StringPref(
+    'retrowave_audio_ad_keywords',
+    defaultValue: 'werbung, anzeige, sponsor, sponsored, ad, ads, advertisement, promo, commercial',
+  );
+
   static const skipBack = IntPref('retrowave_audio_skip_back', defaultValue: 10);
   static const skipForward = IntPref('retrowave_audio_skip_forward', defaultValue: 30);
 

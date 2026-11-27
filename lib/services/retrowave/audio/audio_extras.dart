@@ -66,6 +66,9 @@ class AudioExtras extends ChangeNotifier {
   final chapters = ValueNotifier<List<AudioChapter>>(const []);
 
   Map<String, double> _speeds = {};
+
+  /// Podcasts: seconds to skip at the start and end, per podcast.
+  Map<String, List<int>> _trims = {};
   Map<String, Map<String, dynamic>> _resume = {};
   Map<String, List<AudioBookmark>> _bookmarks = {};
   Set<String> _played = {};
@@ -109,6 +112,10 @@ class AudioExtras extends ChangeNotifier {
       _speeds = {
         for (final e in ((json['speeds'] as Map?) ?? const {}).entries) e.key as String: (e.value as num).toDouble(),
       };
+      _trims = {
+        for (final e in ((json['trims'] as Map?) ?? const {}).entries)
+          e.key as String: [for (final n in (e.value as List)) (n as num).toInt()],
+      };
       _resume = {
         for (final e in ((json['resume'] as Map?) ?? const {}).entries)
           e.key as String: Map<String, dynamic>.from(e.value as Map),
@@ -141,6 +148,7 @@ class AudioExtras extends ChangeNotifier {
       await file.writeAsString(
         jsonEncode({
           'speeds': _speeds,
+          'trims': _trims,
           'resume': _resume,
           'bookmarks': {
             for (final e in _bookmarks.entries)
@@ -197,6 +205,77 @@ class AudioExtras extends ChangeNotifier {
       await player.setRate(rate);
     } catch (e) {
       appLogger.d('Setting the audio speed failed', error: e);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Podcast intro / outro skipping and ad chapters
+  // ---------------------------------------------------------------------
+
+  /// Seconds skipped at the start and at the end of each episode of the
+  /// playing podcast.
+  (int start, int end) get trim {
+    final t = _trims[bookKeyOf(_track)];
+    return t == null || t.length < 2 ? (0, 0) : (t[0], t[1]);
+  }
+
+  Future<void> setTrim(int start, int end) async {
+    final key = bookKeyOf(_track);
+    if (key == null) return;
+    if (start == 0 && end == 0) {
+      _trims.remove(key);
+    } else {
+      _trims[key] = [start, end];
+    }
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  bool _trimmedStart = false;
+  bool _skippingEnd = false;
+  int? _skippedChapter;
+
+  /// Last ad chapter skipped, for a short notice (cleared when shown).
+  final skippedAd = ValueNotifier<String?>(null);
+
+  static bool _isAd(String title, String keywords) {
+    final words = [for (final w in keywords.split(',')) if (w.trim().isNotEmpty) RegExp.escape(w.trim())];
+    if (words.isEmpty) return false;
+    return RegExp('\\b(${words.join('|')})\\b', caseSensitive: false).hasMatch(title);
+  }
+
+  void _podcastSkips(MusicPlaybackService service, MediaItem track, Duration position, Duration? duration) {
+    if (_mode != AudioMode.podcast) return;
+    final (start, end) = trim;
+    // Intro: once per episode, only near its beginning.
+    if (!_trimmedStart && start > 0) {
+      _trimmedStart = true;
+      if (position < Duration(seconds: start) && position < const Duration(seconds: 5)) {
+        unawaited(service.seek(Duration(seconds: start)));
+        return;
+      }
+    }
+    // Outro: straight on to the next episode (or the end of the queue).
+    if (end > 0 && duration != null && duration > Duration(seconds: end + 5) && !_skippingEnd) {
+      if (duration - position <= Duration(seconds: end)) {
+        _skippingEnd = true;
+        unawaited(service.seek(duration - const Duration(milliseconds: 300)));
+        return;
+      }
+    }
+    // Chapters named like ads.
+    final s = SettingsService.instance;
+    final list = chapters.value;
+    if (list.isEmpty || !s.read(AudioSettings.skipAdChapters)) return;
+    final i = chapterIndexAt(position);
+    if (i < 0 || i == _skippedChapter) return;
+    if (_isAd(list[i].title, s.read(AudioSettings.adKeywords))) {
+      _skippedChapter = i;
+      final target = i + 1 < list.length ? list[i + 1].start : duration;
+      if (target != null) {
+        skippedAd.value = list[i].title;
+        unawaited(service.seek(target));
+      }
     }
   }
 
@@ -471,6 +550,9 @@ class AudioExtras extends ChangeNotifier {
     _track = track;
     _mode = AudioSettings.modeFor(track);
     _sleepAfterChapter = null;
+    _trimmedStart = false;
+    _skippingEnd = false;
+    _skippedChapter = null;
     if (_sleepTracksLeft != null && previous != null && previous != track.globalKey) {
       _sleepTracksLeft = _sleepTracksLeft! - 1;
     }
@@ -576,6 +658,9 @@ class AudioExtras extends ChangeNotifier {
       notifyListeners();
       unawaited(service.pause());
     }
+
+    // Podcasts: intro, outro and ad chapters.
+    _podcastSkips(service, track, position, duration);
 
     // Fade out before a track of another album.
     _fadeOut(service, track, position, duration);

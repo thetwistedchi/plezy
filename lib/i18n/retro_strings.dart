@@ -137,6 +137,20 @@ class RetroStrings {
   static String get audioShortListens => _t('Short listens (under 3 h)', 'Kurz gehört (unter 3 Std.)');
   static String get audioNotStarted => _t('Not started yet', 'Noch nicht begonnen');
   static String get audioNotHeardYet => _t('Not heard yet', 'Noch nicht gehört');
+  static String audioAdSkipped(String chapter) => _t('Skipped: $chapter', 'Übersprungen: $chapter');
+  static String get audioTrim => _t('Skip intro and outro', 'Intro und Outro überspringen');
+  static String get audioTrimHint => _t(
+    'For every episode of this podcast, e.g. a fixed ad or jingle at the start.',
+    'Für jede Folge dieses Podcasts, z. B. feste Werbung oder ein Jingle am Anfang.',
+  );
+  static String get audioTrimStart => _t('At the start', 'Am Anfang');
+  static String get audioTrimEnd => _t('At the end', 'Am Ende');
+  static String get audioSkipAdChapters => _t('Skip ad chapters', 'Werbekapitel überspringen');
+  static String get audioSkipAdChaptersHint => _t(
+    'Podcast chapters whose title contains one of the words below are skipped.',
+    'Podcast-Kapitel, deren Titel eines der Wörter unten enthält, werden übersprungen.',
+  );
+  static String get audioAdKeywords => _t('Ad words', 'Werbewörter');
   static String get audioSortBy => _t('Sort by', 'Sortieren nach');
   static String audioTrackSort(AudioTrackSort s) => switch (s) {
     AudioTrackSort.trackOrder => _t('Track order', 'Reihenfolge'),

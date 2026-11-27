@@ -93,6 +93,13 @@ class AudioPlayerSettingsScreen extends StatelessWidget {
                 for (final p in AudioEqPreset.values) DialogOption(value: p, title: RetroStrings.audioEqPreset(p)),
               ],
             ),
+            SettingSwitchTile(
+              pref: AudioSettings.skipAdChapters,
+              icon: Symbols.content_cut_rounded,
+              title: RetroStrings.audioSkipAdChapters,
+              subtitle: RetroStrings.audioSkipAdChaptersHint,
+            ),
+            const _AdKeywordsTile(),
             SettingSelectionTile<int>(
               pref: AudioSettings.skipBack,
               icon: Symbols.replay_10_rounded,
@@ -116,6 +123,48 @@ class AudioPlayerSettingsScreen extends StatelessWidget {
       ],
     );
   }
+}
+
+class _AdKeywordsTile extends StatelessWidget {
+  const _AdKeywordsTile();
+
+  Future<void> _edit(BuildContext context) async {
+    final controller = TextEditingController(text: SettingsService.instance.read(AudioSettings.adKeywords));
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(RetroStrings.audioAdKeywords),
+        content: SizedBox(
+          width: 420,
+          child: TextField(controller: controller, autofocus: true, minLines: 2, maxLines: 4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value != null) await SettingsService.instance.write(AudioSettings.adKeywords, value.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) => SettingValueBuilder<String>(
+    pref: AudioSettings.adKeywords,
+    builder: (context, words, _) => ListTile(
+      leading: const AppIcon(Symbols.label_rounded, fill: 1),
+      title: Text(RetroStrings.audioAdKeywords),
+      subtitle: Text(words, maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: const AppIcon(Symbols.chevron_right_rounded, fill: 1),
+      onTap: () => unawaited(_edit(context)),
+    ),
+  );
 }
 
 class _ListenBrainzTile extends StatelessWidget {

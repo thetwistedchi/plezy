@@ -103,6 +103,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
   @override
   void initState() {
     super.initState();
+    AudioExtras.instance.skippedAd.addListener(_onAdSkipped);
     _dismissSettle = AnimationController(vsync: this, duration: const Duration(milliseconds: 200))
       ..addListener(_onDismissSettleTick);
   }
@@ -132,7 +133,16 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
   }
 
   @override
+  /// Fork: a short notice when an ad chapter was skipped.
+  void _onAdSkipped() {
+    final title = AudioExtras.instance.skippedAd.value;
+    if (title == null || !mounted) return;
+    AudioExtras.instance.skippedAd.value = null;
+    showAppSnackBar(context, RetroStrings.audioAdSkipped(title));
+  }
+
   void dispose() {
+    AudioExtras.instance.skippedAd.removeListener(_onAdSkipped);
     _errorsSub?.cancel();
     _dismissSettle.dispose();
     _dismissDrag.dispose();
@@ -437,6 +447,57 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
         },
       ),
     );
+  }
+
+  /// Fork: seconds to skip at the start and end of this podcast's episodes.
+  Future<void> _showTrimDialog() async {
+    final extras = AudioExtras.instance;
+    var (start, end) = extras.trim;
+    const choices = [0, 10, 15, 20, 30, 45, 60, 90, 120, 180];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialog) => AlertDialog(
+          title: Text(RetroStrings.audioTrim),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(RetroStrings.audioTrimHint, style: const TextStyle(fontSize: 12)),
+              const SizedBox(height: 12),
+              for (final (label, value, set) in [
+                (RetroStrings.audioTrimStart, start, (int v) => start = v),
+                (RetroStrings.audioTrimEnd, end, (int v) => end = v),
+              ])
+                Row(
+                  children: [
+                    Expanded(child: Text(label)),
+                    DropdownButton<int>(
+                      value: choices.contains(value) ? value : 0,
+                      items: [
+                        for (final n in choices)
+                          DropdownMenuItem(value: n, child: Text(n == 0 ? RetroStrings.audioSeconds(0) : '$n s')),
+                      ],
+                      onChanged: (v) => setDialog(() => set(v ?? 0)),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) await extras.setTrim(start, end);
   }
 
   Future<void> _showEqualizerSheet() async {
@@ -798,6 +859,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
         children: [
           if (AudioExtras.instance.chapters.value.isNotEmpty)
             extra(Symbols.toc_rounded, RetroStrings.audioChapters, () => unawaited(_showChaptersSheet())),
+          if (AudioExtras.instance.mode == AudioMode.podcast)
+            extra(Symbols.content_cut_rounded, RetroStrings.audioTrim, () => unawaited(_showTrimDialog())),
           if (AudioExtras.instance.mode.isSpoken)
             extra(Symbols.bookmarks_rounded, RetroStrings.audioBookmarks, () => unawaited(_showBookmarksSheet())),
           extra(Symbols.equalizer_rounded, RetroStrings.audioEqualizer, () => unawaited(_showEqualizerSheet())),
@@ -1212,6 +1275,19 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                 active: false,
                 tooltip: RetroStrings.audioChapters,
                 onPressed: () => unawaited(_showChaptersSheet()),
+                size: 22,
+              ),
+            ),
+          if (AudioExtras.instance.mode == AudioMode.podcast)
+            FocusableAction(
+              debugLabel: 'np_trim',
+              onPressed: () => unawaited(_showTrimDialog()),
+              builder: (context, state) => _transportIcon(
+                state,
+                icon: Symbols.content_cut_rounded,
+                active: AudioExtras.instance.trim != (0, 0),
+                tooltip: RetroStrings.audioTrim,
+                onPressed: () => unawaited(_showTrimDialog()),
                 size: 22,
               ),
             ),
