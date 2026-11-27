@@ -7,7 +7,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../media/media_item.dart';
 import '../../../mpv/player/player.dart';
-import '../../../mpv/player/player_base.dart';
 import '../../../utils/app_logger.dart';
 import '../../music/music_playback_service.dart';
 import '../../settings_service.dart';
