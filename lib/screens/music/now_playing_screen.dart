@@ -132,7 +132,6 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
     }
   }
 
-  @override
   /// Fork: a short notice when an ad chapter was skipped.
   void _onAdSkipped() {
     final title = AudioExtras.instance.skippedAd.value;
@@ -141,6 +140,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
     showAppSnackBar(context, RetroStrings.audioAdSkipped(title));
   }
 
+  @override
   void dispose() {
     AudioExtras.instance.skippedAd.removeListener(_onAdSkipped);
     _errorsSub?.cancel();
