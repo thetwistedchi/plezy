@@ -37,6 +37,9 @@ import '../../widgets/optimized_media_image.dart';
 import '../base_media_list_detail_screen.dart';
 import '../focusable_detail_screen_mixin.dart';
 import '../../utils/error_message_utils.dart';
+import '../../i18n/retro_strings.dart';
+import '../../services/retrowave/audio/audio_extras.dart';
+import '../../services/retrowave/audio/audio_settings.dart';
 
 /// Detail screen for a music album: square cover header, Play/Shuffle/
 /// Instant Mix action row, and the track list rendered as grouped
@@ -88,9 +91,79 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
   bool get hasItems => items.isNotEmpty;
 
   @override
-  Future<List<MediaItem>> fetchItems() => widget.isOffline
-      ? Future.value(context.read<DownloadProvider>().getDownloadedTracksForAlbum(widget.album.globalKey))
-      : mediaClient.fetchAlbumTracks(widget.album.id);
+  Future<List<MediaItem>> fetchItems() async {
+    final tracks = await (widget.isOffline
+        ? Future.value(context.read<DownloadProvider>().getDownloadedTracksForAlbum(widget.album.globalKey))
+        : mediaClient.fetchAlbumTracks(widget.album.id));
+    // Fork: podcast episodes newest first.
+    if (_modeFor(tracks) == AudioMode.podcast) {
+      int stamp(MediaItem i) =>
+          DateTime.tryParse(i.originallyAvailableAt ?? '')?.millisecondsSinceEpoch ?? (i.addedAt ?? 0) * 1000;
+      return [...tracks]..sort((a, b) => stamp(b).compareTo(stamp(a)));
+    }
+    return tracks;
+  }
+
+  /// Fork: the library type (music, audiobooks, audio dramas, podcasts).
+  AudioMode _modeFor(List<MediaItem> tracks) {
+    final album = widget.album;
+    final libraryId = album.libraryId ?? tracks.firstOrNull?.libraryId;
+    return AudioSettings.modeForLibrary(album.serverId, libraryId);
+  }
+
+  AudioMode get _mode => _modeFor(items);
+
+  /// Fork: where a book stopped, with the time left and a restart button.
+  Widget _bookProgress() {
+    return ListenableBuilder(
+      listenable: AudioExtras.instance,
+      builder: (context, _) {
+        final resume = AudioExtras.instance.resumeOf(widget.album.serverId, widget.album.id);
+        if (resume == null || items.isEmpty) return const SizedBox.shrink();
+        final index = items.indexWhere((t) => t.id == resume.trackId);
+        if (index < 0) return const SizedBox.shrink();
+        final total = _totalDurationMs;
+        var done = resume.position.inMilliseconds;
+        for (var i = 0; i < index; i++) {
+          done += items[i].durationMs ?? 0;
+        }
+        final left = (total - done).clamp(0, total);
+        final tk = tokens(context);
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            mainAxisSize: .min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 260,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(value: total > 0 ? done / total : 0, minHeight: 5),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: .min,
+                children: [
+                  Text(
+                    RetroStrings.audioTimeLeft(formatDurationTextual(left)),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: tk.textMuted),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () =>
+                        unawaited(AudioExtras.instance.clearResume(widget.album.serverId ?? '', widget.album.id)),
+                    child: Text(RetroStrings.audioRestartBook),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Future<void> loadItems() async {
@@ -309,6 +382,7 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
           const SizedBox(height: 4),
           Text(toBulletedString(metaParts), style: textTheme.bodyMedium?.copyWith(color: tk.textMuted)),
         ],
+        if (_mode.isBookLike) _bookProgress(),
       ],
     );
 
@@ -373,7 +447,7 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
           }
           final trackIndex = row.trackIndex!;
           final item = items[trackIndex];
-          return Padding(
+          final trackRow = Padding(
             padding: EdgeInsets.only(top: row.isFirst ? 0 : tk.groupGap),
             child: TrackRow(
               key: ValueKey(item.id),
@@ -388,6 +462,14 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
               onRefresh: updateItem,
               onTap: () => unawaited(playTracks(context, tracks: items, startTrack: item, playContext: _playContext)),
             ),
+          );
+          // Fork: played podcast episodes are dimmed.
+          if (_mode != AudioMode.podcast) return trackRow;
+          return ListenableBuilder(
+            listenable: AudioExtras.instance,
+            builder: (context, child) =>
+                Opacity(opacity: AudioExtras.instance.isPlayed(item) ? 0.5 : 1, child: child),
+            child: trackRow,
           );
         },
       ),

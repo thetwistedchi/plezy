@@ -23,6 +23,7 @@ import '../../utils/provider_extensions.dart';
 import '../../widgets/app_icon.dart';
 import '../../widgets/desktop_app_bar.dart';
 import '../../widgets/optimized_media_image.dart';
+import '../../services/retrowave/audio/music_listen_tracker.dart';
 
 /// Fork: watch statistics from the libraries' watched states, kept on the
 /// device so they open at once. Filters by server, library and period;
@@ -67,6 +68,9 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
   String? _server;
   String? _library;
   StatsPeriod _period = StatsPeriod.allTime;
+
+  /// Fork: music statistics instead of films and shows.
+  bool _music = false;
   int _listLength = SettingsService.instance.read(SettingsService.statsListLength);
   Set<String> _excluded = SettingsService.instance.read(SettingsService.statsExcluded).toSet();
   Set<String> _countOnce = SettingsService.instance.read(SettingsService.statsCountOnce).toSet();
@@ -368,16 +372,20 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
                   const SizedBox(height: 12),
                   _filters(servers, libraries),
                   const SizedBox(height: 20),
-                  ..._content(
-                    context,
-                    _summary(data, _period),
-                    libraries,
-                  ),
-                  const SizedBox(height: 28),
-                  _yearInReview(
-                    context,
-                    _summary(data, StatsPeriod.thisYear),
-                  ),
+                  if (_music)
+                    ..._musicContent(context)
+                  else ...[
+                    ..._content(
+                      context,
+                      _summary(data, _period),
+                      libraries,
+                    ),
+                    const SizedBox(height: 28),
+                    _yearInReview(
+                      context,
+                      _summary(data, StatsPeriod.thisYear),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -404,6 +412,18 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
       runSpacing: 12,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
+        SegmentedButton<bool>(
+          showSelectedIcon: false,
+          segments: [
+            ButtonSegment(value: false, label: Text(RetroStrings.statsVideo)),
+            ButtonSegment(value: true, label: Text(RetroStrings.statsMusic)),
+          ],
+          selected: {_music},
+          onSelectionChanged: (s) {
+            setState(() => _music = s.first);
+            if (s.first) unawaited(MusicListenTracker.instance.load().then((_) => mounted ? setState(() {}) : null));
+          },
+        ),
         SegmentedButton<StatsPeriod>(
           showSelectedIcon: false,
           segments: [
@@ -442,6 +462,7 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
               _library = null;
             }),
           ),
+        if (!_music)
         DropdownButton<String?>(
           value: shown.any((l) => l.globalKey == _library) ? _library : null,
           items: [
@@ -452,6 +473,96 @@ class _WatchStatsScreenState extends State<WatchStatsScreen> {
         ),
       ],
     );
+  }
+
+  /// Fork: music statistics from the app's own listening log.
+  List<Widget> _musicContent(BuildContext context) {
+    final now = DateTime.now();
+    bool inPeriod(DateTime at) => switch (_period) {
+      StatsPeriod.allTime => true,
+      StatsPeriod.thisYear => at.year == now.year,
+      StatsPeriod.last12Months => now.difference(at).inDays <= 365,
+    };
+    final log = [
+      for (final l in MusicListenTracker.instance.log)
+        if (inPeriod(l.at) && (_server == null || l.server == _server)) l,
+    ];
+    if (log.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Text(RetroStrings.statsMusicEmpty, style: TextStyle(color: tokens(context).textMuted)),
+        ),
+      ];
+    }
+    final n = _listLength;
+    final hours = log.fold<int>(0, (sum, l) => sum + l.duration.inMilliseconds) / 3600000;
+    final artists = <String, int>{};
+    final albums = <String, int>{};
+    final albumInfo = <String, MusicListen>{};
+    final tracks = <String, int>{};
+    final hoursOfDay = List.filled(24, 0);
+    final weekdays = List.filled(7, 0);
+    for (final l in log) {
+      if (l.artist.isNotEmpty) artists[l.artist] = (artists[l.artist] ?? 0) + 1;
+      final albumKey = l.albumKey;
+      if (albumKey != null) {
+        albums[albumKey] = (albums[albumKey] ?? 0) + 1;
+        albumInfo[albumKey] = l;
+      }
+      final trackLabel = l.artist.isEmpty ? l.title : '${l.title} · ${l.artist}';
+      tracks[trackLabel] = (tracks[trackLabel] ?? 0) + 1;
+      hoursOfDay[l.at.hour]++;
+      weekdays[l.at.weekday - 1]++;
+    }
+    List<MapEntry<String, int>> top(Map<String, int> map) =>
+        (map.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).take(n).toList();
+    final topAlbums = top(albums);
+    return [
+      Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        alignment: WrapAlignment.center,
+        children: [
+          _StatTile(icon: Symbols.headphones_rounded, value: '${hours.round()}', label: RetroStrings.statsListened),
+          _StatTile(icon: Symbols.music_note_rounded, value: '${log.length}', label: RetroStrings.statsTracks),
+          _StatTile(icon: Symbols.artist_rounded, value: '${artists.length}', label: RetroStrings.statsTopArtists),
+          _StatTile(icon: Symbols.album_rounded, value: '${albums.length}', label: RetroStrings.statsTopAlbums),
+        ],
+      ),
+      if (artists.isNotEmpty)
+        _Section(title: RetroStrings.statsTopArtists, child: _Bars(entries: top(artists))),
+      if (topAlbums.isNotEmpty)
+        _Section(
+          title: RetroStrings.statsTopAlbums,
+          child: _PosterStrip(
+            entries: [
+              for (final e in topAlbums)
+                _Entry(
+                  server: albumInfo[e.key]!.server ?? '',
+                  id: e.key.substring(e.key.indexOf(':') + 1),
+                  thumb: albumInfo[e.key]!.thumb,
+                  title: albumInfo[e.key]!.album,
+                  badge: '×${e.value}',
+                ),
+            ],
+            client: _client,
+            onOpen: _openItem,
+          ),
+        ),
+      if (tracks.isNotEmpty) _Section(title: RetroStrings.statsTopTracks, child: _Bars(entries: top(tracks))),
+      _Section(
+        title: RetroStrings.statsWeekdays,
+        child: _Columns(entries: [for (var i = 0; i < 7; i++) MapEntry(RetroStrings.weekdaysShort[i], weekdays[i])]),
+      ),
+      _Section(
+        title: RetroStrings.statsHoursOfDay,
+        child: _Columns(
+          entries: [for (var h = 0; h < 24; h++) MapEntry(h % 3 == 0 ? '$h' : '', hoursOfDay[h])],
+          height: 110,
+        ),
+      ),
+    ];
   }
 
   List<Widget> _content(BuildContext context, WatchSummary s, List<MediaLibrary> libraries) {

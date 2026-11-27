@@ -859,7 +859,9 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
       key: contextMenuKey,
       item: track,
       extraEntries: [
-        MediaMenuExtraEntry(icon: Symbols.bedtime_rounded, label: t.music.sleepTimer, onSelected: _showSleepTimerSheet),
+        // Fork: books and audio dramas have the sleep timer in the controls.
+        if (!AudioExtras.instance.mode.isBookLike)
+          MediaMenuExtraEntry(icon: Symbols.bedtime_rounded, label: t.music.sleepTimer, onSelected: _showSleepTimerSheet),
       ],
       child: FocusableButton(
         focusNode: focusable ? _overflowFocusNode : null,
