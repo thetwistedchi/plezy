@@ -131,6 +131,14 @@ abstract final class RetroGlyphs {
   static const _theaters = '<rect x="5" y="3.5" width="14" height="17" rx="2"/>|<path d="M9 3.5v17M15 3.5v17"/>';
   static const _check = '|<path d="M5 12.5l4.5 4.5L19 7.5"/>';
   static const _headphones = '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/>|<rect x="3.5" y="14" width="4.5" height="6.5" rx="1.5"/><rect x="16" y="14" width="4.5" height="6.5" rx="1.5"/>';
+  static const _repeat = '<path d="M7 7h10a3 3 0 0 1 3 3v1M17 17H7a3 3 0 0 1-3-3v-1"/>|<path d="M15 4.5 17.5 7 15 9.5M9 14.5 6.5 17 9 19.5"/>';
+  static const _repeatOne =
+      '<path d="M7 7h10a3 3 0 0 1 3 3v1M17 17H7a3 3 0 0 1-3-3v-1"/>|<path d="M15 4.5 17.5 7 15 9.5M9 14.5 6.5 17 9 19.5M11.2 10.6l1.3-.9v4.6"/>';
+  static const _lyrics = '<path d="M5 5h14v10h-8l-4 3.5V15H5z"/>|<path d="M8.5 9h7M8.5 12h4.5"/>';
+  static const _queueMusic = '<path d="M4 6h12M4 10.5h12M4 15h7"/>|<circle cx="16.5" cy="17.5" r="2.2"/><path d="M18.7 17.5V10l2.3.9"/>';
+  static const _toc = '<path d="M9 6h11M9 12h11M9 18h8"/>|<path d="M4 6h2M4 12h2M4 18h2"/>';
+  static const _equalizer = '<path d="M6 20v-9M12 20V5M18 20v-6"/>|<path d="M4 11h4M10 5h4M16 14h4"/>';
+  static const _single = '<rect x="4" y="4" width="16" height="16" rx="3"/>|<path d="M10.5 9.6l2-1.5v8"/>';
   static const _bell = '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z"/>|<path d="M10 20.5a2 2 0 0 0 4 0"/>';
   static const _doneAll = '<path d="M2.5 12.5 7 17l9.5-9.5"/>|<path d="M12 16l1 1 9.5-9.5"/>';
   static const _clearAll = '<path d="M4 7h12M4 12h12M4 17h8"/>|<path d="M15.5 15.5l5 5M20.5 15.5l-5 5"/>';
@@ -169,6 +177,15 @@ abstract final class RetroGlyphs {
     Symbols.theaters_rounded: _theaters,
     Symbols.check_rounded: _check,
     Symbols.notifications_rounded: _bell,
+    Symbols.repeat_rounded: _repeat,
+    Symbols.repeat_one_rounded: _repeatOne,
+    Symbols.repeat_on_rounded: _repeat,
+    Symbols.repeat_one_on_rounded: _repeatOne,
+    Symbols.lyrics_rounded: _lyrics,
+    Symbols.queue_music_rounded: _queueMusic,
+    Symbols.toc_rounded: _toc,
+    Symbols.equalizer_rounded: _equalizer,
+    Symbols.filter_1_rounded: _single,
     Symbols.headphones_rounded: _headphones,
     Symbols.done_all_rounded: _doneAll,
     Symbols.clear_all_rounded: _clearAll,
@@ -268,6 +285,7 @@ abstract final class RetroGlyphs {
     Symbols.more_vert_rounded: _more,
     Symbols.volume_up_rounded: _volumeUp,
     Symbols.volume_off_rounded: _volumeOff,
+    Symbols.volume_down_rounded: _volumeUp,
     Symbols.pause_rounded: _pause,
     Symbols.shield_rounded: _shield,
   };

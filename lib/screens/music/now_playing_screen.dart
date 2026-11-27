@@ -46,6 +46,9 @@ import '../../i18n/retro_strings.dart';
 import '../../services/retrowave/audio/audio_extras.dart';
 import '../../services/retrowave/audio/audio_settings.dart';
 import '../../services/settings_service.dart';
+import '../../theme/gapped_track_shape.dart';
+import '../../theme/page_backdrop.dart';
+import '../../theme/player_style.dart';
 
 /// Full-screen music player. Pushed via [openNowPlaying]; popping never
 /// touches playback — audio continues under the mini-player.
@@ -520,13 +523,17 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
       fit: StackFit.expand,
       children: [
         _Background(track: track, client: client, heavyScrim: isTV),
-        SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (isTV) return _buildTvLayout(service, track, client);
-              final twoPane = constraints.maxWidth >= 800 && constraints.maxWidth > constraints.maxHeight;
-              return twoPane ? _buildWideLayout(service, track, client) : _buildPortraitLayout(service, track, client);
-            },
+        // Fork: every neutral icon as a retro glyph on retrowave.
+        RetroIconScope(
+          soft: false,
+          child: SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (isTV) return _buildTvLayout(service, track, client);
+                final twoPane = constraints.maxWidth >= 800 && constraints.maxWidth > constraints.maxHeight;
+                return twoPane ? _buildWideLayout(service, track, client) : _buildPortraitLayout(service, track, client);
+              },
+            ),
           ),
         ),
       ],
@@ -986,6 +993,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
     double size = 26,
   }) {
     final tk = tokens(context);
+    // Fork: themed glyphs; toggled-on controls in the player's accent.
+    final activeColor = PlayerStyle.of(context).active;
     return AnimatedContainer(
       duration: state.animationDuration,
       decoration: FocusTheme.textFillFocusDecoration(
@@ -994,7 +1003,15 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
         borderRadius: MonoTokens.radiusFull,
       ),
       child: IconButton(
-        icon: AppIcon(icon, fill: 1, size: size, color: active ? tk.text : tk.textMuted),
+        icon: AppIcon(
+          icon,
+          fill: 1,
+          size: size,
+          color: active ? (size < 26 ? activeColor ?? tk.text : tk.text) : tk.textMuted,
+          retro: true,
+          retroOpacity: active ? 1 : 0.55,
+          retroSoft: !active,
+        ),
         tooltip: tooltip,
         onPressed: onPressed,
       ),
@@ -1280,6 +1297,13 @@ class _Artwork extends StatelessWidget {
             height: side,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(isPlaying ? tk.radiusLg : 28)),
+            // Fork: a neon rim on themes with a player glow.
+            foregroundDecoration: PlayerStyle.of(context).progressGlow == null
+                ? null
+                : BoxDecoration(
+                    borderRadius: BorderRadius.circular(isPlaying ? tk.radiusLg : 28),
+                    border: Border.all(color: PlayerStyle.of(context).active ?? tk.outline, width: 1.5),
+                  ),
             child: OptimizedMediaImage(
               client: client,
               imagePath: track.thumbPath,
@@ -1311,13 +1335,18 @@ class _Background extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tk = tokens(context);
+    // Fork: the theme's page backdrop (the retrowave gradient) under the art.
+    final backdrop = Theme.of(context).extension<PageBackdropStyle>();
+    final base = backdrop == null
+        ? ColoredBox(color: tk.bg)
+        : DecoratedBox(decoration: BoxDecoration(gradient: backdrop.gradient));
     if (DevicePerformance.isReduced || track.thumbPath == null) {
-      return ColoredBox(color: tk.bg);
+      return base;
     }
     return Stack(
       fit: StackFit.expand,
       children: [
-        ColoredBox(color: tk.bg),
+        base,
         Opacity(
           opacity: heavyScrim ? 0.22 : 0.3,
           child: ImageFiltered(
@@ -1354,6 +1383,11 @@ class _PlayPauseButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isPlaying = context.select<MusicPlaybackService, bool>((s) => s.isPlaying);
     final isLoading = context.select<MusicPlaybackService, bool>((s) => s.status == MusicPlaybackStatus.loading);
+    // Fork: the theme's player button (neon disc on retrowave).
+    final style = PlayerStyle.of(context);
+    final fill = style.playButtonFill ?? colorScheme.inverseSurface;
+    final iconColor = style.playButtonIcon ?? colorScheme.onInverseSurface;
+    final glow = style.progressGlow;
 
     return AnimatedScale(
       scale: state.showFocus ? 1.08 : 1.0,
@@ -1365,8 +1399,18 @@ class _PlayPauseButton extends StatelessWidget {
         height: 72,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: colorScheme.inverseSurface,
+          color: style.progressGradient == null ? fill : null,
+          gradient: style.progressGradient == null
+              ? null
+              : LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [fill, style.progressGradient!.last],
+                ),
           borderRadius: BorderRadius.circular(isPlaying ? tk.radiusLg + 4 : 36),
+          boxShadow: glow == null || PlatformDetector.isTV()
+              ? null
+              : [BoxShadow(color: glow.withValues(alpha: 0.45), blurRadius: 22, spreadRadius: 1)],
         ),
         child: Material(
           type: MaterialType.transparency,
@@ -1378,13 +1422,13 @@ class _PlayPauseButton extends StatelessWidget {
                   ? SizedBox(
                       width: 26,
                       height: 26,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: colorScheme.onInverseSurface),
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: iconColor),
                     )
                   : AppIcon(
                       isPlaying ? Symbols.pause_rounded : Symbols.play_arrow_rounded,
                       fill: 1,
                       size: 36,
-                      color: colorScheme.onInverseSurface,
+                      color: iconColor,
                     ),
             ),
           ),
@@ -1545,9 +1589,11 @@ class _NowPlayingSeekBarState extends State<_NowPlayingSeekBar> {
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 4,
-                activeTrackColor: tk.text,
+                // Fork: the theme's timeline (cyan to magenta on retrowave).
+                trackShape: GappedTrackShape(activeGradient: PlayerStyle.of(context).progressGradient),
+                activeTrackColor: PlayerStyle.of(context).progress ?? tk.text,
                 inactiveTrackColor: tk.outline,
-                thumbColor: tk.text,
+                thumbColor: PlayerStyle.of(context).progress ?? tk.text,
                 trackGap: dragging ? 4 : 0,
                 thumbSize: const WidgetStatePropertyAll(Size(4, 18)),
                 thumbShape: dragging ? null : SliderComponentShape.noThumb,

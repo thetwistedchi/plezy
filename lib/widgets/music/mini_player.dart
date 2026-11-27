@@ -21,6 +21,8 @@ import '../../utils/video_player_navigation.dart';
 import '../media_context_menu.dart';
 import '../optimized_media_image.dart';
 import '../overlay_sheet.dart';
+import '../../theme/player_style.dart';
+import '../app_icon.dart';
 
 /// Suppresses the mini-player while the top PAGE route of the profile
 /// navigator is a full-screen playback surface (the video player or the
@@ -402,12 +404,29 @@ class _MiniPlayerCardState extends State<_MiniPlayerCard> with ContextMenuTapMix
       ),
     );
 
+    // Fork: themed card: retro glyphs and a neon rim on retrowave.
+    final style = PlayerStyle.of(context);
+    card = RetroIconScope(soft: false, child: card);
     card = DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(tk.radiusLg),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 4)),
+          if (style.progressGlow != null && !PlatformDetector.isTV())
+            BoxShadow(color: style.progressGlow!.withValues(alpha: 0.18), blurRadius: 18),
+        ],
       ),
-      child: card,
+      position: DecorationPosition.background,
+      child: style.active == null
+          ? card
+          : DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(tk.radiusLg),
+                border: Border.all(color: style.active!.withValues(alpha: 0.6)),
+              ),
+              child: card,
+            ),
     );
 
     card = MediaContextMenu(key: contextMenuKey, item: widget.track, child: card);
@@ -441,6 +460,35 @@ class _MiniPlayerProgress extends StatelessWidget {
         final position = snapshot.data ?? service.position;
         final durationMs = service.duration?.inMilliseconds ?? 0;
         final fraction = durationMs <= 0 ? 0.0 : (position.inMilliseconds / durationMs).clamp(0.0, 1.0);
+        // Fork: the theme's timeline colours as a soft tint and a thin line.
+        final gradient = PlayerStyle.of(context).progressGradient;
+        if (gradient != null) {
+          return Align(
+            alignment: .centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: fraction,
+              heightFactor: 1,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [for (final c in gradient) c.withValues(alpha: 0.14)]),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SizedBox(
+                      height: 2,
+                      width: double.infinity,
+                      child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(colors: gradient))),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
         return Align(
           alignment: .centerLeft,
           child: FractionallySizedBox(
