@@ -3,13 +3,56 @@ part of '../../jellyfin_client.dart';
 mixin _JellyfinLiveTvMethods on _JellyfinClientInternals {
   bool _liveTvDenied = false;
 
+  /// Fork: one probe at a time; callers within a minute share its answer.
+  Future<bool>? _liveTvProbe;
+  DateTime? _liveTvProbeAt;
+
+  /// Fork: a refusal is remembered on the device for a week, so a user
+  /// without Live TV access is not asked again on every start.
+  static const _deniedKey = 'retrowave_jellyfin_livetv_denied';
+  static const _deniedFor = Duration(days: 7);
+  String get _deniedId => '${connection.serverMachineId}:${connection.userId}';
+
+  Future<bool> _deniedOnDevice() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final entry in prefs.getStringList(_deniedKey) ?? const <String>[]) {
+      final i = entry.lastIndexOf('|');
+      if (i < 0 || entry.substring(0, i) != _deniedId) continue;
+      final at = int.tryParse(entry.substring(i + 1)) ?? 0;
+      return DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(at)) < _deniedFor;
+    }
+    return false;
+  }
+
+  Future<void> _rememberDenied() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = [
+      for (final entry in prefs.getStringList(_deniedKey) ?? const <String>[])
+        if (!entry.startsWith('$_deniedId|')) entry,
+      '$_deniedId|${DateTime.now().millisecondsSinceEpoch}',
+    ];
+    await prefs.setStringList(_deniedKey, list);
+  }
+
   /// Returns `true` when this server has Live TV configured (channels
   /// available). Probes `/LiveTv/Channels?limit=1`. Used by [MultiServerProvider]
   /// to gate the Live TV menu.
-  Future<bool> hasLiveTv() async {
+  Future<bool> hasLiveTv() {
+    final at = _liveTvProbeAt;
+    final running = _liveTvProbe;
+    if (running != null && at != null && DateTime.now().difference(at) < const Duration(minutes: 1)) return running;
+    _liveTvProbeAt = DateTime.now();
+    return _liveTvProbe = _probeLiveTv();
+  }
+
+  Future<bool> _probeLiveTv() async {
     // Fork: a user without Live TV access gets 403 on every probe; ask once
-    // per client (session) instead of on every server-status check.
+    // per session, and not again for a week once refused.
     if (_liveTvDenied) return false;
+    if (await _deniedOnDevice()) {
+      _liveTvDenied = true;
+      return false;
+    }
     try {
       final response = await _http.get(
         '/LiveTv/Channels',
@@ -17,7 +60,8 @@ mixin _JellyfinLiveTvMethods on _JellyfinClientInternals {
       );
       if (response.statusCode == 401 || response.statusCode == 403) {
         _liveTvDenied = true;
-        appLogger.d('${dialect.productName} Live TV: not allowed for this user, not asking again this session');
+        unawaited(_rememberDenied());
+        appLogger.d('${dialect.productName} Live TV: not allowed for this user, not asking again for a week');
         return false;
       }
       if (response.statusCode != 200) return false;
