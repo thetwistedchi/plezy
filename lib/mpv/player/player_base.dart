@@ -1427,8 +1427,20 @@ abstract class PlayerBase with PlayerStreamControllersMixin implements Player {
     await _applyAudioFilters();
   }
 
+  /// Fork: further filters (the music player's equalizer), placed before
+  /// normalization and night mode.
+  List<String> _extraFilters = const [];
+
+  Future<void> setExtraAudioFilters(List<String> filters) async {
+    final clean = [for (final f in filters) if (f.isNotEmpty) f];
+    if (listEquals(clean, _extraFilters)) return;
+    _extraFilters = clean;
+    await _applyAudioFilters();
+  }
+
   Future<void> _applyAudioFilters() async {
     final filters = [
+      ..._extraFilters,
       if (_normalizationFilterOn) Platform.isAndroid ? _androidNormalizationFilter : _loudnormFilter,
       if (_nightModeOn) _nightModeFilter,
     ];

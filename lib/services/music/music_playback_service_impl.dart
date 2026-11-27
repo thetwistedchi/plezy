@@ -38,6 +38,7 @@ import 'music_playback_service.dart';
 import 'music_queue_controller.dart';
 import 'music_session_store.dart';
 import 'music_source_resolver.dart';
+import '../retrowave/audio/audio_extras.dart';
 
 /// A gapless-armed next track: what [Player.setNext] was fed, so the
 /// trackTransition event can be mapped back to a queue entry and its
@@ -423,6 +424,10 @@ class MusicPlaybackServiceImpl extends MusicPlaybackService with WidgetsBindingO
   }) async {
     if (tracks.isEmpty || _disposed) return;
     if (launchObserver != null && !launchObserver.isCurrent) return;
+    // Fork: a book started from its beginning continues where it stopped.
+    final resumed = AudioExtras.instance.startFor(tracks, startTrack, initialPosition);
+    final firstTrack = resumed.start;
+    final startPosition = resumed.position;
     beginPlayIntent();
     _queueSessionRevision++;
     // A new queue is a new decision: the vehicle's claim on whatever it stopped
@@ -460,8 +465,8 @@ class MusicPlaybackServiceImpl extends MusicPlaybackService with WidgetsBindingO
     // every shuffle launch to the list's first track (#1811) — including a
     // start track the list turns out not to contain.
     int? startIndex;
-    if (startTrack != null) {
-      final index = tracks.indexWhere((t) => t.globalKey == startTrack.globalKey);
+    if (firstTrack != null) {
+      final index = tracks.indexWhere((t) => t.globalKey == firstTrack.globalKey);
       if (index >= 0) startIndex = index;
     }
     _queue.load(tracks, startIndex: startIndex, shuffle: shuffle);
@@ -469,7 +474,7 @@ class MusicPlaybackServiceImpl extends MusicPlaybackService with WidgetsBindingO
     _consecutiveFailures = 0;
     _pendingRestoreResume = null;
     _persistSessionSnapshot(positionOverride: Duration.zero);
-    await _openCurrent(generation, play: autoplay, initialPosition: initialPosition, offline: offline);
+    await _openCurrent(generation, play: autoplay, initialPosition: startPosition, offline: offline);
   }
 
   // ---------------------------------------------------------------------
@@ -831,6 +836,7 @@ class MusicPlaybackServiceImpl extends MusicPlaybackService with WidgetsBindingO
 
   void _onPosition(Duration position) {
     _positionController.add(position);
+    AudioExtras.instance.onPosition(position);
     // Real playback progress proves the pipeline recovered — reset the
     // consecutive-failure strike counter.
     if (_consecutiveFailures != 0 && position > Duration.zero && _status == MusicPlaybackStatus.playing) {
@@ -1103,6 +1109,8 @@ class MusicPlaybackServiceImpl extends MusicPlaybackService with WidgetsBindingO
       // timer for a track that is not audible.
       if (_status != MusicPlaybackStatus.playing) unawaited(rpc.pausePlayback());
     }
+    // Fork: speed, equalizer, levelling, chapters and the rest per track.
+    unawaited(AudioExtras.instance.onTrackStarted(this, player, track));
   }
 
   /// Stop tracking and fire the final `stopped` report for the current
@@ -1771,6 +1779,7 @@ class MusicPlaybackServiceImpl extends MusicPlaybackService with WidgetsBindingO
     _staleArm = null;
     _playContext = null;
     _pendingRestoreResume = null;
+    AudioExtras.instance.onStopped();
     // A user-visible session end (stop, swipe-dismiss, video claim, error
     // stop): nothing should come back on the next launch.
     _clearPersistedSession();

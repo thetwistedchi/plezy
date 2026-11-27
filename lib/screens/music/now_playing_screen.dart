@@ -42,6 +42,10 @@ import '../../widgets/optimized_media_image.dart';
 import '../../widgets/overlay_sheet.dart';
 import 'queue_sheet.dart';
 import '../../utils/error_message_utils.dart';
+import '../../i18n/retro_strings.dart';
+import '../../services/retrowave/audio/audio_extras.dart';
+import '../../services/retrowave/audio/audio_settings.dart';
+import '../../services/settings_service.dart';
 
 /// Full-screen music player. Pushed via [openNowPlaying]; popping never
 /// touches playback — audio continues under the mini-player.
@@ -226,11 +230,23 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
             label: t.music.sleepTimerEndOfTrack,
             selected: service.sleepTimerEndOfTrack,
           ),
+          // Fork: pause when the current chapter ends.
+          if (AudioExtras.instance.chapters.value.isNotEmpty)
+            AppMenuItem(
+              value: 'end_of_chapter',
+              icon: Symbols.toc_rounded,
+              label: RetroStrings.audioSleepEndOfChapter,
+              selected: AudioExtras.instance.sleepAtChapterEnd,
+            ),
         ],
       ),
     );
     if (!mounted || selected == null) return;
+    if (selected != 'end_of_chapter') AudioExtras.instance.setSleepAtChapterEnd(false);
     switch (selected) {
+      case 'end_of_chapter':
+        service.setSleepTimer(null);
+        AudioExtras.instance.setSleepAtChapterEnd(true);
       case 'off':
         service.setSleepTimer(null);
       case 'end_of_track':
@@ -240,6 +256,200 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
         if (minutes != null) service.setSleepTimer(Duration(minutes: minutes));
     }
   }
+
+  // -------------------------------------------------------------------
+  // Fork: audiobook, audio drama and podcast controls
+  // -------------------------------------------------------------------
+
+  static const _speeds = [0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0];
+
+  static String _speedLabel(double rate) {
+    final text = rate.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '').replaceFirst(RegExp(r'\.0$'), '');
+    return '$text×';
+  }
+
+  Future<void> _showSpeedSheet() async {
+    final extras = AudioExtras.instance;
+    final selected = await OverlaySheetController.showAdaptive<double>(
+      _sheetContext,
+      showDragHandle: true,
+      builder: (context) => AppMenuSheet<double>(
+        title: RetroStrings.audioSpeed,
+        entries: [
+          for (final rate in _speeds)
+            AppMenuItem(value: rate, label: _speedLabel(rate), selected: (extras.speed - rate).abs() < 0.001),
+        ],
+      ),
+    );
+    if (selected != null) await extras.setSpeed(selected);
+  }
+
+  Future<void> _showChaptersSheet() async {
+    final extras = AudioExtras.instance;
+    final service = context.read<MusicPlaybackService>();
+    final list = extras.chapters.value;
+    final current = extras.chapterIndexAt(service.position);
+    final selected = await OverlaySheetController.showAdaptive<int>(
+      _sheetContext,
+      showDragHandle: true,
+      builder: (context) => AppMenuSheet<int>(
+        title: RetroStrings.audioChapters,
+        entries: [
+          for (final (i, chapter) in list.indexed)
+            AppMenuItem(
+              value: i,
+              label: chapter.title,
+              subtitle: formatDurationTimestamp(chapter.start),
+              selected: i == current,
+            ),
+        ],
+      ),
+    );
+    if (selected != null && selected < list.length) await service.seek(list[selected].start);
+  }
+
+  Future<void> _showBookmarksSheet() async {
+    final extras = AudioExtras.instance;
+    final service = context.read<MusicPlaybackService>();
+    final track = service.currentTrack;
+    if (track == null) return;
+    final marks = extras.bookmarksOf(track);
+    final selected = await OverlaySheetController.showAdaptive<int>(
+      _sheetContext,
+      showDragHandle: true,
+      builder: (context) => AppMenuSheet<int>(
+        title: RetroStrings.audioBookmarks,
+        entries: [
+          AppMenuItem(value: -1, icon: Symbols.bookmark_add_rounded, label: RetroStrings.audioAddBookmark),
+          for (final (i, mark) in marks.indexed)
+            AppMenuItem(
+              value: i,
+              icon: Symbols.bookmark_rounded,
+              label: mark.note.isEmpty ? formatDurationTimestamp(mark.position) : mark.note,
+              subtitle: mark.note.isEmpty ? null : formatDurationTimestamp(mark.position),
+            ),
+          if (marks.isNotEmpty)
+            AppMenuItem(value: -2, icon: Symbols.delete_rounded, label: RetroStrings.audioDeleteBookmarks),
+        ],
+      ),
+    );
+    if (!mounted || selected == null) return;
+    if (selected == -1) {
+      final position = service.position;
+      final note = await _askBookmarkNote();
+      if (note != null) await extras.addBookmark(track, position, note);
+    } else if (selected == -2) {
+      await _deleteBookmarksDialog(track);
+    } else if (selected < marks.length) {
+      await service.seek(marks[selected].position);
+    }
+  }
+
+  Future<String?> _askBookmarkNote() async {
+    final controller = TextEditingController();
+    final note = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(RetroStrings.audioAddBookmark),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(hintText: RetroStrings.audioBookmarkNote),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return note;
+  }
+
+  Future<void> _deleteBookmarksDialog(MediaItem track) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => ListenableBuilder(
+        listenable: AudioExtras.instance,
+        builder: (context, _) {
+          final marks = AudioExtras.instance.bookmarksOf(track);
+          return AlertDialog(
+            title: Text(RetroStrings.audioBookmarks),
+            content: SizedBox(
+              width: 400,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final mark in marks)
+                    ListTile(
+                      title: Text(mark.note.isEmpty ? formatDurationTimestamp(mark.position) : mark.note),
+                      subtitle: mark.note.isEmpty ? null : Text(formatDurationTimestamp(mark.position)),
+                      trailing: IconButton(
+                        icon: const AppIcon(Symbols.delete_rounded, fill: 1),
+                        onPressed: () => unawaited(AudioExtras.instance.removeBookmark(track, mark)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(MaterialLocalizations.of(context).closeButtonLabel),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showEqualizerSheet() async {
+    final extras = AudioExtras.instance;
+    final settings = SettingsService.instance;
+    final pref = extras.mode.isSpoken ? AudioSettings.eqSpoken : AudioSettings.eqMusic;
+    final current = settings.read(pref);
+    final selected = await OverlaySheetController.showAdaptive<AudioEqPreset>(
+      _sheetContext,
+      showDragHandle: true,
+      builder: (context) => AppMenuSheet<AudioEqPreset>(
+        title: RetroStrings.audioEqualizer,
+        entries: [
+          for (final preset in AudioEqPreset.values)
+            AppMenuItem(value: preset, label: RetroStrings.audioEqPreset(preset), selected: preset == current),
+        ],
+      ),
+    );
+    if (selected == null) return;
+    await settings.write(pref, selected);
+    await extras.applyAudioSettings();
+  }
+
+  Future<void> _skip(int seconds) async {
+    final service = context.read<MusicPlaybackService>();
+    var target = service.position + Duration(seconds: seconds);
+    if (target.isNegative) target = Duration.zero;
+    final duration = service.duration;
+    if (duration != null && target > duration) target = duration - const Duration(seconds: 1);
+    await service.seek(target);
+  }
+
+  static IconData _skipIcon(int seconds) => switch (seconds) {
+    -5 => Symbols.replay_5_rounded,
+    -10 => Symbols.replay_10_rounded,
+    -30 => Symbols.replay_30_rounded,
+    5 => Symbols.forward_5_rounded,
+    10 => Symbols.forward_10_rounded,
+    30 => Symbols.forward_30_rounded,
+    _ => seconds < 0 ? Symbols.fast_rewind_rounded : Symbols.fast_forward_rounded,
+  };
 
   /// Leaves the screen once the session has ended. Another screen (an artist
   /// or album page, or the video that claimed audio) may have been pushed on
@@ -540,9 +750,32 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
     final tk = tokens(context);
     final colorScheme = Theme.of(context).colorScheme;
 
+    // Fork: chapters, bookmarks and equalizer next to the lyrics button.
+    Widget extra(IconData icon, String tooltip, VoidCallback onPressed) => FocusableButton(
+      onPressed: onPressed,
+      child: IconButton(
+        icon: AppIcon(icon, fill: 1, size: 22, color: tk.textMuted),
+        tooltip: tooltip,
+        onPressed: onPressed,
+      ),
+    );
+    final extras = ListenableBuilder(
+      listenable: Listenable.merge([AudioExtras.instance, AudioExtras.instance.chapters]),
+      builder: (context, _) => Row(
+        mainAxisSize: .min,
+        children: [
+          if (AudioExtras.instance.chapters.value.isNotEmpty)
+            extra(Symbols.toc_rounded, RetroStrings.audioChapters, () => unawaited(_showChaptersSheet())),
+          if (AudioExtras.instance.mode.isBookLike)
+            extra(Symbols.bookmarks_rounded, RetroStrings.audioBookmarks, () => unawaited(_showBookmarksSheet())),
+          extra(Symbols.equalizer_rounded, RetroStrings.audioEqualizer, () => unawaited(_showEqualizerSheet())),
+        ],
+      ),
+    );
     final cluster = Row(
       mainAxisSize: .min,
       children: [
+        extras,
         FocusableButton(
           onPressed: _toggleLyrics,
           child: IconButton(
@@ -741,7 +974,82 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
     );
   }
 
-  Widget _buildTransportRow(MusicPlaybackService service) {
+  Widget _buildTransportRow(MusicPlaybackService service) => ListenableBuilder(
+    listenable: AudioExtras.instance,
+    builder: (context, _) => AudioExtras.instance.mode.isSpoken
+        ? _buildSpokenTransportRow(service)
+        : _buildMusicTransportRow(service),
+  );
+
+  /// Fork: books, audio dramas and podcasts: skip buttons instead of
+  /// shuffle and repeat, chapter steps, speed, and (books) the sleep timer.
+  Widget _buildSpokenTransportRow(MusicPlaybackService service) {
+    final extras = AudioExtras.instance;
+    final bookLike = extras.mode.isBookLike;
+    final back = -SettingsService.instance.read(AudioSettings.skipBack);
+    final forward = SettingsService.instance.read(AudioSettings.skipForward);
+    final tk = tokens(context);
+    FocusableAction icon(String label, IconData glyph, VoidCallback onPressed, {double size = 26, bool active = true}) =>
+        FocusableAction(
+          debugLabel: 'np_$label',
+          onPressed: onPressed,
+          builder: (context, state) =>
+              _transportIcon(state, icon: glyph, onPressed: onPressed, size: size, active: active, tooltip: label),
+        );
+    final speedAction = FocusableAction(
+      debugLabel: 'np_speed',
+      onPressed: () => unawaited(_showSpeedSheet()),
+      builder: (context, state) => AnimatedContainer(
+        duration: state.animationDuration,
+        decoration: FocusTheme.textFillFocusDecoration(
+          context,
+          isFocused: state.showFocus,
+          borderRadius: MonoTokens.radiusFull,
+        ),
+        child: TextButton(
+          onPressed: () => unawaited(_showSpeedSheet()),
+          child: Text(
+            _speedLabel(extras.speed),
+            style: TextStyle(color: extras.speed == 1 ? tk.textMuted : tk.text, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ),
+    );
+    final sleepActive = service.sleepTimerActive || extras.sleepAtChapterEnd;
+    final transport = FocusableActionBar(
+      spacing: 6,
+      onNavigateUp: _seekFocusNode.requestFocus,
+      onNavigateDown: () => _utilityBarKey.currentState?.requestFocusOnFirst(),
+      onBack: _pop,
+      actions: [
+        if (bookLike)
+          icon(t.music.sleepTimer, Symbols.bedtime_rounded, () => unawaited(_showSleepTimerSheet()), size: 22, active: sleepActive)
+        else
+          speedAction,
+        icon(RetroStrings.audioSkipBack(-back), _skipIcon(back), () => unawaited(_skip(back)), size: 28),
+        icon(t.music.previousTrack, Symbols.skip_previous_rounded, () => unawaited(extras.previousChapter()), size: 30),
+        FocusableAction(
+          debugLabel: 'np_play_pause',
+          focusNode: _playPauseFocusNode,
+          autofocus: PlatformDetector.isTV(),
+          onPressed: () => unawaited(service.togglePlayPause()),
+          builder: (context, state) =>
+              _PlayPauseButton(state: state, onPressed: () => unawaited(service.togglePlayPause())),
+        ),
+        icon(t.music.nextTrack, Symbols.skip_next_rounded, () => unawaited(extras.nextChapter()), size: 30),
+        icon(RetroStrings.audioSkipForward(forward), _skipIcon(forward), () => unawaited(_skip(forward)), size: 28),
+        if (bookLike) speedAction else icon(RetroStrings.audioBookmarks, Symbols.bookmarks_rounded, () => unawaited(_showBookmarksSheet()), size: 22),
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: PlatformDetector.isAutomotive() ? transport : FittedBox(fit: BoxFit.scaleDown, child: transport),
+      ),
+    );
+  }
+
+  Widget _buildMusicTransportRow(MusicPlaybackService service) {
     final transport = FocusableActionBar(
       spacing: 8,
       onNavigateUp: _seekFocusNode.requestFocus,
@@ -814,7 +1122,12 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
     );
   }
 
-  Widget _buildUtilityRow({required bool showQueueButton}) {
+  Widget _buildUtilityRow({required bool showQueueButton}) => ListenableBuilder(
+    listenable: Listenable.merge([AudioExtras.instance, AudioExtras.instance.chapters]),
+    builder: (context, _) => _buildUtilityRowContent(showQueueButton: showQueueButton),
+  );
+
+  Widget _buildUtilityRowContent({required bool showQueueButton}) {
     return Center(
       child: FocusableActionBar(
         key: _utilityBarKey,
@@ -834,6 +1147,45 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
               active: _showLyrics,
               tooltip: t.music.lyrics,
               onPressed: _toggleLyrics,
+              size: 22,
+            ),
+          ),
+          // Fork: chapters, bookmarks (books) and the equalizer.
+          if (AudioExtras.instance.chapters.value.isNotEmpty)
+            FocusableAction(
+              debugLabel: 'np_chapters',
+              onPressed: () => unawaited(_showChaptersSheet()),
+              builder: (context, state) => _transportIcon(
+                state,
+                icon: Symbols.toc_rounded,
+                active: false,
+                tooltip: RetroStrings.audioChapters,
+                onPressed: () => unawaited(_showChaptersSheet()),
+                size: 22,
+              ),
+            ),
+          if (AudioExtras.instance.mode.isBookLike)
+            FocusableAction(
+              debugLabel: 'np_bookmarks',
+              onPressed: () => unawaited(_showBookmarksSheet()),
+              builder: (context, state) => _transportIcon(
+                state,
+                icon: Symbols.bookmarks_rounded,
+                active: false,
+                tooltip: RetroStrings.audioBookmarks,
+                onPressed: () => unawaited(_showBookmarksSheet()),
+                size: 22,
+              ),
+            ),
+          FocusableAction(
+            debugLabel: 'np_equalizer',
+            onPressed: () => unawaited(_showEqualizerSheet()),
+            builder: (context, state) => _transportIcon(
+              state,
+              icon: Symbols.equalizer_rounded,
+              active: false,
+              tooltip: RetroStrings.audioEqualizer,
+              onPressed: () => unawaited(_showEqualizerSheet()),
               size: 22,
             ),
           ),

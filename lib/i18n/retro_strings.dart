@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'strings.g.dart';
+import '../services/retrowave/audio/audio_settings.dart';
 
 /// Texts for the fork's 0.8 additions, English and German. Kept out of the
 /// slang files so the fork stays easy to rebase onto upstream Plezy.
@@ -117,6 +118,104 @@ class RetroStrings {
   static String statsEpisodeCount(int n) => _t('$n ep.', '$n Fo.');
   static String get upcomingHide => _t('Hide from upcoming episodes', 'Aus kommenden Folgen ausblenden');
   static String upcomingHidden(int n) => _t('Hidden shows ($n)', 'Ausgeblendete Serien ($n)');
+  // Fork: audio player
+  static String get audioSleepEndOfChapter => _t('End of chapter', 'Ende des Kapitels');
+  static String get audioSpeed => _t('Speed', 'Geschwindigkeit');
+  static String get audioChapters => _t('Chapters', 'Kapitel');
+  static String get audioBookmarks => _t('Bookmarks', 'Lesezeichen');
+  static String get audioAddBookmark => _t('Add bookmark', 'Lesezeichen setzen');
+  static String get audioBookmarkNote => _t('Note (optional)', 'Notiz (optional)');
+  static String get audioDeleteBookmarks => _t('Delete bookmarks…', 'Lesezeichen löschen…');
+  static String get audioEqualizer => _t('Equalizer', 'Equalizer');
+  static String audioEqPreset(AudioEqPreset p) => switch (p) {
+    AudioEqPreset.flat => _t('Flat', 'Neutral'),
+    AudioEqPreset.bass => _t('Bass', 'Bass'),
+    AudioEqPreset.treble => _t('Treble', 'Höhen'),
+    AudioEqPreset.loudness => _t('Loudness', 'Loudness'),
+    AudioEqPreset.speech => _t('Speech', 'Sprache'),
+    AudioEqPreset.vocal => _t('Vocals', 'Gesang'),
+  };
+  static String audioSkipBack(int s) => _t('Back $s s', '$s s zurück');
+  static String audioSkipForward(int s) => _t('Forward $s s', '$s s vor');
+  static String audioMode(AudioMode m) => switch (m) {
+    AudioMode.music => _t('Music', 'Musik'),
+    AudioMode.audiobook => _t('Audiobooks', 'Hörbücher'),
+    AudioMode.audioDrama => _t('Audio dramas', 'Hörspiele'),
+    AudioMode.podcast => _t('Podcasts', 'Podcasts'),
+  };
+  static String get audioLibraryType => _t('Library type', 'Art der Bibliothek');
+  static String get audioLibraryTypeHint => _t(
+    'Audiobooks, audio dramas and podcasts get skip buttons, speed and chapters; books continue where they stopped.',
+    'Hörbücher, Hörspiele und Podcasts bekommen Sprungtasten, Geschwindigkeit und Kapitel; Bücher machen dort weiter, wo sie aufgehört haben.',
+  );
+  static String get audioSettings => _t('Audio player', 'Audio-Player');
+  static String get audioSettingsDescription =>
+      _t('Levelling, fading, equalizer, skip buttons, scrobbling', 'Lautstärkeausgleich, Überblenden, Equalizer, Sprungtasten, Scrobbling');
+  static String get audioLevelling => _t('Volume levelling', 'Lautstärkeausgleich');
+  static String audioLevellingOption(AudioLevelling l) => switch (l) {
+    AudioLevelling.off => _t('Off', 'Aus'),
+    AudioLevelling.track => _t('ReplayGain (track)', 'ReplayGain (Titel)'),
+    AudioLevelling.album => _t('ReplayGain (album)', 'ReplayGain (Album)'),
+    AudioLevelling.automatic => _t('Automatic (measured loudness)', 'Automatisch (gemessene Lautheit)'),
+  };
+  static String get audioLevellingHint => _t(
+    'ReplayGain uses the tags of the files; automatic levels any file but needs a little more CPU.',
+    'ReplayGain nutzt die Tags der Dateien; automatisch gleicht jede Datei an, braucht aber etwas mehr Rechenleistung.',
+  );
+  static String get audioFade => _t('Fade between albums', 'Überblenden zwischen Alben');
+  static String get audioFadeHint => _t(
+    'Fades out the last seconds before a track of another album and fades the next one in. Tracks of the same album stay gapless.',
+    'Blendet die letzten Sekunden vor einem Titel eines anderen Albums aus und den nächsten ein. Titel desselben Albums bleiben lückenlos.',
+  );
+  static String audioSeconds(int n) => n == 0 ? _t('Off', 'Aus') : '$n s';
+  static String get audioNightMode => _t('Night mode', 'Nachtmodus');
+  static String get audioNightModeHint =>
+      _t('Evens out loud and quiet parts for listening at low volume', 'Gleicht laute und leise Stellen für leises Hören an');
+  static String get audioEqMusic => _t('Equalizer for music', 'Equalizer für Musik');
+  static String get audioEqSpoken =>
+      _t('Equalizer for audiobooks, audio dramas and podcasts', 'Equalizer für Hörbücher, Hörspiele und Podcasts');
+  static String get audioSkipBackSetting => _t('Skip back', 'Zurückspringen');
+  static String get audioSkipForwardSetting => _t('Skip forward', 'Vorspringen');
+  static String get audioScrobbling => _t('Scrobbling', 'Scrobbling');
+  static String get listenBrainz => 'ListenBrainz';
+  static String get listenBrainzHint => _t(
+    'Paste your user token from listenbrainz.org/settings.',
+    'Füge deinen User-Token von listenbrainz.org/settings ein.',
+  );
+  static String get lastFm => 'Last.fm';
+  static String get lastFmHint => _t(
+    'Needs your own API account from last.fm/api/account/create (API key and shared secret).',
+    'Braucht ein eigenes API-Konto von last.fm/api/account/create (API key und Shared secret).',
+  );
+  static String get scrobbleToken => _t('User token', 'User-Token');
+  static String get scrobbleApiKey => 'API key';
+  static String get scrobbleSecret => 'Shared secret';
+  static String get scrobbleUser => _t('User name', 'Benutzername');
+  static String get scrobblePassword => _t('Password', 'Passwort');
+  static String get scrobbleSignIn => _t('Sign in', 'Anmelden');
+  static String get scrobbleSignOut => _t('Sign out', 'Abmelden');
+  static String scrobbleSignedIn(String user) => _t('Signed in as $user', 'Angemeldet als $user');
+  static String get scrobbleNotSet => _t('Not set up', 'Nicht eingerichtet');
+  static String get scrobbleInvalid => _t('This token was not accepted.', 'Dieser Token wurde nicht akzeptiert.');
+  static String audioTimeLeft(String left) => _t('$left left', 'noch $left');
+  static String get audioRestartBook => _t('Start from the beginning', 'Von vorn beginnen');
+  static String get audioMarkPlayed => _t('Mark as played', 'Als gehört markieren');
+  static String get audioMarkUnplayed => _t('Mark as not played', 'Als nicht gehört markieren');
+  static String get audioSonicallySimilar => _t('Sonically similar', 'Klanglich ähnlich');
+  static String get audioStations => _t('Radio stations', 'Radiosender');
+  static String get audioNoStations =>
+      _t('This server offers no radio stations.', 'Dieser Server bietet keine Radiosender an.');
+  static String get statsMusic => _t('Music', 'Musik');
+  static String get statsVideo => _t('Films & shows', 'Filme & Serien');
+  static String get statsTracks => _t('tracks', 'Titel');
+  static String get statsListened => _t('hours listened', 'Stunden gehört');
+  static String get statsTopArtists => _t('Top artists', 'Top-Interpreten');
+  static String get statsTopAlbums => _t('Top albums', 'Top-Alben');
+  static String get statsTopTracks => _t('Top tracks', 'Top-Titel');
+  static String get statsMusicEmpty => _t(
+    'Music you listen to from now on is counted here (a track counts after half of it, at most four minutes).',
+    'Musik, die du ab jetzt hörst, wird hier gezählt (ein Titel zählt nach der Hälfte, höchstens vier Minuten).',
+  );
   static String get statsShowCount => _t('Entries per list', 'Einträge pro Liste');
   static String get statsExclude => _t('Exclude from statistics', 'Aus der Statistik nehmen');
   static String get statsCountOnce => _t('Count as watched once', 'Nur einmal zählen');
