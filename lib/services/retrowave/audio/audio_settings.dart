@@ -137,6 +137,18 @@ abstract final class AudioSorting {
     defaultValue: AudioFolderSort.standard,
   );
 
+  /// Reverse order, per library type, and for albums.
+  static const trackReverseMusic = BoolPref('retrowave_track_reverse_music');
+  static const trackReverseBooks = BoolPref('retrowave_track_reverse_books');
+  static const trackReversePodcasts = BoolPref('retrowave_track_reverse_podcasts');
+  static const folderReverse = BoolPref('retrowave_folder_reverse');
+
+  static BoolPref trackReverseFor(AudioMode mode) => switch (mode) {
+    AudioMode.music => trackReverseMusic,
+    AudioMode.podcast => trackReversePodcasts,
+    _ => trackReverseBooks,
+  };
+
   static EnumPref<AudioTrackSort> trackPrefFor(AudioMode mode) => switch (mode) {
     AudioMode.music => trackSortMusic,
     AudioMode.podcast => trackSortPodcasts,
@@ -147,8 +159,13 @@ abstract final class AudioSorting {
       DateTime.tryParse(i.originallyAvailableAt ?? '')?.millisecondsSinceEpoch ??
       (i.year != null ? DateTime(i.year!).millisecondsSinceEpoch : (i.addedAt ?? 0) * 1000);
 
-  /// [tracks] (in the server's order) sorted by [sort].
-  static List<MediaItem> sortTracks(List<MediaItem> tracks, AudioTrackSort sort) {
+  /// [tracks] (in the server's order) sorted by [sort], reversed on request.
+  static List<MediaItem> sortTracks(List<MediaItem> tracks, AudioTrackSort sort, {bool reverse = false}) {
+    final sorted = _sortTracks(tracks, sort);
+    return reverse ? sorted.reversed.toList() : sorted;
+  }
+
+  static List<MediaItem> _sortTracks(List<MediaItem> tracks, AudioTrackSort sort) {
     final list = [...tracks];
     int title(MediaItem a, MediaItem b) => (a.title ?? '').toLowerCase().compareTo((b.title ?? '').toLowerCase());
     switch (sort) {
@@ -168,8 +185,13 @@ abstract final class AudioSorting {
     return list;
   }
 
-  /// [albums] (in the server's order) sorted by [sort].
-  static List<MediaItem> sortFolders(List<MediaItem> albums, AudioFolderSort sort) {
+  /// [albums] (in the server's order) sorted by [sort], reversed on request.
+  static List<MediaItem> sortFolders(List<MediaItem> albums, AudioFolderSort sort, {bool reverse = false}) {
+    final sorted = _sortFolders(albums, sort);
+    return reverse ? sorted.reversed.toList() : sorted;
+  }
+
+  static List<MediaItem> _sortFolders(List<MediaItem> albums, AudioFolderSort sort) {
     final list = [...albums];
     switch (sort) {
       case AudioFolderSort.standard:

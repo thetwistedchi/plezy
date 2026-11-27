@@ -32,6 +32,7 @@ import '../../../services/retrowave/audio/audio_settings.dart';
 import '../../../i18n/retro_strings.dart';
 import '../../../services/retrowave/audio/audio_library_rows.dart';
 import '../../../media/media_kind.dart';
+import '../../../utils/formatters.dart';
 
 /// Recommended tab for library screen
 /// Shows library-specific hubs and recommendations, including dedicated Continue Watching
@@ -230,7 +231,9 @@ class _LibraryRecommendedTabState extends BaseLibraryTabState<MediaHub, LibraryR
     }
     if (serverId != null && audioMode.isBookLike) {
       await AudioExtras.instance.load();
-      final started = AudioExtras.instance.continueListening(serverId, library.id);
+      final started = client == null
+          ? AudioExtras.instance.continueListening(serverId, library.id)
+          : await _withProgress(client, serverId, AudioExtras.instance.continueListening(serverId, library.id));
       final finished = AudioExtras.instance.recentlyFinished(serverId, library.id);
       if (started.isNotEmpty) {
         hubs.insert(
@@ -264,6 +267,48 @@ class _LibraryRecommendedTabState extends BaseLibraryTabState<MediaHub, LibraryR
     }
 
     return hubs;
+  }
+
+  /// Fork: started books with their artwork (the author's image when the
+  /// book has none), the time left, and a progress bar.
+  Future<List<MediaItem>> _withProgress(MediaServerClient client, String serverId, List<MediaItem> books) async {
+    Future<MediaItem> one(MediaItem stub) async {
+      try {
+        final results = await Future.wait([client.fetchItem(stub.id), client.fetchAlbumTracks(stub.id)]);
+        final album = results[0] as MediaItem?;
+        final tracks = results[1] as List<MediaItem>;
+        final resume = AudioExtras.instance.resumeOf(serverId, stub.id);
+        var total = 0;
+        var done = 0;
+        var reached = false;
+        for (final t in tracks) {
+          if (resume != null && t.id == resume.trackId) {
+            reached = true;
+            done += resume.position.inMilliseconds;
+          } else if (!reached && resume != null) {
+            done += t.durationMs ?? 0;
+          }
+          total += t.durationMs ?? 0;
+        }
+        final base = album ?? stub;
+        final author = base.parentTitle ?? stub.parentTitle;
+        final left = total > done ? RetroStrings.audioTimeLeft(formatDurationTextual(total - done)) : null;
+        final current = resume == null ? null : tracks.where((t) => t.id == resume.trackId).firstOrNull;
+        return base.copyWith(
+          title: (base.title ?? '').isEmpty ? stub.title : base.title,
+          thumbPath: base.thumbPath ?? base.parentThumbPath ?? current?.grandparentThumbPath ?? stub.thumbPath,
+          parentTitle: [?author, ?left].join(' · '),
+          summary: current?.title,
+          durationMs: total > 0 ? total : null,
+          viewOffsetMs: reached && done > 0 && done < total ? done : null,
+          libraryId: stub.libraryId,
+        );
+      } catch (_) {
+        return stub;
+      }
+    }
+
+    return Future.wait([for (final book in books.take(20)) one(book)]);
   }
 
   List<GlobalKey<HubSectionState>> _keysForHubs(List<MediaHub> hubs) {

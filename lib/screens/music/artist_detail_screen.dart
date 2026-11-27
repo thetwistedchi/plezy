@@ -91,27 +91,44 @@ class _ArtistDetailScreenState extends BaseMediaListDetailScreen<ArtistDetailScr
   List<ArtistDiscographyGroup> _serverGroups = const [];
 
   List<ArtistDiscographyGroup> _sortedGroups(AudioFolderSort sort) => [
-    for (final g in _serverGroups) ArtistDiscographyGroup(kind: g.kind, items: AudioSorting.sortFolders(g.items, sort)),
+    for (final g in _serverGroups)
+      ArtistDiscographyGroup(
+        kind: g.kind,
+        items: AudioSorting.sortFolders(
+          g.items,
+          sort,
+          reverse: SettingsService.instance.read(AudioSorting.folderReverse),
+        ),
+      ),
   ];
 
   Future<void> _pickSort() async {
-    final current = SettingsService.instance.read(AudioSorting.folderSort);
-    final picked = await OverlaySheetController.showAdaptive<AudioFolderSort>(
+    final settings = SettingsService.instance;
+    final current = settings.read(AudioSorting.folderSort);
+    final reversed = settings.read(AudioSorting.folderReverse);
+    final picked = await OverlaySheetController.showAdaptive<Object>(
       context,
       showDragHandle: true,
-      builder: (context) => AppMenuSheet<AudioFolderSort>(
+      builder: (context) => AppMenuSheet<Object>(
         title: RetroStrings.audioSortBy,
         entries: [
           for (final s in AudioFolderSort.values)
-            AppMenuItem(value: s, label: RetroStrings.audioFolderSort(s), selected: s == current),
+            AppMenuItem<Object>(value: s, label: RetroStrings.audioFolderSort(s), selected: s == current),
+          AppMenuItem<Object>(
+            value: 'reverse',
+            icon: Symbols.swap_vert_rounded,
+            label: RetroStrings.audioReverseOrder,
+            selected: reversed,
+          ),
         ],
       ),
     );
     if (picked == null || !mounted) return;
-    await SettingsService.instance.write(AudioSorting.folderSort, picked);
+    if (picked is AudioFolderSort) await settings.write(AudioSorting.folderSort, picked);
+    if (picked == 'reverse') await settings.write(AudioSorting.folderReverse, !reversed);
     if (!mounted) return;
     setState(() {
-      _discographyGroups = _sortedGroups(picked);
+      _discographyGroups = _sortedGroups(settings.read(AudioSorting.folderSort));
       items = [for (final group in _discographyGroups) ...group.items];
     });
   }

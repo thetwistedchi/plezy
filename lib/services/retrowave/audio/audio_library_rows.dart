@@ -101,7 +101,7 @@ class AudioLibraryRows {
           backend: t.backend,
           kind: MediaKind.album,
           title: t.parentTitle ?? '',
-          thumbPath: t.parentThumbPath ?? t.thumbPath,
+          thumbPath: t.parentThumbPath ?? t.thumbPath ?? t.grandparentThumbPath,
           parentId: t.grandparentId,
           parentTitle: t.grandparentTitle,
           year: t.year,

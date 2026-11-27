@@ -106,7 +106,12 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
         : [for (final t in fetched) t.libraryId == null ? t.copyWith(libraryId: libraryId) : t];
     // Fork: the chosen order (podcasts: newest first unless changed).
     _serverOrder = tracks;
-    return AudioSorting.sortTracks(tracks, _sortFor(_modeFor(tracks)));
+    final mode = _modeFor(tracks);
+    return AudioSorting.sortTracks(
+      tracks,
+      _sortFor(mode),
+      reverse: SettingsService.instance.read(AudioSorting.trackReverseFor(mode)),
+    );
   }
 
   /// Tracks in the server's order, for "Track order".
@@ -115,22 +120,36 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
   AudioTrackSort _sortFor(AudioMode mode) => SettingsService.instance.read(AudioSorting.trackPrefFor(mode));
 
   Future<void> _pickSort() async {
+    final settings = SettingsService.instance;
     final pref = AudioSorting.trackPrefFor(_mode);
-    final current = SettingsService.instance.read(pref);
-    final picked = await OverlaySheetController.showAdaptive<AudioTrackSort>(
+    final reversePref = AudioSorting.trackReverseFor(_mode);
+    final current = settings.read(pref);
+    final reversed = settings.read(reversePref);
+    final picked = await OverlaySheetController.showAdaptive<Object>(
       context,
       showDragHandle: true,
-      builder: (context) => AppMenuSheet<AudioTrackSort>(
+      builder: (context) => AppMenuSheet<Object>(
         title: RetroStrings.audioSortBy,
         entries: [
           for (final s in AudioTrackSort.values)
-            AppMenuItem(value: s, label: RetroStrings.audioTrackSort(s), selected: s == current),
+            AppMenuItem<Object>(value: s, label: RetroStrings.audioTrackSort(s), selected: s == current),
+          AppMenuItem<Object>(
+            value: 'reverse',
+            icon: Symbols.swap_vert_rounded,
+            label: RetroStrings.audioReverseOrder,
+            selected: reversed,
+          ),
         ],
       ),
     );
     if (picked == null || !mounted) return;
-    await SettingsService.instance.write(pref, picked);
-    if (mounted) setState(() => items = AudioSorting.sortTracks(_serverOrder, picked));
+    if (picked is AudioTrackSort) await settings.write(pref, picked);
+    if (picked == 'reverse') await settings.write(reversePref, !reversed);
+    if (mounted) {
+      setState(
+        () => items = AudioSorting.sortTracks(_serverOrder, settings.read(pref), reverse: settings.read(reversePref)),
+      );
+    }
   }
 
   /// Fork: the library type (music, audiobooks, audio dramas, podcasts).

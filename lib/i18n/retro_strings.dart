@@ -151,6 +151,7 @@ class RetroStrings {
     'Podcast-Kapitel, deren Titel eines der Wörter unten enthält, werden übersprungen.',
   );
   static String get audioAdKeywords => _t('Ad words', 'Werbewörter');
+  static String get audioReverseOrder => _t('Reverse order', 'Umgekehrte Reihenfolge');
   static String get audioSortBy => _t('Sort by', 'Sortieren nach');
   static String audioTrackSort(AudioTrackSort s) => switch (s) {
     AudioTrackSort.trackOrder => _t('Track order', 'Reihenfolge'),

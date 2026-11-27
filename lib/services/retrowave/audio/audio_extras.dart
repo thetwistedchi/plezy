@@ -622,7 +622,7 @@ class AudioExtras extends ChangeNotifier {
             duration != null && duration - position < const Duration(seconds: 5) && _isLastOfAlbum(service, track);
         final info = {
           'bt': track.parentTitle,
-          'th': track.parentThumbPath ?? track.thumbPath,
+          'th': track.parentThumbPath ?? track.thumbPath ?? track.grandparentThumbPath,
           'ar': track.grandparentTitle,
           'lib': track.libraryId,
           'be': track.backend.name,
