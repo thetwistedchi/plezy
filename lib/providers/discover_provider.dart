@@ -390,7 +390,105 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
     return true;
   }
 
+  /// Fork: how long the first Home pass waits for every server before it
+  /// shows the ones that already answered.
+  static const _firstPaintBudget = Duration(seconds: 3);
+
   Future<void> _loadOnce() async {
+    final lateServers = <_LateServerFetch>[];
+    ({int watermark, Object epoch})? passObservation;
+    await _loadPass(lateServers, (o) => passObservation = o);
+    var pending = List<_LateServerFetch>.of(lateServers);
+    while (pending.isNotEmpty) {
+      final next = await Future.any([for (final late in pending) late.done.then((_) => late)]);
+      pending = [for (final late in pending) if (!identical(late, next)) late];
+      if (isDisposed || isProfileBinding()) return;
+      if (_onDeckState != DiscoverLoadState.loaded || _hubsState != DiscoverLoadState.loaded) return;
+      final result = await next.done;
+      appLogger.d('DiscoverProvider: merging late server ${next.serverId}');
+      await _mergeFreshContent({next.serverId}, passObservation, result.onDeck, result.hubs);
+    }
+  }
+
+  /// Fetches every server separately and returns what arrived within
+  /// [_firstPaintBudget] (or the first server to answer, if none did).
+  Future<({OnDeckAggregationResult onDeck, HubAggregationResult hubs, List<_LateServerFetch> late})>
+  _fetchWithinBudget(DataAggregationService aggregation, List<String> serverIds, bool useGlobalHubs) async {
+    final fetches = [
+      for (final id in serverIds)
+        _LateServerFetch(
+          id,
+          Future.wait<Object?>([
+            aggregation
+                .getOnDeckFromAllServers(
+                  limit: _continueWatchingProbeLimit,
+                  hiddenLibraryKeys: _hiddenLibraries.hiddenLibraryKeys,
+                  serverIds: {id},
+                )
+                .then<Object?>((r) => r, onError: (Object _) => null),
+            aggregation
+                .getHubsFromAllServers(
+                  hiddenLibraryKeys: _hiddenLibraries.hiddenLibraryKeys,
+                  useGlobalHubs: useGlobalHubs,
+                  includePlaybackHubs: false,
+                  serverIds: {id},
+                )
+                .then<Object?>((r) => r, onError: (Object _) => null),
+          ]).then((r) => (onDeck: r[0] as OnDeckAggregationResult?, hubs: r[1] as HubAggregationResult?)),
+        ),
+    ];
+    final finished = <String>{};
+    for (final fetch in fetches) {
+      unawaited(fetch.done.then((_) => finished.add(fetch.serverId)));
+    }
+    await Future.any([Future.wait([for (final f in fetches) f.done]), Future<void>.delayed(_firstPaintBudget)]);
+    if (finished.isEmpty) await Future.any([for (final f in fetches) f.done]);
+    // Let the completion callbacks above run.
+    await null;
+
+    final fast = [for (final f in fetches) if (finished.contains(f.serverId)) f];
+    final late = [for (final f in fetches) if (!finished.contains(f.serverId)) f];
+    if (late.isNotEmpty) {
+      appLogger.i('DiscoverProvider: showing Home without slow servers ${late.map((f) => f.serverId).toList()}');
+    }
+    final results = [for (final f in fast) await f.done];
+
+    final onDeckParts = [for (final r in results) ?r.onDeck];
+    final hubParts = [for (final r in results) ?r.hubs];
+    final merged = await aggregation.mergeContinueWatching(
+      const [],
+      [for (final p in onDeckParts) ...p.items],
+      existingCopies: const {},
+      freshCopies: {for (final p in onDeckParts) ...p.copies},
+      limit: _continueWatchingProbeLimit,
+    );
+    // A server whose leg errored outright counts as failed.
+    final erroredOnDeck = {for (var i = 0; i < fast.length; i++) if (results[i].onDeck == null) fast[i].serverId};
+    final erroredHubs = {for (var i = 0; i < fast.length; i++) if (results[i].hubs == null) fast[i].serverId};
+    return (
+      onDeck: (
+        items: merged.items,
+        copies: merged.copies,
+        observedItems: [for (final p in onDeckParts) ...p.observedItems],
+        succeededServerIds: {for (final p in onDeckParts) ...p.succeededServerIds},
+        cancelledServerIds: {for (final p in onDeckParts) ...p.cancelledServerIds},
+        failedServerIds: {for (final p in onDeckParts) ...p.failedServerIds, ...erroredOnDeck},
+      ),
+      hubs: (
+        hubs: [for (final p in hubParts) ...p.hubs],
+        observedItems: [for (final p in hubParts) ...p.observedItems],
+        succeededServerIds: {for (final p in hubParts) ...p.succeededServerIds},
+        cancelledServerIds: {for (final p in hubParts) ...p.cancelledServerIds},
+        failedServerIds: {for (final p in hubParts) ...p.failedServerIds, ...erroredHubs},
+      ),
+      late: late,
+    );
+  }
+
+  Future<void> _loadPass(
+    List<_LateServerFetch> lateServers,
+    void Function(({int watermark, Object epoch})? observation) onObservation,
+  ) async {
     var outcome = DiscoverRefreshOutcome.cancelled;
     var passClearedExceptionBoundary = false;
     List<MediaItem>? systemShelfPassToken;
@@ -471,15 +569,29 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
       // every preparatory await: a patch recorded later has a higher sequence
       // and must survive this pass's observations.
       observation = _beginObservation();
-      final onDeckFuture = aggregation.getOnDeckFromAllServers(
-        limit: _continueWatchingProbeLimit,
-        hiddenLibraryKeys: _hiddenLibraries.hiddenLibraryKeys,
-      );
-      final hubsFuture = aggregation.getHubsFromAllServers(
-        hiddenLibraryKeys: _hiddenLibraries.hiddenLibraryKeys,
-        useGlobalHubs: useGlobalHubs,
-        includePlaybackHubs: false,
-      );
+      onObservation(observation);
+      final Future<OnDeckAggregationResult> onDeckFuture;
+      final Future<HubAggregationResult> hubsFuture;
+      final serverIds = aggregation.visibleOnlineServerIds;
+      if (serverIds.length > 1) {
+        // Fork: one slow server must not hold back Home. Servers that answer
+        // within the budget are shown first, the rest merge in afterwards.
+        final budgeted = await _fetchWithinBudget(aggregation, serverIds, useGlobalHubs);
+        if (isDisposed) return;
+        lateServers.addAll(budgeted.late);
+        onDeckFuture = Future.value(budgeted.onDeck);
+        hubsFuture = Future.value(budgeted.hubs);
+      } else {
+        onDeckFuture = aggregation.getOnDeckFromAllServers(
+          limit: _continueWatchingProbeLimit,
+          hiddenLibraryKeys: _hiddenLibraries.hiddenLibraryKeys,
+        );
+        hubsFuture = aggregation.getHubsFromAllServers(
+          hiddenLibraryKeys: _hiddenLibraries.hiddenLibraryKeys,
+          useGlobalHubs: useGlobalHubs,
+          includePlaybackHubs: false,
+        );
+      }
 
       // A pass in which zero servers succeeded is never authoritative: it
       // must not wipe existing content, and it may only commit "loaded,
@@ -670,8 +782,25 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
               serverIds: hubIds,
             );
 
-      final freshOnDeck = await onDeckFuture;
-      final freshHubs = await hubsFuture;
+      await _mergeFreshContent(ids, observation, await onDeckFuture, await hubsFuture);
+    } catch (e) {
+      if (isDisposed) return;
+      // Keep the loaded state — stale rows beat an error flash.
+      appLogger.w('DiscoverProvider: delta load failed for $ids', error: e);
+    }
+  }
+
+  /// Merges content fetched from [ids] into the loaded state. Shared by the
+  /// newly-online delta and the late servers of the first pass.
+  Future<void> _mergeFreshContent(
+    Set<String> ids,
+    ({int watermark, Object epoch})? observation,
+    OnDeckAggregationResult? freshOnDeck,
+    HubAggregationResult? freshHubs,
+  ) async {
+    ++_contentRevision;
+    final aggregation = _multiServer.aggregationService;
+    try {
       if (isDisposed) return;
       // Staged, not recorded here: the merge below can still throw, and the
       // catch keeps the previous rows. Suppressing patches against rows that
@@ -1266,4 +1395,13 @@ class DiscoverProvider extends ChangeNotifier with DisposableChangeNotifierMixin
     _pendingSystemShelfItems = null;
     super.dispose();
   }
+}
+
+/// Fork: one server's leg of the budgeted first Home pass. A null half means
+/// that leg errored.
+class _LateServerFetch {
+  _LateServerFetch(this.serverId, this.done);
+
+  final String serverId;
+  final Future<({OnDeckAggregationResult? onDeck, HubAggregationResult? hubs})> done;
 }

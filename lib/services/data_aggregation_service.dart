@@ -157,6 +157,9 @@ class DataAggregationService {
   /// fan out to newly-online visible servers, and catalog lookups to the
   /// profile's expected servers, which can come online a status emission
   /// before the visibility filter promotes them.
+  /// Fork: ids of the servers a full pass would query, in client order.
+  List<String> get visibleOnlineServerIds => _serverManager.visibleOnlineClients.keys.toList();
+
   Map<String, MediaServerClient> _clientsFor(Set<String>? serverIds) {
     if (serverIds == null) return _serverManager.visibleOnlineClients;
     final clients = _serverManager.onlineClients;

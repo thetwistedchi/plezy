@@ -256,6 +256,16 @@ class LibrariesProvider extends ChangeNotifier with DisposableChangeNotifierMixi
 
     try {
       final result = await _aggregationService!.getMediaLibrariesFromAllServers(serverIds: ids);
+      await _mergeLibraries(ids, result);
+    } catch (e, stackTrace) {
+      if (isDisposed) return;
+      appLogger.e('LibrariesProvider: delta load failed for $ids', error: e, stackTrace: stackTrace);
+    }
+  }
+
+  /// Merges [result], fetched from [ids], into the loaded list.
+  Future<void> _mergeLibraries(Set<String> ids, LibraryAggregationResult result) async {
+    try {
       if (isDisposed) return;
       // A pass in which zero servers succeeded is never authoritative: keep
       // the current list and leave every id un-loaded so the next status
@@ -294,7 +304,80 @@ class LibrariesProvider extends ChangeNotifier with DisposableChangeNotifierMixi
     }
   }
 
+  /// Fork: how long the first load waits for every server before it shows
+  /// the libraries of the ones that already answered.
+  static const _firstLoadBudget = Duration(seconds: 3);
+
   Future<void> _loadLibrariesInternal() async {
+    final late = <({String serverId, Future<LibraryAggregationResult> done})>[];
+    await _loadLibrariesPass(late);
+    // Not awaited: callers (startup priming) continue once the fast servers
+    // are in, and each slow server merges in when it answers.
+    if (late.isNotEmpty) unawaited(_mergeLate(late));
+  }
+
+  Future<void> _mergeLate(List<({String serverId, Future<LibraryAggregationResult> done})> late) async {
+    var pending = List.of(late);
+    while (pending.isNotEmpty) {
+      final next = await Future.any([for (final l in pending) l.done.then((_) => l)]);
+      pending = [for (final l in pending) if (!identical(l, next)) l];
+      if (isDisposed || _loadState != LibrariesLoadState.loaded) return;
+      if (_loadedServerIds.contains(next.serverId)) continue;
+      await _mergeLibraries({next.serverId}, await next.done);
+    }
+  }
+
+  /// First load only: fetches each server separately and returns what arrived
+  /// within [_firstLoadBudget] (or the first server to answer, if none did).
+  Future<LibraryAggregationResult> _fetchWithinBudget(
+    List<String> serverIds,
+    List<({String serverId, Future<LibraryAggregationResult> done})> late,
+  ) async {
+    const empty = (
+      libraries: <MediaLibrary>[],
+      succeededServerIds: <String>{},
+      cancelledServerIds: <String>{},
+      failedServerIds: <String>{},
+    );
+    final fetches = [
+      for (final id in serverIds)
+        (
+          serverId: id,
+          done: _aggregationService!
+              .getMediaLibrariesFromAllServers(serverIds: {id})
+              .then(
+                (r) => r,
+                onError: (Object _) => (
+                  libraries: const <MediaLibrary>[],
+                  succeededServerIds: const <String>{},
+                  cancelledServerIds: const <String>{},
+                  failedServerIds: {id},
+                ),
+              ),
+        ),
+    ];
+    final finished = <String>{};
+    for (final f in fetches) {
+      unawaited(f.done.then((_) => finished.add(f.serverId)));
+    }
+    await Future.any([Future.wait([for (final f in fetches) f.done]), Future<void>.delayed(_firstLoadBudget)]);
+    if (finished.isEmpty) await Future.any([for (final f in fetches) f.done]);
+    await null;
+    late.addAll([for (final f in fetches) if (!finished.contains(f.serverId)) f]);
+    if (late.isNotEmpty) {
+      appLogger.i('LibrariesProvider: showing libraries without slow servers ${late.map((f) => f.serverId).toList()}');
+    }
+    final results = [for (final f in fetches) if (finished.contains(f.serverId)) await f.done];
+    if (results.isEmpty) return empty;
+    return (
+      libraries: [for (final r in results) ...r.libraries],
+      succeededServerIds: {for (final r in results) ...r.succeededServerIds},
+      cancelledServerIds: {for (final r in results) ...r.cancelledServerIds},
+      failedServerIds: {for (final r in results) ...r.failedServerIds},
+    );
+  }
+
+  Future<void> _loadLibrariesPass(List<({String serverId, Future<LibraryAggregationResult> done})> late) async {
     if (isDisposed) return;
     if (_aggregationService == null) {
       appLogger.w('LibrariesProvider: Cannot load libraries - not initialized');
@@ -318,7 +401,10 @@ class LibrariesProvider extends ChangeNotifier with DisposableChangeNotifierMixi
       // Fetch libraries from every connected backend (Plex + Jellyfin).
       // The aggregation service converts Plex-typed responses to MediaLibrary
       // internally; Jellyfin clients return MediaLibrary natively.
-      final result = await _aggregationService!.getMediaLibrariesFromAllServers();
+      final serverIds = _aggregationService!.visibleOnlineServerIds;
+      final result = !reloadInPlace && serverIds.length > 1
+          ? await _fetchWithinBudget(serverIds, late)
+          : await _aggregationService!.getMediaLibrariesFromAllServers();
       if (isDisposed) return;
 
       // A pass in which zero servers succeeded is never authoritative — it
