@@ -877,8 +877,9 @@ class _CatalogItemDetailScreenState extends State<CatalogItemDetailScreen> {
 
   Future<void> _openExternalUrl(String value) async {
     final uri = Uri.tryParse(value);
-    // Fork: on Android, Plex's free titles play in their own Plex Web page.
-    if (Platform.isAndroid && uri != null && uri.host == 'app.plex.tv' && BrowserNative.isSupported) {
+    // Fork: on Android and Windows, Plex's free titles play in their own
+    // Plex Web page.
+    if ((Platform.isAndroid || Platform.isWindows) && uri != null && uri.host == 'app.plex.tv' && BrowserNative.isSupported) {
       await FreePlexPlayerScreen.open(context, value);
       return;
     }

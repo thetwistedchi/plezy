@@ -700,6 +700,30 @@ class BrowserController extends ChangeNotifier with WidgetsBindingObserver {
     await _native.setPopupSites(_settings.popupSites);
   }
 
+  /// Fork: shows a page outside the tab strip (Free on plex.tv's player
+  /// page, Windows) as tab [id]. The tabs' events ignore it.
+  Future<void> showStandalone(int id, String url) async {
+    await load();
+    await _native.ensureReady(
+      httpsUpgrade: _settings.httpsUpgrade,
+      cacheLimitMb: _settings.cacheLimitMb,
+      tracking: _settings.trackingLevel,
+    );
+    await _native.createTab(id, url);
+    await _native.setActive(id);
+    await _native.setVisible(true);
+  }
+
+  /// Fork: closes a page opened with [showStandalone].
+  Future<void> closeStandalone(int id) async {
+    await _native.closeTab(id);
+    await _native.setVisible(false);
+    final tab = active;
+    if (tab != null && tab.live) await _native.setActive(tab.id);
+  }
+
+  Future<void> navigateStandalone(int id, String url) => _native.navigate(id, url);
+
   /// Where the page goes, in physical pixels of the Flutter view.
   Future<void> setPageRect({required int left, required int top, required int right, required int bottom}) =>
       _native.setRect(left: left, top: top, right: right, bottom: bottom);
