@@ -5,7 +5,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../media/media_backend.dart';
 import '../../../media/media_item.dart';
+import '../../../media/media_kind.dart';
 import '../../../mpv/player/player.dart';
 import '../../../utils/app_logger.dart';
 import '../../music/music_playback_service.dart';
@@ -67,6 +69,9 @@ class AudioExtras extends ChangeNotifier {
   Map<String, Map<String, dynamic>> _resume = {};
   Map<String, List<AudioBookmark>> _bookmarks = {};
   Set<String> _played = {};
+
+  /// Books played to the end: `server:album` → album info and time.
+  Map<String, Map<String, dynamic>> _finished = {};
   Future<void>? _loaded;
   Timer? _saveTimer;
 
@@ -115,6 +120,10 @@ class AudioExtras extends ChangeNotifier {
           ],
       };
       _played = {...((json['played'] as List?) ?? const []).whereType<String>()};
+      _finished = {
+        for (final e in ((json['finished'] as Map?) ?? const {}).entries)
+          e.key as String: Map<String, dynamic>.from(e.value as Map),
+      };
       notifyListeners();
     } catch (e) {
       appLogger.d('Audio extras unreadable', error: e);
@@ -138,6 +147,7 @@ class AudioExtras extends ChangeNotifier {
               if (e.value.isNotEmpty) e.key: [for (final b in e.value) b.toJson()],
           },
           'played': _played.toList(),
+          'finished': _finished,
         }),
       );
     } catch (e) {
@@ -231,6 +241,34 @@ class AudioExtras extends ChangeNotifier {
     final at = saved.position - _rewindOnResume;
     return (start: track, position: at.isNegative ? Duration.zero : at);
   }
+
+  /// Albums of a library as [MediaItem]s, from stored info, newest first.
+  List<MediaItem> _albums(Map<String, Map<String, dynamic>> source, String serverId, String libraryId) {
+    final entries =
+        source.entries
+            .where((e) => e.key.startsWith('$serverId:') && (e.value['lib'] == null || e.value['lib'] == libraryId))
+            .toList()
+          ..sort((a, b) => ((b.value['at'] as num?) ?? 0).compareTo((a.value['at'] as num?) ?? 0));
+    return [
+      for (final e in entries.take(40))
+        MediaItem(
+          id: e.key.substring(serverId.length + 1),
+          backend: MediaBackend.values.where((b) => b.name == e.value['be']).firstOrNull ?? MediaBackend.plex,
+          kind: MediaKind.album,
+          title: e.value['bt'] as String? ?? '',
+          thumbPath: e.value['th'] as String?,
+          parentTitle: e.value['ar'] as String?,
+          serverId: serverId,
+          libraryId: libraryId,
+        ),
+    ];
+  }
+
+  /// Books of a library that were started and not finished.
+  List<MediaItem> continueListening(String serverId, String libraryId) => _albums(_resume, serverId, libraryId);
+
+  /// Books of a library played to the end.
+  List<MediaItem> recentlyFinished(String serverId, String libraryId) => _albums(_finished, serverId, libraryId);
 
   // ---------------------------------------------------------------------
   // Played podcast episodes
@@ -346,7 +384,7 @@ class AudioExtras extends ChangeNotifier {
   Future<void> setSingleTrack(bool on) async {
     await SettingsService.instance.write(AudioSettings.singleTrack, on);
     final service = _service;
-    if (service != null && _mode.isBookLike) {
+    if (service != null && _mode.isSpoken) {
       if (on) {
         service.setSleepTimer(null, endOfTrack: true);
       } else if (service.sleepTimerEndOfTrack && !_sleepAtAlbumEnd && _sleepTracksLeft == null) {
@@ -366,7 +404,7 @@ class AudioExtras extends ChangeNotifier {
     final track = _track;
     if (service == null || track == null) return;
     final last =
-        (_mode.isBookLike && singleTrack) ||
+        (_mode.isSpoken && singleTrack) ||
         (_sleepAtAlbumEnd && _isLastOfAlbum(service, track)) ||
         (_sleepTracksLeft != null && _sleepTracksLeft! <= 1);
     if (!last) return;
@@ -482,10 +520,25 @@ class AudioExtras extends ChangeNotifier {
       if (key != null) {
         final finished =
             duration != null && duration - position < const Duration(seconds: 5) && _isLastOfAlbum(service, track);
+        final info = {
+          'bt': track.parentTitle,
+          'th': track.parentThumbPath ?? track.thumbPath,
+          'ar': track.grandparentTitle,
+          'lib': track.libraryId,
+          'be': track.backend.name,
+          'at': DateTime.now().millisecondsSinceEpoch,
+        };
         if (finished) {
-          if (_resume.remove(key) != null) notifyListeners();
+          if (_resume.remove(key) != null) {
+            _finished[key] = info;
+            if (_finished.length > 200) _finished.remove(_finished.keys.first);
+            notifyListeners();
+          }
         } else {
-          _resume[key] = {'t': track.id, 'p': position.inMilliseconds, 'at': DateTime.now().millisecondsSinceEpoch};
+          final isNew = !_resume.containsKey(key);
+          _resume[key] = {...info, 't': track.id, 'p': position.inMilliseconds};
+          _finished.remove(key);
+          if (isNew) notifyListeners();
         }
         _scheduleSave();
       }

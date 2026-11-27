@@ -1030,7 +1030,7 @@ class MediaContextMenuState extends State<MediaContextMenu> {
           final similar = await sonicClient.fetchSonicallySimilar(mediaItem.id);
           if (!context.mounted) break;
           if (similar.isEmpty) {
-            showErrorSnackBar(context, t.music.instantMixEmpty);
+            showErrorSnackBar(context, RetroStrings.audioNoSonic);
             break;
           }
           await context.read<MusicPlaybackService>().playFromList(

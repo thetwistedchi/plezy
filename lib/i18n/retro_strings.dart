@@ -129,6 +129,24 @@ class RetroStrings {
     'When the server has no lyrics for a track, look them up on lrclib.net (sends artist, title, album and length)',
     'Wenn der Server keinen Songtext hat, auf lrclib.net nachsehen (sendet Interpret, Titel, Album und Länge)',
   );
+  static String get audioContinueListening => _t('Continue listening', 'Weiterhören');
+  static String get audioRecentlyFinished => _t('Recently finished', 'Zuletzt beendet');
+  static String get audioSortBy => _t('Sort by', 'Sortieren nach');
+  static String audioTrackSort(AudioTrackSort s) => switch (s) {
+    AudioTrackSort.trackOrder => _t('Track order', 'Reihenfolge'),
+    AudioTrackSort.title => _t('Title', 'Titel'),
+    AudioTrackSort.newest => _t('Newest first', 'Neueste zuerst'),
+    AudioTrackSort.oldest => _t('Oldest first', 'Älteste zuerst'),
+    AudioTrackSort.longest => _t('Longest first', 'Längste zuerst'),
+    AudioTrackSort.shortest => _t('Shortest first', 'Kürzeste zuerst'),
+  };
+  static String audioFolderSort(AudioFolderSort s) => switch (s) {
+    AudioFolderSort.standard => _t('Standard', 'Standard'),
+    AudioFolderSort.title => _t('Title', 'Titel'),
+    AudioFolderSort.newest => _t('Newest first', 'Neueste zuerst'),
+    AudioFolderSort.oldest => _t('Oldest first', 'Älteste zuerst'),
+    AudioFolderSort.recentlyAdded => _t('Recently added', 'Zuletzt hinzugefügt'),
+  };
   static String get audioSpeed => _t('Speed', 'Geschwindigkeit');
   static String get audioChapters => _t('Chapters', 'Kapitel');
   static String get audioBookmarks => _t('Bookmarks', 'Lesezeichen');
@@ -211,6 +229,10 @@ class RetroStrings {
   static String get audioMarkPlayed => _t('Mark as played', 'Als gehört markieren');
   static String get audioMarkUnplayed => _t('Mark as not played', 'Als nicht gehört markieren');
   static String get audioSonicallySimilar => _t('Sonically similar', 'Klanglich ähnlich');
+  static String get audioNoSonic => _t(
+    'The server found no similar tracks. This needs Plex Pass and sonic analysis of the library (library settings on the server).',
+    'Der Server hat keine ähnlichen Titel gefunden. Dafür braucht es Plex Pass und die Klanganalyse der Bibliothek (Bibliothekseinstellungen auf dem Server).',
+  );
   static String get audioStations => _t('Radio stations', 'Radiosender');
   static String get audioNoStations =>
       _t('This server offers no radio stations.', 'Dieser Server bietet keine Radiosender an.');

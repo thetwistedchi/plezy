@@ -220,7 +220,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
             label: t.common.off,
             selected: !service.sleepTimerActive,
           ),
-          for (final minutes in AudioExtras.instance.mode.isBookLike ? const [15, 30, 45, 60, 90] : const [15, 30, 60])
+          for (final minutes in AudioExtras.instance.mode.isSpoken ? const [15, 30, 45, 60, 90] : const [15, 30, 60])
             AppMenuItem(
               value: '$minutes',
               icon: Symbols.timer_rounded,
@@ -242,7 +242,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
               selected: AudioExtras.instance.sleepAtChapterEnd,
             ),
           // Fork: books and audio dramas: after a few tracks, or the folder.
-          if (AudioExtras.instance.mode.isBookLike) ...[
+          if (AudioExtras.instance.mode.isSpoken) ...[
             for (final n in const [2, 3])
               AppMenuItem(
                 value: 'tracks_$n',
@@ -798,7 +798,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
         children: [
           if (AudioExtras.instance.chapters.value.isNotEmpty)
             extra(Symbols.toc_rounded, RetroStrings.audioChapters, () => unawaited(_showChaptersSheet())),
-          if (AudioExtras.instance.mode.isBookLike)
+          if (AudioExtras.instance.mode.isSpoken)
             extra(Symbols.bookmarks_rounded, RetroStrings.audioBookmarks, () => unawaited(_showBookmarksSheet())),
           extra(Symbols.equalizer_rounded, RetroStrings.audioEqualizer, () => unawaited(_showEqualizerSheet())),
         ],
@@ -892,7 +892,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
       item: track,
       extraEntries: [
         // Fork: books and audio dramas have the sleep timer in the controls.
-        if (!AudioExtras.instance.mode.isBookLike)
+        if (!AudioExtras.instance.mode.isSpoken)
           MediaMenuExtraEntry(icon: Symbols.bedtime_rounded, label: t.music.sleepTimer, onSelected: _showSleepTimerSheet),
       ],
       child: FocusableButton(
@@ -1029,7 +1029,6 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
   /// shuffle and repeat, chapter steps, speed, and (books) the sleep timer.
   Widget _buildSpokenTransportRow(MusicPlaybackService service) {
     final extras = AudioExtras.instance;
-    final bookLike = extras.mode.isBookLike;
     final back = -SettingsService.instance.read(AudioSettings.skipBack);
     final forward = SettingsService.instance.read(AudioSettings.skipForward);
     final tk = tokens(context);
@@ -1070,17 +1069,14 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
       onNavigateDown: () => _utilityBarKey.currentState?.requestFocusOnFirst(),
       onBack: _pop,
       actions: [
-        if (bookLike) ...[
-          icon(t.music.sleepTimer, Symbols.bedtime_rounded, () => unawaited(_showSleepTimerSheet()), size: 22, active: sleepActive),
-          icon(
-            RetroStrings.audioSingleTrack,
-            Symbols.filter_1_rounded,
-            () => unawaited(extras.setSingleTrack(!extras.singleTrack)),
-            size: 22,
-            active: extras.singleTrack,
-          ),
-        ] else
-          speedAction,
+        icon(t.music.sleepTimer, Symbols.bedtime_rounded, () => unawaited(_showSleepTimerSheet()), size: 22, active: sleepActive),
+        icon(
+          RetroStrings.audioSingleTrack,
+          Symbols.filter_1_rounded,
+          () => unawaited(extras.setSingleTrack(!extras.singleTrack)),
+          size: 22,
+          active: extras.singleTrack,
+        ),
         icon(RetroStrings.audioSkipBack(-back), _skipIcon(back), () => unawaited(_skip(back)), size: 28),
         icon(t.music.previousTrack, Symbols.skip_previous_rounded, () => unawaited(extras.previousChapter()), size: 30),
         FocusableAction(
@@ -1093,7 +1089,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
         ),
         icon(t.music.nextTrack, Symbols.skip_next_rounded, () => unawaited(extras.nextChapter()), size: 30),
         icon(RetroStrings.audioSkipForward(forward), _skipIcon(forward), () => unawaited(_skip(forward)), size: 28),
-        if (bookLike) speedAction else icon(RetroStrings.audioBookmarks, Symbols.bookmarks_rounded, () => unawaited(_showBookmarksSheet()), size: 22),
+        speedAction,
       ],
     );
     return Padding(
@@ -1219,7 +1215,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
                 size: 22,
               ),
             ),
-          if (AudioExtras.instance.mode.isBookLike)
+          if (AudioExtras.instance.mode.isSpoken)
             FocusableAction(
               debugLabel: 'np_bookmarks',
               onPressed: () => unawaited(_showBookmarksSheet()),

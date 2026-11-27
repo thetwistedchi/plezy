@@ -119,7 +119,7 @@ Future<void> showLibraryManagementSheet(
         ? const []
         : canAdminister(library)
         ? _getLibraryMenuItems(library)
-        : [_languagesMenuItem()],
+        : [_languagesMenuItem(), ?_audioModeMenuItem(library)],
     onLibraryMenuAction: (action, library) => _handleLibraryMenuAction(context, action, library),
   );
 
@@ -152,6 +152,12 @@ List<MediaLibrary> reconcileLibraryOrder(List<MediaLibrary> sheetOrder, List<Med
 ContextMenuItem _languagesMenuItem() =>
     ContextMenuItem(value: 'languages', icon: Symbols.translate_rounded, label: RetroStrings.libraryLanguages);
 
+/// Fork: music libraries can hold audiobooks, audio dramas or podcasts. The
+/// type is the viewer's own setting, so every user gets it.
+ContextMenuItem? _audioModeMenuItem(MediaLibrary library) => library.kind == MediaKind.artist
+    ? ContextMenuItem(value: 'audio_mode', icon: Symbols.headphones_rounded, label: RetroStrings.audioLibraryType)
+    : null;
+
 List<ContextMenuItem> _getLibraryMenuItems(MediaLibrary library) {
   // Scan and refresh metadata are the admin actions every backend supports —
   // Plex hits `/library/sections/{id}/refresh` (with `force=1` to refresh);
@@ -178,10 +184,7 @@ List<ContextMenuItem> _getLibraryMenuItems(MediaLibrary library) {
   // gating keeps them out of MediaBrowser menus. The library-qualified
   // resolver independently requires the exact owning Plex server.
   final languages = _languagesMenuItem();
-  // Fork: music libraries can hold audiobooks, audio dramas or podcasts.
-  final audioMode = library.kind == MediaKind.artist
-      ? ContextMenuItem(value: 'audio_mode', icon: Symbols.headphones_rounded, label: RetroStrings.audioLibraryType)
-      : null;
+  final audioMode = _audioModeMenuItem(library);
   if (library.backend != MediaBackend.plex) return [languages, ?audioMode, scan, refresh];
   return [
     languages,

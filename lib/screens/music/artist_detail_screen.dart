@@ -27,6 +27,11 @@ import '../../widgets/music/music_actions.dart';
 import '../../widgets/optimized_media_image.dart';
 import '../base_media_list_detail_screen.dart';
 import '../focusable_detail_screen_mixin.dart';
+import '../../services/retrowave/audio/audio_settings.dart';
+import '../../services/settings_service.dart';
+import '../../widgets/app_menu.dart';
+import '../../widgets/overlay_sheet.dart';
+import '../../i18n/retro_strings.dart';
 
 /// Detail screen for a music artist: circular artist image, genres and
 /// collapsible bio, Play/Shuffle/Instant Mix action row, and the artist's
@@ -67,7 +72,10 @@ class _ArtistDetailScreenState extends BaseMediaListDetailScreen<ArtistDetailScr
 
   @override
   Future<List<MediaItem>> fetchItems() async {
-    final groups = await mediaClient.fetchArtistDiscography(widget.artist);
+    final fetched = await mediaClient.fetchArtistDiscography(widget.artist);
+    _serverGroups = fetched;
+    // Fork: albums in the chosen order, within each section.
+    final groups = _sortedGroups(SettingsService.instance.read(AudioSorting.folderSort));
     _discographyGroups = groups;
     // Flat concatenation keeps BaseMediaListDetailScreen/StandardItemLoader/
     // updateItem working against one list; the grouped slivers slice it.
@@ -78,6 +86,34 @@ class _ArtistDetailScreenState extends BaseMediaListDetailScreen<ArtistDetailScr
   Future<void> loadItems() async {
     await super.loadItems();
     autoFocusFirstItemAfterLoad();
+  }
+
+  List<ArtistDiscographyGroup> _serverGroups = const [];
+
+  List<ArtistDiscographyGroup> _sortedGroups(AudioFolderSort sort) => [
+    for (final g in _serverGroups) ArtistDiscographyGroup(kind: g.kind, items: AudioSorting.sortFolders(g.items, sort)),
+  ];
+
+  Future<void> _pickSort() async {
+    final current = SettingsService.instance.read(AudioSorting.folderSort);
+    final picked = await OverlaySheetController.showAdaptive<AudioFolderSort>(
+      context,
+      showDragHandle: true,
+      builder: (context) => AppMenuSheet<AudioFolderSort>(
+        title: RetroStrings.audioSortBy,
+        entries: [
+          for (final s in AudioFolderSort.values)
+            AppMenuItem(value: s, label: RetroStrings.audioFolderSort(s), selected: s == current),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    await SettingsService.instance.write(AudioSorting.folderSort, picked);
+    if (!mounted) return;
+    setState(() {
+      _discographyGroups = _sortedGroups(picked);
+      items = [for (final group in _discographyGroups) ...group.items];
+    });
   }
 
   @override
@@ -110,6 +146,13 @@ class _ArtistDetailScreenState extends BaseMediaListDetailScreen<ArtistDetailScr
       onInstantMix: (client?.capabilities.instantMix ?? false)
           ? () => unawaited(playInstantMix(context, widget.artist))
           : null,
+    )..add(
+      FocusableAction(
+        debugLabel: 'artist_sort',
+        icon: Symbols.sort_rounded,
+        tooltip: RetroStrings.audioSortBy,
+        onPressed: () => unawaited(_pickSort()),
+      ),
     );
   }
 

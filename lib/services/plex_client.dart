@@ -3663,11 +3663,15 @@ class PlexClient
   /// Fork: tracks that sound like [trackId] (Plex sonic analysis, Plex Pass
   /// servers that analysed the library). Empty when the server has none.
   Future<List<MediaItem>> fetchSonicallySimilar(String trackId, {int limit = 50}) async {
-    final response = await _getWithFailover(
-      '/library/metadata/$trackId/nearest',
-      queryParameters: {'limit': limit, 'maxDistance': 0.25},
-    );
-    return _extractMetadataList(response).map(PlexMappers.mediaItem).toList();
+    for (final distance in const [0.25, 0.5, null]) {
+      final response = await _getWithFailover(
+        '/library/metadata/$trackId/nearest',
+        queryParameters: {'limit': limit, 'maxDistance': ?distance},
+      );
+      final items = _extractMetadataList(response).map(PlexMappers.mediaItem).toList();
+      if (items.isNotEmpty) return items;
+    }
+    return const [];
   }
 
   /// Fork: the radio stations Plex offers for a music library (Library

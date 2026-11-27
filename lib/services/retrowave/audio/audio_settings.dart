@@ -101,3 +101,81 @@ abstract final class AudioSettings {
     await _s.write(libraryModes, [for (final e in map.entries) '${e.key}=${e.value.name}']);
   }
 }
+
+/// Fork: order of the tracks in an album or folder.
+enum AudioTrackSort { trackOrder, title, newest, oldest, longest, shortest }
+
+/// Fork: order of an artist's albums (folders).
+enum AudioFolderSort { standard, title, newest, oldest, recentlyAdded }
+
+abstract final class AudioSorting {
+  static const trackSortMusic = EnumPref<AudioTrackSort>(
+    'retrowave_track_sort_music',
+    values: AudioTrackSort.values,
+    defaultValue: AudioTrackSort.trackOrder,
+  );
+  static const trackSortBooks = EnumPref<AudioTrackSort>(
+    'retrowave_track_sort_books',
+    values: AudioTrackSort.values,
+    defaultValue: AudioTrackSort.trackOrder,
+  );
+  static const trackSortPodcasts = EnumPref<AudioTrackSort>(
+    'retrowave_track_sort_podcasts',
+    values: AudioTrackSort.values,
+    defaultValue: AudioTrackSort.newest,
+  );
+  static const folderSort = EnumPref<AudioFolderSort>(
+    'retrowave_folder_sort',
+    values: AudioFolderSort.values,
+    defaultValue: AudioFolderSort.standard,
+  );
+
+  static EnumPref<AudioTrackSort> trackPrefFor(AudioMode mode) => switch (mode) {
+    AudioMode.music => trackSortMusic,
+    AudioMode.podcast => trackSortPodcasts,
+    _ => trackSortBooks,
+  };
+
+  static int _date(MediaItem i) =>
+      DateTime.tryParse(i.originallyAvailableAt ?? '')?.millisecondsSinceEpoch ??
+      (i.year != null ? DateTime(i.year!).millisecondsSinceEpoch : (i.addedAt ?? 0) * 1000);
+
+  /// [tracks] (in the server's order) sorted by [sort].
+  static List<MediaItem> sortTracks(List<MediaItem> tracks, AudioTrackSort sort) {
+    final list = [...tracks];
+    int title(MediaItem a, MediaItem b) => (a.title ?? '').toLowerCase().compareTo((b.title ?? '').toLowerCase());
+    switch (sort) {
+      case AudioTrackSort.trackOrder:
+        break;
+      case AudioTrackSort.title:
+        list.sort(title);
+      case AudioTrackSort.newest:
+        list.sort((a, b) => _date(b).compareTo(_date(a)));
+      case AudioTrackSort.oldest:
+        list.sort((a, b) => _date(a).compareTo(_date(b)));
+      case AudioTrackSort.longest:
+        list.sort((a, b) => (b.durationMs ?? 0).compareTo(a.durationMs ?? 0));
+      case AudioTrackSort.shortest:
+        list.sort((a, b) => (a.durationMs ?? 0).compareTo(b.durationMs ?? 0));
+    }
+    return list;
+  }
+
+  /// [albums] (in the server's order) sorted by [sort].
+  static List<MediaItem> sortFolders(List<MediaItem> albums, AudioFolderSort sort) {
+    final list = [...albums];
+    switch (sort) {
+      case AudioFolderSort.standard:
+        break;
+      case AudioFolderSort.title:
+        list.sort((a, b) => (a.titleSort ?? a.title ?? '').toLowerCase().compareTo((b.titleSort ?? b.title ?? '').toLowerCase()));
+      case AudioFolderSort.newest:
+        list.sort((a, b) => _date(b).compareTo(_date(a)));
+      case AudioFolderSort.oldest:
+        list.sort((a, b) => _date(a).compareTo(_date(b)));
+      case AudioFolderSort.recentlyAdded:
+        list.sort((a, b) => (b.addedAt ?? 0).compareTo(a.addedAt ?? 0));
+    }
+    return list;
+  }
+}

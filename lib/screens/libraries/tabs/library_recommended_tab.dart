@@ -27,6 +27,9 @@ import '../../../widgets/tv_browse_rail.dart';
 import '../../../widgets/tv_spotlight_scaffold.dart';
 import '../../main_screen.dart';
 import 'base_library_tab.dart';
+import '../../../services/retrowave/audio/audio_extras.dart';
+import '../../../services/retrowave/audio/audio_settings.dart';
+import '../../../i18n/retro_strings.dart';
 
 /// Recommended tab for library screen
 /// Shows library-specific hubs and recommendations, including dedicated Continue Watching
@@ -208,6 +211,44 @@ class _LibraryRecommendedTabState extends BaseLibraryTabState<MediaHub, LibraryR
     if (cwIndex > 0) {
       final cwHub = hubs.removeAt(cwIndex);
       hubs.insert(0, cwHub);
+    }
+
+    // Fork: audiobooks and audio dramas: started books first, finished last.
+    final library = widget.library;
+    final serverId = library.serverId;
+    if (serverId != null && AudioSettings.modeForLibrary(serverId, library.id).isBookLike) {
+      await AudioExtras.instance.load();
+      final started = AudioExtras.instance.continueListening(serverId, library.id);
+      final finished = AudioExtras.instance.recentlyFinished(serverId, library.id);
+      if (started.isNotEmpty) {
+        hubs.insert(
+          0,
+          MediaHub(
+            id: 'retrowave_continue_listening_${library.id}',
+            identifier: 'retrowave_continue_listening',
+            title: RetroStrings.audioContinueListening,
+            type: 'album',
+            items: started,
+            size: started.length,
+            serverId: serverId,
+            libraryId: library.id,
+          ),
+        );
+      }
+      if (finished.isNotEmpty) {
+        hubs.add(
+          MediaHub(
+            id: 'retrowave_finished_${library.id}',
+            identifier: 'retrowave_finished',
+            title: RetroStrings.audioRecentlyFinished,
+            type: 'album',
+            items: finished,
+            size: finished.length,
+            serverId: serverId,
+            libraryId: library.id,
+          ),
+        );
+      }
     }
 
     return hubs;

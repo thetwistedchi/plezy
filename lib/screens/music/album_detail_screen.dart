@@ -40,6 +40,9 @@ import '../../utils/error_message_utils.dart';
 import '../../i18n/retro_strings.dart';
 import '../../services/retrowave/audio/audio_extras.dart';
 import '../../services/retrowave/audio/audio_settings.dart';
+import '../../services/settings_service.dart';
+import '../../widgets/app_menu.dart';
+import '../../widgets/overlay_sheet.dart';
 
 /// Detail screen for a music album: square cover header, Play/Shuffle/
 /// Instant Mix action row, and the track list rendered as grouped
@@ -92,16 +95,42 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
 
   @override
   Future<List<MediaItem>> fetchItems() async {
-    final tracks = await (widget.isOffline
+    final fetched = await (widget.isOffline
         ? Future.value(context.read<DownloadProvider>().getDownloadedTracksForAlbum(widget.album.globalKey))
         : mediaClient.fetchAlbumTracks(widget.album.id));
-    // Fork: podcast episodes newest first.
-    if (_modeFor(tracks) == AudioMode.podcast) {
-      int stamp(MediaItem i) =>
-          DateTime.tryParse(i.originallyAvailableAt ?? '')?.millisecondsSinceEpoch ?? (i.addedAt ?? 0) * 1000;
-      return [...tracks]..sort((a, b) => stamp(b).compareTo(stamp(a)));
-    }
-    return tracks;
+    // Fork: tracks carry the album's library (Jellyfin leaves it out), so
+    // the library type applies when they play.
+    final libraryId = widget.album.libraryId;
+    final tracks = libraryId == null
+        ? fetched
+        : [for (final t in fetched) t.libraryId == null ? t.copyWith(libraryId: libraryId) : t];
+    // Fork: the chosen order (podcasts: newest first unless changed).
+    _serverOrder = tracks;
+    return AudioSorting.sortTracks(tracks, _sortFor(_modeFor(tracks)));
+  }
+
+  /// Tracks in the server's order, for "Track order".
+  List<MediaItem> _serverOrder = const [];
+
+  AudioTrackSort _sortFor(AudioMode mode) => SettingsService.instance.read(AudioSorting.trackPrefFor(mode));
+
+  Future<void> _pickSort() async {
+    final pref = AudioSorting.trackPrefFor(_mode);
+    final current = SettingsService.instance.read(pref);
+    final picked = await OverlaySheetController.showAdaptive<AudioTrackSort>(
+      context,
+      showDragHandle: true,
+      builder: (context) => AppMenuSheet<AudioTrackSort>(
+        title: RetroStrings.audioSortBy,
+        entries: [
+          for (final s in AudioTrackSort.values)
+            AppMenuItem(value: s, label: RetroStrings.audioTrackSort(s), selected: s == current),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    await SettingsService.instance.write(pref, picked);
+    if (mounted) setState(() => items = AudioSorting.sortTracks(_serverOrder, picked));
   }
 
   /// Fork: the library type (music, audiobooks, audio dramas, podcasts).
@@ -120,12 +149,13 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
       builder: (context, _) {
         final resume = AudioExtras.instance.resumeOf(widget.album.serverId, widget.album.id);
         if (resume == null || items.isEmpty) return const SizedBox.shrink();
-        final index = items.indexWhere((t) => t.id == resume.trackId);
+        final ordered = _serverOrder.isEmpty ? items : _serverOrder;
+        final index = ordered.indexWhere((t) => t.id == resume.trackId);
         if (index < 0) return const SizedBox.shrink();
         final total = _totalDurationMs;
         var done = resume.position.inMilliseconds;
         for (var i = 0; i < index; i++) {
-          done += items[i].durationMs ?? 0;
+          done += ordered[i].durationMs ?? 0;
         }
         final left = (total - done).clamp(0, total);
         final tk = tokens(context);
@@ -336,6 +366,14 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
           : null,
       download: _downloadAction(),
       trailing: _overflowAction(),
+    )..insert(
+      2,
+      FocusableAction(
+        debugLabel: 'album_sort',
+        icon: Symbols.sort_rounded,
+        tooltip: RetroStrings.audioSortBy,
+        onPressed: () => unawaited(_pickSort()),
+      ),
     );
   }
 
@@ -408,7 +446,8 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
   /// spans multiple discs. Tracks arrive in disc/track order from both
   /// backends, so grouping is a single pass.
   List<_TrackListEntry> _rowModels() {
-    final multiDisc = items.map((item) => item.discNumber ?? 1).toSet().length > 1;
+    final multiDisc =
+        _sortFor(_mode) == AudioTrackSort.trackOrder && items.map((item) => item.discNumber ?? 1).toSet().length > 1;
     final rows = <_TrackListEntry>[];
     for (var i = 0; i < items.length; i++) {
       final disc = items[i].discNumber ?? 1;
