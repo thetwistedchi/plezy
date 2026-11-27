@@ -161,6 +161,15 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
 
   AudioMode get _mode => _modeFor(items);
 
+  /// Release date of a podcast episode (or when it was added).
+  static String? _releaseDate(MediaItem item) {
+    final date = item.originallyAvailableAt;
+    if (date != null && date.isNotEmpty) return formatAbbreviatedDate(date);
+    final added = item.addedAt;
+    if (added == null) return null;
+    return formatAbbreviatedDate(DateTime.fromMillisecondsSinceEpoch(added * 1000).toIso8601String());
+  }
+
   /// Fork: where a book stopped, with the time left and a restart button.
   Widget _bookProgress() {
     return ListenableBuilder(
@@ -513,6 +522,8 @@ class _AlbumDetailScreenState extends BaseMediaListDetailScreen<AlbumDetailScree
               isFirst: row.isFirst,
               isLast: row.isLast,
               showDownloadStatus: true,
+              // Fork: podcast episodes show their release date.
+              subtitleOverride: _mode == AudioMode.podcast ? _releaseDate(item) : null,
               focusNode: focusNodeForIndex(trackIndex, firstItemFocusNode, prefix: 'detail_grid_item'),
               onNavigateUp: trackIndex == 0 ? navigateToAppBar : null,
               onBack: handleBackFromContent,

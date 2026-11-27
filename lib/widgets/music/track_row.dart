@@ -90,6 +90,10 @@ class TrackRow extends StatefulWidget {
   /// [DownloadProvider] is in scope.
   final bool showDownloadStatus;
 
+  /// Fork: a line under the title in place of the artist (podcasts: the
+  /// release date).
+  final String? subtitleOverride;
+
   const TrackRow({
     super.key,
     required this.item,
@@ -109,6 +113,7 @@ class TrackRow extends StatefulWidget {
     this.dimmed = false,
     this.showTrackNumber = true,
     this.showDownloadStatus = false,
+    this.subtitleOverride,
   });
 
   @override
@@ -165,6 +170,7 @@ class _TrackRowState extends State<TrackRow> with ContextMenuTapMixin<TrackRow>,
   }
 
   String? get _subtitle {
+    if (widget.subtitleOverride case final text?) return text;
     final trackArtist = widget.item.trackArtistTitle;
     if (trackArtist == null || trackArtist.isEmpty) return null;
     if (widget.showArtist) return trackArtist;
