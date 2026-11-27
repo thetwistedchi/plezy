@@ -65,6 +65,9 @@ abstract final class AudioSettings {
   /// Books and audio dramas: play only the chosen track, then pause.
   static const singleTrack = BoolPref('retrowave_audio_single_track');
 
+  /// Lyrics from LRCLIB when the server has none.
+  static const onlineLyrics = BoolPref('retrowave_audio_online_lyrics', defaultValue: true);
+
   static const skipBack = IntPref('retrowave_audio_skip_back', defaultValue: 10);
   static const skipForward = IntPref('retrowave_audio_skip_forward', defaultValue: 30);
 

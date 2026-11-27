@@ -39,6 +39,7 @@ import 'music_queue_controller.dart';
 import 'music_session_store.dart';
 import 'music_source_resolver.dart';
 import '../retrowave/audio/audio_extras.dart';
+import '../retrowave/audio/online_lyrics.dart';
 
 /// A gapless-armed next track: what [Player.setNext] was fed, so the
 /// trackTransition event can be mapped back to a queue entry and its
@@ -1869,8 +1870,10 @@ class MusicPlaybackServiceImpl extends MusicPlaybackService with WidgetsBindingO
   @override
   Future<Lyrics?> fetchLyrics(MediaItem track) async {
     final client = _clientFor(track);
-    if (client == null) return null;
-    return client.fetchLyrics(track);
+    final fromServer = client == null ? null : await client.fetchLyrics(track);
+    if (fromServer != null && !fromServer.isEmpty) return fromServer;
+    // Fork: LRCLIB when the server has no lyrics for the track.
+    return OnlineLyrics.instance.forTrack(track);
   }
 
   MediaServerClient? _clientFor(MediaItem item) {

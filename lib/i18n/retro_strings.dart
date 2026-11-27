@@ -124,6 +124,11 @@ class RetroStrings {
   static String get audioSleepEndOfFolder => _t('End of folder', 'Ende des Ordners');
   static String get audioSingleTrack =>
       _t('Only this track (pause afterwards)', 'Nur dieser Titel (danach pausieren)');
+  static String get audioOnlineLyrics => _t('Lyrics from LRCLIB', 'Songtexte von LRCLIB');
+  static String get audioOnlineLyricsHint => _t(
+    'When the server has no lyrics for a track, look them up on lrclib.net (sends artist, title, album and length)',
+    'Wenn der Server keinen Songtext hat, auf lrclib.net nachsehen (sendet Interpret, Titel, Album und Länge)',
+  );
   static String get audioSpeed => _t('Speed', 'Geschwindigkeit');
   static String get audioChapters => _t('Chapters', 'Kapitel');
   static String get audioBookmarks => _t('Bookmarks', 'Lesezeichen');

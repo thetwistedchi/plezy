@@ -65,6 +65,12 @@ class AudioPlayerSettingsScreen extends StatelessWidget {
               ],
             ),
             SettingSwitchTile(
+              pref: AudioSettings.onlineLyrics,
+              icon: Symbols.lyrics_rounded,
+              title: RetroStrings.audioOnlineLyrics,
+              subtitle: RetroStrings.audioOnlineLyricsHint,
+            ),
+            SettingSwitchTile(
               pref: AudioSettings.musicNightMode,
               icon: Symbols.bedtime_rounded,
               title: RetroStrings.audioNightMode,
