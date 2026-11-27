@@ -105,7 +105,6 @@ class AudioLibraryRows {
           parentId: t.grandparentId,
           parentTitle: t.grandparentTitle,
           year: t.year,
-          addedAt: t.addedAt,
           serverId: serverId,
           libraryId: library.id,
         ),
