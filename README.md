@@ -59,7 +59,7 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - **Night mode** audio, skipping of Jellyfin recap, preview and ad segments, and subtitle search on Jellyfin and Emby.
 
 **Free on plex.tv**
-- Plex's free, ad-supported movies and shows as their own section, with search, the Plex watchlist, continue watching and a season and episode list. Titles play in Plex Web.
+- Plex's free, ad-supported movies and shows as their own section, with search, the Plex watchlist, continue watching and a season and episode list. Titles play full screen in Plex Web inside the app (Windows and Android), signed in with your Plex account.
 
 **Browser** (Windows; Android as a beta)
 - Tabs, bookmarks, private tabs, a pop-up blocker, HTTPS upgrades, tracking prevention, Dark Reader and an ad blocker (Brave's adblock-rust with uBlock Origin's lists).
