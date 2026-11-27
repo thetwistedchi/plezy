@@ -76,6 +76,12 @@ class AudioExtras extends ChangeNotifier {
   DateTime _lastFadeStep = DateTime.fromMillisecondsSinceEpoch(0);
   int? _sleepAfterChapter;
 
+  /// Sleep when the current album (folder) ends.
+  bool _sleepAtAlbumEnd = false;
+
+  /// Sleep after this many more tracks (the current one counts).
+  int? _sleepTracksLeft;
+
   AudioMode get mode => _mode;
   MediaItem? get track => _track;
 
@@ -307,6 +313,70 @@ class AudioExtras extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get sleepAtAlbumEnd => _sleepAtAlbumEnd;
+  int? get sleepTracksLeft => _sleepTracksLeft;
+
+  /// Clears the fork's own sleep modes (chapter, album, track count).
+  void clearSleep() {
+    _sleepAfterChapter = null;
+    _sleepAtAlbumEnd = false;
+    _sleepTracksLeft = null;
+    notifyListeners();
+  }
+
+  /// Pause when the current album (folder) has played to its end.
+  void setSleepAtAlbumEnd() {
+    clearSleep();
+    _sleepAtAlbumEnd = true;
+    _armEndOfTrack();
+    notifyListeners();
+  }
+
+  /// Pause after [count] tracks, the current one included.
+  void setSleepAfterTracks(int count) {
+    clearSleep();
+    _sleepTracksLeft = count;
+    _armEndOfTrack();
+    notifyListeners();
+  }
+
+  /// Books: play only the chosen track, then pause.
+  bool get singleTrack => SettingsService.instance.read(AudioSettings.singleTrack);
+
+  Future<void> setSingleTrack(bool on) async {
+    await SettingsService.instance.write(AudioSettings.singleTrack, on);
+    final service = _service;
+    if (service != null && _mode.isBookLike) {
+      if (on) {
+        service.setSleepTimer(null, endOfTrack: true);
+      } else if (service.sleepTimerEndOfTrack && !_sleepAtAlbumEnd && _sleepTracksLeft == null) {
+        service.setSleepTimer(null);
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Re-applies "only this track" after the sleep timer was changed.
+  void rearm() => _armEndOfTrack();
+
+  /// Makes the service pause at the end of the current track when one of
+  /// the modes above says this is the last one.
+  void _armEndOfTrack() {
+    final service = _service;
+    final track = _track;
+    if (service == null || track == null) return;
+    final last =
+        (_mode.isBookLike && singleTrack) ||
+        (_sleepAtAlbumEnd && _isLastOfAlbum(service, track)) ||
+        (_sleepTracksLeft != null && _sleepTracksLeft! <= 1);
+    if (!last) return;
+    if (_sleepAtAlbumEnd || (_sleepTracksLeft ?? 2) <= 1) {
+      _sleepAtAlbumEnd = false;
+      _sleepTracksLeft = null;
+    }
+    if (!service.sleepTimerEndOfTrack) service.setSleepTimer(null, endOfTrack: true);
+  }
+
   Future<void> _readChapters(Player player) async {
     // The chapter list is known once the file is open; ask a moment later.
     await Future<void>.delayed(const Duration(milliseconds: 1200));
@@ -341,15 +411,20 @@ class AudioExtras extends ChangeNotifier {
     _service = service;
     final playerChanged = _player != player;
     _player = player;
+    final previous = _track?.globalKey;
     _track = track;
     _mode = AudioSettings.modeFor(track);
     _sleepAfterChapter = null;
+    if (_sleepTracksLeft != null && previous != null && previous != track.globalKey) {
+      _sleepTracksLeft = _sleepTracksLeft! - 1;
+    }
     chapters.value = const [];
     if (playerChanged) _appliedRate = 1;
     notifyListeners();
 
     await _applyRate();
     await applyAudioSettings();
+    _armEndOfTrack();
     unawaited(_readChapters(player));
     MusicListenTracker.instance.onTrackStarted(track, _mode);
 
@@ -479,6 +554,8 @@ class AudioExtras extends ChangeNotifier {
 
   /// The service stopped: forget the player.
   void onStopped() {
+    _sleepAtAlbumEnd = false;
+    _sleepTracksLeft = null;
     _player = null;
     _track = null;
     _fadeFactor = 1;

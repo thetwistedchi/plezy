@@ -120,6 +120,10 @@ class RetroStrings {
   static String upcomingHidden(int n) => _t('Hidden shows ($n)', 'Ausgeblendete Serien ($n)');
   // Fork: audio player
   static String get audioSleepEndOfChapter => _t('End of chapter', 'Ende des Kapitels');
+  static String audioSleepAfterTracks(int n) => _t('After $n tracks', 'Nach $n Titeln');
+  static String get audioSleepEndOfFolder => _t('End of folder', 'Ende des Ordners');
+  static String get audioSingleTrack =>
+      _t('Only this track (pause afterwards)', 'Nur dieser Titel (danach pausieren)');
   static String get audioSpeed => _t('Speed', 'Geschwindigkeit');
   static String get audioChapters => _t('Chapters', 'Kapitel');
   static String get audioBookmarks => _t('Bookmarks', 'Lesezeichen');

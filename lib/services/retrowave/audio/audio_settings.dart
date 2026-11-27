@@ -62,6 +62,9 @@ abstract final class AudioSettings {
   );
 
   /// Seconds the skip buttons jump in spoken modes.
+  /// Books and audio dramas: play only the chosen track, then pause.
+  static const singleTrack = BoolPref('retrowave_audio_single_track');
+
   static const skipBack = IntPref('retrowave_audio_skip_back', defaultValue: 10);
   static const skipForward = IntPref('retrowave_audio_skip_forward', defaultValue: 30);
 

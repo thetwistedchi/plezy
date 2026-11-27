@@ -217,7 +217,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
             label: t.common.off,
             selected: !service.sleepTimerActive,
           ),
-          for (final minutes in const [15, 30, 60])
+          for (final minutes in AudioExtras.instance.mode.isBookLike ? const [15, 30, 45, 60, 90] : const [15, 30, 60])
             AppMenuItem(
               value: '$minutes',
               icon: Symbols.timer_rounded,
@@ -238,15 +238,38 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
               label: RetroStrings.audioSleepEndOfChapter,
               selected: AudioExtras.instance.sleepAtChapterEnd,
             ),
+          // Fork: books and audio dramas: after a few tracks, or the folder.
+          if (AudioExtras.instance.mode.isBookLike) ...[
+            for (final n in const [2, 3])
+              AppMenuItem(
+                value: 'tracks_$n',
+                icon: Symbols.queue_music_rounded,
+                label: RetroStrings.audioSleepAfterTracks(n),
+                selected: AudioExtras.instance.sleepTracksLeft != null,
+              ),
+            AppMenuItem(
+              value: 'end_of_album',
+              icon: Symbols.folder_rounded,
+              label: RetroStrings.audioSleepEndOfFolder,
+              selected: AudioExtras.instance.sleepAtAlbumEnd,
+            ),
+          ],
         ],
       ),
     );
     if (!mounted || selected == null) return;
-    if (selected != 'end_of_chapter') AudioExtras.instance.setSleepAtChapterEnd(false);
+    final extras = AudioExtras.instance;
+    extras.clearSleep();
     switch (selected) {
       case 'end_of_chapter':
         service.setSleepTimer(null);
-        AudioExtras.instance.setSleepAtChapterEnd(true);
+        extras.setSleepAtChapterEnd(true);
+      case 'end_of_album':
+        service.setSleepTimer(null);
+        extras.setSleepAtAlbumEnd();
+      case 'tracks_2' || 'tracks_3':
+        service.setSleepTimer(null);
+        extras.setSleepAfterTracks(int.parse(selected.substring(7)));
       case 'off':
         service.setSleepTimer(null);
       case 'end_of_track':
@@ -255,6 +278,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
         final minutes = int.tryParse(selected);
         if (minutes != null) service.setSleepTimer(Duration(minutes: minutes));
     }
+    // Fork: "Only this track" keeps pausing at the end of each track.
+    if (selected == 'off' || int.tryParse(selected) != null) extras.rearm();
   }
 
   // -------------------------------------------------------------------
@@ -1017,16 +1042,27 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
         ),
       ),
     );
-    final sleepActive = service.sleepTimerActive || extras.sleepAtChapterEnd;
+    final sleepActive =
+        (service.sleepTimerActive && !extras.singleTrack) ||
+        extras.sleepAtChapterEnd ||
+        extras.sleepAtAlbumEnd ||
+        extras.sleepTracksLeft != null;
     final transport = FocusableActionBar(
       spacing: 6,
       onNavigateUp: _seekFocusNode.requestFocus,
       onNavigateDown: () => _utilityBarKey.currentState?.requestFocusOnFirst(),
       onBack: _pop,
       actions: [
-        if (bookLike)
-          icon(t.music.sleepTimer, Symbols.bedtime_rounded, () => unawaited(_showSleepTimerSheet()), size: 22, active: sleepActive)
-        else
+        if (bookLike) ...[
+          icon(t.music.sleepTimer, Symbols.bedtime_rounded, () => unawaited(_showSleepTimerSheet()), size: 22, active: sleepActive),
+          icon(
+            RetroStrings.audioSingleTrack,
+            Symbols.filter_1_rounded,
+            () => unawaited(extras.setSingleTrack(!extras.singleTrack)),
+            size: 22,
+            active: extras.singleTrack,
+          ),
+        ] else
           speedAction,
         icon(RetroStrings.audioSkipBack(-back), _skipIcon(back), () => unawaited(_skip(back)), size: 28),
         icon(t.music.previousTrack, Symbols.skip_previous_rounded, () => unawaited(extras.previousChapter()), size: 30),
