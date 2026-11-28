@@ -8,7 +8,7 @@
 
 An unofficial fork of [Plezy](https://github.com/edde746/plezy) for Windows and Android / Android TV. It keeps everything Plezy does and adds a retrowave look, ratings from the major movie sites, Plex's free movies and shows, a YouTube tab and a built-in browser.
 
-Current version: **1.3.1**. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
+Current version: **1.3.2**. What changed in each version is in the [release notes](https://github.com/thetwistedchi/plezy/releases).
 
 ## Download
 
@@ -48,6 +48,7 @@ Plezy Retrowave installs as its own app, next to an existing Plezy.
 - Quick filters (unwatched, 4K, HDR, audio language), saved filter sets, **Surprise me**, a search box per library, an A to Z bar and a startup library.
 - **Hide watched** per Home row, longer rows (40 titles) and **Show all** on Recently added rows.
 - **Row design** per Home row: standard, posters, wide backdrops or small posters.
+- **Keep top bar visible** while scrolling, app-wide or per library (also for the YouTube feed).
 - With several servers, Home and the library list show up as soon as the quick servers answer; slow servers are added when they respond.
 - **Upcoming episodes** and **Free on plex.tv** are entries in the libraries list that can be moved or hidden; Upcoming can also be a Home row, and TV libraries get an Upcoming tab.
 
