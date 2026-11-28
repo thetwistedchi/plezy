@@ -317,7 +317,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     // Fork: title and icon buttons in one row, search on the left and the
     // view, sort and filter switches on the right below.
     final header = Padding(
-      padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
+      padding: const EdgeInsets.fromLTRB(32, 12, 32, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -767,7 +767,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     return CustomScrollView(
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
+          padding: const EdgeInsets.fromLTRB(32, 12, 32, 0),
           sliver: SliverToBoxAdapter(
             child: Wrap(
               spacing: 16,
@@ -862,7 +862,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
     return CustomScrollView(
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
+          padding: const EdgeInsets.fromLTRB(32, 12, 32, 0),
           sliver: SliverToBoxAdapter(
             child: Wrap(
               spacing: 16,
