@@ -369,8 +369,10 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              Flexible(
-                child: Wrap(
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
                   alignment: WrapAlignment.end,
                   spacing: 4,
                   runSpacing: 4,
@@ -438,6 +440,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                       ),
                   ],
                 ),
+                ),
               ),
             ],
           ),
@@ -448,7 +451,9 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
               _searchField(context),
               const SizedBox(width: 16),
               Expanded(
-                child: Wrap(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
                   alignment: WrapAlignment.end,
                   spacing: 12,
                   runSpacing: 8,
@@ -480,6 +485,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                       ),
                     ],
                   ],
+                ),
                 ),
               ),
             ],
