@@ -888,17 +888,47 @@ class _NowPlayingScreenState extends State<NowPlayingScreen>
       ],
     );
 
-    return Row(
-      children: [
-        const Expanded(child: SizedBox()),
-        _buildTransportRow(service),
-        Expanded(
-          child: Align(
-            alignment: .centerRight,
-            child: FittedBox(fit: BoxFit.scaleDown, child: cluster),
-          ),
-        ),
-      ],
+    // Fork: when the flank beside the transport is too narrow for the
+    // cluster at full size (spoken audio has a wider transport row, phones
+    // and TVs less room), it goes centered below instead of shrinking.
+    final desktop = PlatformDetector.isDesktop(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge([AudioExtras.instance, AudioExtras.instance.chapters]),
+      builder: (context, _) => LayoutBuilder(
+        builder: (context, constraints) {
+          final extras = AudioExtras.instance;
+          final buttons =
+              2 +
+              (extras.chapters.value.isNotEmpty ? 1 : 0) +
+              (extras.mode == AudioMode.podcast ? 1 : 0) +
+              (extras.mode.isSpoken ? 1 : 0);
+          final clusterWidth = buttons * 48.0 + (desktop ? 190 : 0);
+          final transportWidth = extras.mode.isSpoken ? 600.0 : 420.0;
+          final flank = (constraints.maxWidth - transportWidth) / 2;
+          if (flank >= clusterWidth || !constraints.hasBoundedWidth) {
+            return Row(
+              children: [
+                const Expanded(child: SizedBox()),
+                _buildTransportRow(service),
+                Expanded(
+                  child: Align(
+                    alignment: .centerRight,
+                    child: FittedBox(fit: BoxFit.scaleDown, child: cluster),
+                  ),
+                ),
+              ],
+            );
+          }
+          return Column(
+            mainAxisSize: .min,
+            children: [
+              _buildTransportRow(service),
+              const SizedBox(height: 4),
+              FittedBox(fit: BoxFit.scaleDown, child: cluster),
+            ],
+          );
+        },
+      ),
     );
   }
 
