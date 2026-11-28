@@ -313,13 +313,25 @@ mixin _JellyfinBrowseMethods on _JellyfinClientInternals {
   /// so a library added server-side still shows up on the next refresh.
   Future<List<MediaLibrary>>? _inFlightLibraries;
 
+  /// Fork: when [_loadedLibraryViews] arrived. On a slow server the library
+  /// list, the hubs and a newly-online merge ask for `/Views` one after the
+  /// other; a list this fresh is reused instead of fetched again.
+  DateTime? _loadedLibraryViewsAt;
+  static const _libraryViewsReuse = Duration(seconds: 30);
+
   @override
   Future<List<MediaLibrary>> fetchLibraries() {
     final inFlight = _inFlightLibraries;
     if (inFlight != null) return inFlight;
+    final loaded = _loadedLibraryViews;
+    final loadedAt = _loadedLibraryViewsAt;
+    if (loaded != null && loadedAt != null && DateTime.now().difference(loadedAt) < _libraryViewsReuse) {
+      return Future.value(loaded);
+    }
 
     final request = _fetchLibraries().then((libraries) {
       _loadedLibraryViews = libraries;
+      _loadedLibraryViewsAt = DateTime.now();
       return libraries;
     });
     _inFlightLibraries = request;
@@ -1869,11 +1881,9 @@ mixin _JellyfinBrowseMethods on _JellyfinClientInternals {
     // library on its own is the only way to leave one out, and it stamps every
     // row with the library it came from. Music is skipped: both queries are
     // video-only there.
-    var libraries = _loadedLibraryViews;
-    if (libraries == null) {
-      libraries = await _fetchLibraries();
-      _loadedLibraryViews ??= libraries;
-    }
+    // Fork: through [fetchLibraries], so it shares an in-flight `/Views`
+    // with the library and hub loads instead of sending its own.
+    final libraries = _loadedLibraryViews ?? await fetchLibraries();
     final visible = [
       for (final library in libraries)
         if (!excludedLibraryIds.contains(library.id) && library.kind != MediaKind.artist) library,
