@@ -20,6 +20,7 @@ import '../../providers/hidden_libraries_provider.dart';
 import '../../providers/libraries_provider.dart';
 import '../../providers/multi_server_provider.dart';
 import '../../services/settings_service.dart';
+import '../../services/retrowave/top_bar_pin.dart';
 import '../../widgets/settings_builder.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/platform_detector.dart';
@@ -174,10 +175,21 @@ class _LibrariesScreenState extends State<LibrariesScreen>
     super.focusTabBar();
   }
 
+  // Fork: the top bar setting (app-wide and per library).
+  late final Listenable _topBarPrefs = Listenable.merge([
+    SettingsService.instance.listenable(SettingsService.pinTopBar),
+    SettingsService.instance.listenable(SettingsService.pinTopBarLibraries),
+  ]);
+
+  void _onTopBarPrefsChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     initTabNavigation();
+    _topBarPrefs.addListener(_onTopBarPrefsChanged);
 
     _scheduleInitializeWithLibraries();
   }
@@ -436,6 +448,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
 
   @override
   void dispose() {
+    _topBarPrefs.removeListener(_onTopBarPrefsChanged);
     _librarySearchDebounce?.cancel();
     _librarySearchController.dispose();
     _outerScrollController.dispose();
@@ -1109,7 +1122,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
                 if (!useTvRecommendedBackdrop)
                   SliverOverlapAbsorber(
                     handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                    sliver: appBar(floating: true),
+                    sliver: appBar(floating: !TopBarPin.forLibrary(selectedLibrary?.globalKey)),
                   ),
                 if (showMobileTabsRow && !useTvRecommendedBackdrop)
                   SliverToBoxAdapter(

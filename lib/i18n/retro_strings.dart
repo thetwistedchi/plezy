@@ -347,6 +347,18 @@ class RetroStrings {
     'Off: hidden libraries stay reachable in Manage libraries only.',
     'Aus: ausgeblendete Bibliotheken sind nur noch über Bibliotheken verwalten erreichbar.',
   );
+  static String get pinTopBar => _t('Keep top bar visible', 'Obere Leiste sichtbar lassen');
+  static String get pinTopBarHint => _t(
+    'In libraries and YouTube the top bar stays while scrolling. Libraries can override this in Manage libraries.',
+    'In Bibliotheken und YouTube bleibt die obere Leiste beim Scrollen stehen. Bibliotheken können das unter Bibliotheken verwalten abweichend einstellen.',
+  );
+  static String get topBarMenu => _t('Top bar', 'Obere Leiste');
+  static String topBarDefault(bool pinned) => _t(
+    'Like the app setting (${pinned ? 'always visible' : 'hides when scrolling'})',
+    'Wie in den Einstellungen (${pinned ? 'immer sichtbar' : 'beim Scrollen ausblenden'})',
+  );
+  static String get topBarPinned => _t('Always visible', 'Immer sichtbar');
+  static String get topBarFloating => _t('Hide when scrolling', 'Beim Scrollen ausblenden');
   static String get showFilmSeries => _t('Film series', 'Filmreihen');
   static String get showFilmSeriesDescription => _t(
     "On a movie's page, every part of its series, with the ones missing from the library marked",

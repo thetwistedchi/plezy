@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+import '../../services/settings_service.dart';
 import '../../services/youtube/youtube_auth.dart';
 import '../../services/youtube/youtube_channels.dart';
 import '../../services/youtube/youtube_extras.dart';
@@ -60,10 +61,18 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   List<YouTubeVideo>? _results;
   int _searchGeneration = 0;
 
+  // Fork: "Keep top bar visible".
+  final Listenable _pinTopBar = SettingsService.instance.listenable(SettingsService.pinTopBar);
+
+  void _onPinTopBarChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     _settings.addListener(_onSettingsChanged);
+    _pinTopBar.addListener(_onPinTopBarChanged);
     YouTubeChannels.instance.addListener(_onSettingsChanged);
     YouTubeChannelGroups.instance.addListener(_onGroupsChanged);
     unawaited(
@@ -90,6 +99,7 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
   @override
   void dispose() {
     _settings.removeListener(_onSettingsChanged);
+    _pinTopBar.removeListener(_onPinTopBarChanged);
     YouTubeChannels.instance.removeListener(_onSettingsChanged);
     YouTubeChannelGroups.instance.removeListener(_onGroupsChanged);
     _searchController.dispose();
@@ -302,14 +312,11 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
         ? YtStrings.premieresHiddenBanner
         : null;
 
-    return RefreshIndicator(
-      onRefresh: () => _service.refresh(reloadSubscriptions: true),
-      child: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
-            sliver: SliverToBoxAdapter(
-              child: Wrap(
+    // Fork: with "Keep top bar visible" the header stays above the feed.
+    final pinHeader = SettingsService.instance.read(SettingsService.pinTopBar);
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
+      child: Wrap(
                 spacing: 16,
                 runSpacing: 16,
                 crossAxisAlignment: WrapCrossAlignment.end,
@@ -445,8 +452,12 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                   ),
                 ],
               ),
-            ),
-          ),
+    );
+    final scroll = RefreshIndicator(
+      onRefresh: () => _service.refresh(reloadSubscriptions: true),
+      child: CustomScrollView(
+        slivers: [
+          if (!pinHeader) SliverToBoxAdapter(child: header),
           if (!searching)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
@@ -579,6 +590,11 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
             ),
         ],
       ),
+    );
+    if (!pinHeader) return scroll;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [header, Expanded(child: scroll)],
     );
   }
 

@@ -32,6 +32,7 @@ import 'overlay_sheet.dart';
 import '../services/retrowave/library_language_rules.dart';
 import '../i18n/retro_strings.dart';
 import '../services/retrowave/virtual_libraries.dart';
+import '../services/retrowave/top_bar_pin.dart';
 import '../services/settings_service.dart';
 import '../services/retrowave/audio/audio_settings.dart';
 
@@ -119,7 +120,7 @@ Future<void> showLibraryManagementSheet(
         ? const []
         : canAdminister(library)
         ? _getLibraryMenuItems(library)
-        : [_languagesMenuItem(), ?_audioModeMenuItem(library)],
+        : [_languagesMenuItem(), _topBarMenuItem(), ?_audioModeMenuItem(library)],
     onLibraryMenuAction: (action, library) => _handleLibraryMenuAction(context, action, library),
   );
 
@@ -151,6 +152,10 @@ List<MediaLibrary> reconcileLibraryOrder(List<MediaLibrary> sheetOrder, List<Med
 /// Fork: audio and subtitle languages for this library.
 ContextMenuItem _languagesMenuItem() =>
     ContextMenuItem(value: 'languages', icon: Symbols.translate_rounded, label: RetroStrings.libraryLanguages);
+
+/// Fork: whether this library's top bar stays while scrolling.
+ContextMenuItem _topBarMenuItem() =>
+    ContextMenuItem(value: 'top_bar', icon: Symbols.vertical_align_top_rounded, label: RetroStrings.topBarMenu);
 
 /// Fork: music libraries can hold audiobooks, audio dramas or podcasts. The
 /// type is the viewer's own setting, so every user gets it.
@@ -184,10 +189,12 @@ List<ContextMenuItem> _getLibraryMenuItems(MediaLibrary library) {
   // gating keeps them out of MediaBrowser menus. The library-qualified
   // resolver independently requires the exact owning Plex server.
   final languages = _languagesMenuItem();
+  final topBar = _topBarMenuItem();
   final audioMode = _audioModeMenuItem(library);
-  if (library.backend != MediaBackend.plex) return [languages, ?audioMode, scan, refresh];
+  if (library.backend != MediaBackend.plex) return [languages, topBar, ?audioMode, scan, refresh];
   return [
     languages,
+    topBar,
     ?audioMode,
     scan,
     ContextMenuItem(
@@ -234,6 +241,9 @@ Future<void> _handleLibraryMenuAction(BuildContext context, String action, Media
       break;
     case 'audio_mode':
       unawaited(_editAudioMode(context, library));
+      break;
+    case 'top_bar':
+      unawaited(_editTopBar(context, library));
       break;
     case 'scan':
       unawaited(_scanLibrary(context, library));
@@ -756,6 +766,35 @@ Future<void> _editAudioMode(BuildContext context, MediaLibrary library) async {
     await AudioSettings.setMode(serverId, library.id, picked);
     LibraryLanguageRules.revision.value++;
   }
+}
+
+/// Fork: the library's top bar: like the app setting, always visible, or
+/// hidden when scrolling.
+Future<void> _editTopBar(BuildContext context, MediaLibrary library) async {
+  final current = TopBarPin.overrideFor(library.globalKey);
+  final choices = <(bool?, String)>[
+    (null, RetroStrings.topBarDefault(TopBarPin.appDefault)),
+    (true, RetroStrings.topBarPinned),
+    (false, RetroStrings.topBarFloating),
+  ];
+  final picked = await showScopedDialog<(bool?,)>(
+    context: context,
+    builder: (dialogContext) => SimpleDialog(
+      title: Text('${RetroStrings.topBarMenu}: ${library.title}'),
+      children: [
+        for (final (value, label) in choices)
+          ListTile(
+            leading: AppIcon(
+              value == current ? Symbols.radio_button_checked_rounded : Symbols.radio_button_unchecked_rounded,
+              fill: 1,
+            ),
+            title: Text(label),
+            onTap: () => Navigator.of(dialogContext).pop((value,)),
+          ),
+      ],
+    ),
+  );
+  if (picked != null && picked.$1 != current) await TopBarPin.setOverride(library.globalKey, picked.$1);
 }
 
 /// Fork: asks for the audio and subtitle language of a library (ISO codes

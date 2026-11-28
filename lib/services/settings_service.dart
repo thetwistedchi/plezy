@@ -877,6 +877,12 @@ class SettingsService extends BaseSharedPreferencesService {
   /// Fork: the "Hidden libraries (N)" entry in the sidebar.
   static const showHiddenLibrariesEntry = BoolPref('retrowave_show_hidden_libraries_entry', defaultValue: true);
 
+  /// Fork: top bar of libraries and YouTube stays visible while scrolling.
+  static const pinTopBar = BoolPref('retrowave_pin_top_bar', defaultValue: false);
+
+  /// Fork: per-library overrides of [pinTopBar] ("globalKey|1" or "|0").
+  static const pinTopBarLibraries = StringListPref('retrowave_pin_top_bar_libraries');
+
   /// Fork: the film series on a movie's page.
   static const showFilmSeries = BoolPref('retrowave_show_film_series', defaultValue: true);
 
@@ -1624,6 +1630,8 @@ class SettingsService extends BaseSharedPreferencesService {
     upcomingHiddenShows,
     showFilmSeries,
     showHiddenLibrariesEntry,
+    pinTopBar,
+    pinTopBarLibraries,
     statsListLength,
     statsExcluded,
     statsCountOnce,

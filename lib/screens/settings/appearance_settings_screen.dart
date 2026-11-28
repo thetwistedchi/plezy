@@ -177,6 +177,12 @@ class AppearanceSettingsScreen extends StatelessWidget {
                 title: RetroStrings.showHiddenLibrariesEntry,
                 subtitle: RetroStrings.showHiddenLibrariesEntryHint,
               ),
+            SettingSwitchTile(
+              pref: SettingsService.pinTopBar,
+              icon: Symbols.vertical_align_top_rounded,
+              title: RetroStrings.pinTopBar,
+              subtitle: RetroStrings.pinTopBarHint,
+            ),
             if (!PlatformDetector.shouldUseSideNavigation(context))
               SettingSwitchTile(
                 pref: SettingsService.showNavBarLabels,
