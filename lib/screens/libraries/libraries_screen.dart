@@ -1122,7 +1122,7 @@ class _LibrariesScreenState extends State<LibrariesScreen>
                 if (!useTvRecommendedBackdrop)
                   SliverOverlapAbsorber(
                     handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                    sliver: appBar(floating: !TopBarPin.forLibrary(selectedLibrary?.globalKey)),
+                    sliver: appBar(floating: !TopBarPin.forLibrary(selectedLibrary.globalKey)),
                   ),
                 if (showMobileTabsRow && !useTvRecommendedBackdrop)
                   SliverToBoxAdapter(
