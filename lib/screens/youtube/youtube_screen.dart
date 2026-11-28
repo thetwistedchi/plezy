@@ -314,14 +314,21 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
 
     // Fork: with "Keep top bar visible" the header stays above the feed.
     final pinHeader = SettingsService.instance.read(SettingsService.pinTopBar);
+    // Fork: title and icon buttons in one row, search on the left and the
+    // view, sort and filter switches on the right below.
     final header = Padding(
       padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
-      child: Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                crossAxisAlignment: WrapCrossAlignment.end,
-                alignment: WrapAlignment.spaceBetween,
-                children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child:
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -359,36 +366,17 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                       ),
                     ],
                   ),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      _searchField(context),
-                      _viewSwitch(context),
-                      if (!searching) ...[
-                      if (!latestPerChannel)
-                      SegmentedButton<YouTubeSort>(
-                        style: _segmentStyle(context),
-                        showSelectedIcon: false,
-                        segments: [
-                          ButtonSegment(value: YouTubeSort.newest, label: Text(YtStrings.newest)),
-                          ButtonSegment(value: YouTubeSort.relevant, label: Text(YtStrings.mostRelevant)),
-                        ],
-                        selected: {_sort},
-                        onSelectionChanged: (s) => setState(() => _sort = s.first),
-                      ),
-                      SegmentedButton<YouTubeFilter>(
-                        style: _segmentStyle(context),
-                        showSelectedIcon: false,
-                        segments: [
-                          ButtonSegment(value: YouTubeFilter.all, label: Text(YtStrings.all)),
-                          ButtonSegment(value: YouTubeFilter.unwatched, label: Text(YtStrings.unwatched)),
-                          ButtonSegment(value: YouTubeFilter.continueWatching, label: Text(YtStrings.continueWatching)),
-                        ],
-                        selected: {_filter},
-                        onSelectionChanged: (s) => setState(() => _filter = s.first),
-                      ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Flexible(
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 4,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (!searching) ...[
                       // Fork: minimum length, also in the settings.
                       PopupMenuButton<int>(
                         tooltip: _settings.minMinutes == 0
@@ -448,10 +436,56 @@ class _YouTubeScreenState extends State<YouTubeScreen> {
                         onPressed: _openSettings,
                         icon: const AppIcon.retro(Symbols.settings_rounded),
                       ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _searchField(context),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 12,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                      _viewSwitch(context),
+                      if (!searching) ...[
+                      if (!latestPerChannel)
+                      SegmentedButton<YouTubeSort>(
+                        style: _segmentStyle(context),
+                        showSelectedIcon: false,
+                        segments: [
+                          ButtonSegment(value: YouTubeSort.newest, label: Text(YtStrings.newest)),
+                          ButtonSegment(value: YouTubeSort.relevant, label: Text(YtStrings.mostRelevant)),
+                        ],
+                        selected: {_sort},
+                        onSelectionChanged: (s) => setState(() => _sort = s.first),
+                      ),
+                      SegmentedButton<YouTubeFilter>(
+                        style: _segmentStyle(context),
+                        showSelectedIcon: false,
+                        segments: [
+                          ButtonSegment(value: YouTubeFilter.all, label: Text(YtStrings.all)),
+                          ButtonSegment(value: YouTubeFilter.unwatched, label: Text(YtStrings.unwatched)),
+                          ButtonSegment(value: YouTubeFilter.continueWatching, label: Text(YtStrings.continueWatching)),
+                        ],
+                        selected: {_filter},
+                        onSelectionChanged: (s) => setState(() => _filter = s.first),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
     final scroll = RefreshIndicator(
       onRefresh: () => _service.refresh(reloadSubscriptions: true),
